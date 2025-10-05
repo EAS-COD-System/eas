@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="align-between">
+  <h3>Products</h3>
+  <form method="post" action="{{ url_for('add_product') }}">
+    <div class="form-row">
+      <input name="product_sku" placeholder="SKU" required>
+      <input name="product_name" placeholder="Product name" required>
+      <input name="category" placeholder="Category">
+      <input type="number" name="weight_g" placeholder="Weight (g)">
+      <input type="number" step="0.01" name="cost_cn_usd" placeholder="Cost in China (USD)" required>
+      <button class="btn">Add</button>
+    </div>
+  </form>
+</div>
+<hr class="div">
+<table class="table">
+  <thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>CN Cost</th><th></th><th></th></tr></thead>
+  <tbody>
+  {% for p in products %}
+    <tr>
+      <td><span class="badge">{{ p.product_sku }}</span></td>
+      <td>{{ p.product_name }}</td>
+      <td>{{ p.category or '-' }}</td>
+      <td>${{ "%.2f"|format(p.cost_cn_usd or 0) }}</td>
+      <td><a class="btn ghost" href="{{ url_for('product_view', sku=p.product_sku) }}">Open</a></td>
+      <td>
+        <form method="post" action="{{ url_for('delete_product') }}" onsubmit="return confirm('Delete product {{ p.product_sku }}?');">
+          <input type="hidden" name="product_sku" value="{{ p.product_sku }}">
+          <button class="btn danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
