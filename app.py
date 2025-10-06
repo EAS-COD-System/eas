@@ -1,8 +1,10 @@
-
 from flask import Flask, render_template, request, redirect, url_for, flash
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
-from models import Base, Product, Country, Warehouse, StockMovement, PlatformSpendCurrent, Shipment, ShipmentItem, DailyDelivered, PeriodRemit
+from models import (
+    Base, Product, Country, Warehouse, StockMovement, PlatformSpendCurrent,
+    Shipment, ShipmentItem, DailyDelivered, PeriodRemit, ProductBudgetCountry
+)
 import os, datetime
 
 app = Flask(__name__)
@@ -15,7 +17,6 @@ def migrate():
         Base.metadata.create_all(conn)
 migrate()
 
-# Bootstrap demo data for specified countries
 with Session(engine) as s:
     if not s.query(Country).count():
         s.add_all([
@@ -35,11 +36,6 @@ with Session(engine) as s:
             Warehouse(name="Lusaka Hub", country="Zambia", code="ZM", active=True),
             Warehouse(name="Harare Hub", country="Zimbabwe", code="ZW", active=True),
         ])
-    if not s.query(Product).count():
-        s.add_all([
-            Product(product_sku="TK1-FOOT", product_name="EMS Foot Massager", category="Wellness", weight_g=720, cost_cn_usd=8.20, default_cnke_ship_usd=1.20, status="active"),
-            Product(product_sku="GLS-TRIM", product_name="Dermave Trimmer", category="Beauty", weight_g=180, cost_cn_usd=3.10, default_cnke_ship_usd=0.70, status="active"),
-        ])
     s.commit()
 
 def countries_list(session):
@@ -50,7 +46,6 @@ def band_totals(session):
     band = {c.country: {"stock":0,"in_transit":0,"ad_spend":0.0} for c in ctrs}
     whs = session.query(Warehouse).filter(Warehouse.active==True).all()
     wh_by_id = {w.id:w for w in whs}
-    # stock balances from movements
     for sku, in session.query(Product.product_sku).all():
         bal = {}
         for m in session.query(StockMovement).filter(StockMovement.product_sku==sku).all():
@@ -59,11 +54,9 @@ def band_totals(session):
         for wid,qty in bal.items():
             c = wh_by_id[wid].country
             if c in band: band[c]["stock"]+=qty
-    # in transit
     for sh in session.query(Shipment).filter(Shipment.status=="in_transit").all():
         qty = session.execute(select(func.sum(ShipmentItem.qty)).where(ShipmentItem.shipment_id==sh.id)).scalar() or 0
         if sh.to_country in band: band[sh.to_country]["in_transit"]+=qty
-    # daily ad spend (current)
     code_to_country = {c.code:c.country for c in session.query(Country).all()}
     for r in session.query(PlatformSpendCurrent).all():
         name = code_to_country.get(r.country_code,r.country_code)
@@ -71,10 +64,17 @@ def band_totals(session):
     return ctrs, band
 
 def avg_ship_unit_for_route(session, sku, from_country, to_country):
-    shipments = session.query(Shipment).filter(Shipment.status=="arrived", Shipment.from_country==from_country, Shipment.to_country==to_country).all()
+    shipments = session.query(Shipment).filter(
+        Shipment.status=="arrived",
+        Shipment.from_country==from_country,
+        Shipment.to_country==to_country
+    ).all()
     total_cost=0.0; total_qty=0
     for sh in shipments:
-        qty = session.execute(select(func.sum(ShipmentItem.qty)).where(ShipmentItem.shipment_id==sh.id, ShipmentItem.product_sku==sku)).scalar() or 0
+        qty = session.execute(select(func.sum(ShipmentItem.qty)).where(
+            ShipmentItem.shipment_id==sh.id,
+            ShipmentItem.product_sku==sku
+        )).scalar() or 0
         if qty>0:
             total_cost += (sh.shipping_cost_usd or 0.0)
             total_qty += qty
@@ -83,8 +83,8 @@ def avg_ship_unit_for_route(session, sku, from_country, to_country):
 @app.route("/", methods=["GET","POST"])
 def index():
     q = request.form.get("q","").strip() if request.method=="POST" else request.args.get("q","") or ""
-    daily_from = request.args.get("from","")
-    daily_to = request.args.get("to","")
+    dfrom = request.args.get("dfrom","")
+    dto = request.args.get("dto","")
     remit_from = request.args.get("rs","")
     remit_to = request.args.get("re","")
     remit_country = request.args.get("rc","")
@@ -98,37 +98,49 @@ def index():
         all_products = s.query(Product).order_by(Product.product_sku).all()
         ctrs, band = band_totals(s)
 
-        # split shipments
-        cn_ke=[]; inter=[]
+        cn_ke=[]; inter_items=[]
         for sh in s.query(Shipment).filter(Shipment.status=="in_transit").all():
             items = s.query(ShipmentItem).filter(ShipmentItem.shipment_id==sh.id).all()
-            setattr(sh, "items_str", ", ".join([f"{it.product_sku}:{it.qty}" for it in items]))
-            if sh.from_country=="China" and sh.to_country=="Kenya": cn_ke.append(sh)
-            else: inter.append(sh)
+            if sh.from_country=="China" and sh.to_country=="Kenya":
+                setattr(sh, "items_str", ", ".join([f"{it.product_sku}:{it.qty}" for it in items]))
+                cn_ke.append(sh)
+            else:
+                for it in items:
+                    inter_items.append(type("IR",(object,),dict(
+                        shipment_id=sh.id, ref=sh.ref, from_country=sh.from_country, to_country=sh.to_country,
+                        product_sku=it.product_sku, qty=it.qty, created_date=sh.created_date,
+                        shipping_cost_usd=sh.shipping_cost_usd, item_id=it.id
+                    ))())
 
-        # daily delivered
-        qd = s.query(DailyDelivered)
-        if daily_from: qd = qd.filter(DailyDelivered.date>=daily_from)
-        if daily_to: qd = qd.filter(DailyDelivered.date<=daily_to)
-        daily_rows = qd.order_by(DailyDelivered.date.desc()).limit(50).all()
-        daily_total = sum([r.delivered or 0 for r in daily_rows])
+        def default_dates():
+            today = datetime.date.today()
+            start = today - datetime.timedelta(days=29)
+            return start.isoformat(), today.isoformat()
+        if not dfrom or not dto:
+            dfrom, dto = default_dates()
+        pivot = {}
+        for row in s.query(DailyDelivered).filter(DailyDelivered.date>=dfrom, DailyDelivered.date<=dto).all():
+            pv = pivot.get(row.date, dict(KE=0,UG=0,TZ=0,ZM=0,ZW=0))
+            if row.country_code in pv: pv[row.country_code] = row.delivered or 0
+            pivot[row.date]=pv
+        daily_pivot = []
+        for day in sorted(pivot.keys(), reverse=True):
+            pv = pivot[day]
+            total = pv['KE']+pv['UG']+pv['TZ']+pv['ZM']+pv['ZW']
+            daily_pivot.append(type("DP",(object,),dict(date=day, KE=pv['KE'], UG=pv['UG'], TZ=pv['TZ'], ZM=pv['ZM'], ZW=pv['ZW'], total=total))())
 
-        # remittance report
         remit_report = []
         if remit_from and remit_to:
             qr = s.query(PeriodRemit).filter(PeriodRemit.start_date>=remit_from, PeriodRemit.end_date<=remit_to)
-            if remit_country:
-                qr = qr.filter(PeriodRemit.country_code==remit_country)
-            remit_report = qr.order_by(PeriodRemit.country_code, PeriodRemit.profit_total_usd.desc()).all()
+            if remit_country: qr = qr.filter(PeriodRemit.country_code==remit_country)
+            remit_report = qr.order_by(PeriodRemit.profit_total_usd.desc()).all()
 
-    return render_template("index.html", counts=counts, countries=ctrs, band=band,
-                           cn_ke=cn_ke, inter=inter,
+    return render_template("index.html",
+                           counts=counts, countries=ctrs, band=band,
+                           cn_ke=cn_ke, inter_items=inter_items,
                            all_products=all_products,
-                           daily_rows=daily_rows if 'daily_rows' in locals() else [],
-                           daily_total=daily_total if 'daily_total' in locals() else 0,
-                           daily_from=daily_from, daily_to=daily_to,
-                           remit_report=remit_report if 'remit_report' in locals() else [],
-                           remit_from=remit_from, remit_to=remit_to,
+                           daily_pivot=daily_pivot, dfrom=dfrom, dto=dto,
+                           remit_report=remit_report, remit_from=remit_from, remit_to=remit_to,
                            q=q, title="Dashboard")
 
 @app.post("/upsert_current_spend")
@@ -141,10 +153,12 @@ def upsert_current_spend():
                 PlatformSpendCurrent.platform==d.get("platform"),
                 PlatformSpendCurrent.country_code==d.get("country_code")
             ).delete()
-            s.add(PlatformSpendCurrent(product_sku=d.get("product_sku"), platform=d.get("platform"),
+            s.add(PlatformSpendCurrent(product_sku=d.get("product_sku"),
+                                       platform=d.get("platform"),
                                        amount_usd=float(d.get("amount_usd") or 0.0),
-                                       country_code=d.get("country_code"))); s.commit()
-        flash("Ad spend saved (replaced previous)","ok")
+                                       country_code=d.get("country_code")))
+            s.commit()
+        flash("Ad spend saved","ok")
     except Exception as e:
         flash(f"Error: {e}","error")
     ref = request.form.get("product_sku")
@@ -172,7 +186,7 @@ def create_transfer_home():
             s.add(sh); s.flush()
             s.add(ShipmentItem(shipment_id=sh.id, product_sku=d.get("product_sku"), qty=int(d.get("qty") or 0)))
             s.commit()
-        flash("Shipment created (in transit)","ok")
+        flash("Shipment created","ok")
     except Exception as e:
         flash(f"Error: {e}","error")
     refsku = d.get("product_sku")
@@ -185,12 +199,69 @@ def update_shipment_cost():
     try:
         with Session(engine) as s:
             sh = s.get(Shipment, shipment_id)
-            if not sh:
-                flash("Shipment not found","error")
+            if not sh: flash("Shipment not found","error")
             else:
                 sh.shipping_cost_usd = cost
                 s.commit()
                 flash("Shipping cost updated","ok")
+    except Exception as e:
+        flash(f"Error: {e}","error")
+    return redirect(url_for("index"))
+
+@app.post("/delete_shipment")
+def delete_shipment():
+    shipment_id = int(request.form.get("shipment_id"))
+    try:
+        with Session(engine) as s:
+            sh = s.get(Shipment, shipment_id)
+            if not sh: flash("Shipment not found","error")
+            elif sh.status != "in_transit": flash("Only in_transit shipments can be deleted","error")
+            else:
+                s.query(ShipmentItem).filter(ShipmentItem.shipment_id==shipment_id).delete()
+                s.delete(sh)
+                s.commit()
+                flash("Shipment deleted","ok")
+    except Exception as e:
+        flash(f"Error: {e}","error")
+    return redirect(url_for("index"))
+
+@app.post("/delete_shipment_item")
+def delete_shipment_item():
+    item_id = int(request.form.get("shipment_item_id"))
+    try:
+        with Session(engine) as s:
+            it = s.get(ShipmentItem, item_id)
+            if not it: flash("Item not found","error")
+            else:
+                sh = s.get(Shipment, it.shipment_id)
+                if sh and sh.status=="in_transit":
+                    s.delete(it); s.commit()
+                    left = s.query(ShipmentItem).filter(ShipmentItem.shipment_id==sh.id).count()
+                    if left == 0:
+                        s.delete(sh); s.commit()
+                        flash("Item deleted; shipment had no items and was removed","ok")
+                    else:
+                        flash("Item deleted","ok")
+                else:
+                    flash("Only items in in_transit shipments can be deleted","error")
+    except Exception as e:
+        flash(f"Error: {e}","error")
+    return redirect(url_for("index"))
+
+@app.post("/edit_shipment_item_qty")
+def edit_shipment_item_qty():
+    item_id = int(request.form.get("shipment_item_id"))
+    qty = int(request.form.get("qty") or 0)
+    try:
+        with Session(engine) as s:
+            it = s.get(ShipmentItem, item_id)
+            if not it: flash("Item not found","error")
+            else:
+                sh = s.get(Shipment, it.shipment_id)
+                if sh and sh.status=="in_transit":
+                    it.qty = qty; s.commit(); flash("Quantity updated","ok")
+                else:
+                    flash("Only items in in_transit shipments can be edited","error")
     except Exception as e:
         flash(f"Error: {e}","error")
     return redirect(url_for("index"))
@@ -306,10 +377,55 @@ def add_product():
                               default_cnke_ship_usd=float(d.get("default_cnke_ship_usd") or 0.0),
                               profit_ads_budget_usd=float(d.get("profit_ads_budget_usd") or 0.0),
                               status="active")); s.commit()
+                for cc in ["KE","UG","TZ","ZM","ZW"]:
+                    s.add(ProductBudgetCountry(product_sku=d.get("product_sku"), country_code=cc, budget_usd=0.0))
+                s.commit()
                 flash("Product added","ok")
     except Exception as e:
         flash(f"Error: {e}","error")
     return redirect(url_for("products"))
+
+@app.post("/products/delete")
+def delete_product():
+    sku = request.form.get("product_sku")
+    if not sku:
+        flash("Missing SKU","error"); return redirect(url_for("products"))
+    try:
+        with Session(engine) as s:
+            s.query(PlatformSpendCurrent).filter_by(product_sku=sku).delete()
+            s.query(PeriodRemit).filter_by(product_sku=sku).delete()
+            s.query(ShipmentItem).filter_by(product_sku=sku).delete()
+            s.query(StockMovement).filter_by(product_sku=sku).delete()
+            s.query(ProductBudgetCountry).filter_by(product_sku=sku).delete()
+            empties = s.query(Shipment).all()
+            for sh in empties:
+                left = s.query(ShipmentItem).filter_by(shipment_id=sh.id).count()
+                if left == 0 and sh.status == "in_transit":
+                    s.delete(sh)
+            p = s.get(Product, sku)
+            if p: s.delete(p)
+            s.commit()
+        flash("Product deleted","ok")
+    except Exception as e:
+        flash(f"Error: {e}","error")
+    return redirect(url_for("products"))
+
+@app.post("/product/budgets/save")
+def upsert_budget_country():
+    sku = request.form.get("product_sku")
+    try:
+        with Session(engine) as s:
+            for cc in ["KE","UG","TZ","ZM","ZW"]:
+                key = f"budget_{cc}"
+                val = float(request.form.get(key) or 0.0)
+                row = s.query(ProductBudgetCountry).filter_by(product_sku=sku, country_code=cc).first()
+                if row: row.budget_usd = val
+                else: s.add(ProductBudgetCountry(product_sku=sku, country_code=cc, budget_usd=val))
+            s.commit()
+        flash("Budgets saved","ok")
+    except Exception as e:
+        flash(f"Error: {e}","error")
+    return redirect(url_for("product_view", sku=sku))
 
 @app.get("/product/<sku>")
 def product_view(sku):
@@ -322,7 +438,9 @@ def product_view(sku):
         for sh in s.query(Shipment).all():
             qty_sum = s.execute(select(func.sum(ShipmentItem.qty)).where(ShipmentItem.shipment_id==sh.id, ShipmentItem.product_sku==sku)).scalar() or 0
             if qty_sum>0:
-                setattr(sh, "qty_sum", qty_sum); shipments.append(sh)
+                setattr(sh, "qty_sum", qty_sum)
+                setattr(sh, "items", s.query(ShipmentItem).filter(ShipmentItem.shipment_id==sh.id, ShipmentItem.product_sku==sku).all())
+                shipments.append(sh)
         whs = s.query(Warehouse).filter(Warehouse.active==True).all()
         bal = {}
         for m in s.query(StockMovement).filter(StockMovement.product_sku==sku).all():
@@ -348,10 +466,11 @@ def product_view(sku):
             profit_rows.append(type("PR",(object,),dict(country_code=code, pieces=x["pieces"], revenue_usd=x["revenue_usd"], ad_usd=x["ad_usd"], profit_total_usd=x["profit_total_usd"], profit_per_piece_usd=ppu))())
             totals["pieces"]+=x["pieces"]; totals["revenue_usd"]+=x["revenue_usd"]; totals["ad_usd"]+=x["ad_usd"]; totals["profit_total_usd"]+=x["profit_total_usd"]
         profit_totals = type("TOT",(object,),totals)()
+        budgets = s.query(ProductBudgetCountry).filter_by(product_sku=sku).all()
     return render_template("product.html", product=p, current_spend=cur, shipments=shipments,
                            stock_rows=stock_rows, stock_total=stock_total,
                            profit_rows=profit_rows, profit_totals=profit_totals,
-                           title=p.product_name if p else "Product")
+                           budgets=budgets, title=p.product_name if p else "Product")
 
 if __name__ == '__main__':
     app.run(debug=True)
