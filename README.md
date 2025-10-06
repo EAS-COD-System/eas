@@ -1,1 +1,0 @@
-# EAS COD v14 (full)\nRun: pip install -r requirements.txt && python app.py\n
