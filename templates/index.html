@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="grid">
+    <div class="kpi"><div class="muted">Active Products</div><div class="v">{{ counts.products }}</div></div>
+    <div class="kpi"><div class="muted">Warehouses</div><div class="v">{{ counts.warehouses }}</div></div>
+    <div class="kpi"><div class="muted">In-Transit Shipments</div><div class="v">{{ counts.in_transit }}</div></div>
+  </div>
+
+  <div class="card">
+    <div class="align-between"><h3>Quick add — Ad spend (USD)</h3><span class="muted">Set per platform, country & product</span></div>
+    <form method="post" action="{{ url_for('set_current_spend') }}">
+      <div class="form-row">
+        <select name="platform"><option>Facebook</option><option>TikTok</option><option>Google</option></select>
+        <select name="country_code"><option>KE</option><option>UG</option><option>TZ</option><option>ZM</option><option>ZW</option></select>
+        <select name="product_sku">
+          {% for p in all_products %}<option value="{{ p.product_sku }}">{{ p.product_sku }} — {{ p.product_name }}</option>{% endfor %}
+        </select>
+        <input type="number" step="0.01" name="amount_usd" placeholder="Amount (USD)" required>
+        <input name="currency" value="USD">
+        <button class="btn">Save</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="align-between"><h3>Quick add — Delivered</h3><span class="muted">Deducts stock and adds revenue</span></div>
+    <form method="post" action="{{ url_for('record_delivered') }}">
+      <div class="form-row">
+        <select name="country_code"><option>KE</option><option>UG</option><option>TZ</option><option>ZM</option><option>ZW</option></select>
+        <select name="product_sku">
+          {% for p in all_products %}<option value="{{ p.product_sku }}">{{ p.product_sku }} — {{ p.product_name }}</option>{% endfor %}
+        </select>
+        <input type="number" name="qty" placeholder="Qty" required>
+        <input type="number" step="0.01" name="revenue_local" placeholder="Revenue (local)" required>
+        <button class="btn">Save</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="align-between"><h3>Country band — Totals</h3><span class="muted">Stock / In transit / Current Ad Spend (USD)</span></div>
+    <div class="country-band">
+      {% for c in countries %}
+      <div class="country-pill">
+        <div><b>{{ c.country }}</b> <span class="badge">{{ c.code }}</span></div>
+        <div class="muted">Stock: {{ band[c.country].stock or 0 }}</div>
+        <div class="muted">In transit: {{ band[c.country].in_transit or 0 }}</div>
+        <div class="muted">Ad spend: ${{ band[c.country].ad_spend|round(0) }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="align-between"><h3>Shipments in transit — China → Kenya</h3><span class="muted">Mark arrived from here</span></div>
+    <table class="table">
+      <tr><th>Ref</th><th>Product:Qty</th><th>Status</th><th>Created</th><th>ETA</th><th></th></tr>
+      {% for s in cn_ke %}
+        <tr>
+          <td>{{ s.ref }}</td>
+          <td>{{ s.items_str }}</td>
+          <td><span class="badge">{{ s.status }}</span></td>
+          <td>{{ s.created_date or '-' }}</td>
+          <td>{{ s.eta_date or '-' }}</td>
+          <td>
+            <form method="post" action="{{ url_for('mark_arrived') }}">
+              <input type="hidden" name="shipment_id" value="{{ s.id }}">
+              <input type="hidden" name="product_sku" value="{{ s.first_sku }}">
+              <div class="form-row">
+                <input type="number" step="0.01" name="shipping_cost_usd" placeholder="Final ship USD (optional)">
+                <button class="btn small">Arrived</button>
+              </div>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      {% if not cn_ke %}<tr><td colspan="6" class="muted">None</td></tr>{% endif %}
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="align-between"><h3>Shipments in transit — Inter‑country</h3><span class="muted">From → To • product • qty • sent date</span></div>
+    <table class="table">
+      <tr><th>Ref</th><th>From</th><th>To</th><th>Items</th><th>Sent</th><th></th></tr>
+      {% for s in inter %}
+        <tr>
+          <td>{{ s.ref }}</td><td>{{ s.from_country }}</td><td>{{ s.to_country }}</td>
+          <td>{{ s.items_str }}</td><td>{{ s.created_date or '-' }}</td>
+          <td>
+            <form method="post" action="{{ url_for('mark_arrived') }}">
+              <input type="hidden" name="shipment_id" value="{{ s.id }}">
+              <input type="hidden" name="product_sku" value="{{ s.first_sku }}">
+              <button class="btn small">Arrived</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      {% if not inter %}<tr><td colspan="6" class="muted">None</td></tr>{% endif %}
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="align-between"><h3>Delivered — this week</h3><span class="muted">Daily totals per country</span></div>
+    <div class="week-grid">
+      <div class="cell h">Day</div>
+      {% for c in countries %}<div class="cell h">{{ c.code }}</div>{% endfor %}
+      {% for row in week_rows %}
+        <div class="cell">{{ row.day }}</div>
+        {% for c in countries %}
+          <div class="cell">{{ row.totals.get(c.code,0) }}</div>
+        {% endfor %}
+      {% endfor %}
+      <div class="cell h">Week sum</div>
+      {% for c in countries %}<div class="cell h">{{ week_totals.get(c.code,0) }}</div>{% endfor %}
+    </div>
+  </div>
+{% endblock %}
