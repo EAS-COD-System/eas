@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="section s1">
+  <div class="section-h"><h3 style="margin:0">{{ product.product_name }}</h3><span class="muted">SKU {{ product.product_sku }}</span></div>
+  <div class="card">All actions below are also on the homepage. This page keeps everything per‑product.</div>
+</div>
+
+<div class="section s2">
+  <div class="section-h"><h3 style="margin:0">Current Daily Spend (USD) — by Country & Platform</h3><span class="muted">Replacing per platform+country</span></div>
+  <form method="post" action="{{ url_for('upsert_current_spend') }}">
+    <input type="hidden" name="product_sku" value="{{ product.product_sku }}">
+    <div class="form-row">
+      <select name="platform"><option>Facebook</option><option>TikTok</option><option>Google</option></select>
+      <select name="country_code"><option>KE</option><option>UG</option><option>TZ</option><option>ZM</option><option>ZW</option></select>
+      <input type="number" step="0.01" name="amount_usd" placeholder="Amount USD" required>
+      <button class="btn">Save (replace)</button>
+    </div>
+  </form>
+  {% if current_spend %}
+  <hr class="div">
+  <table class="table">
+    <tr><th>Country</th><th>Platform</th><th>Amount USD</th><th></th></tr>
+    {% for s in current_spend %}
+      <tr>
+        <td>{{ s.country_code }}</td><td>{{ s.platform }}</td>
+        <td>${{ '%.2f'|format(s.amount_usd or 0) }}</td>
+        <td>
+          <form method="post" action="{{ url_for('delete_current_spend') }}">
+            <input type="hidden" name="id" value="{{ s.id }}">
+            <input type="hidden" name="product_sku" value="{{ product.product_sku }}">
+            <button class="btn danger small">Delete</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+
+<div class="section s3">
+  <div class="section-h"><h3 style="margin:0">Stock movements & Shipments</h3><span class="muted">Create, in-transit, mark arrived</span></div>
+  <form method="post" action="{{ url_for('create_transfer_home') }}">
+    <input type="hidden" name="product_sku" value="{{ product.product_sku }}">
+    <div class="form-row">
+      <select name="from_code"><option>CN</option><option>KE</option><option>UG</option><option>TZ</option><option>ZM</option><option>ZW</option></select>
+      <select name="to_code"><option>KE</option><option>UG</option><option>TZ</option><option>ZM</option><option>ZW</option></select>
+      <input type="number" name="qty" placeholder="Qty" required>
+      <input type="number" step="0.01" name="shipping_cost_usd" placeholder="Shipping USD (est.)">
+      <input name="ref" placeholder="REF (e.g. SHP-KE-001)" required>
+      <button class="btn">Create</button>
+    </div>
+  </form>
+  {% if shipments %}
+  <hr class="div">
+  <table class="table">
+    <tr><th>Ref</th><th>From</th><th>To</th><th>Status</th><th>Qty</th><th>Arrived</th><th>Transit days</th><th>Ship USD</th><th></th></tr>
+    {% for sh in shipments %}
+      <tr>
+        <td>{{ sh.ref }}</td><td>{{ sh.from_country }}</td><td>{{ sh.to_country }}</td><td>{{ sh.status }}</td>
+        <td>{{ sh.qty_sum }}</td><td>{{ sh.arrived_date or '-' }}</td><td>{{ sh.transit_days or 0 }}</td><td>{{ sh.shipping_cost_usd or 0 }}</td>
+        <td>
+          {% if sh.status=='in_transit' %}
+          <form method="post" action="{{ url_for('mark_arrived') }}">
+            <input type="hidden" name="shipment_id" value="{{ sh.id }}">
+            <input type="hidden" name="product_sku" value="{{ product.product_sku }}">
+            <div class="form-row">
+              <input type="number" step="0.01" name="shipping_cost_usd" placeholder="Final ship USD (optional)">
+              <button class="btn small">Mark Arrived</button>
+            </div>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+
+<div class="section s4">
+  <div class="section-h"><h3 style="margin:0">Weekly entries (Product)</h3><span class="muted">Delivered, revenue USD, ad USD → deduct stock + feed profit</span></div>
+  <form method="post" action="{{ url_for('upsert_weekly_product') }}">
+    <input type="hidden" name="product_sku" value="{{ product.product_sku }}">
+    <div class="form-row">
+      <input type="date" name="week_start" required>
+      <select name="country_code"><option>KE</option><option>UG</option><option>TZ</option><option>ZM</option><option>ZW</option></select>
+      <input type="number" name="delivered_qty" placeholder="Delivered qty" required>
+      <input type="number" step="0.01" name="revenue_usd" placeholder="Revenue USD" required>
+      <input type="number" step="0.01" name="ad_spend_usd" placeholder="Ad spend USD" required>
+      <button class="btn">Save / Update</button>
+    </div>
+  </form>
+  {% if wprod_rows %}
+  <hr class="div">
+  <table class="table">
+    <tr><th>Week</th><th>Country</th><th>Delivered</th><th>Revenue USD</th><th>Ad USD</th><th></th></tr>
+    {% for r in wprod_rows %}
+      <tr>
+        <td>{{ r.week_start }}</td><td>{{ r.country_code }}</td><td>{{ r.delivered_qty }}</td>
+        <td>${{ '%.2f'|format(r.revenue_usd or 0) }}</td><td>${{ '%.2f'|format(r.ad_spend_usd or 0) }}</td>
+        <td>
+          <form method="post" action="{{ url_for('delete_weekly_product') }}">
+            <input type="hidden" name="id" value="{{ r.id }}">
+            <input type="hidden" name="product_sku" value="{{ product.product_sku }}">
+            <button class="btn danger small">Delete</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+{% endblock %}
