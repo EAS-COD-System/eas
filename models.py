@@ -1,4 +1,3 @@
-
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column
 from sqlalchemy import String, Integer, Float, Boolean, ForeignKey
 
@@ -90,3 +89,10 @@ class PeriodRemit(Base):
     cost_unit_usd: Mapped[float] = mapped_column(Float, default=0.0)
     profit_total_usd: Mapped[float] = mapped_column(Float, default=0.0)
     profit_per_piece_usd: Mapped[float] = mapped_column(Float, default=0.0)
+
+class ProductBudgetCountry(Base):
+    __tablename__ = "product_budget_country"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_sku: Mapped[str] = mapped_column(String, ForeignKey("products.product_sku"))
+    country_code: Mapped[str] = mapped_column(String)
+    budget_usd: Mapped[float] = mapped_column(Float, default=0.0)
