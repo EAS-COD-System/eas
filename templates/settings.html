@@ -1,32 +1,42 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Settings</h2>
+<div class="section s-blue">
+  <div class="section-h"><h3 style="margin:0">Settings — Countries</h3><span class="muted">Add / delete</span></div>
+  <form method="post" action="{{ url_for('add_country') }}">
+    <div class="form-row">
+      <input name="country" placeholder="Country name" required>
+      <input name="code" placeholder="Code (e.g., KE)" maxlength="3" required>
+      <input name="currency" placeholder="Currency" value="USD">
+      <input type="number" step="0.0001" name="fx_to_usd" placeholder="FX to USD" value="1.0">
+      <button class="btn">Add</button>
+    </div>
+  </form>
 
-<div class="section s-green">
-  <div class="section-h"><h3>Countries</h3><span class="muted">Configured in the database</span></div>
   <div class="table-wrap">
     <table class="table">
-      <tr><th>Country</th><th>Code</th><th>Currency</th></tr>
+      <tr><th>Country</th><th>Code</th><th>Currency</th><th class="num">FX</th><th></th></tr>
       {% for c in countries %}
-      <tr><td>{{ c.country }}</td><td>{{ c.code }}</td><td>{{ c.currency }}</td></tr>
+      <tr>
+        <td>{{ c.country }}</td><td>{{ c.code }}</td><td>{{ c.currency }}</td><td class="num">{{ c.fx_to_usd }}</td>
+        <td>
+          <form method="post" action="{{ url_for('delete_country') }}" onsubmit="return confirm('Delete {{ c.country }}?');">
+            <input type="hidden" name="id" value="{{ c.id }}"><button class="btn danger small">Delete</button>
+          </form>
+        </td>
+      </tr>
       {% endfor %}
-      {% if not countries %}<tr><td colspan="3" class="muted">None</td></tr>{% endif %}
+      {% if not countries %}<tr><td colspan="5" class="muted">None</td></tr>{% endif %}
     </table>
   </div>
 </div>
 
-<div class="section s-blue">
-  <div class="section-h"><h3>Products</h3><span class="muted">Quick overview</span></div>
+<div class="section s-green">
+  <div class="section-h"><h3 style="margin:0">Products (overview)</h3></div>
   <div class="table-wrap">
     <table class="table">
-      <tr><th>SKU</th><th>Name</th><th class="num">Cost CN</th><th class="num">CN→KE Ship</th></tr>
+      <tr><th>SKU</th><th>Name</th><th class="num">CN Cost</th><th class="num">CN→KE</th></tr>
       {% for p in products %}
-      <tr>
-        <td>{{ p.product_sku }}</td>
-        <td>{{ p.product_name }}</td>
-        <td class="num">${{ '%.2f'|format(p.cost_cn_usd or 0) }}</td>
-        <td class="num">${{ '%.2f'|format(p.default_cnke_ship_usd or 0) }}</td>
-      </tr>
+      <tr><td>{{ p.product_sku }}</td><td>{{ p.product_name }}</td><td class="num">${{ '%.2f'|format(p.cost_cn_usd or 0) }}</td><td class="num">${{ '%.2f'|format(p.default_cnke_ship_usd or 0) }}</td></tr>
       {% endfor %}
       {% if not products %}<tr><td colspan="4" class="muted">No products yet</td></tr>{% endif %}
     </table>
