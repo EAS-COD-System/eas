@@ -96,3 +96,12 @@ class ProductBudgetCountry(Base):
     product_sku: Mapped[str] = mapped_column(String, ForeignKey("products.product_sku"))
     country_code: Mapped[str] = mapped_column(String)
     budget_usd: Mapped[float] = mapped_column(Float, default=0.0)
+
+class FinanceEntry(Base):
+    __tablename__ = "finance_entries"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    date: Mapped[str] = mapped_column(String)
+    type: Mapped[str] = mapped_column(String)          # "credit" / "debit"
+    category: Mapped[str] = mapped_column(String)      # Ads / Logistics / Warehouse / Salaries / Misc
+    description: Mapped[str] = mapped_column(String)
+    amount_usd: Mapped[float] = mapped_column(Float, default=0.0)
