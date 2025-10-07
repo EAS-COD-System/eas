@@ -1,144 +1,71 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="section s-blue">
-  <div class="section-h"><h3 style="margin:0">{{ product.product_name }}</h3><span class="muted">SKU {{ product.product_sku }}</span></div>
-  <div class="grid">
-    <div class="card"><div class="muted">CN Cost</div><div class="total">${{ "%.2f"|format(product.cost_cn_usd or 0) }}</div></div>
-    <div class="card"><div class="muted">CN→KE Ship /pc</div><div class="total">${{ "%.2f"|format(product.default_cnke_ship_usd or 0) }}</div></div>
-    <div class="card"><div class="muted">Fallback Profit+Ads</div><div class="total">${{ "%.2f"|format(product.profit_ads_budget_usd or 0) }}</div></div>
-  </div>
-</div>
+<h2>{{ product.product_name }} ({{ product.product_sku }})</h2>
 
 <div class="section s-green">
-  <div class="section-h"><h3 style="margin:0">Current Daily Spend (USD)</h3><span class="muted">Country → Platforms</span></div>
-  {% if spend_by_country %}
-    {% for code,rows in spend_by_country.items() %}
-      <div class="card" style="margin-bottom:8px">
-        <b>{{ code }}</b> —
-        {% for r in rows %}
-          <span class="badge">{{ r.platform }}: ${{ '%.2f'|format(r.amount_usd or 0) }}</span>
-        {% endfor %}
-      </div>
-    {% endfor %}
-  {% else %}
-    <div class="card muted">No spend set</div>
-  {% endif %}
-  <form method="post" action="{{ url_for('upsert_current_spend') }}">
-    <input type="hidden" name="product_sku" value="{{ product.product_sku }}">
-    <div class="form-row">
-      <select name="platform"><option>Facebook</option><option>TikTok</option><option>Google</option></select>
-      <!-- dynamic countries -->
-      <select name="country_code">
-        {% for c in countries %}<option>{{ c.code }}</option>{% endfor %}
-      </select>
-      <input type="number" step="0.01" name="amount_usd" placeholder="Amount USD" required>
-      <button class="btn">Save (replace)</button>
-    </div>
-  </form>
-</div>
-
-<div class="section s-green">
-  <div class="section-h"><h3 style="margin:0">Stock by country</h3><span class="muted">Live from movements</span></div>
+  <div class="section-h"><h3>Stock by Country</h3></div>
   <div class="table-wrap">
     <table class="table">
-      <tr><th>Country</th><th class="num">Stock</th></tr>
-      {% for row in stock_rows %}<tr><td>{{ row.country }}</td><td class="num">{{ row.qty }}</td></tr>{% endfor %}
-      <tr><td class="total">Total</td><td class="num total">{{ stock_total }}</td></tr>
+      <tr><th>Country</th><th class="num">Qty</th></tr>
+      {% for r in stock_rows %}
+      <tr><td>{{ r.country }}</td><td class="num">{{ r.qty }}</td></tr>
+      {% endfor %}
+      <tr><td class="total">TOTAL</td><td class="num total">{{ stock_total }}</td></tr>
     </table>
   </div>
 </div>
 
-<div class="section s-teal">
-  <div class="section-h"><h3 style="margin:0">Profit snapshot — by country & total</h3><span class="muted">From remittances</span></div>
+<div class="section s-blue">
+  <div class="section-h"><h3>Ad Spend by Country</h3></div>
   <div class="table-wrap">
     <table class="table">
-      <tr><th>Country</th><th class="num">Pieces</th><th class="num">Revenue</th><th class="num">Ads</th><th class="num">Profit</th><th class="num">Profit/pc</th></tr>
-      {% for r in profit_rows %}
-        <tr>
-          <td>{{ r.country_code }}</td>
-          <td class="num">{{ r.pieces }}</td>
-          <td class="num">${{ '%.2f'|format(r.revenue_usd or 0) }}</td>
-          <td class="num">${{ '%.2f'|format(r.ad_usd or 0) }}</td>
-          <td class="num"><b>${{ '%.2f'|format(r.profit_total_usd or 0) }}</b></td>
-          <td class="num">${{ '%.2f'|format(r.profit_per_piece_usd or 0) }}</td>
-        </tr>
+      <tr><th>Country</th><th>Platform</th><th class="num">Amount (USD)</th></tr>
+      {% for c,rows in spend_by_country.items() %}
+        {% for r in rows %}
+        <tr><td>{{ c }}</td><td>{{ r.platform }}</td><td class="num">${{ '%.2f'|format(r.amount_usd) }}</td></tr>
+        {% endfor %}
       {% endfor %}
-      <tr>
-        <td class="total">TOTAL</td>
-        <td class="num total">{{ profit_totals.pieces }}</td>
-        <td class="num total">${{ '%.2f'|format(profit_totals.revenue_usd or 0) }}</td>
-        <td class="num total">${{ '%.2f'|format(profit_totals.ad_usd or 0) }}</td>
-        <td class="num total">${{ '%.2f'|format(profit_totals.profit_total_usd or 0) }}</td>
-        <td class="num total">${{ '%.2f'|format((profit_totals.profit_total_usd / profit_totals.pieces) if profit_totals.pieces else 0.0) }}</td>
-      </tr>
     </table>
   </div>
 </div>
 
 <div class="section s-orange">
-  <div class="section-h"><h3 style="margin:0">Shipments</h3><span class="muted">Edit items, edit shipping, mark arrived, delete</span></div>
+  <div class="section-h"><h3>Shipments</h3></div>
   <div class="table-wrap">
     <table class="table">
-      <tr><th>Ref</th><th>From</th><th>To</th><th>Status</th><th class="num">Qty</th><th>Arrived</th><th class="num">Transit days</th><th class="num">Ship USD</th><th></th><th></th></tr>
-      {% for sh in shipments %}
-        <tr>
-          <td>{{ sh.ref }}</td><td>{{ sh.from_country }}</td><td>{{ sh.to_country }}</td><td>{{ sh.status }}</td>
-          <td class="num">{{ sh.qty_sum }}</td><td>{{ sh.arrived_date or '-' }}</td><td class="num">{{ sh.transit_days or 0 }}</td>
-          <td>
-            <form method="post" action="{{ url_for('update_shipment_cost') }}">
-              <input type="hidden" name="shipment_id" value="{{ sh.id }}">
-              <input class="t-right" type="number" step="0.01" name="shipping_cost_usd" value="{{ sh.shipping_cost_usd or 0 }}" style="width:120px">
-              <button class="btn small">Save</button>
-            </form>
-          </td>
-          <td>
-            {% if sh.status=='in_transit' %}
-            <form method="post" action="{{ url_for('mark_arrived') }}">
-              <input type="hidden" name="shipment_id" value="{{ sh.id }}">
-              <button class="btn small">Mark Arrived</button>
-            </form>
-            {% endif %}
-          </td>
-          <td>
-            {% if sh.status=='in_transit' %}
-            <form method="post" action="{{ url_for('delete_shipment') }}" onsubmit="return confirm('Delete shipment {{ sh.ref }}?');">
-              <input type="hidden" name="shipment_id" value="{{ sh.id }}">
-              <button class="btn danger small">Delete</button>
-            </form>
-            {% endif %}
-          </td>
-        </tr>
-        {% if sh.status=='in_transit' %}
-        <tr>
-          <td colspan="10">
-            <div class="muted small">Items:</div>
-            <div class="table-wrap">
-              <table class="table">
-                <tr><th>SKU</th><th class="num">Qty</th><th></th></tr>
-                {% for it in sh.items %}
-                <tr>
-                  <td>{{ it.product_sku }}</td>
-                  <td class="num">
-                    <form method="post" action="{{ url_for('edit_shipment_item_qty') }}">
-                      <input type="hidden" name="shipment_item_id" value="{{ it.id }}">
-                      <input type="number" name="qty" value="{{ it.qty }}" style="width:100px">
-                      <button class="btn small">Update</button>
-                    </form>
-                  </td>
-                  <td>
-                    <form method="post" action="{{ url_for('delete_shipment_item') }}" onsubmit="return confirm('Delete this item?');">
-                      <input type="hidden" name="shipment_item_id" value="{{ it.id }}">
-                      <button class="btn danger small">Delete item</button>
-                    </form>
-                  </td>
-                </tr>
-                {% endfor %}
-              </table>
-            </div>
-          </td>
-        </tr>
-        {% endif %}
+      <tr><th>Ref</th><th>From</th><th>To</th><th>Status</th><th>Qty</th><th>Shipping USD</th></tr>
+      {% for s in shipments %}
+      <tr>
+        <td>{{ s.ref }}</td><td>{{ s.from_country }}</td><td>{{ s.to_country }}</td>
+        <td>{{ s.status }}</td><td class="num">{{ s.qty_sum }}</td><td class="num">${{ '%.2f'|format(s.shipping_cost_usd) }}</td>
+      </tr>
       {% endfor %}
+    </table>
+  </div>
+</div>
+
+<div class="section s-purple">
+  <div class="section-h"><h3>Profit Summary</h3></div>
+  <div class="table-wrap">
+    <table class="table">
+      <tr><th>Country</th><th class="num">Pieces</th><th class="num">Revenue</th><th class="num">Ads</th><th class="num">Profit</th><th class="num">Per Piece</th></tr>
+      {% for r in profit_rows %}
+      <tr>
+        <td>{{ r.country_code }}</td><td class="num">{{ r.pieces }}</td>
+        <td class="num">${{ '%.2f'|format(r.revenue_usd) }}</td>
+        <td class="num">${{ '%.2f'|format(r.ad_usd) }}</td>
+        <td class="num">${{ '%.2f'|format(r.profit_total_usd) }}</td>
+        <td class="num">${{ '%.2f'|format(r.profit_per_piece_usd) }}</td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td class="total">TOTAL</td>
+        <td class="num total">{{ profit_totals.pieces }}</td>
+        <td class="num total">${{ '%.2f'|format(profit_totals.revenue_usd) }}</td>
+        <td class="num total">${{ '%.2f'|format(profit_totals.ad_usd) }}</td>
+        <td class="num total">${{ '%.2f'|format(profit_totals.profit_total_usd) }}</td>
+        <td></td>
+      </tr>
     </table>
   </div>
 </div>
