@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="section s-blue">
+  <div class="section-h"><h3 style="margin:0">Countries</h3><span class="muted">Add / edit / delete</span></div>
+  <form method="post" action="{{ url_for('add_country') }}">
+    <div class="form-row">
+      <input name="country" placeholder="Country name" required>
+      <input name="code" placeholder="Code (e.g., RW)" required>
+      <input name="currency" value="USD" placeholder="Currency" required>
+      <input type="number" step="0.0001" name="fx_to_usd" value="1.0" placeholder="FX→USD">
+      <button class="btn">Add</button>
+    </div>
+  </form>
+  <table class="table">
+    <tr><th>Code</th><th>Name</th><th>Currency</th><th class="num">FX→USD</th><th></th><th></th></tr>
+    {% for c in countries %}
+      <tr>
+        <td>{{ c.code }}</td>
+        <td>{{ c.country }}</td>
+        <td>{{ c.currency }}</td>
+        <td class="num">{{ '%.4f'|format(c.fx_to_usd or 1) }}</td>
+        <td>
+          <form method="post" action="{{ url_for('edit_country') }}">
+            <input type="hidden" name="code" value="{{ c.code }}">
+            <input name="country" placeholder="Rename (optional)">
+            <input name="currency" placeholder="Currency (optional)">
+            <input type="number" step="0.0001" name="fx_to_usd" placeholder="FX→USD (optional)">
+            <button class="btn small">Update</button>
+          </form>
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('delete_country') }}" onsubmit="return confirm('Delete {{ c.code }}?');">
+            <input type="hidden" name="code" value="{{ c.code }}">
+            <button class="btn danger small">Delete</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="section s-teal">
+  <div class="section-h"><h3 style="margin:0">Products — quick edit</h3><span class="muted">Name, CN cost, CN→KE ship, budgets by country</span></div>
+  <table class="table">
+    <tr><th>SKU</th><th>Name</th><th class="num">CN Cost</th><th class="num">CN→KE Ship</th><th>Budgets by Country</th><th></th></tr>
+    {% for p in products %}
+      <tr>
+        <form method="post" action="{{ url_for('edit_product') }}">
+          <td><span class="badge">{{ p.product_sku }}</span><input type="hidden" name="product_sku" value="{{ p.product_sku }}"></td>
+          <td><input name="product_name" value="{{ p.product_name }}" style="min-width:220px"></td>
+          <td class="num"><input type="number" step="0.01" name="cost_cn_usd" value="{{ p.cost_cn_usd or 0 }}" style="width:120px"></td>
+          <td class="num"><input type="number" step="0.01" name="default_cnke_ship_usd" value="{{ p.default_cnke_ship_usd or 0 }}" style="width:140px"></td>
+          <td>
+            {% for c in countries if c.code != 'CN' %}
+              <div class="inline">
+                <label class="small">{{ c.code }}</label>
+                <input type="number" step="0.01" name="budget_{{ c.code }}" value="{{ budgets.get(p.product_sku, {}).get(c.code, 0) }}" style="width:110px">
+              </div>
+            {% endfor %}
+          </td>
+          <td><button class="btn small">Save</button></td>
+        </form>
+      </tr>
+    {% endfor %}
+    {% if not products %}<tr><td colspan="6" class="muted">No products</td></tr>{% endif %}
+  </table>
+</div>
+
+<div class="section s-orange">
+  <div class="section-h"><h3 style="margin:0">Backup / Restore</h3><span class="muted">Revert the database to a previous day</span></div>
+  <form method="post" action="{{ url_for('restore') }}" onsubmit="return confirm('Restore snapshot? This will overwrite current data.');">
+    <div class="form-row">
+      <select name="which">
+        <option value="yesterday">Restore yesterday</option>
+        <option value="two_days">Restore 2 days ago</option>
+      </select>
+      <button class="btn danger">Restore</button>
+    </div>
+  </form>
+  <div class="muted small">Snapshots are auto-created when you save Remittance or Finance entries.</div>
+</div>
+
+{% endblock %}
