@@ -58,10 +58,14 @@ header h1{font-size:16px;margin:0}
 .section-h{display:flex;justify-content:space-between;align-items:end;margin-bottom:8px}
 
 .table{width:100%;border-collapse:separate;border-spacing:0}
-.table th,.table td{border-bottom:1px solid var(--line);padding:8px;text-align:left}
+.table th,.table td{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:middle;white-space:nowrap}
 .table tr:last-child td{border-bottom:none}
 .table .num{text-align:right}
 .table .total{font-weight:700}
+
+/* mobile: wrap tables in scroll container */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.table-wrap .table{min-width:640px}
 
 .form-row{display:flex;flex-wrap:wrap;gap:8px}
 input,select,button{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff;color:var(--text)}
@@ -77,3 +81,11 @@ button.btn.danger{background:var(--danger);border-color:var(--danger)}
 
 .t-right{text-align:right}
 .div{border:0;border-top:1px dashed var(--line);margin:10px 0}
+
+/* small screens: tighter spacing */
+@media (max-width:600px){
+  .section{padding:10px}
+  .card{padding:10px}
+  input,select,button{padding:10px}
+  .kpi .v{font-size:24px}
+}
