@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="section s-blue">
+  <div class="section-h"><h3 style="margin:0">Finance — Credits & Debits</h3><span class="muted">Monthly summary and running balance</span></div>
+  <form method="post" action="{{ url_for('finance_add') }}">
+    <div class="form-row">
+      <input type="date" name="date" required>
+      <select name="type"><option>credit</option><option>debit</option></select>
+      <select name="category"><option>Ads</option><option>Logistics</option><option>Warehouse</option><option>Salaries</option><option>Misc</option></select>
+      <input name="description" placeholder="Description" required>
+      <input type="number" step="0.01" name="amount_usd" placeholder="Amount USD" required>
+      <button class="btn">Add</button>
+      <a class="btn ghost" href="{{ url_for('finance_export') }}">Export CSV</a>
+    </div>
+  </form>
+</div>
+
+<div class="section s-teal">
+  <div class="section-h"><h3 style="margin:0">Filters</h3><span class="muted">Month & Category</span></div>
+  <form method="get" action="{{ url_for('finance') }}">
+    <div class="form-row">
+      <input type="month" name="m" value="{{ sel_month or '' }}">
+      <select name="c">
+        <option value="" {% if not sel_cat %}selected{% endif %}>All</option>
+        {% for cat in cats %}<option value="{{ cat }}" {% if sel_cat==cat %}selected{% endif %}>{{ cat }}</option>{% endfor %}
+      </select>
+      <button class="btn">Apply</button>
+    </div>
+  </form>
+</div>
+
+<div class="section s-green">
+  <div class="section-h"><h3 style="margin:0">Monthly Summary</h3><span class="muted">Credits vs Debits</span></div>
+  <table class="table">
+    <tr><th>Month</th><th class="num">Credits</th><th class="num">Debits</th><th class="num">Net</th></tr>
+    {% for m in months %}
+    <tr>
+      <td>{{ m }}</td>
+      <td class="num">${{ '%.2f'|format(month_sum[m].credit or 0) }}</td>
+      <td class="num">${{ '%.2f'|format(month_sum[m].debit or 0) }}</td>
+      <td class="num total">${{ '%.2f'|format((month_sum[m].credit - month_sum[m].debit) if month_sum[m] else 0) }}</td>
+    </tr>
+    {% endfor %}
+    {% if not months %}<tr><td colspan="4" class="muted">No finance data</td></tr>{% endif %}
+  </table>
+</div>
+
+<div class="section s-purple">
+  <div class="section-h"><h3 style="margin:0">Transactions</h3><span class="muted">Running balance: <b>${{ '%.2f'|format(balance or 0) }}</b></span></div>
+  <table class="table">
+    <tr><th>Date</th><th>Type</th><th>Category</th><th>Description</th><th class="num">Amount USD</th></tr>
+    {% for it in items %}
+    <tr>
+      <td>{{ it.date }}</td><td>{{ it.type }}</td><td>{{ it.category }}</td><td>{{ it.description }}</td>
+      <td class="num">{% if it.type=='debit' %}-{% endif %}${{ '%.2f'|format(it.amount_usd or 0) }}</td>
+    </tr>
+    {% endfor %}
+    {% if not items %}<tr><td colspan="5" class="muted">No transactions</td></tr>{% endif %}
+  </table>
+</div>
+{% endblock %}
