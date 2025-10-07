@@ -47,21 +47,23 @@
     </div>
   </div>
 
-  <table class="table">
-    <tr><th>Month</th><th class="num">Credits</th><th class="num">Debits</th><th class="num">Net</th></tr>
-    {% for m in months %}
-      {% set s = month_sum[m] %}
-      <tr>
-        <td>{{ m }}</td>
-        <td class="num">${{ '%.2f'|format(s.credit or 0) }}</td>
-        <td class="num">${{ '%.2f'|format(s.debit or 0) }}</td>
-        <td class="num total">${{ '%.2f'|format((s.credit or 0) - (s.debit or 0)) }}</td>
-      </tr>
-    {% endfor %}
-    {% if not months %}
-      <tr><td colspan="4" class="muted">No entries yet</td></tr>
-    {% endif %}
-  </table>
+  <div class="table-wrap">
+    <table class="table">
+      <tr><th>Month</th><th class="num">Credits</th><th class="num">Debits</th><th class="num">Net</th></tr>
+      {% for m in months %}
+        {% set s = month_sum[m] %}
+        <tr>
+          <td>{{ m }}</td>
+          <td class="num">${{ '%.2f'|format(s.credit or 0) }}</td>
+          <td class="num">${{ '%.2f'|format(s.debit or 0) }}</td>
+          <td class="num total">${{ '%.2f'|format((s.credit or 0) - (s.debit or 0)) }}</td>
+        </tr>
+      {% endfor %}
+      {% if not months %}
+        <tr><td colspan="4" class="muted">No entries yet</td></tr>
+      {% endif %}
+    </table>
+  </div>
 </div>
 
 <div class="section s-green">
@@ -69,23 +71,25 @@
     <h3 style="margin:0">Finance — entries</h3>
     <span class="muted">Newest first</span>
   </div>
-  <table class="table">
-    <tr><th>Date</th><th>Type</th><th>Category</th><th>Description</th><th class="num">Amount USD</th></tr>
-    {% for it in items %}
-      <tr>
-        <td>{{ it.date }}</td>
-        <td><span class="badge {{ 'ok' if it.type=='credit' else 'danger' }}">{{ it.type }}</span></td>
-        <td>{{ it.category }}</td>
-        <td>{{ it.description }}</td>
-        <td class="num {{ 'total' if it.type=='credit' else '' }}">
-          {{ '-' if it.type=='debit' else '' }}${{ '%.2f'|format(it.amount_usd or 0) }}
-        </td>
-      </tr>
-    {% endfor %}
-    {% if not items %}
-      <tr><td colspan="5" class="muted">No finance entries recorded</td></tr>
-    {% endif %}
-  </table>
+  <div class="table-wrap">
+    <table class="table">
+      <tr><th>Date</th><th>Type</th><th>Category</th><th>Description</th><th class="num">Amount USD</th></tr>
+      {% for it in items %}
+        <tr>
+          <td>{{ it.date }}</td>
+          <td><span class="badge {{ 'ok' if it.type=='credit' else 'danger' }}">{{ it.type }}</span></td>
+          <td>{{ it.category }}</td>
+          <td>{{ it.description }}</td>
+          <td class="num {{ 'total' if it.type=='credit' else '' }}">
+            {{ '-' if it.type=='debit' else '' }}${{ '%.2f'|format(it.amount_usd or 0) }}
+          </td>
+        </tr>
+      {% endfor %}
+      {% if not items %}
+        <tr><td colspan="5" class="muted">No finance entries recorded</td></tr>
+      {% endif %}
+    </table>
+  </div>
 </div>
 
 {% endblock %}
