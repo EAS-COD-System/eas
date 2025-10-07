@@ -15,34 +15,37 @@
     </div>
   </form>
   <hr class="div">
-  <table class="table">
-    <tr><th>SKU</th><th>Name</th><th>CN Cost</th><th>CN→KE Ship</th><th>Fallback Budget</th><th>Budgets (by country)</th><th></th><th></th></tr>
-    {% for p in products %}
-      <tr>
-        <td><span class="badge">{{ p.product_sku }}</span></td>
-        <td>{{ p.product_name }}</td>
-        <td>${{ "%.2f"|format(p.cost_cn_usd or 0) }}</td>
-        <td>${{ "%.2f"|format(p.default_cnke_ship_usd or 0) }}</td>
-        <td>${{ "%.2f"|format(p.profit_ads_budget_usd or 0) }}</td>
-        <td>
-          {% set mapb = budgets.get(p.product_sku, {}) %}
-          <div class="muted small">
-            KE: ${{ '%.2f'|format(mapb.get('KE',0)) }} •
-            UG: ${{ '%.2f'|format(mapb.get('UG',0)) }} •
-            TZ: ${{ '%.2f'|format(mapb.get('TZ',0)) }} •
-            ZM: ${{ '%.2f'|format(mapb.get('ZM',0)) }} •
-            ZW: ${{ '%.2f'|format(mapb.get('ZW',0)) }}
-          </div>
-        </td>
-        <td><a class="btn ghost" href="{{ url_for('product_view', sku=p.product_sku) }}">Open</a></td>
-        <td>
-          <form method="post" action="{{ url_for('delete_product') }}" onsubmit="return confirm('Delete product {{ p.product_sku }}? This cannot be undone.');">
-            <input type="hidden" name="product_sku" value="{{ p.product_sku }}">
-            <button class="btn danger small">Delete</button>
-          </form>
-        </td>
-      </tr>
-    {% endfor %}
-  </table>
+  <div class="table-wrap">
+    <table class="table">
+      <tr><th>SKU</th><th>Name</th><th>CN Cost</th><th>CN→KE Ship</th><th>Fallback Budget</th><th>Budgets (by country)</th><th></th><th></th></tr>
+      {% for p in products %}
+        <tr>
+          <td><span class="badge">{{ p.product_sku }}</span></td>
+          <td>{{ p.product_name }}</td>
+          <td>${{ "%.2f"|format(p.cost_cn_usd or 0) }}</td>
+          <td>${{ "%.2f"|format(p.default_cnke_ship_usd or 0) }}</td>
+          <td>${{ "%.2f"|format(p.profit_ads_budget_usd or 0) }}</td>
+          <td>
+            {% set mapb = budgets.get(p.product_sku, {}) %}
+            <div class="muted small">
+              KE: ${{ '%.2f'|format(mapb.get('KE',0)) }} •
+              UG: ${{ '%.2f'|format(mapb.get('UG',0)) }} •
+              TZ: ${{ '%.2f'|format(mapb.get('TZ',0)) }} •
+              ZM: ${{ '%.2f'|format(mapb.get('ZM',0)) }} •
+              ZW: ${{ '%.2f'|format(mapb.get('ZW',0)) }}
+            </div>
+          </td>
+          <td><a class="btn ghost" href="{{ url_for('product_view', sku=p.product_sku) }}">Open</a></td>
+          <td>
+            <form method="post" action="{{ url_for('delete_product') }}" onsubmit="return confirm('Delete product {{ p.product_sku }}? This cannot be undone.');">
+              <input type="hidden" name="product_sku" value="{{ p.product_sku }}">
+              <button class="btn danger small">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      {% if not products %}<tr><td colspan="8" class="muted">No products yet</td></tr>{% endif %}
+    </table>
+  </div>
 </div>
 {% endblock %}
