@@ -1,11 +1,12 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
-from sqlalchemy import create_engine, func, select
+from flask import Flask, render_template, request, redirect, url_for, flash, Response
+from sqlalchemy import create_engine, func, select, and_, or_
 from sqlalchemy.orm import Session
 from models import (
     Base, Product, Country, Warehouse, StockMovement, PlatformSpendCurrent,
-    Shipment, ShipmentItem, DailyDelivered, PeriodRemit, ProductBudgetCountry
+    Shipment, ShipmentItem, DailyDelivered, PeriodRemit, ProductBudgetCountry,
+    FinanceEntry
 )
-import os, datetime
+import os, datetime, csv, io
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY","devkey")
@@ -80,14 +81,27 @@ def avg_ship_unit_for_route(session, sku, from_country, to_country):
             total_qty += qty
     return (total_cost/total_qty) if total_qty>0 else 0.0
 
+def parse_period(choice):
+    today = datetime.date.today()
+    if choice == "10d": start = today - datetime.timedelta(days=10)
+    elif choice == "21d": start = today - datetime.timedelta(days=21)
+    elif choice == "35d": start = today - datetime.timedelta(days=35)
+    elif choice == "60d": start = today - datetime.timedelta(days=60)
+    elif choice == "3m": start = today - datetime.timedelta(days=90)
+    elif choice == "6m": start = today - datetime.timedelta(days=180)
+    elif choice == "1y": start = today - datetime.timedelta(days=365)
+    else: start = today - datetime.timedelta(days=30)
+    return start.isoformat(), today.isoformat()
+
 @app.route("/", methods=["GET","POST"])
 def index():
     q = request.form.get("q","").strip() if request.method=="POST" else request.args.get("q","") or ""
-    dfrom = request.args.get("dfrom","")
-    dto = request.args.get("dto","")
-    remit_from = request.args.get("rs","")
-    remit_to = request.args.get("re","")
-    remit_country = request.args.get("rc","")
+    dfrom = request.args.get("dfrom",""); dto = request.args.get("dto","")
+    remit_from = request.args.get("rs",""); remit_to = request.args.get("re",""); remit_country = request.args.get("rc","")
+
+    top_period = request.args.get("tp","21d")
+    top_country = request.args.get("tc","")
+    tp_from, tp_to = parse_period(top_period)
 
     with Session(engine) as s:
         counts = {
@@ -129,19 +143,73 @@ def index():
             total = pv['KE']+pv['UG']+pv['TZ']+pv['ZM']+pv['ZW']
             daily_pivot.append(type("DP",(object,),dict(date=day, KE=pv['KE'], UG=pv['UG'], TZ=pv['TZ'], ZM=pv['ZM'], ZW=pv['ZW'], total=total))())
 
+        rr = s.query(PeriodRemit).filter(PeriodRemit.start_date>=tp_from, PeriodRemit.end_date<=tp_to)
+        if top_country:
+            rr = rr.filter(PeriodRemit.country_code==top_country)
+        top_rows = {}
+        for r in rr.all():
+            x = top_rows.get((r.product_sku, r.country_code if top_country else "ALL"), dict(orders=0,pieces=0,rev=0.0,profit=0.0))
+            x["orders"] += (r.orders or 0)
+            x["pieces"] += (r.pieces or 0)
+            x["rev"] += (r.revenue_usd or 0.0)
+            x["profit"] += (r.profit_total_usd or 0.0)
+            top_rows[(r.product_sku, r.country_code if top_country else "ALL")] = x
+        top_report = []
+        for key,val in top_rows.items():
+            sku, ccode = key
+            ppu = (val["profit"]/val["pieces"]) if val["pieces"] else 0.0
+            top_report.append(type("TR",(object,),dict(
+                country_code=ccode, product_sku=sku, orders=val["orders"],
+                pieces=val["pieces"], revenue_usd=val["rev"], profit_total_usd=val["profit"],
+                profit_per_piece_usd=ppu
+            ))())
+        top_report.sort(key=lambda r: (r.pieces, r.revenue_usd), reverse=True)
+
         remit_report = []
         if remit_from and remit_to:
             qr = s.query(PeriodRemit).filter(PeriodRemit.start_date>=remit_from, PeriodRemit.end_date<=remit_to)
             if remit_country: qr = qr.filter(PeriodRemit.country_code==remit_country)
             remit_report = qr.order_by(PeriodRemit.profit_total_usd.desc()).all()
 
+        ctr_codes = [c.code for c in countries_list(s)]
     return render_template("index.html",
                            counts=counts, countries=ctrs, band=band,
                            cn_ke=cn_ke, inter_items=inter_items,
                            all_products=all_products,
                            daily_pivot=daily_pivot, dfrom=dfrom, dto=dto,
                            remit_report=remit_report, remit_from=remit_from, remit_to=remit_to,
-                           q=q, title="Dashboard")
+                           tp=top_period, tc=top_country, top_report=top_report, ctr_codes=ctr_codes,
+                           title="Dashboard")
+
+@app.get("/export/top-delivered.csv")
+def export_top_delivered():
+    tp = request.args.get("tp","21d")
+    tc = request.args.get("tc","")
+    tp_from, tp_to = parse_period(tp)
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow(["Country","Product","Orders","Pieces","RevenueUSD","ProfitUSD","ProfitPerPieceUSD"])
+    with Session(engine) as s:
+        qr = s.query(PeriodRemit).filter(PeriodRemit.start_date>=tp_from, PeriodRemit.end_date<=tp_to)
+        if tc: qr = qr.filter(PeriodRemit.country_code==tc)
+        agg = {}
+        for r in qr.all():
+            key = (r.product_sku, r.country_code if tc else "ALL")
+            a = agg.get(key, dict(orders=0,pieces=0,rev=0.0,profit=0.0))
+            a["orders"] += r.orders or 0
+            a["pieces"] += r.pieces or 0
+            a["rev"] += r.revenue_usd or 0.0
+            a["profit"] += r.profit_total_usd or 0.0
+            agg[key]=a
+        rows=[]
+        for (sku,cc),a in agg.items():
+            ppu = (a["profit"]/a["pieces"]) if a["pieces"] else 0.0
+            rows.append([cc, sku, a["orders"], a["pieces"], f"{a['rev']:.2f}", f"{a['profit']:.2f}", f"{ppu:.2f}"])
+        rows.sort(key=lambda r: (int(r[3]), float(r[4])), reverse=True)
+        for r in rows: w.writerow(r)
+    resp = Response(out.getvalue(), mimetype="text/csv")
+    resp.headers["Content-Disposition"] = "attachment; filename=top-delivered.csv"
+    return resp
 
 @app.post("/upsert_current_spend")
 def upsert_current_spend():
@@ -239,7 +307,7 @@ def delete_shipment_item():
                     left = s.query(ShipmentItem).filter(ShipmentItem.shipment_id==sh.id).count()
                     if left == 0:
                         s.delete(sh); s.commit()
-                        flash("Item deleted; shipment had no items and was removed","ok")
+                        flash("Item deleted; empty shipment removed","ok")
                     else:
                         flash("Item deleted","ok")
                 else:
@@ -377,7 +445,7 @@ def add_product():
                               default_cnke_ship_usd=float(d.get("default_cnke_ship_usd") or 0.0),
                               profit_ads_budget_usd=float(d.get("profit_ads_budget_usd") or 0.0),
                               status="active")); s.commit()
-                for cc in ["KE","UG","TZ","ZM","ZW"]:
+                for cc in [c.code for c in countries_list(s)]:
                     s.add(ProductBudgetCountry(product_sku=d.get("product_sku"), country_code=cc, budget_usd=0.0))
                 s.commit()
                 flash("Product added","ok")
@@ -415,7 +483,7 @@ def upsert_budget_country():
     sku = request.form.get("product_sku")
     try:
         with Session(engine) as s:
-            for cc in ["KE","UG","TZ","ZM","ZW"]:
+            for cc in [c.code for c in countries_list(s)]:
                 key = f"budget_{cc}"
                 val = float(request.form.get(key) or 0.0)
                 row = s.query(ProductBudgetCountry).filter_by(product_sku=sku, country_code=cc).first()
@@ -434,6 +502,10 @@ def product_view(sku):
         if not p:
             flash("Product not found","error"); return redirect(url_for("products"))
         cur = s.query(PlatformSpendCurrent).filter(PlatformSpendCurrent.product_sku==sku).all()
+        spend_by_country = {}
+        for row in cur:
+            k = row.country_code
+            spend_by_country.setdefault(k, []).append(row)
         shipments = []
         for sh in s.query(Shipment).all():
             qty_sum = s.execute(select(func.sum(ShipmentItem.qty)).where(ShipmentItem.shipment_id==sh.id, ShipmentItem.product_sku==sku)).scalar() or 0
@@ -467,10 +539,85 @@ def product_view(sku):
             totals["pieces"]+=x["pieces"]; totals["revenue_usd"]+=x["revenue_usd"]; totals["ad_usd"]+=x["ad_usd"]; totals["profit_total_usd"]+=x["profit_total_usd"]
         profit_totals = type("TOT",(object,),totals)()
         budgets = s.query(ProductBudgetCountry).filter_by(product_sku=sku).all()
-    return render_template("product.html", product=p, current_spend=cur, shipments=shipments,
-                           stock_rows=stock_rows, stock_total=stock_total,
+    return render_template("product.html", product=p, current_spend=cur, spend_by_country=spend_by_country,
+                           shipments=shipments, stock_rows=stock_rows, stock_total=stock_total,
                            profit_rows=profit_rows, profit_totals=profit_totals,
                            budgets=budgets, title=p.product_name if p else "Product")
+
+@app.get("/finance")
+def finance():
+    month = request.args.get("m","")
+    category = request.args.get("c","")
+    with Session(engine) as s:
+        q = s.query(FinanceEntry)
+        if month:
+            y,mn = month.split("-")
+            start = f"{y}-{mn}-01"
+            end = str((datetime.date(int(y), int(mn), 1) + datetime.timedelta(days=32)).replace(day=1))
+            q = q.filter(FinanceEntry.date>=start, FinanceEntry.date<end)
+        if category:
+            q = q.filter(FinanceEntry.category==category)
+        items = q.order_by(FinanceEntry.date.desc()).all()
+        bal = 0.0
+        for it in items:
+            bal += (it.amount_usd if it.type=="credit" else -it.amount_usd)
+        month_sum = {}
+        for it in items:
+            key = it.date[:7]
+            x = month_sum.get(key, dict(credit=0.0,debit=0.0))
+            if it.type=="credit": x["credit"] += it.amount_usd
+            else: x["debit"] += it.amount_usd
+            month_sum[key]=x
+        months = sorted(month_sum.keys(), reverse=True)
+    cats = ["Ads","Logistics","Warehouse","Salaries","Misc"]
+    return render_template("finance.html", items=items, balance=bal, month_sum=month_sum, months=months, cats=cats, sel_month=month, sel_cat=category, title="Finance")
+
+@app.post("/finance/add")
+def finance_add():
+    d = request.form
+    try:
+        with Session(engine) as s:
+            s.add(FinanceEntry(
+                date=d.get("date"),
+                type=d.get("type"),
+                category=d.get("category"),
+                description=d.get("description"),
+                amount_usd=float(d.get("amount_usd") or 0.0)
+            ))
+            s.commit()
+        flash("Finance entry saved","ok")
+    except Exception as e:
+        flash(f"Error: {e}","error")
+    return redirect(url_for("finance"))
+
+@app.get("/finance/export.csv")
+def finance_export():
+    out = io.StringIO(); w = csv.writer(out)
+    w.writerow(["Date","Type","Category","Description","AmountUSD"])
+    with Session(engine) as s:
+        for it in s.query(FinanceEntry).order_by(FinanceEntry.date).all():
+            w.writerow([it.date, it.type, it.category, it.description, f"{it.amount_usd:.2f}"])
+    resp = Response(out.getvalue(), mimetype="text/csv")
+    resp.headers["Content-Disposition"] = "attachment; filename=finance.csv"
+    return resp
+
+@app.post("/settings/add-country")
+def add_country():
+    d = request.form
+    try:
+        name = d.get("country"); code = d.get("code"); currency = d.get("currency"); fx = float(d.get("fx_to_usd") or 1.0)
+        with Session(engine) as s:
+            if s.query(Country).filter(or_(Country.code==code, Country.country==name)).first():
+                flash("Country exists","error"); return redirect(url_for("index"))
+            s.add(Country(country=name, code=code, currency=currency, fx_to_usd=fx))
+            s.add(Warehouse(name=f"{name} Hub", country=name, code=code, active=True))
+            for p in s.query(Product).all():
+                s.add(ProductBudgetCountry(product_sku=p.product_sku, country_code=code, budget_usd=0.0))
+            s.commit()
+        flash("Country added","ok")
+    except Exception as e:
+        flash(f"Error: {e}","error")
+    return redirect(url_for("index"))
 
 if __name__ == '__main__':
     app.run(debug=True)
