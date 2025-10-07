@@ -23,21 +23,23 @@
       <a class="btn ghost" href="{{ url_for('export_top_delivered', tp=tp, tc=tc) }}">Export CSV</a>
     </div>
   </form>
-  <table class="table">
-    <tr><th>Country</th><th>Product</th><th class="num">Orders</th><th class="num">Pieces</th><th class="num">Revenue USD</th><th class="num">Profit USD</th><th class="num">Profit/pc</th></tr>
-    {% for r in top_report %}
-      <tr>
-        <td>{{ r.country_code }}</td>
-        <td>{{ r.product_sku }}</td>
-        <td class="num">{{ r.orders }}</td>
-        <td class="num">{{ r.pieces }}</td>
-        <td class="num">${{ '%.2f'|format(r.revenue_usd or 0) }}</td>
-        <td class="num"><b>${{ '%.2f'|format(r.profit_total_usd or 0) }}</b></td>
-        <td class="num">${{ '%.2f'|format(r.profit_per_piece_usd or 0) }}</td>
-      </tr>
-    {% endfor %}
-    {% if not top_report %}<tr><td colspan="7" class="muted">No data for selected period</td></tr>{% endif %}
-  </table>
+  <div class="table-wrap">
+    <table class="table">
+      <tr><th>Country</th><th>Product</th><th class="num">Orders</th><th class="num">Pieces</th><th class="num">Revenue USD</th><th class="num">Profit USD</th><th class="num">Profit/pc</th></tr>
+      {% for r in top_report %}
+        <tr>
+          <td>{{ r.country_code }}</td>
+          <td>{{ r.product_sku }}</td>
+          <td class="num">{{ r.orders }}</td>
+          <td class="num">{{ r.pieces }}</td>
+          <td class="num">${{ '%.2f'|format(r.revenue_usd or 0) }}</td>
+          <td class="num"><b>${{ '%.2f'|format(r.profit_total_usd or 0) }}</b></td>
+          <td class="num">${{ '%.2f'|format(r.profit_per_piece_usd or 0) }}</td>
+        </tr>
+      {% endfor %}
+      {% if not top_report %}<tr><td colspan="7" class="muted">No data for selected period</td></tr>{% endif %}
+    </table>
+  </div>
 </div>
 
 <div class="section s-blue">
@@ -60,23 +62,25 @@
 
 <div class="section s-green">
   <div class="section-h"><h3 style="margin:0">Remittance — results ({{ tp }}, {{ tc or 'ALL' }})</h3><span class="muted">Sorted by profit desc</span></div>
-  <table class="table">
-    <tr><th>Period</th><th>Country</th><th>Product</th><th class="num">Orders</th><th class="num">Pieces</th><th class="num">Revenue</th><th class="num">Ads</th><th class="num">Profit</th><th class="num">Profit/pc</th></tr>
-    {% for r in remit_report %}
-      <tr>
-        <td>{{ r.start_date }} → {{ r.end_date }}</td>
-        <td>{{ r.country_code }}</td>
-        <td>{{ r.product_sku }}</td>
-        <td class="num">{{ r.orders }}</td>
-        <td class="num">{{ r.pieces }}</td>
-        <td class="num">${{ '%.2f'|format(r.revenue_usd or 0) }}</td>
-        <td class="num">${{ '%.2f'|format(r.ad_usd or 0) }}</td>
-        <td class="num total">${{ '%.2f'|format(r.profit_total_usd or 0) }}</td>
-        <td class="num">${{ '%.2f'|format(r.profit_per_piece_usd or 0) }}</td>
-      </tr>
-    {% endfor %}
-    {% if not remit_report %}<tr><td colspan="9" class="muted">No remittance saved for selected period</td></tr>{% endif %}
-  </table>
+  <div class="table-wrap">
+    <table class="table">
+      <tr><th>Period</th><th>Country</th><th>Product</th><th class="num">Orders</th><th class="num">Pieces</th><th class="num">Revenue</th><th class="num">Ads</th><th class="num">Profit</th><th class="num">Profit/pc</th></tr>
+      {% for r in remit_report %}
+        <tr>
+          <td>{{ r.start_date }} → {{ r.end_date }}</td>
+          <td>{{ r.country_code }}</td>
+          <td>{{ r.product_sku }}</td>
+          <td class="num">{{ r.orders }}</td>
+          <td class="num">{{ r.pieces }}</td>
+          <td class="num">${{ '%.2f'|format(r.revenue_usd or 0) }}</td>
+          <td class="num">${{ '%.2f'|format(r.ad_usd or 0) }}</td>
+          <td class="num total">${{ '%.2f'|format(r.profit_total_usd or 0) }}</td>
+          <td class="num">${{ '%.2f'|format(r.profit_per_piece_usd or 0) }}</td>
+        </tr>
+      {% endfor %}
+      {% if not remit_report %}<tr><td colspan="9" class="muted">No remittance saved for selected period</td></tr>{% endif %}
+    </table>
+  </div>
 </div>
 
 {% endblock %}
