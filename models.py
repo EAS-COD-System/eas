@@ -19,7 +19,7 @@ class Country(Base):
     country: Mapped[str] = mapped_column(String, primary_key=True)
     code: Mapped[str] = mapped_column(String, nullable=False)
     currency: Mapped[str] = mapped_column(String, nullable=False)
-    fx_to_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    fx_to_usd: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
 
 class Warehouse(Base):
     __tablename__ = "warehouses"
@@ -43,7 +43,7 @@ class PlatformSpendCurrent(Base):
     __tablename__ = "platform_spend_current"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     product_sku: Mapped[str] = mapped_column(String, ForeignKey("products.product_sku"))
-    platform: Mapped[str] = mapped_column(String)
+    platform: Mapped[str] = mapped_column(String)  # Facebook/TikTok/Google
     amount_usd: Mapped[float] = mapped_column(Float, default=0.0)
     country_code: Mapped[str] = mapped_column(String)
 
@@ -53,7 +53,7 @@ class Shipment(Base):
     ref: Mapped[str] = mapped_column(String)
     from_country: Mapped[str] = mapped_column(String)
     to_country: Mapped[str] = mapped_column(String)
-    status: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String)  # in_transit / arrived
     created_date: Mapped[str] = mapped_column(String, nullable=True)
     eta_date: Mapped[str] = mapped_column(String, nullable=True)
     arrived_date: Mapped[str] = mapped_column(String, nullable=True)
@@ -71,8 +71,8 @@ class ShipmentItem(Base):
 class DailyDelivered(Base):
     __tablename__ = "daily_delivered"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    date: Mapped[str] = mapped_column(String)
-    country_code: Mapped[str] = mapped_column(String)
+    date: Mapped[str] = mapped_column(String)            # YYYY-MM-DD
+    country_code: Mapped[str] = mapped_column(String)    # KE/UG/TZ/ZM/ZW/...
     delivered: Mapped[int] = mapped_column(Integer, default=0)
 
 class PeriodRemit(Base):
@@ -100,8 +100,8 @@ class ProductBudgetCountry(Base):
 class FinanceEntry(Base):
     __tablename__ = "finance_entries"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    date: Mapped[str] = mapped_column(String)
-    type: Mapped[str] = mapped_column(String)          # "credit" / "debit"
-    category: Mapped[str] = mapped_column(String)      # Ads / Logistics / Warehouse / Salaries / Misc
+    date: Mapped[str] = mapped_column(String)            # YYYY-MM-DD
+    type: Mapped[str] = mapped_column(String)            # credit/debit
+    category: Mapped[str] = mapped_column(String)        # user-defined
     description: Mapped[str] = mapped_column(String)
     amount_usd: Mapped[float] = mapped_column(Float, default=0.0)
