@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
+<h2>Performance</h2>
 
-<div class="section s-teal">
-  <div class="section-h"><h3 style="margin:0">Top delivered products — report</h3>
-    <span class="muted">Period + Country filter; export CSV</span></div>
+<div class="section s-blue">
+  <div class="section-h"><h3>Top Delivered — Filter</h3></div>
   <form method="get" action="{{ url_for('performance') }}">
     <div class="form-row">
       <select name="tp">
@@ -17,70 +17,57 @@
       </select>
       <select name="tc">
         <option value="" {% if not tc %}selected{% endif %}>All Countries</option>
-        {% for code in ctr_codes %}<option value="{{ code }}" {% if tc==code %}selected{% endif %}>{{ code }}</option>{% endfor %}
+        {% for code in ctr_codes %}
+          <option value="{{ code }}" {% if tc==code %}selected{% endif %}>{{ code }}</option>
+        {% endfor %}
       </select>
-      <button class="btn">Show</button>
-      <a class="btn ghost" href="{{ url_for('export_top_delivered', tp=tp, tc=tc) }}">Export CSV</a>
-    </div>
-  </form>
-  <div class="table-wrap">
-    <table class="table">
-      <tr><th>Country</th><th>Product</th><th class="num">Orders</th><th class="num">Pieces</th><th class="num">Revenue USD</th><th class="num">Profit USD</th><th class="num">Profit/pc</th></tr>
-      {% for r in top_report %}
-        <tr>
-          <td>{{ r.country_code }}</td>
-          <td>{{ r.product_sku }}</td>
-          <td class="num">{{ r.orders }}</td>
-          <td class="num">{{ r.pieces }}</td>
-          <td class="num">${{ '%.2f'|format(r.revenue_usd or 0) }}</td>
-          <td class="num"><b>${{ '%.2f'|format(r.profit_total_usd or 0) }}</b></td>
-          <td class="num">${{ '%.2f'|format(r.profit_per_piece_usd or 0) }}</td>
-        </tr>
-      {% endfor %}
-      {% if not top_report %}<tr><td colspan="7" class="muted">No data for selected period</td></tr>{% endif %}
-    </table>
-  </div>
-</div>
-
-<div class="section s-blue">
-  <div class="section-h"><h3 style="margin:0">Remittance — add / edit</h3><span class="muted">Deducts stock & updates profit</span></div>
-  <form method="post" action="{{ url_for('upsert_period_remit') }}">
-    <div class="form-row">
-      <input type="date" name="start_date" required>
-      <input type="date" name="end_date" required>
-      <select name="country_code">{% for code in ctr_codes %}<option>{{ code }}</option>{% endfor %}</select>
-      <select name="product_sku">{% for p in all_products %}<option value="{{ p.product_sku }}">{{ p.product_sku }} — {{ p.product_name }}</option>{% endfor %}</select>
-      <input type="number" name="orders" placeholder="Orders" value="0">
-      <input type="number" name="pieces" placeholder="Pieces" value="0">
-      <input type="number" step="0.01" name="revenue_usd" placeholder="Revenue USD" value="0">
-      <input type="number" step="0.01" name="ad_usd" placeholder="Ad USD" value="0">
-      <input type="number" step="0.01" name="override_ship_unit" placeholder="Override KE→Dest ship /pc (optional)">
-      <button class="btn">Save</button>
+      <button class="btn">Apply</button>
     </div>
   </form>
 </div>
 
 <div class="section s-green">
-  <div class="section-h"><h3 style="margin:0">Remittance — results ({{ tp }}, {{ tc or 'ALL' }})</h3><span class="muted">Sorted by profit desc</span></div>
+  <div class="section-h"><h3>Top Delivered — Results</h3><span class="muted">Sorted by profit</span></div>
   <div class="table-wrap">
     <table class="table">
-      <tr><th>Period</th><th>Country</th><th>Product</th><th class="num">Orders</th><th class="num">Pieces</th><th class="num">Revenue</th><th class="num">Ads</th><th class="num">Profit</th><th class="num">Profit/pc</th></tr>
-      {% for r in remit_report %}
-        <tr>
-          <td>{{ r.start_date }} → {{ r.end_date }}</td>
-          <td>{{ r.country_code }}</td>
-          <td>{{ r.product_sku }}</td>
-          <td class="num">{{ r.orders }}</td>
-          <td class="num">{{ r.pieces }}</td>
-          <td class="num">${{ '%.2f'|format(r.revenue_usd or 0) }}</td>
-          <td class="num">${{ '%.2f'|format(r.ad_usd or 0) }}</td>
-          <td class="num total">${{ '%.2f'|format(r.profit_total_usd or 0) }}</td>
-          <td class="num">${{ '%.2f'|format(r.profit_per_piece_usd or 0) }}</td>
-        </tr>
+      <tr><th>Country</th><th>Product</th><th class="num">Orders</th><th class="num">Pieces</th><th class="num">Revenue USD</th><th class="num">Profit USD</th><th class="num">Profit/pc</th></tr>
+      {% for r in top_report %}
+      <tr>
+        <td>{{ r.country_code }}</td>
+        <td>{{ r.product_sku }}</td>
+        <td class="num">{{ r.orders }}</td>
+        <td class="num">{{ r.pieces }}</td>
+        <td class="num">${{ '%.2f'|format(r.revenue_usd or 0) }}</td>
+        <td class="num total">${{ '%.2f'|format(r.profit_total_usd or 0) }}</td>
+        <td class="num">${{ '%.2f'|format(r.profit_per_piece_usd or 0) }}</td>
+      </tr>
       {% endfor %}
-      {% if not remit_report %}<tr><td colspan="9" class="muted">No remittance saved for selected period</td></tr>{% endif %}
+      {% if not top_report %}
+      <tr><td colspan="7" class="muted">No data for this period.</td></tr>
+      {% endif %}
     </table>
   </div>
 </div>
 
+<div class="section s-teal">
+  <div class="section-h"><h3>Remittance — Current View</h3><span class="muted">Same filter as above</span></div>
+  <div class="table-wrap">
+    <table class="table">
+      <tr><th>Country</th><th>Product</th><th class="num">Orders</th><th class="num">Pieces</th><th class="num">Revenue</th><th class="num">Profit</th></tr>
+      {% for r in remit_report %}
+      <tr>
+        <td>{{ r.country_code }}</td>
+        <td>{{ r.product_sku }}</td>
+        <td class="num">{{ r.orders }}</td>
+        <td class="num">{{ r.pieces }}</td>
+        <td class="num">${{ '%.2f'|format(r.revenue_usd or 0) }}</td>
+        <td class="num total">${{ '%.2f'|format(r.profit_total_usd or 0) }}</td>
+      </tr>
+      {% endfor %}
+      {% if not remit_report %}
+      <tr><td colspan="6" class="muted">No remittance rows for this filter.</td></tr>
+      {% endif %}
+    </table>
+  </div>
+</div>
 {% endblock %}
