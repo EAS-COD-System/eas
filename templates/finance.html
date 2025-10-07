@@ -1,61 +1,91 @@
 {% extends "base.html" %}
 {% block content %}
+
 <div class="section s-blue">
-  <div class="section-h"><h3 style="margin:0">Finance — Credits & Debits</h3><span class="muted">Monthly summary and running balance</span></div>
+  <div class="section-h">
+    <h3 style="margin:0">Finance — add entry</h3>
+    <span class="muted">Track credits, debits, and categories. All USD.</span>
+  </div>
   <form method="post" action="{{ url_for('finance_add') }}">
     <div class="form-row">
       <input type="date" name="date" required>
-      <select name="type"><option>credit</option><option>debit</option></select>
-      <select name="category"><option>Ads</option><option>Logistics</option><option>Warehouse</option><option>Salaries</option><option>Misc</option></select>
+      <select name="type">
+        <option value="credit">Credit</option>
+        <option value="debit">Debit</option>
+      </select>
+      <input name="category" placeholder="Category (e.g., Logistics, Payroll, Ops)" required>
       <input name="description" placeholder="Description" required>
       <input type="number" step="0.01" name="amount_usd" placeholder="Amount USD" required>
-      <button class="btn">Add</button>
-      <a class="btn ghost" href="{{ url_for('finance_export') }}">Export CSV</a>
+      <button class="btn">Save</button>
     </div>
   </form>
 </div>
 
 <div class="section s-teal">
-  <div class="section-h"><h3 style="margin:0">Filters</h3><span class="muted">Month & Category</span></div>
+  <div class="section-h">
+    <h3 style="margin:0">Finance — filter & summary</h3>
+    <span class="muted">Quick filter by month, category, or text</span>
+  </div>
   <form method="get" action="{{ url_for('finance') }}">
     <div class="form-row">
       <input type="month" name="m" value="{{ sel_month or '' }}">
-      <select name="c">
-        <option value="" {% if not sel_cat %}selected{% endif %}>All</option>
-        {% for cat in cats %}<option value="{{ cat }}" {% if sel_cat==cat %}selected{% endif %}>{{ cat }}</option>{% endfor %}
-      </select>
+      <input name="c" value="{{ sel_cat or '' }}" placeholder="Category contains…">
+      <input name="q" value="{{ q or '' }}" placeholder="Search description…">
       <button class="btn">Apply</button>
+      <a class="btn ghost" href="{{ url_for('finance') }}">Clear</a>
     </div>
   </form>
-</div>
 
-<div class="section s-green">
-  <div class="section-h"><h3 style="margin:0">Monthly Summary</h3><span class="muted">Credits vs Debits</span></div>
+  <div class="grid">
+    <div class="card">
+      <div class="muted">Current selection balance</div>
+      <div class="v">${{ '%.2f'|format(balance or 0) }}</div>
+    </div>
+    <div class="card">
+      <div class="muted">Months in view</div>
+      <div class="v">{{ months|length }}</div>
+    </div>
+  </div>
+
   <table class="table">
     <tr><th>Month</th><th class="num">Credits</th><th class="num">Debits</th><th class="num">Net</th></tr>
     {% for m in months %}
-    <tr>
-      <td>{{ m }}</td>
-      <td class="num">${{ '%.2f'|format(month_sum[m].credit or 0) }}</td>
-      <td class="num">${{ '%.2f'|format(month_sum[m].debit or 0) }}</td>
-      <td class="num total">${{ '%.2f'|format((month_sum[m].credit - month_sum[m].debit) if month_sum[m] else 0) }}</td>
-    </tr>
+      {% set s = month_sum[m] %}
+      <tr>
+        <td>{{ m }}</td>
+        <td class="num">${{ '%.2f'|format(s.credit or 0) }}</td>
+        <td class="num">${{ '%.2f'|format(s.debit or 0) }}</td>
+        <td class="num total">${{ '%.2f'|format((s.credit or 0) - (s.debit or 0)) }}</td>
+      </tr>
     {% endfor %}
-    {% if not months %}<tr><td colspan="4" class="muted">No finance data</td></tr>{% endif %}
+    {% if not months %}
+      <tr><td colspan="4" class="muted">No entries yet</td></tr>
+    {% endif %}
   </table>
 </div>
 
-<div class="section s-purple">
-  <div class="section-h"><h3 style="margin:0">Transactions</h3><span class="muted">Running balance: <b>${{ '%.2f'|format(balance or 0) }}</b></span></div>
+<div class="section s-green">
+  <div class="section-h">
+    <h3 style="margin:0">Finance — entries</h3>
+    <span class="muted">Newest first</span>
+  </div>
   <table class="table">
     <tr><th>Date</th><th>Type</th><th>Category</th><th>Description</th><th class="num">Amount USD</th></tr>
     {% for it in items %}
-    <tr>
-      <td>{{ it.date }}</td><td>{{ it.type }}</td><td>{{ it.category }}</td><td>{{ it.description }}</td>
-      <td class="num">{% if it.type=='debit' %}-{% endif %}${{ '%.2f'|format(it.amount_usd or 0) }}</td>
-    </tr>
+      <tr>
+        <td>{{ it.date }}</td>
+        <td><span class="badge {{ 'ok' if it.type=='credit' else 'danger' }}">{{ it.type }}</span></td>
+        <td>{{ it.category }}</td>
+        <td>{{ it.description }}</td>
+        <td class="num {{ 'total' if it.type=='credit' else '' }}">
+          {{ '-' if it.type=='debit' else '' }}${{ '%.2f'|format(it.amount_usd or 0) }}
+        </td>
+      </tr>
     {% endfor %}
-    {% if not items %}<tr><td colspan="5" class="muted">No transactions</td></tr>{% endif %}
+    {% if not items %}
+      <tr><td colspan="5" class="muted">No finance entries recorded</td></tr>
+    {% endif %}
   </table>
 </div>
+
 {% endblock %}
