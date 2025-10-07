@@ -1,67 +1,35 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="section s-blue">
-  <div class="section-h"><h3 style="margin:0">Settings — Country management</h3><span class="muted">Add / delete countries</span></div>
-  <form method="post" action="{{ url_for('add_country') }}">
-    <div class="form-row">
-      <input name="country" placeholder="Country name" required>
-      <input name="code" placeholder="Code (e.g. KE)" maxlength="2" required>
-      <input name="currency" placeholder="Currency (e.g. KES)" required>
-      <input type="number" step="0.0001" name="fx_to_usd" placeholder="1 USD = x" required>
-      <button class="btn">Add Country</button>
-    </div>
-  </form>
+<h2>Settings</h2>
 
+<div class="section s-green">
+  <div class="section-h"><h3>Countries</h3><span class="muted">Configured in the database</span></div>
   <div class="table-wrap">
     <table class="table">
-      <tr><th>Country</th><th>Code</th><th>Currency</th><th class="num">FX to USD</th><th></th></tr>
+      <tr><th>Country</th><th>Code</th><th>Currency</th></tr>
       {% for c in countries %}
-        <tr>
-          <td>{{ c.country }}</td><td>{{ c.code }}</td><td>{{ c.currency }}</td><td class="num">{{ c.fx_to_usd }}</td>
-          <td>
-            <form method="post" action="{{ url_for('delete_country') }}" onsubmit="return confirm('Delete country {{ c.country }}?');">
-              <input type="hidden" name="id" value="{{ c.id }}">
-              <button class="btn danger small">Delete</button>
-            </form>
-          </td>
-        </tr>
+      <tr><td>{{ c.country }}</td><td>{{ c.code }}</td><td>{{ c.currency }}</td></tr>
       {% endfor %}
-      {% if not countries %}
-        <tr><td colspan="5" class="muted">No countries configured</td></tr>
-      {% endif %}
+      {% if not countries %}<tr><td colspan="3" class="muted">None</td></tr>{% endif %}
     </table>
   </div>
 </div>
 
-<div class="section s-green">
-  <div class="section-h"><h3 style="margin:0">Settings — Edit product details</h3><span class="muted">Quick update name, price, shipping</span></div>
-  <form method="post" action="{{ url_for('edit_product_settings') }}">
-    <div class="form-row">
-      <select name="product_sku">
-        {% for p in products %}
-          <option value="{{ p.product_sku }}">{{ p.product_sku }} — {{ p.product_name }}</option>
-        {% endfor %}
-      </select>
-      <input name="product_name" placeholder="New name">
-      <input type="number" step="0.01" name="cost_cn_usd" placeholder="Cost China USD">
-      <input type="number" step="0.01" name="default_cnke_ship_usd" placeholder="CN→KE ship USD">
-      <button class="btn">Save changes</button>
-    </div>
-  </form>
-</div>
-
-<div class="section s-teal">
-  <div class="section-h"><h3 style="margin:0">Restore backup</h3><span class="muted">Rollback database to a past day</span></div>
-  <form method="post" action="{{ url_for('restore_backup') }}">
-    <div class="form-row">
-      <select name="days_back">
-        <option value="1">Yesterday</option>
-        <option value="2">2 days ago</option>
-        <option value="3">3 days ago</option>
-        <option value="7">7 days ago</option>
-      </select>
-      <button class="btn danger">Restore</button>
-    </div>
-  </form>
+<div class="section s-blue">
+  <div class="section-h"><h3>Products</h3><span class="muted">Quick overview</span></div>
+  <div class="table-wrap">
+    <table class="table">
+      <tr><th>SKU</th><th>Name</th><th class="num">Cost CN</th><th class="num">CN→KE Ship</th></tr>
+      {% for p in products %}
+      <tr>
+        <td>{{ p.product_sku }}</td>
+        <td>{{ p.product_name }}</td>
+        <td class="num">${{ '%.2f'|format(p.cost_cn_usd or 0) }}</td>
+        <td class="num">${{ '%.2f'|format(p.default_cnke_ship_usd or 0) }}</td>
+      </tr>
+      {% endfor %}
+      {% if not products %}<tr><td colspan="4" class="muted">No products yet</td></tr>{% endif %}
+    </table>
+  </div>
 </div>
 {% endblock %}
