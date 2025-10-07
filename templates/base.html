@@ -2,16 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>{{ title or "EAS COD" }}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>{{ title or "COD Control" }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <header>
-  <div class="brand">
-    <div class="dot"></div>
-    <h1>EAS COD</h1>
-  </div>
+  <div class="brand"><div class="dot"></div><h1>COD Control</h1></div>
   <nav class="nav">
     <a class="navlink" href="{{ url_for('index') }}">Dashboard</a>
     <a class="navlink" href="{{ url_for('products') }}">Products</a>
@@ -24,7 +21,7 @@
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       {% for cat,msg in messages %}
-        <div class="card" style="border-left:4px solid {{ '#1f7a3e' if cat=='ok' else '#c23c3c' }}; margin-bottom:10px">{{ msg }}</div>
+      <div class="card" style="border-left:4px solid {{ '#1f7a3e' if cat=='ok' else '#c23c3c' }}; margin-bottom:10px">{{ msg }}</div>
       {% endfor %}
     {% endif %}
   {% endwith %}
