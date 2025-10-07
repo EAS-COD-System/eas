@@ -1,5 +1,5 @@
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column
-from sqlalchemy import Integer, String, Float, Boolean
+from sqlalchemy import Integer, String, Float, Boolean, Text
 
 Base = declarative_base()
 
@@ -17,7 +17,7 @@ class Country(Base):
     __tablename__ = "countries"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     country: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-    code: Mapped[str] = mapped_column(String, unique=True, nullable=False)   # KE,TZ,UG,ZM,ZW,CN
+    code: Mapped[str] = mapped_column(String, unique=True, nullable=False)   # KE,TZ,UG,ZM,ZW,CN, etc
     currency: Mapped[str] = mapped_column(String, default="USD")
     fx_to_usd: Mapped[float] = mapped_column(Float, default=1.0)
 
@@ -25,14 +25,14 @@ class Warehouse(Base):
     __tablename__ = "warehouses"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    country: Mapped[str] = mapped_column(String, nullable=False)
-    code: Mapped[str] = mapped_column(String, nullable=False)
+    country: Mapped[str] = mapped_column(String, nullable=False)  # Human name
+    code: Mapped[str] = mapped_column(String, nullable=False)     # KE/TZ/…
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 class StockMovement(Base):
     __tablename__ = "stock_movements"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    date: Mapped[str] = mapped_column(String, nullable=False)  # ISO
+    date: Mapped[str] = mapped_column(String, nullable=False)  # ISO date
     product_sku: Mapped[str] = mapped_column(String, nullable=False)
     from_wh: Mapped[int] = mapped_column(Integer, nullable=True)
     to_wh: Mapped[int] = mapped_column(Integer, nullable=True)
@@ -43,17 +43,17 @@ class PlatformSpendCurrent(Base):
     __tablename__ = "platform_spend_current"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     product_sku: Mapped[str] = mapped_column(String, nullable=False)
-    platform: Mapped[str] = mapped_column(String, nullable=False)      # Facebook/TikTok/Google
+    platform: Mapped[str] = mapped_column(String, nullable=False)    # Facebook/TikTok/Google
     amount_usd: Mapped[float] = mapped_column(Float, default=0.0)
-    country_code: Mapped[str] = mapped_column(String, nullable=False)  # KE,TZ,UG,ZM,ZW
+    country_code: Mapped[str] = mapped_column(String, nullable=False) # KE/TZ/UG/ZM/ZW…
 
 class Shipment(Base):
     __tablename__ = "shipments"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     ref: Mapped[str] = mapped_column(String, nullable=False)
-    from_country: Mapped[str] = mapped_column(String, nullable=False)  # Kenya, China, …
+    from_country: Mapped[str] = mapped_column(String, nullable=False)
     to_country: Mapped[str] = mapped_column(String, nullable=False)
-    status: Mapped[str] = mapped_column(String, default="in_transit")  # in_transit/arrived
+    status: Mapped[str] = mapped_column(String, default="in_transit") # in_transit/arrived
     created_date: Mapped[str] = mapped_column(String, nullable=True)
     arrived_date: Mapped[str] = mapped_column(String, nullable=True)
     transit_days: Mapped[int] = mapped_column(Integer, default=0)
@@ -101,5 +101,5 @@ class FinanceEntry(Base):
     date: Mapped[str] = mapped_column(String, nullable=False)
     type: Mapped[str] = mapped_column(String, nullable=False)   # credit/debit
     category: Mapped[str] = mapped_column(String, nullable=False)
-    description: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
     amount_usd: Mapped[float] = mapped_column(Float, default=0.0)
