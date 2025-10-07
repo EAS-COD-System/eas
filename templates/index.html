@@ -1,237 +1,90 @@
 {% extends "base.html" %}
 {% block content %}
-
 <div class="grid">
   <div class="card kpi"><div class="muted">Active Products</div><div class="v">{{ counts.products }}</div></div>
   <div class="card kpi"><div class="muted">Warehouses</div><div class="v">{{ counts.warehouses }}</div></div>
-  <div class="card kpi"><div class="muted">In-Transit Shipments</div><div class="v">{{ counts.in_transit }}</div></div>
+  <div class="card kpi"><div class="muted">In-Transit</div><div class="v">{{ counts.in_transit }}</div></div>
 </div>
 
-<!-- Country band totals -->
 <div class="section s-green">
-  <div class="section-h"><h3 style="margin:0">Country band — totals</h3><span class="muted">Stock, In-Transit, Ad Spend (USD)</span></div>
+  <div class="section-h"><h3>Country Band</h3><span class="muted">Stock / In-transit / Ad Spend</span></div>
   <div class="grid">
-    {% for cname,vals in band.items() %}
-      <div class="card">
-        <div class="muted">{{ vals.code }} — {{ cname }}</div>
-        <div class="subgrid">
-          <div><div class="small muted">Stock</div><div class="v">{{ vals.stock }}</div></div>
-          <div><div class="small muted">In-Transit</div><div class="v">{{ vals.in_transit }}</div></div>
-          <div><div class="small muted">Ad Spend</div><div class="v">${{ '%.2f'|format(vals.ad_spend or 0) }}</div></div>
-        </div>
+    {% for name,vals in band.items() %}
+    <div class="card">
+      <div class="muted">{{ vals.code }} — {{ name }}</div>
+      <div class="subgrid">
+        <div><div class="small muted">Stock</div><div class="v">{{ vals.stock }}</div></div>
+        <div><div class="small muted">In-Transit</div><div class="v">{{ vals.in_transit }}</div></div>
+        <div><div class="small muted">Ad Spend</div><div class="v">${{ '%.2f'|format(vals.ad_spend) }}</div></div>
       </div>
+    </div>
     {% endfor %}
   </div>
 </div>
 
-<!-- Ad spend daily -->
 <div class="section s-blue">
-  <div class="section-h"><h3 style="margin:0">Ad spend — Daily (USD)</h3><span class="muted">Replace by platform+country+product</span></div>
+  <div class="section-h"><h3>Ad Spend (USD)</h3></div>
   <form method="post" action="{{ url_for('upsert_current_spend') }}">
     <div class="form-row">
       <select name="platform"><option>Facebook</option><option>TikTok</option><option>Google</option></select>
-      <select name="country_code">
-        {% for c in countries %}<option>{{ c.code }}</option>{% endfor %}
-      </select>
+      <select name="country_code">{% for c in countries %}<option>{{ c.code }}</option>{% endfor %}</select>
       <select name="product_sku">{% for p in all_products %}<option value="{{ p.product_sku }}">{{ p.product_sku }} — {{ p.product_name }}</option>{% endfor %}</select>
-      <input type="number" step="0.01" name="amount_usd" placeholder="Amount (USD)" required>
+      <input type="number" step="0.01" name="amount_usd" placeholder="USD amount">
       <button class="btn">Save</button>
     </div>
   </form>
-
-  <!-- Per-country totals (sum of platforms) -->
   <div class="table-wrap">
     <table class="table">
       <tr><th>Country</th><th class="num">Facebook</th><th class="num">TikTok</th><th class="num">Google</th><th class="num">Total</th></tr>
       {% for c in countries %}
-        {% set row = spend_c_summary.get(c.code, {}) %}
+        {% set r = spend_c_summary.get(c.code, {}) %}
         <tr>
           <td>{{ c.code }}</td>
-          <td class="num">${{ '%.2f'|format(row.get('Facebook',0)) }}</td>
-          <td class="num">${{ '%.2f'|format(row.get('TikTok',0)) }}</td>
-          <td class="num">${{ '%.2f'|format(row.get('Google',0)) }}</td>
-          <td class="num total">${{ '%.2f'|format(row.get('total',0)) }}</td>
+          <td class="num">${{ '%.2f'|format(r.get('Facebook',0)) }}</td>
+          <td class="num">${{ '%.2f'|format(r.get('TikTok',0)) }}</td>
+          <td class="num">${{ '%.2f'|format(r.get('Google',0)) }}</td>
+          <td class="num total">${{ '%.2f'|format(r.get('total',0)) }}</td>
         </tr>
       {% endfor %}
     </table>
   </div>
 </div>
 
-<!-- Create stock movement -->
-<div class="section s-orange">
-  <div class="section-h"><h3 style="margin:0">Create stock movement — In transit</h3><span class="muted">From country → To country</span></div>
-  <form method="post" action="{{ url_for('create_transfer_home') }}">
+<div class="section s-teal">
+  <div class="section-h"><h3>Weekly Delivered</h3><span class="muted">{{ week_start }} → {{ week_end }}</span></div>
+  <div class="table-wrap">
+    <table class="table">
+      <tr><th>Country</th><th class="num">Delivered</th></tr>
+      {% for c in countries %}
+      <tr><td>{{ c.code }}</td><td class="num total">{{ weekly_totals.get(c.code,0) }}</td></tr>
+      {% endfor %}
+      <tr><td class="total">TOTAL</td><td class="num total">{{ weekly_grand }}</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="section s-purple">
+  <div class="section-h"><h3>Daily Delivered</h3><span class="muted">Recent 8 Days</span></div>
+  <form method="post" action="{{ url_for('add_daily_delivered') }}">
     <div class="form-row">
-      <select name="from_code">
-        <option>CN</option>
-        {% for c in countries %}<option>{{ c.code }}</option>{% endfor %}
-      </select>
-      <select name="to_code">
-        {% for c in countries %}<option>{{ c.code }}</option>{% endfor %}
-      </select>
-      <select name="product_sku">{% for p in all_products %}<option value="{{ p.product_sku }}">{{ p.product_sku }} — {{ p.product_name }}</option>{% endfor %}</select>
-      <input type="number" name="qty" placeholder="Qty" required>
-      <input type="number" step="0.01" name="shipping_cost_usd" placeholder="Shipping USD (est./final)">
-      <input name="ref" placeholder="REF (e.g. SHP-KE-001)" required>
-      <button class="btn">Create</button>
+      <input type="date" name="date" required>
+      <select name="country_code">{% for c in countries %}<option>{{ c.code }}</option>{% endfor %}</select>
+      <input type="number" name="delivered" placeholder="Delivered">
+      <button class="btn">Save</button>
     </div>
   </form>
-</div>
 
-<!-- CN->KE -->
-<div class="section s-orange">
-  <div class="section-h"><h3 style="margin:0">Shipments in transit — China → Kenya</h3><span class="muted">Mark arrived or edit</span></div>
   <div class="table-wrap">
     <table class="table">
-      <tr><th>Ref</th><th>Items</th><th>Sent</th><th>Ship USD</th><th></th><th></th></tr>
-      {% for s in cn_ke %}
-        <tr>
-          <td>{{ s.ref }}</td><td>{{ s.items_str }}</td>
-          <td>{{ s.created_date or '-' }}</td>
-          <td>
-            <form method="post" action="{{ url_for('update_shipment_cost') }}">
-              <input type="hidden" name="shipment_id" value="{{ s.id }}">
-              <input class="t-right" type="number" step="0.01" name="shipping_cost_usd" value="{{ s.shipping_cost_usd or 0 }}" style="width:120px">
-              <button class="btn small">Save</button>
-            </form>
-          </td>
-          <td>
-            <form method="post" action="{{ url_for('mark_arrived') }}">
-              <input type="hidden" name="shipment_id" value="{{ s.id }}">
-              <button class="btn small">Arrived</button>
-            </form>
-          </td>
-          <td>
-            <form method="post" action="{{ url_for('delete_shipment') }}" onsubmit="return confirm('Delete this shipment?');">
-              <input type="hidden" name="shipment_id" value="{{ s.id }}">
-              <button class="btn danger small">Delete</button>
-            </form>
-          </td>
-        </tr>
-      {% endfor %}
-      {% if not cn_ke %}<tr><td colspan="6" class="muted">None</td></tr>{% endif %}
-    </table>
-  </div>
-</div>
-
-<!-- Between countries -->
-<div class="section s-orange">
-  <div class="section-h"><h3 style="margin:0">Shipments in transit — Between countries</h3><span class="muted">Edit qty / delete / mark arrived</span></div>
-  <div class="table-wrap">
-    <table class="table">
-      <tr><th>Ref</th><th>From</th><th>To</th><th>Item</th><th class="num">Qty</th><th>Sent</th><th>Ship USD</th><th></th><th></th><th></th></tr>
-      {% for row in inter_items %}
-        <tr>
-          <td>{{ row.ref }}</td>
-          <td>{{ row.from_country }}</td>
-          <td>{{ row.to_country }}</td>
-          <td>{{ row.product_sku }}</td>
-          <td class="num">
-            <form method="post" action="{{ url_for('edit_shipment_item_qty') }}">
-              <input type="hidden" name="shipment_item_id" value="{{ row.item_id }}">
-              <input type="number" name="qty" value="{{ row.qty }}" style="width:90px">
-              <button class="btn small">Update</button>
-            </form>
-          </td>
-          <td>{{ row.created_date or '-' }}</td>
-          <td>
-            <form method="post" action="{{ url_for('update_shipment_cost') }}">
-              <input type="hidden" name="shipment_id" value="{{ row.shipment_id }}">
-              <input class="t-right" type="number" step="0.01" name="shipping_cost_usd" value="{{ row.shipping_cost_usd or 0 }}" style="width:110px">
-              <button class="btn small">Save</button>
-            </form>
-          </td>
-          <td>
-            <form method="post" action="{{ url_for('delete_shipment_item') }}" onsubmit="return confirm('Delete this item?');">
-              <input type="hidden" name="shipment_item_id" value="{{ row.item_id }}">
-              <button class="btn danger small">Delete item</button>
-            </form>
-          </td>
-          <td>
-            <form method="post" action="{{ url_for('delete_shipment') }}" onsubmit="return confirm('Delete shipment?');">
-              <input type="hidden" name="shipment_id" value="{{ row.shipment_id }}">
-              <button class="btn danger small">Delete shipment</button>
-            </form>
-          </td>
-          <td>
-            <form method="post" action="{{ url_for('mark_arrived') }}">
-              <input type="hidden" name="shipment_id" value="{{ row.shipment_id }}">
-              <button class="btn small">Arrived</button>
-            </form>
-          </td>
-        </tr>
-      {% endfor %}
-      {% if not inter_items %}<tr><td colspan="10" class="muted">None</td></tr>{% endif %}
-    </table>
-  </div>
-</div>
-
-<!-- Weekly delivered summary -->
-<div class="section s-teal">
-  <div class="section-h">
-    <h3 style="margin:0">Weekly Delivered ({{ week_start }} → {{ week_end }})</h3>
-    <span class="muted">Resets every Monday</span>
-  </div>
-  <div class="table-wrap">
-    <table class="table">
+      <tr><th>Date</th>{% for code in ctr_codes %}<th class="num">{{ code }}</th>{% endfor %}<th class="num">Total</th></tr>
+      {% for r in daily_pivot %}
       <tr>
-        <th>Country</th>
-        <th class="num">Delivered (Mon-Sun)</th>
+        <td>{{ r.date }}</td>
+        {% for code in ctr_codes %}<td class="num">{{ r[code] }}</td>{% endfor %}
+        <td class="num total">{{ r.total }}</td>
       </tr>
-      {% for c in countries %}
-        <tr>
-          <td>{{ c.code }}</td>
-          <td class="num total">{{ weekly_totals.get(c.code, 0) }}</td>
-        </tr>
       {% endfor %}
-      <tr>
-        <td class="total">TOTAL</td>
-        <td class="num total">{{ weekly_grand }}</td>
-      </tr>
     </table>
   </div>
 </div>
-
-<!-- Daily delivered (recent 8 days or filter) -->
-<div class="section s-purple">
-  <div class="section-h"><h3 style="margin:0">Daily delivered — recent 8 days</h3><span class="muted">Add or filter older period</span></div>
-  <div class="subgrid">
-    <form method="post" action="{{ url_for('add_daily_delivered') }}">
-      <div class="form-row">
-        <input type="date" name="date" required>
-        <select name="country_code">
-          {% for c in countries %}<option>{{ c.code }}</option>{% endfor %}
-        </select>
-        <input type="number" name="delivered" placeholder="Delivered count" required>
-        <button class="btn">Add / Update</button>
-      </div>
-    </form>
-    <form method="get" action="{{ url_for('index') }}">
-      <div class="form-row">
-        <input type="date" name="dfrom" value="{{ dfrom or '' }}">
-        <input type="date" name="dto" value="{{ dto or '' }}">
-        <button class="btn ghost">Filter</button>
-      </div>
-    </form>
-  </div>
-
-  <div class="table-wrap">
-    <table class="table">
-      <tr>
-        <th>Date</th>
-        {% for code in ctr_codes %}<th class="num">{{ code }}</th>{% endfor %}
-        <th class="num">Total</th>
-      </tr>
-      {% for row in daily_pivot %}
-        <tr>
-          <td>{{ row.date }}</td>
-          {% for code in ctr_codes %}<td class="num">{{ attribute(row, code) }}</td>{% endfor %}
-          <td class="num total">{{ row.total }}</td>
-        </tr>
-      {% endfor %}
-      {% if not daily_pivot %}<tr><td colspan="99" class="muted">No entries</td></tr>{% endif %}
-    </table>
-  </div>
-</div>
-
 {% endblock %}
