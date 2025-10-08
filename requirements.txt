@@ -1,4 +1,7 @@
 Flask==3.0.3
 Flask-SQLAlchemy==3.1.1
-SQLAlchemy==2.0.36
+SQLAlchemy==2.0.32
+Flask-Login==0.6.3
+Werkzeug==3.0.3
+itsdangerous==2.2.0
 gunicorn==21.2.0
