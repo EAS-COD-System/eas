@@ -1,29 +1,59 @@
-
 {% extends "base.html" %}
 {% block content %}
 <h3 class="mb-3">Dashboard Overview</h3>
-<div class="row">
-  <div class="col-md-4"><div class="card"><div class="card-body"><b>Products:</b> {{ counts.products }}</div></div></div>
-  <div class="col-md-4"><div class="card"><div class="card-body"><b>Warehouses:</b> {{ counts.warehouses }}</div></div></div>
-  <div class="col-md-4"><div class="card"><div class="card-body"><b>In Transit Shipments:</b> {{ counts.in_transit }}</div></div></div>
+
+<div class="row mb-3">
+  <div class="col-md-4"><div class="card p-3 text-center"><b>Products:</b> {{ stats.products }}</div></div>
+  <div class="col-md-4"><div class="card p-3 text-center"><b>Warehouses:</b> {{ stats.warehouses }}</div></div>
+  <div class="col-md-4"><div class="card p-3 text-center"><b>Transit Shipments:</b> {{ stats.transit }}</div></div>
 </div>
 
-<h5 class="mt-4">Warehouse & Stock Summary</h5>
+<h5 class="mt-4">Warehouse / Stock Summary</h5>
 <table class="table table-bordered table-striped">
-<thead><tr><th>Country</th><th>Total Stock</th><th>In Transit</th><th>Ad Spend</th></tr></thead>
-<tbody>
-{% for c in countries %}
-<tr><td>{{ c.country }}</td><td>{{ band[c.country].stock }}</td><td>{{ band[c.country].in_transit }}</td><td>${{ '%.2f'|format(band[c.country].ad_spend) }}</td></tr>
-{% endfor %}
-</tbody></table>
+  <thead><tr><th>Country</th><th>Total Stock</th><th>In Transit</th><th>Daily Ad Spend</th></tr></thead>
+  <tbody>
+    {% for c in countries %}
+    <tr>
+      <td>{{ c.name }}</td>
+      <td>{{ c.stock }}</td>
+      <td>{{ c.in_transit }}</td>
+      <td>${{ '%.2f'|format(c.spend) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 
-<h5 class="mt-4">Daily Delivered (Week {{ week_map.keys()|length }})</h5>
+<h5 class="mt-4">Daily Delivered</h5>
 <table class="table table-bordered">
-<thead><tr><th>Country</th><th>Delivered This Week</th></tr></thead>
-<tbody>
-{% for code,val in week_map.items() %}
-<tr><td>{{ code }}</td><td>{{ val }}</td></tr>
-{% endfor %}
-<tr class="table-success"><td><b>Total</b></td><td><b>{{ week_total }}</b></td></tr>
-</tbody></table>
+  <thead><tr><th>Country</th><th>Date</th><th>Delivered</th></tr></thead>
+  <tbody>
+    {% for d in deliveries %}
+    <tr><td>{{ d.country }}</td><td>{{ d.date }}</td><td>{{ d.count }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h5 class="mt-4">To-Do List</h5>
+<form method="post" action="/add_task" class="row g-2 mb-3">
+  <div class="col-md-8"><input type="text" name="task" class="form-control" placeholder="New task"></div>
+  <div class="col-md-2"><select name="status" class="form-select"><option value="pending">Pending</option><option value="in progress">In Progress</option><option value="done">Done</option></select></div>
+  <div class="col-md-2"><button class="btn btn-success w-100">Add</button></div>
+</form>
+<table class="table table-striped">
+  <thead><tr><th>Task</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    {% for t in tasks %}
+    <tr>
+      <td>{{ t.task }}</td>
+      <td>{{ t.status }}</td>
+      <td>
+        <form method="post" action="/delete_task">
+          <input type="hidden" name="task_id" value="{{ t.id }}">
+          <button class="btn btn-danger btn-sm">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% endblock %}
