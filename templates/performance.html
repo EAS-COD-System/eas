@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% block title %}Performance{% endblock %}
+{% block content %}
+
+<!-- 1) Top delivered products with period filters -->
+<div class="card">
+  <h3>Top Delivered Products</h3>
+  <form method="get" action="/performance/top">
+    <div class="row">
+      <div class="col">
+        <label>Country</label>
+        <select class="input" name="country">
+          <option value="ALL">All countries</option>
+          {% for c in countries if c.code != 'CN' %}<option value="{{ c.code }}">{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col">
+        <label>Period</label>
+        <select class="input" name="period">
+          <option value="10">Last 10 days</option>
+          <option value="21">Last 21 days</option>
+          <option value="35">Last 35 days</option>
+          <option value="60">Last 60 days</option>
+          <option value="90">Last 3 months</option>
+          <option value="180">Last 6 months</option>
+          <option value="365">Last 1 year</option>
+        </select>
+      </div>
+      <div class="col" style="align-self:flex-end">
+        <button class="btn">Show</button>
+      </div>
+    </div>
+  </form>
+
+  <table style="margin-top:10px">
+    <thead><tr><th>Product</th><th style="text-align:right">Orders</th><th style="text-align:right">Pieces</th><th style="text-align:right">Revenue (USD)</th><th style="text-align:right">Profit (USD)</th></tr></thead>
+    <tbody>
+      {% for r in top_rows %}
+      <tr>
+        <td>{{ r.product_name }}</td>
+        <td style="text-align:right">{{ r.orders }}</td>
+        <td style="text-align:right">{{ r.pieces }}</td>
+        <td style="text-align:right">{{ '%.2f'|format(r.revenue) }}</td>
+        <td style="text-align:right">{{ '%.2f'|format(r.profit) }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">No data yet. Add remittances below.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- 2) Remittance report -->
+<div class="card">
+  <h3>Remittance — Add</h3>
+  <form method="post" action="/remittance/add">
+    <div class="row">
+      <div class="col">
+        <label>Product</label>
+        <select class="input" name="product_id" required>
+          {% for p in products %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col">
+        <label>Country</label>
+        <select class="input" name="country_code" required>
+          {% for c in countries if c.code != 'CN' %}<option value="{{ c.code }}">{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col"><label>From</label><input class="input" type="date" name="start" required></div>
+      <div class="col"><label>To</label><input class="input" type="date" name="end" required></div>
+    </div>
+    <div class="row">
+      <div class="col"><label>Orders</label><input class="input" type="number" name="orders" min="0" value="0"></div>
+      <div class="col"><label>Pieces</label><input class="input" type="number" name="pieces" min="0" value="0"></div>
+      <div class="col"><label>Revenue (USD)</label><input class="input" type="number" step="0.01" name="revenue" value="0"></div>
+      <div class="col"><label>Ads (USD)</label><input class="input" type="number" step="0.01" name="ads" value="0"></div>
+      <div class="col"><label>Inter-ship cost per piece (USD)</label><input class="input" type="number" step="0.01" name="inter_ship_per_piece" value="0"></div>
+      <div class="col" style="align-self:flex-end"><button class="btn">Save</button></div>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Remittance — Recent</h3>
+  <table>
+    <thead><tr><th>ID</th><th>Product</th><th>Country</th><th>Period</th><th style="text-align:right">Orders</th><th style="text-align:right">Pieces</th><th style="text-align:right">Revenue</th><th style="text-align:right">Ads</th><th style="text-align:right">Inter-ship</th></tr></thead>
+    <tbody>
+      {% for r in remittances %}
+      <tr>
+        <td>#{{ r.id }}</td>
+        <td>{{ r.product_name }}</td>
+        <td>{{ r.country }}</td>
+        <td>{{ r.start }} → {{ r.end }}</td>
+        <td style="text-align:right">{{ r.orders }}</td>
+        <td style="text-align:right">{{ r.pieces }}</td>
+        <td style="text-align:right">{{ '%.2f'|format(r.revenue) }}</td>
+        <td style="text-align:right">{{ '%.2f'|format(r.ads) }}</td>
+        <td style="text-align:right">{{ '%.2f'|format(r.inter) }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9" class="muted">No remittances yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

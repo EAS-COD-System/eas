@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}COD System{% endblock %}</title>
+  <style>
+    :root {
+      --green: #16a34a;
+      --darkgreen: #15803d;
+      --border: #e5e7eb;
+      --bg: #ffffff;
+      --muted: #64748b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: #111;
+    }
+    header {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 999;
+    }
+    .brand { font-weight: 700; color: var(--green); }
+    nav a {
+      margin: 0 6px;
+      color: #111;
+      text-decoration: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+    }
+    nav a.active {
+      background: var(--green);
+      color: white;
+    }
+    .btn {
+      background: var(--green);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .btn:hover { background: var(--darkgreen); }
+    main { padding: 20px; max-width: 1200px; margin: auto; }
+    .card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background: #f9fafb;
+      font-weight: 600;
+    }
+    @media (max-width: 700px) {
+      nav { display: flex; flex-wrap: wrap; }
+      nav a { margin-bottom: 4px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">COD System</div>
+    <nav>
+      <a href="/" class="{% if request.path=='/' %}active{% endif %}">Dashboard</a>
+      <a href="/products" class="{% if '/products' in request.path %}active{% endif %}">Products</a>
+      <a href="/performance" class="{% if '/performance' in request.path %}active{% endif %}">Performance</a>
+      <a href="/finance" class="{% if '/finance' in request.path %}active{% endif %}">Finance</a>
+      <a href="/settings" class="{% if '/settings' in request.path %}active{% endif %}">Settings</a>
+      {% if session.get('logged_in') %}
+      <a href="/logout">Logout</a>
+      {% endif %}
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

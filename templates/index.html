@@ -1,0 +1,352 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<!-- 1) Products + Warehouses + Transit + Weekly Total Delivered -->
+<div class="grid grid-3">
+  <div class="card">
+    <h3>Products</h3>
+    <div class="kpi">{{ stats.products }}</div>
+    <form method="post" action="/products/add" class="compact">
+      <div class="row">
+        <div class="col">
+          <label>Name</label>
+          <input class="input" name="name" placeholder="Product name" required>
+        </div>
+        <div class="col">
+          <label>SKU</label>
+          <input class="input" name="sku" placeholder="Optional">
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <label>Cost in China (USD)</label>
+          <input class="input" type="number" step="0.01" name="price_cn" value="0">
+        </div>
+        <div class="col">
+          <label>Ship CN → KE per piece (USD)</label>
+          <input class="input" type="number" step="0.01" name="ship_cn_ke" value="0">
+        </div>
+      </div>
+      <button class="btn small" style="margin-top:8px">Add product</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Warehouses</h3>
+    <div class="kpi">{{ stats.warehouses }}</div>
+    <form method="post" action="/settings/country/add" class="compact">
+      <div class="row">
+        <div class="col">
+          <label>Country name</label>
+          <input class="input" name="name" placeholder="e.g., Rwanda">
+        </div>
+        <div class="col">
+          <label>Code</label>
+          <input class="input" name="code" placeholder="RW" maxlength="2">
+        </div>
+      </div>
+      <button class="btn small" style="margin-top:8px">Add country</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Transit shipments</h3>
+    <div class="kpi">{{ stats.in_transit }}</div>
+    <div class="muted">Auto Mon–Sun delivered total shown in section 3.</div>
+  </div>
+</div>
+
+<!-- 2) Warehouse / Stock summary + Total spend per country -->
+<div class="card">
+  <h3>Stock & Spend by Country</h3>
+  <table>
+    <thead>
+      <tr><th>Country</th><th style="text-align:right">Stock</th><th style="text-align:right">In transit</th><th style="text-align:right">Ad spend (USD)</th></tr>
+    </thead>
+    <tbody>
+      {% set total_stock = 0 %}{% set total_transit = 0 %}{% set total_spend = 0.0 %}
+      {% for c in country_summaries %}
+      {% set total_stock = total_stock + c.stock %}
+      {% set total_transit = total_transit + c.in_transit %}
+      {% set total_spend = total_spend + c.ad_spend %}
+      <tr>
+        <td>{{ c.name }}</td>
+        <td style="text-align:right">{{ c.stock }}</td>
+        <td style="text-align:right">{{ c.in_transit }}</td>
+        <td style="text-align:right">{{ '%.2f'|format(c.ad_spend) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <th>Total</th>
+        <th style="text-align:right">{{ total_stock }}</th>
+        <th style="text-align:right">{{ total_transit }}</th>
+        <th style="text-align:right">{{ '%.2f'|format(total_spend) }}</th>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<!-- 3) Daily Delivered: add per day per country; auto Mon–Sun total -->
+<div class="card">
+  <h3>Daily Delivered (per country)</h3>
+  <form method="post" action="/delivered/add" class="row">
+    <div class="col">
+      <label>Country</label>
+      <select class="input" name="country" required>
+        {% for c in countries %}
+        {% if c.code != 'CN' %}<option value="{{ c.code }}">{{ c.name }}</option>{% endif %}
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col">
+      <label>Date</label>
+      <input class="input" type="date" name="day" value="{{ (delivered_rows[-1].date if delivered_rows)|default('') }}">
+    </div>
+    <div class="col">
+      <label>Delivered</label>
+      <input class="input" type="number" name="qty" min="0" value="0">
+    </div>
+    <div class="col" style="align-self:flex-end">
+      <button class="btn small">Save</button>
+    </div>
+  </form>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        {% for c in countries if c.code != 'CN' %}<th style="text-align:right">{{ c.code }}</th>{% endfor %}
+        <th style="text-align:right">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set week_total = 0 %}
+      {% for r in delivered_rows %}
+      {% set week_total = week_total + r.total %}
+      <tr>
+        <td>{{ r.date }}</td>
+        {% for c in countries if c.code != 'CN' %}
+          <td style="text-align:right">{{ r[c.code] or 0 }}</td>
+        {% endfor %}
+        <td style="text-align:right"><b>{{ r.total }}</b></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <th>Mon–Sun total (latest 7 days)</th>
+        <th colspan="{{ countries|length }}" style="text-align:right">{{ week_total }}</th>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<!-- 4) Advertising Spend -->
+<div class="card">
+  <h3>Advertising Spend (Daily)</h3>
+  <form method="post" action="/spend/add">
+    <div class="row">
+      <div class="col">
+        <label>Product</label>
+        <input class="input" name="product_id" placeholder="Product ID">
+      </div>
+      <div class="col">
+        <label>Country</label>
+        <select class="input" name="country">
+          {% for c in countries if c.code != 'CN' %}<option value="{{ c.code }}">{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col">
+        <label>Platform</label>
+        <select class="input" name="platform">
+          <option>facebook</option><option>tiktok</option><option>google</option>
+        </select>
+      </div>
+      <div class="col">
+        <label>Date</label>
+        <input class="input" type="date" name="day" value="{{ (delivered_rows[-1].date if delivered_rows)|default('') }}">
+      </div>
+      <div class="col">
+        <label>Amount (USD)</label>
+        <input class="input" type="number" step="0.01" name="amount_usd" value="0">
+      </div>
+      <div class="col" style="align-self:flex-end">
+        <button class="btn small">Save</button>
+      </div>
+    </div>
+  </form>
+  <p class="muted" style="margin-top:8px">Re-entering same Product+Country+Platform+Date will overwrite that day’s amount.</p>
+</div>
+
+<!-- 5) Shipment Movement (create / arrive / edit / delete) -->
+<div class="card">
+  <h3>Shipment Movement</h3>
+  <form method="post" action="/shipments/create">
+    <div class="row">
+      <div class="col">
+        <label>From</label>
+        <select class="input" name="from_country">
+          <option value="CN">China</option>
+          {% for c in countries %}<option value="{{ c.code }}">{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col">
+        <label>To</label>
+        <select class="input" name="to_country">
+          {% for c in countries %}<option value="{{ c.code }}">{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col">
+        <label>Product ID</label>
+        <input class="input" name="product_id" placeholder="e.g., 1">
+      </div>
+      <div class="col">
+        <label>Qty</label>
+        <input class="input" type="number" name="qty" min="1" value="1">
+      </div>
+      <div class="col">
+        <label>Shipping cost (USD)</label>
+        <input class="input" type="number" step="0.01" name="ship_cost_usd" value="0">
+      </div>
+      <div class="col" style="align-self:flex-end">
+        <button class="btn small">Create</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- 6) Transit Shipments -->
+<div class="grid grid-2">
+  <div class="card">
+    <h3>Transit — China → Kenya</h3>
+    <table>
+      <thead><tr><th>ID</th><th>Qty</th><th>Cost</th><th>Action</th></tr></thead>
+      <tbody>
+      {% for s in in_transit_cnke %}
+        <tr>
+          <td>#{{ s.id }}</td>
+          <td>
+            {% set q = 0 %}
+            {% for it in s.items %}{% set q = q + it.qty %}{% endfor %}
+            {{ q }}
+          </td>
+          <td>{{ '%.2f'|format(s.shipping_cost_usd or 0) }}</td>
+          <td>
+            <form method="post" action="/shipments/arrive" style="display:inline">
+              <input type="hidden" name="shipment_id" value="{{ s.id }}">
+              <button class="btn small">Mark arrived</button>
+            </form>
+            <form method="post" action="/shipments/delete" style="display:inline;margin-left:6px">
+              <input type="hidden" name="shipment_id" value="{{ s.id }}">
+              <button class="btn small outline">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="muted">No shipments.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Transit — Between Countries</h3>
+    <table>
+      <thead><tr><th>ID</th><th>From</th><th>To</th><th>Qty</th><th>Cost</th><th>Action</th></tr></thead>
+      <tbody>
+      {% for s in in_transit_inter %}
+        <tr>
+          <td>#{{ s.id }}</td>
+          <td>{{ s.from_country }}</td>
+          <td>{{ s.to_country }}</td>
+          <td>
+            {% set q = 0 %}
+            {% for it in s.items %}{% set q = q + it.qty %}{% endfor %}
+            {{ q }}
+          </td>
+          <td>{{ '%.2f'|format(s.shipping_cost_usd or 0) }}</td>
+          <td>
+            <form method="post" action="/shipments/arrive" style="display:inline">
+              <input type="hidden" name="shipment_id" value="{{ s.id }}">
+              <button class="btn small">Mark arrived</button>
+            </form>
+            <form method="post" action="/shipments/delete" style="display:inline;margin-left:6px">
+              <input type="hidden" name="shipment_id" value="{{ s.id }}">
+              <button class="btn small outline">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="muted">No shipments.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 7) Profit summary placeholder (wired with remittances later) -->
+<div class="card">
+  <h3>Profit Summary (by product / country / period)</h3>
+  <p class="muted">Select dates to calculate totals. (Feature wires to Remittances in Performance page.)</p>
+  <form class="row">
+    <div class="col">
+      <label>From</label>
+      <input class="input" type="date" name="from">
+    </div>
+    <div class="col">
+      <label>To</label>
+      <input class="input" type="date" name="to">
+    </div>
+    <div class="col" style="align-self:flex-end">
+      <button class="btn small" disabled>Calculate (coming next)</button>
+    </div>
+  </form>
+</div>
+
+<!-- 8) To-Do Lists -->
+<div class="grid grid-2">
+  <div class="card">
+    <h3>To-do</h3>
+    <form method="post" action="/todo/add" class="row">
+      <div class="col"><input class="input" name="text" placeholder="Task"></div>
+      <div class="col" style="align-self:flex-end"><button class="btn small">Add</button></div>
+    </form>
+    <table>
+      <thead><tr><th>ID</th><th>Task</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>
+      {% for t in todos %}
+        <tr>
+          <td>#{{ t.id }}</td><td>{{ t.text }}</td><td>{{ t.status }}</td>
+          <td>
+            <form method="post" action="/todo/status" style="display:inline">
+              <input type="hidden" name="id" value="{{ t.id }}">
+              <select name="status" class="input" style="width:auto;display:inline-block">
+                <option value="todo" {% if t.status=='todo' %}selected{% endif %}>todo</option>
+                <option value="doing" {% if t.status=='doing' %}selected{% endif %}>doing</option>
+                <option value="done" {% if t.status=='done' %}selected{% endif %}>done</option>
+              </select>
+              <button class="btn small" style="margin-left:6px">Update</button>
+            </form>
+            <form method="post" action="/todo/delete" style="display:inline;margin-left:8px">
+              <input type="hidden" name="id" value="{{ t.id }}">
+              <button class="btn small outline">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="muted">No tasks yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Weekly plan</h3>
+    <p class="muted">Coming in Performance page. You can still use To-do above.</p>
+  </div>
+</div>
+
+{% endblock %}
