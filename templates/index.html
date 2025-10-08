@@ -1,59 +1,138 @@
 {% extends "base.html" %}
 {% block content %}
-<h3 class="mb-3">Dashboard Overview</h3>
+<h3 class="mb-3">Dashboard</h3>
 
-<div class="row mb-3">
-  <div class="col-md-4"><div class="card p-3 text-center"><b>Products:</b> {{ stats.products }}</div></div>
-  <div class="col-md-4"><div class="card p-3 text-center"><b>Warehouses:</b> {{ stats.warehouses }}</div></div>
-  <div class="col-md-4"><div class="card p-3 text-center"><b>Transit Shipments:</b> {{ stats.transit }}</div></div>
+<!-- Top stats -->
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="card p-3 text-center">
+      <div class="small text-muted">Active Products</div>
+      <div class="fs-4 fw-semibold">{{ counts.products }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card p-3 text-center">
+      <div class="small text-muted">Warehouses</div>
+      <div class="fs-4 fw-semibold">{{ counts.warehouses }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card p-3 text-center">
+      <div class="small text-muted">In-Transit Shipments</div>
+      <div class="fs-4 fw-semibold">{{ counts.in_transit }}</div>
+    </div>
+  </div>
 </div>
 
-<h5 class="mt-4">Warehouse / Stock Summary</h5>
-<table class="table table-bordered table-striped">
-  <thead><tr><th>Country</th><th>Total Stock</th><th>In Transit</th><th>Daily Ad Spend</th></tr></thead>
-  <tbody>
-    {% for c in countries %}
-    <tr>
-      <td>{{ c.name }}</td>
-      <td>{{ c.stock }}</td>
-      <td>{{ c.in_transit }}</td>
-      <td>${{ '%.2f'|format(c.spend) }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<!-- Country band — Totals -->
+<h5 class="mt-4">Country band — Totals</h5>
+<div class="table-responsive">
+  <table class="table table-bordered table-striped align-middle">
+    <thead>
+      <tr>
+        <th>Country</th>
+        <th>Stock</th>
+        <th>In transit</th>
+        <th>Ad spend (USD)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for country, v in band.items() %}
+      <tr>
+        <td>{{ country }}</td>
+        <td>{{ v.stock }}</td>
+        <td>{{ v.in_transit }}</td>
+        <td>${{ '%.2f'|format(v.ad_spend or 0.0) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 
-<h5 class="mt-4">Daily Delivered</h5>
-<table class="table table-bordered">
-  <thead><tr><th>Country</th><th>Date</th><th>Delivered</th></tr></thead>
-  <tbody>
-    {% for d in deliveries %}
-    <tr><td>{{ d.country }}</td><td>{{ d.date }}</td><td>{{ d.count }}</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+<!-- Shipments in transit -->
+<h5 class="mt-4">Shipments in transit — China → Kenya</h5>
+<div class="table-responsive">
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>Ref</th><th>Created</th><th>Items</th><th>Ship cost (USD)</th><th>Status</th><th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if cn_ke and cn_ke|length %}
+        {% for sh in cn_ke %}
+        <tr>
+          <td>{{ sh.ref }}</td>
+          <td>{{ sh.created_date }}</td>
+          <td>
+            {% set qty = 0 %}
+            {% for it in sh.items %}{% set qty = qty + (it.qty or 0) %}{% endfor %}
+            {{ qty }}
+          </td>
+          <td>${{ '%.2f'|format(sh.shipping_cost_usd or 0.0) }}</td>
+          <td>{{ sh.status }}</td>
+          <td>
+            {% if sh.status == 'in_transit' %}
+            <form method="post" action="/shipment/mark-arrived" class="d-inline">
+              <input type="hidden" name="shipment_id" value="{{ sh.id }}">
+              <button class="btn btn-success btn-sm">Mark arrived</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="6" class="text-muted">No shipments in transit.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
 
-<h5 class="mt-4">To-Do List</h5>
-<form method="post" action="/add_task" class="row g-2 mb-3">
-  <div class="col-md-8"><input type="text" name="task" class="form-control" placeholder="New task"></div>
-  <div class="col-md-2"><select name="status" class="form-select"><option value="pending">Pending</option><option value="in progress">In Progress</option><option value="done">Done</option></select></div>
-  <div class="col-md-2"><button class="btn btn-success w-100">Add</button></div>
-</form>
-<table class="table table-striped">
-  <thead><tr><th>Task</th><th>Status</th><th></th></tr></thead>
-  <tbody>
-    {% for t in tasks %}
-    <tr>
-      <td>{{ t.task }}</td>
-      <td>{{ t.status }}</td>
-      <td>
-        <form method="post" action="/delete_task">
-          <input type="hidden" name="task_id" value="{{ t.id }}">
-          <button class="btn btn-danger btn-sm">Delete</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<h5 class="mt-4">Shipments in transit — Between countries</h5>
+<div class="table-responsive">
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>Ref</th><th>From</th><th>To</th><th>Product</th><th>Qty</th><th>Created</th><th>Ship cost (USD)</th><th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if inter_items and inter_items|length %}
+        {% for r in inter_items %}
+        <tr>
+          <td>{{ r.ref }}</td>
+          <td>{{ r.from_country }}</td>
+          <td>{{ r.to_country }}</td>
+          <td>{{ r.product_sku }}</td>
+          <td>{{ r.qty }}</td>
+          <td>{{ r.created_date }}</td>
+          <td>${{ '%.2f'|format(r.shipping_cost_usd or 0.0) }}</td>
+          <td>
+            <form method="post" action="/shipment/mark-arrived">
+              <input type="hidden" name="shipment_id" value="{{ r.shipment_id }}">
+              <button class="btn btn-success btn-sm">Mark arrived</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="8" class="text-muted">No inter-country shipments in transit.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Weekly delivered summary -->
+<h5 class="mt-4">Delivered — this week (Mon–Sun)</h5>
+<p class="text-muted small">Week total: <b>{{ week_total }}</b></p>
+<div class="table-responsive">
+  <table class="table table-bordered">
+    <thead><tr><th>Country</th><th>Delivered</th></tr></thead>
+    <tbody>
+      {% for code, val in week_map.items() %}
+      <tr><td>{{ code }}</td><td>{{ val }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}
