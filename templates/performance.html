@@ -1,58 +1,56 @@
 {% extends "base.html" %}
 {% block content %}
-<h3>Performance</h3>
+<h4>Performance</h4>
 <form class="row g-2 mb-3" method="get">
-  <div class="col-md-2">
+  <div class="col-md-3">
     <select name="period" class="form-select">
-      <option value="10d">Last 10 days</option>
-      <option value="21d">Last 21 days</option>
-      <option value="35d">Last 35 days</option>
-      <option value="60d">Last 60 days</option>
-      <option value="3m">Last 3 months</option>
-      <option value="6m">Last 6 months</option>
-      <option value="1y">Last 1 year</option>
+      <option value="10d" {% if request.args.get('period')=='10d' %}selected{% endif %}>Last 10 days</option>
+      <option value="21d" {% if request.args.get('period','21d')=='21d' %}selected{% endif %}>Last 21 days</option>
+      <option value="35d" {% if request.args.get('period')=='35d' %}selected{% endif %}>Last 35 days</option>
+      <option value="60d" {% if request.args.get('period')=='60d' %}selected{% endif %}>Last 60 days</option>
+      <option value="3m" {% if request.args.get('period')=='3m' %}selected{% endif %}>Last 3 months</option>
+      <option value="6m" {% if request.args.get('period')=='6m' %}selected{% endif %}>Last 6 months</option>
+      <option value="1y" {% if request.args.get('period')=='1y' %}selected{% endif %}>Last 1 year</option>
     </select>
   </div>
-  <div class="col-md-2"><select name="country" class="form-select"><option value="">All</option>{% for c in countries %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
+  <div class="col-md-3">
+    <select name="country" class="form-select">
+      <option value="" {% if not request.args.get('country') %}selected{% endif %}>All countries</option>
+      {% for c in countries %}<option value="{{ c }}" {% if request.args.get('country')==c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+  </div>
   <div class="col-md-2"><button class="btn btn-success w-100">Filter</button></div>
 </form>
 
-<h5>Top Delivered Products</h5>
-<table class="table table-striped table-bordered">
-  <thead><tr><th>Product</th><th>Country</th><th>Orders</th><th>Pieces</th><th>Revenue</th><th>Ad Spend</th><th>Profit</th></tr></thead>
+<h6>Top delivered / profit</h6>
+<div class="table-responsive">
+<table class="table table-bordered table-striped">
+  <thead><tr><th>SKU</th><th>Country</th><th>Orders</th><th>Pieces</th><th>Revenue</th><th>Ads</th><th>Profit</th></tr></thead>
   <tbody>
-  {% for r in report %}
-  <tr>
-    <td>{{ r.sku }}</td><td>{{ r.country }}</td>
-    <td>{{ r.orders }}</td><td>{{ r.pieces }}</td>
-    <td>${{ '%.2f'|format(r.revenue) }}</td>
-    <td>${{ '%.2f'|format(r.ads) }}</td>
-    <td>${{ '%.2f'|format(r.profit) }}</td>
-  </tr>
-  {% endfor %}
+    {% for r in report %}
+    <tr>
+      <td>{{ r.sku }}</td><td>{{ r.country }}</td><td>{{ r.orders }}</td><td>{{ r.pieces }}</td>
+      <td>${{ '%.2f'|format(r.revenue or 0.0) }}</td><td>${{ '%.2f'|format(r.ads or 0.0) }}</td>
+      <td class="{{ 'text-success' if r.profit>=0 else 'text-danger' }}">${{ '%.2f'|format(r.profit or 0.0) }}</td>
+    </tr>
+    {% else %}<tr><td colspan="7" class="text-muted">No data</td></tr>{% endfor %}
   </tbody>
 </table>
+</div>
 
-<h5 class="mt-4">Remittance Report</h5>
-<form method="post" action="/add_remittance" class="row g-2 mb-3">
-  <div class="col-md-2"><input class="form-control" name="product" placeholder="Product SKU"></div>
-  <div class="col-md-2"><input class="form-control" name="country" placeholder="Country"></div>
-  <div class="col-md-1"><input class="form-control" name="orders" placeholder="Orders"></div>
-  <div class="col-md-1"><input class="form-control" name="pieces" placeholder="Pieces"></div>
-  <div class="col-md-2"><input class="form-control" name="revenue" placeholder="Revenue USD"></div>
-  <div class="col-md-2"><input class="form-control" name="ads" placeholder="Ads USD"></div>
+<h6 class="mt-4">Add Remittance (writes profit + deducts stock)</h6>
+<form method="post" action="/remit/add" class="row g-2">
+  <div class="col-md-2"><input class="form-control" name="sku" placeholder="Product SKU" required></div>
+  <div class="col-md-2"><select class="form-select" name="country" required>
+    {% for c in countries %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+  </select></div>
+  <div class="col-md-2"><input class="form-control" type="date" name="date_from" required></div>
+  <div class="col-md-2"><input class="form-control" type="date" name="date_to" required></div>
+  <div class="col-md-1"><input class="form-control" name="orders" type="number" placeholder="Orders"></div>
+  <div class="col-md-1"><input class="form-control" name="pieces" type="number" placeholder="Pieces"></div>
+  <div class="col-md-2"><input class="form-control" name="revenue" type="number" step="0.01" placeholder="Revenue USD"></div>
+  <div class="col-md-2"><input class="form-control" name="ads" type="number" step="0.01" placeholder="Ads USD"></div>
+  <div class="col-md-2"><input class="form-control" name="extra_ship" type="number" step="0.01" placeholder="Extra ship/pc"></div>
   <div class="col-md-2"><button class="btn btn-success w-100">Add</button></div>
 </form>
-
-<table class="table table-striped table-bordered">
-  <thead><tr><th>Product</th><th>Country</th><th>Orders</th><th>Pieces</th><th>Revenue</th><th>Ads</th><th>Profit</th></tr></thead>
-  <tbody>
-  {% for r in remits %}
-  <tr>
-    <td>{{ r.product }}</td><td>{{ r.country }}</td><td>{{ r.orders }}</td><td>{{ r.pieces }}</td>
-    <td>${{ '%.2f'|format(r.revenue) }}</td><td>${{ '%.2f'|format(r.ads) }}</td><td>${{ '%.2f'|format(r.profit) }}</td>
-  </tr>
-  {% endfor %}
-  </tbody>
-</table>
 {% endblock %}
