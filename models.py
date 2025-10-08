@@ -1,16 +1,17 @@
 # models.py
+from __future__ import annotations
+
 from datetime import datetime, date
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import CheckConstraint, UniqueConstraint, ForeignKey
+from sqlalchemy import UniqueConstraint, ForeignKey
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from typing import Optional
 
 db = SQLAlchemy()
 
-# --- Reference tables ---
 class Country(db.Model):
     __tablename__ = "countries"
-    code: Mapped[str] = mapped_column(primary_key=True)   # e.g., KE, UG, TZ, ZM, ZW, CN
+    code: Mapped[str] = mapped_column(primary_key=True)   # KE, UG, TZ, ZM, ZW, CN
     name: Mapped[str] = mapped_column(unique=True, nullable=False)
 
 class Product(db.Model):
@@ -19,67 +20,52 @@ class Product(db.Model):
     name: Mapped[str] = mapped_column(nullable=False, unique=True)
     sku: Mapped[Optional[str]] = mapped_column(nullable=True, unique=True)
     category: Mapped[Optional[str]] = mapped_column(nullable=True)
-    cost_cn_usd: Mapped[float] = mapped_column(default=0.0)           # buy price in China (USD)
-    ship_cn_ke_usd: Mapped[float] = mapped_column(default=0.0)        # baseline ship CN->KE per unit (USD)
+    cost_cn_usd: Mapped[float] = mapped_column(default=0.0)
+    ship_cn_ke_usd: Mapped[float] = mapped_column(default=0.0)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
-# --- Stock on hand (by product x country) ---
 class Stock(db.Model):
     __tablename__ = "stock"
     id: Mapped[int] = mapped_column(primary_key=True)
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), nullable=False)
     country_code: Mapped[str] = mapped_column(ForeignKey("countries.code"), nullable=False)
     qty: Mapped[int] = mapped_column(default=0)
-
     __table_args__ = (UniqueConstraint("product_id", "country_code", name="uq_stock_prod_country"),)
-
     product = relationship(Product)
     country = relationship(Country)
 
-# --- Live daily ad spend (override per day by platform; always the latest value for a date) ---
 class PlatformSpend(db.Model):
     __tablename__ = "platform_spend"
     id: Mapped[int] = mapped_column(primary_key=True)
     day: Mapped[date] = mapped_column(default=date.today, index=True)
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), nullable=False)
     country_code: Mapped[str] = mapped_column(ForeignKey("countries.code"), nullable=False)
-    platform: Mapped[str] = mapped_column(nullable=False)  # 'facebook' | 'tiktok' | 'google'
+    platform: Mapped[str] = mapped_column(nullable=False)  # facebook|tiktok|google
     amount_usd: Mapped[float] = mapped_column(default=0.0)
-
-    __table_args__ = (
-        UniqueConstraint("day", "product_id", "country_code", "platform", name="uq_spend_unique"),
-    )
-
+    __table_args__ = (UniqueConstraint("day", "product_id", "country_code", "platform", name="uq_spend_unique"),)
     product = relationship(Product)
     country = relationship(Country)
 
-# --- Delivered counts per country per day (for performance tracking) ---
 class DailyDelivered(db.Model):
     __tablename__ = "daily_delivered"
     id: Mapped[int] = mapped_column(primary_key=True)
     day: Mapped[date] = mapped_column(default=date.today, index=True)
     country_code: Mapped[str] = mapped_column(ForeignKey("countries.code"), nullable=False)
     delivered: Mapped[int] = mapped_column(default=0)
-
-    __table_args__ = (
-        UniqueConstraint("day", "country_code", name="uq_delivered_day_country"),
-    )
-
+    __table_args__ = (UniqueConstraint("day", "country_code", name="uq_delivered_day_country"),)
     country = relationship(Country)
 
-# --- Shipments & items ---
 class Shipment(db.Model):
     __tablename__ = "shipments"
     id: Mapped[int] = mapped_column(primary_key=True)
-    ref: Mapped[str] = mapped_column(nullable=True, index=True)
+    ref: Mapped[Optional[str]] = mapped_column(index=True)
     from_country: Mapped[str] = mapped_column(ForeignKey("countries.code"), nullable=False)
     to_country: Mapped[str] = mapped_column(ForeignKey("countries.code"), nullable=False)
-    status: Mapped[str] = mapped_column(default="in_transit")  # in_transit | arrived | canceled
-    shipping_cost_usd: Mapped[float] = mapped_column(default=0.0)  # total shipment cost (editable)
+    status: Mapped[str] = mapped_column(default="in_transit")
+    shipping_cost_usd: Mapped[float] = mapped_column(default=0.0)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     eta: Mapped[Optional[date]] = mapped_column(nullable=True)
     arrived_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
-
     items = relationship("ShipmentItem", back_populates="shipment", cascade="all, delete-orphan")
 
 class ShipmentItem(db.Model):
@@ -88,11 +74,9 @@ class ShipmentItem(db.Model):
     shipment_id: Mapped[int] = mapped_column(ForeignKey("shipments.id"), nullable=False)
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), nullable=False)
     qty: Mapped[int] = mapped_column(default=0)
-
     shipment = relationship(Shipment, back_populates="items")
     product = relationship(Product)
 
-# --- Remittance (weekly or arbitrary period, per product x country) ---
 class Remittance(db.Model):
     __tablename__ = "remittances"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -104,16 +88,14 @@ class Remittance(db.Model):
     pieces: Mapped[int] = mapped_column(default=0)
     revenue_usd: Mapped[float] = mapped_column(default=0.0)
     ad_spend_usd: Mapped[float] = mapped_column(default=0.0)
-    inter_country_ship_cost_per_piece_usd: Mapped[float] = mapped_column(default=0.0)  # extra cost
-
+    inter_country_ship_cost_per_piece_usd: Mapped[float] = mapped_column(default=0.0)
     product = relationship(Product)
     country = relationship(Country)
 
-# --- Finance (categories + entries) ---
 class FinanceCategory(db.Model):
     __tablename__ = "finance_categories"
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(unique=True, nullable=False)  # e.g., Ads, Salaries, Warehouse Rent, Courier, etc.
+    name: Mapped[str] = mapped_column(unique=True, nullable=False)
 
 class FinanceEntry(db.Model):
     __tablename__ = "finance_entries"
@@ -121,29 +103,25 @@ class FinanceEntry(db.Model):
     date: Mapped[date] = mapped_column(default=date.today, index=True)
     category_id: Mapped[int] = mapped_column(ForeignKey("finance_categories.id"), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(nullable=True)
-    debit_usd: Mapped[float] = mapped_column(default=0.0)   # money OUT
-    credit_usd: Mapped[float] = mapped_column(default=0.0)  # money IN
-    running_balance_usd: Mapped[float] = mapped_column(default=0.0)  # computed when inserting
-
+    debit_usd: Mapped[float] = mapped_column(default=0.0)
+    credit_usd: Mapped[float] = mapped_column(default=0.0)
+    running_balance_usd: Mapped[float] = mapped_column(default=0.0)
     category = relationship(FinanceCategory)
 
-# --- Simple TODOs ---
 class Todo(db.Model):
     __tablename__ = "todos"
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(nullable=False)
-    status: Mapped[str] = mapped_column(default="todo")  # todo | doing | done
-    week_day: Mapped[Optional[str]] = mapped_column(nullable=True)  # optional Mon..Sun grouping
+    status: Mapped[str] = mapped_column(default="todo")  # todo|doing|done
+    week_day: Mapped[Optional[str]] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
-# --- Backups ---
 class BackupMeta(db.Model):
     __tablename__ = "backups"
     id: Mapped[int] = mapped_column(primary_key=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, index=True)
     path: Mapped[str] = mapped_column(nullable=False)
 
-# --- Admin user (single user) ---
 class AdminUser(db.Model):
     __tablename__ = "admin_user"
     id: Mapped[int] = mapped_column(primary_key=True)
