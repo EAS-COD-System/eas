@@ -1,0 +1,29 @@
+
+{% extends "base.html" %}
+{% block content %}
+<h3>Performance</h3>
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-2">
+    <select class="form-select" name="tp">
+      <option value="10d">Last 10 days</option>
+      <option value="21d" selected>Last 21 days</option>
+      <option value="35d">Last 35 days</option>
+      <option value="60d">Last 60 days</option>
+      <option value="3m">Last 3 months</option>
+      <option value="6m">Last 6 months</option>
+      <option value="1y">Last 1 year</option>
+    </select>
+  </div>
+  <div class="col-md-2"><select class="form-select" name="tc"><option value="">All Countries</option>{% for c in ctr_codes %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
+  <div class="col-md-2"><button class="btn btn-success w-100">Filter</button></div>
+</form>
+
+<h5>Top Delivered Products</h5>
+<table class="table table-bordered table-striped">
+<thead><tr><th>Product</th><th>Country</th><th>Orders</th><th>Pieces</th><th>Revenue</th><th>Ad Spend</th><th>Profit</th></tr></thead>
+<tbody>
+{% for r in top_report %}
+<tr><td>{{ r.product_sku }}</td><td>{{ r.country_code }}</td><td>{{ r.orders }}</td><td>{{ r.pieces }}</td><td>${{ '%.2f'|format(r.revenue_usd) }}</td><td>${{ '%.2f'|format(r.ad_usd) }}</td><td>${{ '%.2f'|format(r.profit_total_usd) }}</td></tr>
+{% endfor %}
+</tbody></table>
+{% endblock %}

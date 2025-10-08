@@ -1,0 +1,22 @@
+
+{% extends "base.html" %}
+{% block content %}
+<h3>{{ product.product_name }} ({{ product.product_sku }})</h3>
+<p><b>Cost CN:</b> ${{ '%.2f'|format(product.cost_cn_usd) }} | <b>Ship CN→KE:</b> ${{ '%.2f'|format(product.default_cnke_ship_usd) }}</p>
+
+<h5>Stock by Country</h5>
+<table class="table table-bordered">
+<thead><tr><th>Country</th><th>Qty</th></tr></thead>
+<tbody>{% for s in stock_rows %}<tr><td>{{ s.country }}</td><td>{{ s.qty }}</td></tr>{% endfor %}
+<tr class="table-success"><td><b>Total</b></td><td>{{ stock_total }}</td></tr></tbody></table>
+
+<h5>Profit Snapshot</h5>
+<table class="table table-bordered table-striped">
+<thead><tr><th>Country</th><th>Pieces</th><th>Revenue</th><th>Ads</th><th>Profit</th><th>Profit/Piece</th></tr></thead>
+<tbody>
+{% for r in profit_rows %}
+<tr><td>{{ r.country_code }}</td><td>{{ r.pieces }}</td><td>${{ '%.2f'|format(r.revenue_usd) }}</td><td>${{ '%.2f'|format(r.ad_usd) }}</td><td>${{ '%.2f'|format(r.profit_total_usd) }}</td><td>${{ '%.2f'|format(r.profit_per_piece_usd) }}</td></tr>
+{% endfor %}
+<tr class="table-success"><td><b>Total</b></td><td>{{ profit_totals.pieces }}</td><td>${{ '%.2f'|format(profit_totals.revenue_usd) }}</td><td>${{ '%.2f'|format(profit_totals.ad_usd) }}</td><td>${{ '%.2f'|format(profit_totals.profit_total_usd) }}</td><td></td></tr>
+</tbody></table>
+{% endblock %}

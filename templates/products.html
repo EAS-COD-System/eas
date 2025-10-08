@@ -1,0 +1,33 @@
+
+{% extends "base.html" %}
+{% block content %}
+<h3>Products</h3>
+<form method="post" action="/add_product" class="row g-2 mb-3">
+  <div class="col-md-2"><input class="form-control" name="product_sku" placeholder="SKU" required></div>
+  <div class="col-md-3"><input class="form-control" name="product_name" placeholder="Name"></div>
+  <div class="col-md-2"><input class="form-control" name="cost_cn_usd" placeholder="Cost CN"></div>
+  <div class="col-md-2"><input class="form-control" name="default_cnke_ship_usd" placeholder="Ship CN→KE"></div>
+  <div class="col-md-2"><input class="form-control" name="profit_ads_budget_usd" placeholder="Ads Budget"></div>
+  <div class="col-md-1"><button class="btn btn-success w-100">Add</button></div>
+</form>
+
+<table class="table table-striped">
+<thead><tr><th>SKU</th><th>Name</th><th>Cost</th><th>Ship CN→KE</th><th>Budget</th><th></th></tr></thead>
+<tbody>
+{% for p in products %}
+<tr>
+<td><a href="/product/{{ p.product_sku }}">{{ p.product_sku }}</a></td>
+<td>{{ p.product_name }}</td>
+<td>${{ '%.2f'|format(p.cost_cn_usd) }}</td>
+<td>${{ '%.2f'|format(p.default_cnke_ship_usd) }}</td>
+<td>${{ '%.2f'|format(p.profit_ads_budget_usd) }}</td>
+<td>
+<form method="post" action="/delete_product">
+<input type="hidden" name="product_sku" value="{{ p.product_sku }}">
+<button class="btn btn-danger btn-sm">Delete</button>
+</form>
+</td>
+</tr>
+{% endfor %}
+</tbody></table>
+{% endblock %}

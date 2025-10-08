@@ -1,0 +1,30 @@
+
+{% extends "base.html" %}
+{% block content %}
+<h3>Settings</h3>
+<h5>Add Country</h5>
+<form method="post" action="/settings/add-country" class="row g-2 mb-3">
+  <div class="col-md-2"><input class="form-control" name="country" placeholder="Country" required></div>
+  <div class="col-md-1"><input class="form-control" name="code" placeholder="Code" required></div>
+  <div class="col-md-2"><input class="form-control" name="currency" placeholder="Currency"></div>
+  <div class="col-md-2"><input class="form-control" name="fx_to_usd" placeholder="FX rate" value="1.0"></div>
+  <div class="col-md-2"><button class="btn btn-success w-100">Add</button></div>
+</form>
+
+<h5>Existing Countries</h5>
+<table class="table table-bordered table-striped">
+<thead><tr><th>Country</th><th>Code</th><th>Currency</th><th>FX</th><th></th></tr></thead>
+<tbody>
+{% for c in countries %}
+<tr>
+<td>{{ c.country }}</td><td>{{ c.code }}</td><td>{{ c.currency }}</td><td>{{ c.fx_to_usd }}</td>
+<td>
+<form method="post" action="/settings/delete-country">
+<input type="hidden" name="code" value="{{ c.code }}">
+<button class="btn btn-danger btn-sm">Delete</button>
+</form>
+</td>
+</tr>
+{% endfor %}
+</tbody></table>
+{% endblock %}
