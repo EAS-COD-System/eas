@@ -1,58 +1,41 @@
 {% extends "base.html" %}
 {% block content %}
-<h3>{{ product.name }} ({{ product.sku }})</h3>
-<p><b>Cost CN:</b> ${{ '%.2f'|format(product.cost) }} |
-<b>Ship CN→KE:</b> ${{ '%.2f'|format(product.shipping) }}</p>
+<h4>{{ product.name }} ({{ product.sku }})</h4>
+<p>Cost CN: ${{ '%.2f'|format(product.cost_cn or 0.0) }} — Ship CN→KE: ${{ '%.2f'|format(product.ship_cn_ke or 0.0) }}</p>
 
-<h5>Stock & Profit Summary</h5>
-<table class="table table-bordered table-striped">
-  <thead><tr><th>Country</th><th>Available Stock</th><th>Ad Spend</th><th>Profit + Ads</th></tr></thead>
+<h6>Per-Country Stock / Spend / Profit</h6>
+<div class="table-responsive">
+<table class="table table-bordered">
+  <thead><tr><th>Country</th><th>Stock</th><th>Ad Spend</th><th>Profit + Ads</th></tr></thead>
   <tbody>
-    {% for c in country_data %}
-    <tr>
-      <td>{{ c.country }}</td>
-      <td>{{ c.stock }}</td>
-      <td>${{ '%.2f'|format(c.spend) }}</td>
-      <td>${{ '%.2f'|format(c.profit_ads) }}</td>
-    </tr>
+    {% for r in country_rows %}
+    <tr><td>{{ r.country }}</td><td>{{ r.stock }}</td><td>${{ '%.2f'|format(r.spend) }}</td><td>${{ '%.2f'|format(r.profit) }}</td></tr>
     {% endfor %}
   </tbody>
 </table>
+</div>
 
-<h5>Shipments In Transit (China → Kenya)</h5>
-<table class="table table-striped table-bordered">
-  <thead><tr><th>Date</th><th>Qty</th><th>Cost</th><th>Status</th><th></th></tr></thead>
+<h6>Shipments In Transit — China → Kenya</h6>
+<div class="table-responsive">
+<table class="table table-bordered">
+  <thead><tr><th>Ref</th><th>Created</th><th>Qty</th><th>Cost</th><th>Status</th></tr></thead>
   <tbody>
-  {% for s in shipments_cnke %}
-  <tr>
-    <td>{{ s.date }}</td><td>{{ s.qty }}</td><td>${{ '%.2f'|format(s.cost) }}</td><td>{{ s.status }}</td>
-    <td>
-      <form method="post" action="/mark_arrived">
-        <input type="hidden" name="id" value="{{ s.id }}">
-        <button class="btn btn-success btn-sm">Arrived</button>
-      </form>
-    </td>
-  </tr>
-  {% endfor %}
+    {% for sh in cnke %}
+    <tr><td>{{ sh.ref }}</td><td>{{ sh.created_at.date() }}</td><td>{{ sh.items|map(attribute='qty')|sum }}</td><td>${{ '%.2f'|format(sh.shipping_cost_usd or 0.0) }}</td><td>{{ sh.status }}</td></tr>
+    {% else %}<tr><td colspan="5" class="text-muted">None</td></tr>{% endfor %}
   </tbody>
 </table>
+</div>
 
-<h5>Shipments Between Countries</h5>
-<table class="table table-striped table-bordered">
-  <thead><tr><th>From</th><th>To</th><th>Qty</th><th>Cost</th><th>Status</th><th></th></tr></thead>
+<h6>Shipments In Transit — Between Countries</h6>
+<div class="table-responsive">
+<table class="table table-bordered">
+  <thead><tr><th>Ref</th><th>From</th><th>To</th><th>Qty</th><th>Cost</th><th>Status</th></tr></thead>
   <tbody>
-  {% for m in moves %}
-  <tr>
-    <td>{{ m.from_country }}</td><td>{{ m.to_country }}</td>
-    <td>{{ m.qty }}</td><td>${{ '%.2f'|format(m.cost) }}</td><td>{{ m.status }}</td>
-    <td>
-      <form method="post" action="/mark_arrived_move">
-        <input type="hidden" name="id" value="{{ m.id }}">
-        <button class="btn btn-success btn-sm">Arrived</button>
-      </form>
-    </td>
-  </tr>
-  {% endfor %}
+    {% for sh in inter %}
+    <tr><td>{{ sh.ref }}</td><td>{{ sh.from_country }}</td><td>{{ sh.to_country }}</td><td>{{ sh.items|map(attribute='qty')|sum }}</td><td>${{ '%.2f'|format(sh.shipping_cost_usd or 0.0) }}</td><td>{{ sh.status }}</td></tr>
+    {% else %}<tr><td colspan="6" class="text-muted">None</td></tr>{% endfor %}
   </tbody>
 </table>
+</div>
 {% endblock %}
