@@ -1,476 +1,396 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
-from sqlalchemy import create_engine, func, select, desc
-from sqlalchemy.orm import Session
-from models import *
-import os, datetime, shutil
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import func
+from datetime import datetime, date, timedelta
+import os, shutil, re
+from apscheduler.schedulers.background import BackgroundScheduler
+
+from models import db, Country, Product, Stock, PlatformSpend, DailyDelivered, Shipment, ShipmentItem, Remittance, FinanceCategory, FinanceEntry, Todo
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY","devkey")
-DB_PATH = os.environ.get("DB_PATH","eas_cod.db")
-engine = create_engine(f"sqlite:///{DB_PATH}", echo=False, future=True)
+app.secret_key = os.getenv("SECRET_KEY","eas-secret")
+DB_PATH = os.getenv("DB_PATH","cod_system.db")
+BACKUP_DIR = os.getenv("BACKUP_DIR","backups")
+os.makedirs(BACKUP_DIR, exist_ok=True)
 
-def migrate():
-    with engine.begin() as conn:
-        Base.metadata.create_all(conn)
-migrate()
+app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db.init_app(app)
 
-def seed_basics():
-    with Session(engine) as s:
-        if not s.query(Country).count():
-            s.add_all([
-                Country(country="Kenya", code="KE", currency="USD", fx_to_usd=1.0),
-                Country(country="Tanzania", code="TZ", currency="USD", fx_to_usd=1.0),
-                Country(country="Uganda", code="UG", currency="USD", fx_to_usd=1.0),
-                Country(country="Zambia", code="ZM", currency="USD", fx_to_usd=1.0),
-                Country(country="Zimbabwe", code="ZW", currency="USD", fx_to_usd=1.0),
-                Country(country="China", code="CN", currency="USD", fx_to_usd=1.0),
-            ]); s.commit()
-        if not s.query(Warehouse).count():
-            s.add_all([
-                Warehouse(name="China Hub", country="China", code="CN", active=True),
-                Warehouse(name="Nairobi Main", country="Kenya", code="KE", active=True),
-                Warehouse(name="Dar Hub", country="Tanzania", code="TZ", active=True),
-                Warehouse(name="Kampala Hub", country="Uganda", code="UG", active=True),
-                Warehouse(name="Lusaka Hub", country="Zambia", code="ZM", active=True),
-                Warehouse(name="Harare Hub", country="Zimbabwe", code="ZW", active=True),
-            ]); s.commit()
-seed_basics()
+DEFAULT = [("CN","China"),("KE","Kenya"),("TZ","Tanzania"),("UG","Uganda"),("ZM","Zambia"),("ZW","Zimbabwe")]
 
-def now_ts():
-    return datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-def backup_db():
-    os.makedirs("backups", exist_ok=True)
+# ---- Backup scheduler ----
+def make_backup():
+    ts = datetime.utcnow().strftime("%Y%m%d_%H%M")
+    dst = os.path.join(BACKUP_DIR, f"backup_{ts}.db")
     if os.path.exists(DB_PATH):
-        shutil.copyfile(DB_PATH, f"backups/{now_ts()}.db")
+        shutil.copy(DB_PATH, dst)
+        files = sorted([f for f in os.listdir(BACKUP_DIR) if f.startswith("backup_")])
+        while len(files) > 20:
+            os.remove(os.path.join(BACKUP_DIR, files.pop(0)))
 
-def restore_db_ago(label):
-    delta = {"5m":5*60,"30m":30*60,"12h":12*3600,"24h":24*3600,"48h":48*3600}.get(label, None)
-    if delta is None: return False
-    target_time = datetime.datetime.now() - datetime.timedelta(seconds=delta)
-    if not os.path.exists("backups"): return False
-    candidates=[]
-    for fn in sorted(os.listdir("backups")):
-        if not fn.endswith(".db"): continue
-        try:
-            dt = datetime.datetime.strptime(fn.replace(".db",""), "%Y-%m-%d_%H-%M-%S")
-            if dt <= target_time:
-                candidates.append((dt, fn))
-        except: pass
-    if not candidates: return False
-    candidates.sort(key=lambda x: x[0], reverse=True)
-    src = os.path.join("backups", candidates[0][1])
-    shutil.copyfile(src, DB_PATH)
-    return True
+def setup_scheduler():
+    scheduler = BackgroundScheduler(daemon=True, timezone="UTC")
+    scheduler.add_job(make_backup, "interval", hours=12, id="db_backup", replace_existing=True)
+    scheduler.start()
 
-def countries_list(session, include_cn=False):
-    q = session.query(Country).order_by(Country.code)
-    if not include_cn:
-        return [c for c in q.all() if c.code!="CN"]
-    return q.all()
+BACKUP_NAME_RE = re.compile(r"^backup_\d{8}_\d{4}\.db$")
+def list_backups():
+    try:
+        files = [f for f in os.listdir(BACKUP_DIR) if BACKUP_NAME_RE.match(f)]
+        files.sort(reverse=True)
+        return files
+    except Exception:
+        return []
 
-def summary_band(session):
-    ctrs = countries_list(session)
-    band = {c.country: {"stock":0,"in_transit":0,"ad_spend":0.0,"code":c.code} for c in ctrs}
-    whs = session.query(Warehouse).filter(Warehouse.active==True).all()
-    wh_by_id = {w.id:w for w in whs}
-    for sku, in session.query(Product.product_sku).all():
-        bal={}
-        for m in session.query(StockMovement).filter(StockMovement.product_sku==sku).all():
-            if m.to_wh: bal[m.to_wh]=bal.get(m.to_wh,0)+m.qty
-            if m.from_wh: bal[m.from_wh]=bal.get(m.from_wh,0)-m.qty
-        for wid,qty in bal.items():
-            ctry = wh_by_id[wid].country
-            if ctry in band: band[ctry]["stock"]+=qty
-    for sh in session.query(Shipment).filter(Shipment.status=="in_transit").all():
-        qty = session.execute(select(func.sum(ShipmentItem.qty)).where(ShipmentItem.shipment_id==sh.id)).scalar() or 0
-        if sh.to_country in band: band[sh.to_country]["in_transit"]+=qty
-    code_to_country = {c.code:c.country for c in session.query(Country).all()}
-    for r in session.query(PlatformSpendCurrent).all():
-        nm = code_to_country.get(r.country_code, r.country_code)
-        if nm in band: band[nm]["ad_spend"] += (r.amount_usd or 0.0)
-    return ctrs, band
+@app.before_first_request
+def bootstrap():
+    db.create_all()
+    if Country.query.count()==0:
+        for c,n in DEFAULT: db.session.add(Country(code=c,name=n))
+        db.session.commit()
+    setup_scheduler()
+    make_backup()
 
-def spend_summary_by_country(session):
-    rows = session.query(PlatformSpendCurrent).all(); out={}
-    for r in rows:
-        cc=r.country_code
-        x = out.get(cc, {"Facebook":0.0,"TikTok":0.0,"Google":0.0,"total":0.0})
-        x[r.platform] = x.get(r.platform,0.0) + (r.amount_usd or 0.0)
-        x["total"]=x.get("Facebook",0.0)+x.get("TikTok",0.0)+x.get("Google",0.0)
-        out[cc]=x
-    return out
+def codes():
+    return [c.code for c in Country.query.order_by(Country.name).all() if c.code!="CN"]
 
-def weekly_delivered_map(session):
-    today = datetime.date.today()
-    monday = today - datetime.timedelta(days=today.weekday())
-    sunday = monday + datetime.timedelta(days=6)
-    mon_s, sun_s = monday.isoformat(), sunday.isoformat()
-    codes = [c.code for c in countries_list(session)]
-    agg = {code:0 for code in codes}
-    rows = session.query(DailyDelivered).filter(DailyDelivered.date>=mon_s, DailyDelivered.date<=sun_s).all()
-    for r in rows:
-        if r.country_code in agg: agg[r.country_code] += (r.delivered or 0)
-    total = sum(agg.values()); return agg, total, mon_s, sun_s
-
-@app.route("/", methods=["GET"])
+# ---------- DASHBOARD ----------
+@app.route("/")
 def index():
-    with Session(engine) as s:
-        counts = {
-            "products": s.query(Product).count(),
-            "warehouses": s.query(Warehouse).count(),
-            "in_transit": s.query(Shipment).filter(Shipment.status=='in_transit').count()
-        }
-        all_products = s.query(Product).order_by(Product.product_sku).all()
-        ctrs, band = summary_band(s)
-        spend_c_summary = spend_summary_by_country(s)
-        cn_ke=[]; inter_items=[]
-        for sh in s.query(Shipment).filter(Shipment.status=='in_transit').order_by(Shipment.id.desc()).all():
-            items = s.query(ShipmentItem).filter(ShipmentItem.shipment_id==sh.id).all()
-            if sh.from_country=="China" and sh.to_country=="Kenya":
-                setattr(sh, "items", items); cn_ke.append(sh)
-            else:
-                for it in items:
-                    inter_items.append(dict(
-                        item_id=it.id, shipment_id=sh.id, ref=sh.ref,
-                        from_country=sh.from_country, to_country=sh.to_country,
-                        product_sku=it.product_sku, qty=it.qty,
-                        created_date=sh.created_date, shipping_cost_usd=sh.shipping_cost_usd
-                    ))
-        week_map, week_total, week_from, week_to = weekly_delivered_map(s)
+    counts = {
+        "products": Product.query.count(),
+        "warehouses": Country.query.count(),
+        "in_transit": Shipment.query.filter_by(status="in_transit").count()
+    }
+
+    band = {}
+    for c in Country.query.order_by(Country.name).all():
+        if c.code=="CN":
+            continue
+        stock_qty = db.session.query(func.coalesce(func.sum(Stock.qty),0)).filter_by(country_code=c.code).scalar() or 0
+        in_transit_qty = db.session.query(func.coalesce(func.sum(ShipmentItem.qty),0))\
+                         .join(Shipment).filter(Shipment.status=="in_transit", Shipment.to_country==c.code).scalar() or 0
+        ad_spend = db.session.query(func.coalesce(func.sum(PlatformSpend.amount_usd),0)).filter_by(country_code=c.code).scalar() or 0.0
+        band[c.code] = {"name": c.name, "stock": int(stock_qty), "in_transit": int(in_transit_qty), "ad_spend": float(ad_spend)}
+
+    total = {
+        "stock": sum(v["stock"] for v in band.values()),
+        "in_transit": sum(v["in_transit"] for v in band.values()),
+        "ad_spend": round(sum(v["ad_spend"] for v in band.values()),2)
+    }
+
+    cn_ke = Shipment.query.filter_by(status="in_transit", from_country="CN", to_country="KE").order_by(Shipment.created_at.desc()).all()
+    inter = Shipment.query.filter(Shipment.status=="in_transit", Shipment.from_country!="CN").order_by(Shipment.created_at.desc()).all()
+
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+    sunday = monday + timedelta(days=6)
+    week_map = {}
+    for cc in codes():
+        n = db.session.query(func.coalesce(func.sum(DailyDelivered.delivered),0))\
+            .filter(DailyDelivered.country_code==cc, DailyDelivered.day>=monday, DailyDelivered.day<=sunday).scalar() or 0
+        week_map[cc] = int(n)
+    week_total = sum(week_map.values())
+
+    products = Product.query.order_by(Product.sku).all()
     return render_template("index.html",
-        counts=counts, countries=ctrs, band=band, all_products=all_products,
-        spend_c_summary=spend_c_summary, cn_ke=cn_ke, inter_items=inter_items,
-        week_map=week_map, week_total=week_total, title="Dashboard"
-    )
+                           counts=counts, band=band, total=total,
+                           cn_ke=cn_ke, inter=inter, products=products,
+                           week_map=week_map, week_total=week_total,
+                           countries=[c for c in Country.query.order_by(Country.name).all()],
+                           title="Dashboard")
 
-@app.post("/spend/current/upsert")
-def upsert_current_spend():
-    d = request.form
-    with Session(engine) as s:
-        s.query(PlatformSpendCurrent).filter(
-            PlatformSpendCurrent.product_sku==d.get("product_sku"),
-            PlatformSpendCurrent.platform==d.get("platform"),
-            PlatformSpendCurrent.country_code==d.get("country_code")
-        ).delete()
-        s.add(PlatformSpendCurrent(
-            product_sku=d.get("product_sku"),
-            platform=d.get("platform"),
-            amount_usd=float(d.get("amount_usd") or 0.0),
-            country_code=d.get("country_code")
-        ))
-        s.commit()
-    backup_db(); return redirect(request.referrer or url_for("index"))
+@app.post("/delivered/add")
+def delivered_add():
+    day = request.form.get("day") or date.today().isoformat()
+    day_obj = date.fromisoformat(day)
+    cc = request.form["country"]
+    delivered = int(request.form.get("delivered") or 0)
+    row = DailyDelivered.query.filter_by(country_code=cc, day=day_obj).first()
+    if row: row.delivered = delivered
+    else: db.session.add(DailyDelivered(country_code=cc, day=day_obj, delivered=delivered))
+    db.session.commit(); flash("Saved daily delivered","success")
+    return redirect(url_for("index"))
 
-@app.post("/shipment/mark-arrived")
-def mark_arrived():
-    shipment_id = int(request.form.get("shipment_id"))
-    with Session(engine) as s:
-        sh = s.get(Shipment, shipment_id)
-        if sh:
-            sh.status = "arrived"; sh.arrived_date = str(datetime.date.today())
-            try:
-                if sh.created_date and sh.arrived_date:
-                    d0 = datetime.date.fromisoformat(sh.created_date); d1 = datetime.date.fromisoformat(sh.arrived_date); sh.transit_days = (d1-d0).days
-            except: sh.transit_days=0
-            wh_from = s.query(Warehouse).filter(Warehouse.country==sh.from_country, Warehouse.active==True).first()
-            wh_to = s.query(Warehouse).filter(Warehouse.country==sh.to_country, Warehouse.active==True).first()
-            for it in s.query(ShipmentItem).filter(ShipmentItem.shipment_id==shipment_id).all():
-                s.add(StockMovement(date=sh.arrived_date, product_sku=it.product_sku, from_wh=wh_from.id if wh_from else None, to_wh=wh_to.id if wh_to else None, qty=it.qty, ref=f"ARR-{sh.ref}"))
-            s.commit()
-    backup_db(); return redirect(request.referrer or url_for("index"))
+@app.post("/spend/set")
+def spend_set():
+    sku = request.form["sku"]; cc = request.form["country"]; platform = request.form["platform"].lower()
+    amount = float(request.form.get("amount") or 0.0)
+    row = PlatformSpend.query.filter_by(product_sku=sku, country_code=cc, platform=platform).first()
+    if row:
+        row.amount_usd = amount; row.updated_at = datetime.utcnow()
+    else:
+        db.session.add(PlatformSpend(product_sku=sku, country_code=cc, platform=platform, amount_usd=amount))
+    db.session.commit(); flash("Spend updated","success")
+    return redirect(url_for("index"))
 
 @app.post("/shipment/create")
-def create_shipment():
-    d=request.form
-    with Session(engine) as s:
-        code_to_country = {c.code:c.country for c in s.query(Country).all()}
-        from_code = d.get("from_code"); to_code = d.get("to_code")
-        from_c = code_to_country.get(from_code, from_code)
-        to_c = code_to_country.get(to_code, to_code)
-        sh = Shipment(
-            ref=d.get("ref"), from_country=from_c, to_country=to_c,
-            status="in_transit", created_date=str(datetime.date.today()),
-            shipping_cost_usd=float(d.get("shipping_cost_usd") or 0.0)
-        )
-        s.add(sh); s.flush()
-        s.add(ShipmentItem(shipment_id=sh.id, product_sku=d.get("product_sku"), qty=int(d.get("qty") or 0)))
-        s.commit()
-    backup_db(); return redirect(request.referrer or url_for("index"))
+def shipment_create():
+    ref = request.form.get("ref") or f"SH{int(datetime.utcnow().timestamp())}"
+    from_c = request.form["from_country"]; to_c = request.form["to_country"]
+    sku = request.form["sku"]; qty = int(request.form.get("qty") or 0)
+    cost = float(request.form.get("shipping_cost") or 0.0)
+    sh = Shipment(ref=ref, from_country=from_c, to_country=to_c, shipping_cost_usd=cost)
+    db.session.add(sh); db.session.flush()
+    db.session.add(ShipmentItem(shipment_id=sh.id, product_sku=sku, qty=qty))
+    db.session.commit(); flash("Shipment created","success")
+    return redirect(url_for("index"))
 
-@app.post("/shipment/item/edit")
-def edit_shipment_item_qty():
-    item_id = int(request.form.get("shipment_item_id")); qty = int(request.form.get("qty") or 0)
-    with Session(engine) as s:
-        it = s.get(ShipmentItem, item_id)
-        if it:
-            sh = s.get(Shipment, it.shipment_id)
-            if sh and sh.status=='in_transit':
-                it.qty = qty; s.commit()
-    backup_db(); return redirect(request.referrer or url_for("index"))
+@app.post("/shipment/edit")
+def shipment_edit():
+    sid = int(request.form["shipment_id"])
+    qty = int(request.form.get("qty") or 0)
+    cost = float(request.form.get("shipping_cost") or 0.0)
+    sh = Shipment.query.get_or_404(sid)
+    sh.shipping_cost_usd = cost
+    if sh.items:
+        sh.items[0].qty = qty
+    db.session.commit(); flash("Shipment updated","success")
+    return redirect(url_for("index"))
 
-@app.post("/shipment/item/delete")
-def delete_shipment_item():
-    item_id = int(request.form.get("shipment_item_id"))
-    with Session(engine) as s:
-        it = s.get(ShipmentItem, item_id)
-        if it:
-            sh = s.get(Shipment, it.shipment_id)
-            if sh and sh.status=='in_transit':
-                s.delete(it); s.commit()
-                left = s.query(ShipmentItem).filter(ShipmentItem.shipment_id==sh.id).count()
-                if left==0: s.delete(sh); s.commit()
-    backup_db(); return redirect(request.referrer or url_for("index"))
+@app.post("/shipment/mark-arrived")
+def shipment_mark_arrived():
+    sid = int(request.form["shipment_id"]); sh = Shipment.query.get_or_404(sid)
+    if sh.status == "arrived":
+        return redirect(url_for("index"))
+    sh.status = "arrived"; sh.arrived_at = datetime.utcnow()
+    for it in sh.items:
+        st = Stock.query.filter_by(product_sku=it.product_sku, country_code=sh.to_country).first()
+        if not st: st = Stock(product_sku=it.product_sku, country_code=sh.to_country, qty=0); db.session.add(st)
+        st.qty += it.qty or 0
+    db.session.commit(); flash("Marked arrived & stock updated","success")
+    return redirect(url_for("index"))
 
-@app.post("/daily-delivered/add")
-def add_daily_delivered():
-    d=request.form
-    with Session(engine) as s:
-        row = s.query(DailyDelivered).filter(DailyDelivered.date==d.get("date"), DailyDelivered.country_code==d.get("country_code")).first()
-        if row: row.delivered = int(d.get("delivered") or 0)
-        else: s.add(DailyDelivered(date=d.get("date"), country_code=d.get("country_code"), delivered=int(d.get("delivered") or 0)))
-        s.commit()
-    backup_db(); return redirect(request.referrer or url_for("index"))
+@app.post("/shipment/delete")
+def shipment_delete():
+    sid = int(request.form["shipment_id"])
+    ShipmentItem.query.filter_by(shipment_id=sid).delete()
+    Shipment.query.filter_by(id=sid).delete()
+    db.session.commit(); flash("Shipment deleted","success")
+    return redirect(url_for("index"))
 
-@app.get("/products")
+# ---------- PRODUCTS ----------
+@app.route("/products", methods=["GET","POST"])
 def products():
-    with Session(engine) as s:
-        items = s.query(Product).order_by(Product.product_sku).all()
+    if request.method=="POST":
+        sku = request.form.get("sku","").strip()
+        if not sku: 
+            flash("SKU required","error"); return redirect(url_for("products"))
+        p = Product(sku=sku, name=request.form.get("name") or sku,
+                    cost_cn=float(request.form.get("cost") or 0),
+                    ship_cn_ke=float(request.form.get("shipping") or 0))
+        db.session.add(p); db.session.commit(); flash("Product added","success")
+        return redirect(url_for("products"))
+    items = Product.query.order_by(Product.sku).all()
     return render_template("products.html", products=items, title="Products")
 
-@app.post("/product/add")
-def add_product():
-    d=request.form
-    with Session(engine) as s:
-        s.add(Product(
-            product_sku=d.get("product_sku"),
-            product_name=d.get("product_name"),
-            category=d.get("category",""),
-            weight_g=int(d.get("weight_g") or 0),
-            cost_cn_usd=float(d.get("cost_cn_usd") or 0),
-            default_cnke_ship_usd=float(d.get("default_cnke_ship_usd") or 0),
-            profit_ads_budget_usd=float(d.get("profit_ads_budget_usd") or 0)
-        )); s.commit()
-    backup_db(); return redirect(url_for("products"))
-
-@app.post("/product/delete")
+@app.post("/delete_product")
 def delete_product():
-    sku=request.form.get("product_sku")
-    with Session(engine) as s:
-        s.query(PlatformSpendCurrent).filter(PlatformSpendCurrent.product_sku==sku).delete()
-        s.query(ShipmentItem).filter(ShipmentItem.product_sku==sku).delete()
-        s.query(StockMovement).filter(StockMovement.product_sku==sku).delete()
-        s.query(PeriodRemit).filter(PeriodRemit.product_sku==sku).delete()
-        s.query(ProductBudgetCountry).filter(ProductBudgetCountry.product_sku==sku).delete()
-        p = s.get(Product, sku)
-        if p: s.delete(p)
-        s.commit()
-    backup_db(); return redirect(url_for("products"))
+    sku = request.form["sku"]
+    Stock.query.filter_by(product_sku=sku).delete()
+    PlatformSpend.query.filter_by(product_sku=sku).delete()
+    ShipmentItem.query.filter_by(product_sku=sku).delete()
+    Remittance.query.filter_by(product_sku=sku).delete()
+    Product.query.filter_by(sku=sku).delete()
+    db.session.commit(); flash("Product deleted","success")
+    return redirect(url_for("products"))
 
 @app.get("/product/<sku>")
-def product_view(sku):
-    with Session(engine) as s:
-        p = s.get(Product, sku)
-        if not p: flash("Product not found","error"); return redirect(url_for("products"))
-        ctr_codes = [c.code for c in countries_list(s)]
-        profit_rows=[]; totals=dict(pieces=0,revenue_usd=0.0,ad_usd=0.0,profit_total_usd=0.0)
-        for code in ctr_codes:
-            pieces, rev, ad, prof = s.query(
-                func.coalesce(func.sum(PeriodRemit.pieces),0),
-                func.coalesce(func.sum(PeriodRemit.revenue_usd),0.0),
-                func.coalesce(func.sum(PeriodRemit.ad_usd),0.0),
-                func.coalesce(func.sum(PeriodRemit.profit_total_usd),0.0)
-            ).filter(PeriodRemit.product_sku==sku, PeriodRemit.country_code==code).one()
-            ppu = (prof/pieces) if pieces else 0.0
-            profit_rows.append(dict(country_code=code,pieces=pieces,revenue_usd=rev,ad_usd=ad,profit_total_usd=prof,profit_per_piece_usd=ppu))
-            totals["pieces"]+=pieces; totals["revenue_usd"]+=rev; totals["ad_usd"]+=ad; totals["profit_total_usd"]+=prof
-        profit_totals=totals
-        whs = s.query(Warehouse).filter(Warehouse.active==True).all(); wh_by_id={w.id:w for w in whs}
-        bal={}
-        for m in s.query(StockMovement).filter(StockMovement.product_sku==sku).all():
-            if m.to_wh: bal[m.to_wh]=bal.get(m.to_wh,0)+m.qty
-            if m.from_wh: bal[m.from_wh]=bal.get(m.from_wh,0)-m.qty
-        agg_ctry={}
-        for wid,qty in bal.items():
-            ctry = wh_by_id[wid].country; agg_ctry[ctry]=agg_ctry.get(ctry,0)+qty
-        stock_rows=[dict(country=k, qty=v) for k,v in sorted(agg_ctry.items())]
-        stock_total=sum(agg_ctry.values()) if agg_ctry else 0
-        shipments=[]
-        for sh in s.query(Shipment).order_by(desc(Shipment.id)).all():
-            q = s.execute(select(func.sum(ShipmentItem.qty)).where(ShipmentItem.shipment_id==sh.id, ShipmentItem.product_sku==sku)).scalar() or 0
-            if q>0:
-                shipments.append(dict(id=sh.id, ref=sh.ref, from_country=sh.from_country, to_country=sh.to_country,
-                                      status=sh.status, arrived_date=sh.arrived_date, transit_days=sh.transit_days,
-                                      shipping_cost_usd=sh.shipping_cost_usd, qty_sum=q))
-        countries = countries_list(s)
-    return render_template("product.html",
-        product=p, profit_rows=profit_rows, profit_totals=profit_totals,
-        stock_rows=stock_rows, stock_total=stock_total, shipments=shipments,
-        countries=countries, title=f"{p.product_sku}"
-    )
+def product_detail(sku):
+    p = Product.query.get_or_404(sku)
+    rows = []
+    for c in Country.query.filter(Country.code!="CN").order_by(Country.name).all():
+        stock_qty = db.session.query(func.coalesce(func.sum(Stock.qty),0)).filter_by(product_sku=sku,country_code=c.code).scalar() or 0
+        spend = db.session.query(func.coalesce(func.sum(PlatformSpend.amount_usd),0)).filter_by(product_sku=sku,country_code=c.code).scalar() or 0.0
+        rems = Remittance.query.filter_by(product_sku=sku, country_code=c.code).all()
+        profit_total = 0.0
+        for r in rems:
+            per_piece_cost = (p.cost_cn or 0.0) + (p.ship_cn_ke or 0.0) + (r.extra_ship_per_piece_usd or 0.0)
+            profit_total += (r.revenue_usd or 0.0) - (r.ads_usd or 0.0) - per_piece_cost*(r.pieces or 0)
+        rows.append({"country":c.name, "code":c.code, "stock":int(stock_qty), "spend":float(spend), "profit":round(profit_total,2)})
+    cnke = Shipment.query.filter_by(from_country="CN", to_country="KE").order_by(Shipment.created_at.desc()).all()
+    inter = Shipment.query.filter(Shipment.from_country!="CN").order_by(Shipment.created_at.desc()).all()
+    return render_template("product.html", product=p, country_rows=rows, cnke=cnke, inter=inter, title=p.name)
 
-def parse_period(choice):
-    today = datetime.date.today()
-    if choice == "10d": start = today - datetime.timedelta(days=10)
-    elif choice == "21d": start = today - datetime.timedelta(days=21)
-    elif choice == "35d": start = today - datetime.timedelta(days=35)
-    elif choice == "60d": start = today - datetime.timedelta(days=60)
-    elif choice == "3m": start = today - datetime.timedelta(days=90)
-    elif choice == "6m": start = today - datetime.timedelta(days=180)
-    elif choice == "1y": start = today - datetime.timedelta(days=365)
-    else: start = today - datetime.timedelta(days=30)
-    return start.isoformat(), today.isoformat()
-
+# ---------- PERFORMANCE ----------
 @app.get("/performance")
 def performance():
-    tp = request.args.get("tp","21d"); tc = request.args.get("tc","")
-    tp_from, tp_to = parse_period(tp)
-    with Session(engine) as s:
-        ctr_codes = [c.code for c in countries_list(s)]
-        all_products = s.query(Product).order_by(Product.product_sku).all()
-        qr = s.query(PeriodRemit).filter(PeriodRemit.start_date>=tp_from, PeriodRemit.end_date<=tp_to)
-        if tc: qr = qr.filter(PeriodRemit.country_code==tc)
-        data = qr.all(); data.sort(key=lambda r: (r.profit_total_usd or 0.0), reverse=True)
-    return render_template("performance.html",
-        tp=tp, tc=tc, ctr_codes=ctr_codes, all_products=all_products,
-        top_report=data, remit_report=data, title="Performance"
-    )
+    period = request.args.get("period","21d")
+    country = request.args.get("country","")
+    days = {"10d":10,"21d":21,"35d":35,"60d":60,"3m":90,"6m":180,"1y":365}.get(period,21)
+    since = date.today() - timedelta(days=days)
+    q = Remittance.query.filter(Remittance.date_from>=since)
+    if country: q = q.filter(Remittance.country_code==country)
+    rows = q.all()
+    report = []
+    for r in rows:
+        p = Product.query.get(r.product_sku)
+        cost_piece = (p.cost_cn or 0.0) + (p.ship_cn_ke or 0.0) + (r.extra_ship_per_piece_usd or 0.0)
+        profit = (r.revenue_usd or 0.0) - (r.ads_usd or 0.0) - cost_piece*(r.pieces or 0)
+        report.append({"sku":r.product_sku,"country":r.country_code,"orders":r.orders,"pieces":r.pieces,
+                       "revenue":r.revenue_usd,"ads":r.ads_usd,"profit":profit})
+    report.sort(key=lambda x: x["profit"], reverse=True)
+    countries = [c.code for c in Country.query.filter(Country.code!="CN").order_by(Country.name).all()]
+    return render_template("performance.html", countries=countries, report=report, remits=rows, title="Performance")
 
-@app.post("/remit/upsert")
-def upsert_period_remit():
-    d=request.form
-    with Session(engine) as s:
-        sku = d.get("product_sku"); cc = d.get("country_code")
-        pieces = int(d.get("pieces") or 0); orders = int(d.get("orders") or 0)
-        revenue = float(d.get("revenue_usd") or 0.0); ad = float(d.get("ad_usd") or 0.0)
-        extra_pp = float(d.get("extra_ship_per_piece_usd") or 0.0)
-        prod = s.get(Product, sku)
-        if not prod: flash("Product not found","error"); return redirect(url_for("performance"))
-        cost_unit = float(prod.cost_cn_usd or 0.0) + float(prod.default_cnke_ship_usd or 0.0) + extra_pp
-        profit_total = revenue - ad - (pieces * cost_unit)
-        profit_pp = (profit_total / pieces) if pieces else 0.0
-        r = PeriodRemit(
-            start_date=d.get("start_date"), end_date=d.get("end_date"),
-            country_code=cc, product_sku=sku, orders=orders, pieces=pieces,
-            revenue_usd=revenue, ad_usd=ad, extra_ship_per_piece_usd=extra_pp,
-            cost_unit_usd=cost_unit, profit_total_usd=profit_total, profit_per_piece_usd=profit_pp
-        )
-        s.add(r)
-        wh = s.query(Warehouse).filter(Warehouse.code==cc, Warehouse.active==True).first()
-        if wh and pieces>0:
-            s.add(StockMovement(date=str(datetime.date.today()), product_sku=sku, from_wh=wh.id, to_wh=None, qty=pieces, ref=f"REM-{cc}"))
-        s.commit()
-    backup_db(); return redirect(url_for("performance"))
+@app.post("/remit/add")
+def remit_add():
+    sku = request.form["sku"]; cc = request.form["country"]
+    dfrom = date.fromisoformat(request.form["date_from"]); dto = date.fromisoformat(request.form["date_to"])
+    orders = int(request.form.get("orders") or 0)
+    pieces = int(request.form.get("pieces") or 0)
+    revenue = float(request.form.get("revenue") or 0)
+    ads = float(request.form.get("ads") or 0)
+    extra = float(request.form.get("extra_ship") or 0)
+    db.session.add(Remittance(product_sku=sku, country_code=cc, date_from=dfrom, date_to=dto,
+                              orders=orders, pieces=pieces, revenue_usd=revenue, ads_usd=ads,
+                              extra_ship_per_piece_usd=extra))
+    if pieces>0:
+        st = Stock.query.filter_by(product_sku=sku, country_code=cc).first()
+        if not st: st = Stock(product_sku=sku, country_code=cc, qty=0); db.session.add(st)
+        st.qty = max(0, (st.qty or 0) - pieces)
+    db.session.commit(); flash("Remittance added","success")
+    return redirect(url_for("performance"))
 
+# ---------- FINANCE ----------
 @app.get("/finance")
 def finance():
-    with Session(engine) as s:
-        cats = s.query(FinanceCategory).order_by(FinanceCategory.name).all()
-        items = s.query(FinanceEntry).order_by(desc(FinanceEntry.date), desc(FinanceEntry.id)).all()
-    return render_template("finance.html", items=items, categories=cats, title="Finance")
+    entries = FinanceEntry.query.order_by(FinanceEntry.entry_date.desc(), FinanceEntry.id.desc()).all()
+    monthly = {}
+    running = 0.0
+    timeline = []
+    for e in entries[::-1]:
+        running += e.amount_usd if e.type=="credit" else -e.amount_usd
+        cname = FinanceCategory.query.get(e.category_id).name if e.category_id else "General"
+        timeline.append({"date":e.entry_date.isoformat(),"type":e.type,"category":cname,"description":e.description,"amount":e.amount_usd,"balance":running})
+        key = e.entry_date.strftime("%Y-%m")
+        m = monthly.setdefault(key, {"credit":0.0,"debit":0.0})
+        if e.type=="credit": m["credit"] += e.amount_usd
+        else: m["debit"] += e.amount_usd
+    monthly_rows = [{"month":k,"credit":v["credit"],"debit":v["debit"],"balance":v["credit"]-v["debit"]} for k,v in sorted(monthly.items())]
+    cats = [c.name for c in FinanceCategory.query.order_by(FinanceCategory.name).all()]
+    return render_template("finance.html", monthly=monthly_rows, categories=cats, transactions=timeline, title="Finance")
 
-@app.post("/finance/category/add")
-def finance_category_add():
-    name = request.form.get("name")
-    with Session(engine) as s:
-        if name and not s.query(FinanceCategory).filter(FinanceCategory.name==name).first():
-            s.add(FinanceCategory(name=name)); s.commit()
-    backup_db(); return redirect(url_for("finance"))
+@app.post("/add_transaction")
+def add_transaction():
+    typ = request.form["type"]
+    cname = request.form.get("category") or "General"
+    cat = FinanceCategory.query.filter_by(name=cname).first()
+    if not cat:
+        cat = FinanceCategory(name=cname); db.session.add(cat); db.session.flush()
+    amt = float(request.form.get("amount") or 0.0)
+    desc = request.form.get("description") or ""
+    db.session.add(FinanceEntry(type=typ, category_id=cat.id, description=desc, amount_usd=amt, entry_date=date.today()))
+    db.session.commit(); flash("Transaction added","success")
+    return redirect(url_for("finance"))
 
-@app.post("/finance/add")
-def finance_add():
-    d=request.form
-    with Session(engine) as s:
-        cat_id = request.form.get("category_id")
-        cat = s.get(FinanceCategory, int(cat_id)) if cat_id else None
-        s.add(FinanceEntry(
-            date=d.get("date"), type=d.get("type"),
-            category_id=cat.id if cat else None,
-            category_name=(cat.name if cat else d.get("category_name","")),
-            description=d.get("description"),
-            amount_usd=float(d.get("amount_usd") or 0.0)
-        )); s.commit()
-    backup_db(); return redirect(url_for("finance"))
-
+# ---------- SETTINGS ----------
 @app.get("/settings")
 def settings():
-    with Session(engine) as s:
-        countries = [c for c in s.query(Country).order_by(Country.code).all()]
-        products = s.query(Product).order_by(Product.product_sku).all()
-    return render_template("settings.html", countries=countries, products=products, title="Settings")
+    return render_template(
+        "settings.html",
+        countries=[c for c in Country.query.order_by(Country.name).all()],
+        products=[p for p in Product.query.order_by(Product.sku).all()],
+        backups=list_backups(),
+        title="Settings"
+    )
 
-@app.post("/settings/country/add")
+@app.post("/add_country")
 def add_country():
-    d=request.form
-    with Session(engine) as s:
-        s.add(Country(country=d.get("country"), code=d.get("code"), currency=d.get("currency") or "USD", fx_to_usd=float(d.get("fx_to_usd") or 1.0)))
-        s.add(Warehouse(name=f"{d.get('country')} Hub", country=d.get("country"), code=d.get("code"), active=True))
-        s.commit()
-    backup_db(); return redirect(url_for("settings"))
-
-@app.post("/settings/country/delete")
-def delete_country():
-    code=request.form.get("code")
-    with Session(engine) as s:
-        if code!="CN":
-            s.query(Warehouse).where(Warehouse.code==code).delete()
-            s.query(Country).where(Country.code==code).delete()
-            s.commit()
-    backup_db(); return redirect(url_for("settings"))
-
-@app.post("/settings/product/edit")
-def edit_product_fields():
-    d=request.form
-    sku = d.get("product_sku")
-    with Session(engine) as s:
-        p = s.get(Product, sku)
-        if p:
-            for field in ["product_name","category","weight_g","cost_cn_usd","default_cnke_ship_usd","profit_ads_budget_usd"]:
-                if field in d and d.get(field)!="":
-                    val = d.get(field)
-                    if field in ["weight_g"]: val=int(val)
-                    if field in ["cost_cn_usd","default_cnke_ship_usd","profit_ads_budget_usd"]: val=float(val)
-                    setattr(p, field, val)
-            s.commit()
-    backup_db(); return redirect(url_for("settings"))
-
-@app.post("/settings/restore")
-def restore_snapshot():
-    label = request.form.get("ago")
-    ok = restore_db_ago(label)
-    if ok: flash(f"Restored snapshot: {label} ago","info")
-    else: flash("No snapshot found for requested period","error")
+    name = request.form["country"].strip()
+    if not name: return redirect(url_for("settings"))
+    code = name[:2].upper()
+    if Country.query.filter((Country.code==code)|(Country.name==name)).first():
+        flash("Country exists","error"); return redirect(url_for("settings"))
+    db.session.add(Country(code=code, name=name)); db.session.commit(); flash("Country added","success")
     return redirect(url_for("settings"))
 
-@app.get("/todo")
-def todo_page():
-    with Session(engine) as s:
-        items = s.query(TodoItem).order_by(desc(TodoItem.id)).all()
-    return render_template("todo.html", items=items, title="To-Do")
+@app.post("/delete_country")
+def delete_country():
+    name = request.form["country"]; c = Country.query.filter_by(name=name).first()
+    if not c: flash("Not found","error"); return redirect(url_for("settings"))
+    Stock.query.filter_by(country_code=c.code).delete()
+    PlatformSpend.query.filter_by(country_code=c.code).delete()
+    DailyDelivered.query.filter_by(country_code=c.code).delete()
+    Remittance.query.filter_by(country_code=c.code).delete()
+    for sh in Shipment.query.filter((Shipment.from_country==c.code)|(Shipment.to_country==c.code)).all():
+        ShipmentItem.query.filter_by(shipment_id=sh.id).delete(); db.session.delete(sh)
+    db.session.delete(c); db.session.commit(); flash("Country deleted","success")
+    return redirect(url_for("settings"))
 
-@app.post("/todo/add")
-def todo_add():
-    title=request.form.get("title"); day=request.form.get("weekly_day") or None
-    with Session(engine) as s:
-        s.add(TodoItem(title=title, status="todo", weekly_day=day, created_at=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))); s.commit()
-    backup_db(); return redirect(request.referrer or url_for("todo_page"))
+@app.post("/edit_product")
+def edit_product():
+    sku = request.form.get("sku"); p = Product.query.get(sku)
+    if not p: flash("Product not found","error"); return redirect(url_for("settings"))
+    p.name = request.form.get("name") or p.name
+    if request.form.get("cost"): p.cost_cn = float(request.form.get("cost"))
+    if request.form.get("shipping"): p.ship_cn_ke = float(request.form.get("shipping"))
+    db.session.commit(); flash("Product updated","success")
+    return redirect(url_for("settings"))
 
-@app.post("/todo/status")
-def todo_status():
-    tid=int(request.form.get("id")); st=request.form.get("status")
-    with Session(engine) as s:
-        it=s.get(TodoItem, tid)
-        if it and st in ["todo","doing","done"]:
-            it.status=st; s.commit()
-    backup_db(); return redirect(request.referrer or url_for("todo_page"))
+# ---------- TODO ----------
+@app.post("/add_task")
+def add_task():
+    text = request.form.get("task","").strip()
+    status = request.form.get("status","pending")
+    day = request.form.get("week_day") or None
+    if text: db.session.add(Todo(text=text,status=status,week_day=day)); db.session.commit(); flash("Task added","success")
+    return redirect(url_for("index"))
 
-@app.post("/todo/delete")
-def todo_delete():
-    tid=int(request.form.get("id"))
-    with Session(engine) as s:
-        it=s.get(TodoItem, tid)
-        if it: s.delete(it); s.commit()
-    backup_db(); return redirect(request.referrer or url_for("todo_page"))
+@app.post("/delete_task")
+def delete_task():
+    tid = int(request.form["task_id"]); Todo.query.filter_by(id=tid).delete(); db.session.commit(); flash("Task deleted","success")
+    return redirect(url_for("index"))
+
+# ---------- Backups: download / create / restore / delete ----------
+@app.get("/backups/<name>")
+def download_backup(name):
+    if not BACKUP_NAME_RE.match(name): 
+        flash("Invalid backup name","error"); 
+        return redirect(url_for("settings"))
+    return send_from_directory(BACKUP_DIR, name, as_attachment=True)
+
+@app.post("/backup_now")
+def backup_now():
+    make_backup()
+    flash("Backup created.","success")
+    return redirect(url_for("settings"))
+
+@app.post("/restore_backup")
+def restore_backup():
+    name = request.form.get("backup")
+    if not name or not BACKUP_NAME_RE.match(name):
+        flash("Select a valid backup.","error")
+        return redirect(url_for("settings"))
+    path = os.path.join(BACKUP_DIR, name)
+    if not os.path.exists(path):
+        flash("Backup file not found.","error")
+        return redirect(url_for("settings"))
+    db.session.remove()
+    try:
+        shutil.copy(path, DB_PATH)
+        flash(f"Restored database from {name}.","success")
+    except Exception as e:
+        flash(f"Restore failed: {e}","error")
+    return redirect(url_for("settings"))
+
+@app.post("/delete_backup")
+def delete_backup():
+    name = request.form.get("backup")
+    if not name or not BACKUP_NAME_RE.match(name):
+        flash("Select a valid backup.","error")
+        return redirect(url_for("settings"))
+    path = os.path.join(BACKUP_DIR, name)
+    try:
+        if os.path.exists(path): os.remove(path)
+        flash("Backup deleted.","success")
+    except Exception as e:
+        flash(f"Delete failed: {e}","error")
+    return redirect(url_for("settings"))
+
+@app.get("/health")
+def health(): return {"ok":True}
 
 if __name__ == "__main__":
     app.run(debug=True)
