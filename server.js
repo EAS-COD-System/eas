@@ -1,0 +1,72 @@
+import express from 'express';
+import bodyParser from 'body-parser';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import morgan from 'morgan';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const app = express();
+const PORT = process.env.PORT || 3000;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'eastafricashop';
+app.use(morgan('dev')); app.use(bodyParser.json()); app.use(cookieParser()); app.use(cors({origin:true,credentials:true}));
+const DATA_DIR = path.join(__dirname,'data'); const SNAPSHOT_DIR = path.join(__dirname,'snapshots');
+if(!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR,{recursive:true});
+if(!fs.existsSync(SNAPSHOT_DIR)) fs.mkdirSync(SNAPSHOT_DIR,{recursive:true});
+const files = { meta:'meta.json', countries:'countries.json', products:'products.json', deliveries:'deliveries.json', adSpends:'ad_spends.json', movements:'movements.json', shipments:'shipments.json', remittances:'remittances.json', financeCategories:'finance_categories.json', financeEntries:'finance_entries.json', influencers:'influencers.json', influencersSpend:'influencers_spend.json', allowlist:'allowlist.json' };
+const R = (n,f)=>{ const p=path.join(DATA_DIR,n); if(!fs.existsSync(p)) return f; try{return JSON.parse(fs.readFileSync(p,'utf8'))}catch{return f}}
+const W = (n,d)=>fs.writeFileSync(path.join(DATA_DIR,n), JSON.stringify(d,null,2));
+(function init(){ if(!fs.existsSync(path.join(DATA_DIR,files.meta))) W(files.meta,{currency:'USD',theme:{primary:'#0E9F6E',bg:'#fff'},createdAt:new Date().toISOString()}); if(!fs.existsSync(path.join(DATA_DIR,files.allowlist))) W(files.allowlist,{ips:[]}); const defs=[[files.countries,["china","kenya","tanzania","uganda","zambia","zimbabwe"]],[files.products,[]],[files.deliveries,[]],[files.adSpends,[]],[files.movements,[]],[files.shipments,[]],[files.remittances,[]],[files.financeCategories,{"debits":["Facebook Ads","TikTok Ads","Google Ads","Shipping","Salaries"],"credits":["Revenue Boxleo","Other Revenue"]}],[files.financeEntries,[]],[files.influencers,[]],[files.influencersSpend,[]]]; for (const [f,v] of defs){ const p=path.join(DATA_DIR,f); if(!fs.existsSync(p)) W(f,v);} })();
+const ipOf=(req)=> (req.headers['x-forwarded-for']?.split(',')[0]?.trim()) || req.ip;
+app.post('/api/auth',(req,res)=>{ const {password}=req.body||{}; const ip=ipOf(req); if(password===ADMIN_PASSWORD){ const a=R(files.allowlist,{ips:[]}); if(!a.ips.includes(ip)){ a.ips.push(ip); W(files.allowlist,a);} res.cookie('eas_auth','1',{httpOnly:true,sameSite:'lax'}); return res.json({ok:true,ip}); } return res.status(401).json({ok:false,error:'Invalid password'});});
+app.post('/api/logout',(req,res)=>{ const ip=ipOf(req); const a=R(files.allowlist,{ips:[]}); a.ips=a.ips.filter(x=>x!==ip); W(files.allowlist,a); res.clearCookie('eas_auth'); res.json({ok:true});});
+const guard=(req,res,next)=>{ const ip=ipOf(req); const a=R(files.allowlist,{ips:[]}); if(a.ips.includes(ip)) return next(); return res.status(401).json({ok:false,error:'Unauthorized'})};
+const dOnly=(d)=>{ const x=new Date(d); x.setHours(0,0,0,0); return x.toISOString().slice(0,10)};
+const inRange=(d,s,e)=>{ const x=new Date(d).getTime(); if(s&&x<new Date(s).getTime()) return false; if(e&&x>new Date(e).getTime()) return false; return true };
+const sow=(date)=>{ const d=new Date(date); const day=(d.getDay()+6)%7; const m=new Date(d); m.setDate(d.getDate()-day); m.setHours(0,0,0,0); return m };
+const eow=(date)=>{ const m=sow(date); const s=new Date(m); s.setDate(m.getDate()+6); s.setHours(23,59,59,999); return s };
+setInterval(()=>{ const stamp=new Date().toISOString().replace(/[:.]/g,'-'); const folder=path.join(SNAPSHOT_DIR,stamp+'_10m'); fs.mkdirSync(folder,{recursive:true}); for (const k of Object.values(files)){ const src=path.join(DATA_DIR,k); if(fs.existsSync(src)) fs.copyFileSync(src,path.join(folder,k)); } }, 10*60*1000);
+app.get('/api/meta', guard, (req,res)=> res.json({ meta:R(files.meta,{}), countries:R(files.countries,[]), week:{ start:sow(new Date()), end:eow(new Date()) } }));
+// countries
+app.get('/api/countries', guard, (req,res)=> res.json({ countries:R(files.countries,[]) }));
+app.post('/api/countries', guard, (req,res)=>{ const {name}=req.body; if(!name) return res.status(400).json({error:'name'}); const list=R(files.countries,[]); const n=name.toLowerCase(); if(!list.includes(n)) list.push(n); W(files.countries,list); res.json({countries:list});});
+app.delete('/api/countries/:name', guard, (req,res)=>{ const n=req.params.name.toLowerCase(); const list=R(files.countries,[]).filter(c=>c!==n); W(files.countries,list); res.json({countries:list});});
+// products
+app.get('/api/products', guard, (req,res)=> res.json({products:R(files.products,[])}));
+app.post('/api/products', guard, (req,res)=>{ const p=R(files.products,[]); const id='p_'+Math.random().toString(36).slice(2); const {name,sku,cost_china,ship_china_to_kenya,margin_budget,status='active'}=req.body; p.push({id,name,sku,cost_china:+cost_china||0,ship_china_to_kenya:+ship_china_to_kenya||0,margin_budget:+margin_budget||0,status,createdAt:new Date().toISOString()}); W(files.products,p); res.json({ok:true,id});});
+app.post('/api/products/:id/status', guard, (req,res)=>{ const p=R(files.products,[]); const i=p.findIndex(x=>x.id===req.params.id); if(i<0) return res.status(404).json({error:'nf'}); const {status}=req.body; p[i].status=status; p[i].updatedAt=new Date().toISOString(); W(files.products,p); res.json({ok:true});});
+// deliveries
+app.post('/api/deliveries', guard, (req,res)=>{ const list=R(files.deliveries,[]); const {date,country,delivered}=req.body; if(!date||!country) return res.status(400).json({error:'fields'}); list.push({ id:'d_'+Math.random().toString(36).slice(2), date:dOnly(date), country:country.toLowerCase(), delivered:+delivered||0 }); W(files.deliveries,list); res.json({ok:true});});
+app.get('/api/deliveries/current-week', guard, (req,res)=>{ const start=dOnly(sow(new Date())); const end=dOnly(eow(new Date())); const list=R(files.deliveries,[]).filter(x=>inRange(x.date,start,end)); const days={}; for(let i=0;i<8;i++){ const d=new Date(start); d.setDate(new Date(start).getDate()+i); const k=dOnly(d); days[k]=0; } for(const r of list){ if(days[r.date]!=null) days[r.date]+=r.delivered; } res.json({start,end,days});});
+// ad spend
+app.post('/api/adspend', guard, (req,res)=>{ const list=R(files.adSpends,[]); const {date,platform,productId,country,amount}=req.body; if(!date||!platform||!productId||!country) return res.status(400).json({error:'fields'}); const key=`${dOnly(date)}|${platform}|${productId}|${country.toLowerCase()}`; const filtered=list.filter(x=>`${x.date}|${x.platform}|${x.productId}|${x.country}`!==key); filtered.push({id:'a_'+Math.random().toString(36).slice(2),date:dOnly(date),platform,productId,country:country.toLowerCase(),amount:+amount||0}); W(files.adSpends,filtered); res.json({ok:true});});
+// stock movement
+app.post('/api/stock/move', guard, (req,res)=>{ const list=R(files.movements,[]); const {productId,fromCountry,toCountry,qty,shippingCost}=req.body; if(!productId||!fromCountry||!toCountry) return res.status(400).json({error:'fields'}); const rec={id:'m_'+Math.random().toString(36).slice(2),productId,from:fromCountry.toLowerCase(),to:toCountry.toLowerCase(),qty:+qty||0,shippingCost:+shippingCost||0,date:dOnly(new Date())}; list.push(rec); W(files.movements,list); res.json({ok:true,id:rec.id});});
+// shipments
+app.post('/api/shipments', guard, (req,res)=>{ const list=R(files.shipments,[]); const {productId,fromCountry,toCountry,qty,shipCost,departedAt}=req.body; if(!productId||!fromCountry||!toCountry) return res.status(400).json({error:'fields'}); const rec={id:'s_'+Math.random().toString(36).slice(2),productId,from:fromCountry.toLowerCase(),to:toCountry.toLowerCase(),qty:+qty||0,shipCost:+shipCost||0,departedAt:dOnly(departedAt||new Date()),arrivedAt:null,notes:''}; list.push(rec); W(files.shipments,list); res.json({ok:true,id:rec.id});});
+app.get('/api/shipments', guard, (req,res)=>{ const {type}=req.query; let list=R(files.shipments,[]); if(type==='china-kenya') list=list.filter(x=>x.from==='china'&&x.to==='kenya'); else if(type==='intercountry') list=list.filter(x=>!(x.from==='china'&&x.to==='kenya')); res.json({shipments:list});});
+app.put('/api/shipments/:id', guard, (req,res)=>{ const list=R(files.shipments,[]); const i=list.findIndex(x=>x.id===req.params.id); if(i<0) return res.status(404).json({error:'nf'}); const b=req.body||{}; if(b.arrivedAt) b.arrivedAt=dOnly(b.arrivedAt); list[i]={...list[i],...b}; W(files.shipments,list); res.json({ok:true});});
+app.delete('/api/shipments/:id', guard, (req,res)=>{ const list=R(files.shipments,[]).filter(x=>x.id!==req.params.id); W(files.shipments,list); res.json({ok:true});});
+// remittances
+app.post('/api/remittances', guard, (req,res)=>{ const list=R(files.remittances,[]); const {start,end,country,productId,orders,pieces,revenue,adSpend,costPerDelivery=0}=req.body; if(!start||!end||!country||!productId) return res.status(400).json({error:'fields'}); const rec={id:'r_'+Math.random().toString(36).slice(2),start:dOnly(start),end:dOnly(end),country:country.toLowerCase(),productId,orders:+orders||0,pieces:+pieces||0,revenue:+revenue||0,adSpend:+adSpend||0,costPerDelivery:+costPerDelivery||0}; list.push(rec); W(files.remittances,list); res.json({ok:true,id:rec.id});});
+app.get('/api/remittances', guard, (req,res)=>{ const {start,end,country,productId}=req.query; let list=R(files.remittances,[]); if(country) list=list.filter(x=>x.country===country.toLowerCase()); if(productId) list=list.filter(x=>x.productId===productId); if(start) list=list.filter(x=>x.end>=start); if(end) list=list.filter(x=>x.start<=end); res.json({remittances:list});});
+// influencers
+app.get('/api/influencers', guard, (req,res)=> res.json({influencers:R(files.influencers,[])}));
+app.post('/api/influencers', guard, (req,res)=>{ const list=R(files.influencers,[]); const {name,social,country}=req.body; if(!name) return res.status(400).json({error:'name'}); const id='i_'+Math.random().toString(36).slice(2); list.push({id,name,social:social||'',country:(country||'').toLowerCase()}); W(files.influencers,list); res.json({ok:true,id});});
+app.delete('/api/influencers/:id', guard, (req,res)=>{ const list=R(files.influencers,[]).filter(x=>x.id!==req.params.id); W(files.influencers,list); res.json({ok:true});});
+app.post('/api/influencers/spend', guard, (req,res)=>{ const list=R(files.influencersSpend,[]); const {influencerId,productId,date,country,amount}=req.body; if(!influencerId||!date) return res.status(400).json({error:'fields'}); list.push({id:'is_'+Math.random().toString(36).slice(2),influencerId,productId:productId||null,date:dOnly(date),country:(country||'').toLowerCase(),amount:+amount||0}); W(files.influencersSpend,list); res.json({ok:true});});
+app.get('/api/influencers/spend', guard, (req,res)=>{ const {start,end,country}=req.query; let list=R(files.influencersSpend,[]); if(country) list=list.filter(x=>x.country===country.toLowerCase()); list=list.filter(x=>inRange(x.date,start,end)); res.json({spends:list});});
+// finance
+app.get('/api/finance/categories', guard, (req,res)=> res.json(R(files.financeCategories,{debits:[],credits:[]})));
+app.post('/api/finance/categories', guard, (req,res)=>{ const data=R(files.financeCategories,{debits:[],credits:[]}); const {type,name}=req.body; const key=type==='debit'?'debits':'credits'; if(name&&!data[key].includes(name)) data[key].push(name); W(files.financeCategories,data); res.json(data);});
+app.delete('/api/finance/categories', guard, (req,res)=>{ const data=R(files.financeCategories,{debits:[],credits:[]}); const {type,name}=req.body; const key=type==='debit'?'debits':'credits'; data[key]=data[key].filter(x=>x!==name); W(files.financeCategories,data); res.json(data);});
+app.post('/api/finance/entries', guard, (req,res)=>{ const list=R(files.financeEntries,[]); const {date,type,category,amount,note}=req.body; if(!date||!['debit','credit'].includes(type)||!category) return res.status(400).json({error:'fields'}); list.push({id:'fe_'+Math.random().toString(36).slice(2),date:dOnly(date),type,category,amount:+amount||0,note:note||''}); W(files.financeEntries,list); res.json({ok:true});});
+app.get('/api/finance/entries', guard, (req,res)=>{ const {start,end,categories}=req.query; let list=R(files.financeEntries,[]).filter(x=>inRange(x.date,start,end)); if(categories){ const arr=categories.split(','); list=list.filter(x=>arr.includes(x.category)); } const balance=list.reduce((acc,x)=>x.type==='credit'?acc+x.amount:acc-x.amount,0); res.json({entries:list,balance});});
+// performance
+app.get('/api/performance/top-delivered', guard, (req,res)=>{ const {start,end,country}=req.query; const rem=R(files.remittances,[]).filter(x=>inRange(x.start,start,end)||inRange(x.end,start,end)).filter(x=>country?x.country===country.toLowerCase():true); const products=R(files.products,[]); const moves=R(files.movements,[]); const result={}; for(const r of rem){ if(!result[r.productId]) result[r.productId]={pieces:0,adSpend:0,productCost:0,profit:0}; result[r.productId].pieces+=r.pieces; result[r.productId].adSpend+=r.adSpend; const prod=products.find(p=>p.id===r.productId)||{cost_china:0,ship_china_to_kenya:0}; const base=(prod.cost_china||0)+(prod.ship_china_to_kenya||0); const movCost=moves.filter(m=>m.productId===r.productId&&m.to===r.country).reduce((a,m)=>a+(m.shippingCost||0),0); const perPiece=r.pieces?movCost/r.pieces:0; result[r.productId].productCost+=(base+perPiece)*r.pieces; const profit=r.revenue - r.adSpend - ((base+perPiece)*r.pieces); result[r.productId].profit+=profit; } const out=Object.entries(result).map(([id,v])=>{ const prod=products.find(p=>p.id===id); const ppp=v.pieces?(v.profit/v.pieces):0; return {productId:id,productName:prod?.name||id,pieces:v.pieces,adSpend:v.adSpend,productCost:v.productCost,profit:v.profit,profitPerPiece:ppp};}).sort((a,b)=>b.pieces-a.pieces); res.json({items:out});});
+app.use('/public', express.static(path.join(__dirname,'public')));
+app.get('/', (req,res)=> res.sendFile(path.join(__dirname,'public','index.html')));
+app.get('*', (req,res)=> res.sendFile(path.join(__dirname,'public','index.html')));
+app.listen(PORT, ()=>console.log('EAS Tracker on '+PORT));
