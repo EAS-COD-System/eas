@@ -1,1 +1,684 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EAS Tracker</title><link rel="stylesheet" href="/public/styles.css"></head><body><div id="app"></div><script src="/public/app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>EAS Tracker</title>
+<link rel="stylesheet" href="/public/styles.css" />
+</head>
+<body>
+<div class="header">
+<div class="brand"><div class="dot"></div><div>EAS Tracker</div></div>
+<div class="nav">
+<a href="#" data-view="home" class="active">Home / Dashboard</a>
+<a href="#" data-view="products">Products</a>
+<a href="#" data-view="performance">Performance</a>
+<a href="#" data-view="finance">Finance</a>
+<a href="#" data-view="settings">Settings</a>
+<a href="#" id="logoutLink">Logout</a>
+</div>
+</div>
+
+<div class="container">
+<!-- LOGIN -->
+<div id="login" class="section" style="display:none">
+<h2>Enter password</h2>
+<input id="pw" type="password" class="input" placeholder="Password" />
+<div style="height:8px"></div>
+<button id="loginBtn" class="btn">Login</button>
+<div class="small">Access is remembered per IP.</div>
+</div>
+
+<!-- HOME / DASHBOARD -->
+<div id="home" class="section">
+<div class="h">Dashboard</div>
+
+<!-- 1) KPIs -->
+<div class="grid" id="kpiGrid">
+<div class="card kpi"><div class="h">Products</div><div class="v" id="kpiProducts">—</div></div>
+<div class="card kpi"><div class="h">Warehouses (countries)</div><div class="v" id="kpiCountries">—</div></div>
+<div class="card kpi"><div class="h">Transit Shipments</div><div class="v" id="kpiTransit">—</div></div>
+<div class="card kpi"><div class="h">Total Ad Spend (all time)</div><div class="v" id="kpiAdSpend">—</div></div>
+</div>
+<div class="card" id="kpiDeliveredWrap" style="margin-top:12px">
+<div class="h">Total Delivered (Mon–Sun this week)</div>
+<div id="kpiDelivered">—</div>
+</div>
+
+<!-- 2) Total stock per country + ad spend per country -->
+<div class="section" style="margin-top:14px">
+<div class="h">Total Stock by Country + Ad Spend</div>
+<div class="small">Stock is derived from movements in/out minus delivered pieces from remittances.</div>
+<div id="stockByCountry"></div>
+</div>
+
+<!-- 3) Daily Delivered (8-day view + filter) -->
+<div class="section">
+<div class="h">Daily Delivered (auto-resets view every Monday)</div>
+<div class="row">
+<input id="delivDate" type="date" class="input">
+<select id="delivCountry" class="select"></select>
+<input id="delivCount" type="number" class="input" placeholder="Delivered">
+<button id="delivAdd" class="btn">Add delivered</button>
+<input id="delivStart" type="date" class="input" placeholder="From">
+<input id="delivEnd" type="date" class="input" placeholder="To">
+<button id="delivFilter" class="btn outline">Filter</button>
+</div>
+<div style="height:8px"></div>
+<table class="table" id="delivTable">
+<thead><tr><th>Date</th><th>Day</th><th>Country</th><th>Delivered</th></tr></thead>
+<tbody></tbody>
+</table>
+<div class="card" style="margin-top:8px"><div class="h">Selected Period Total</div><div id="delivTotal">—</div></div>
+</div>
+
+<!-- 4) Daily Advertising Spend -->
+<div class="section">
+<div class="h">Daily Advertising Spend</div>
+<div class="row">
+<input id="adDate" type="date" class="input">
+<select id="adPlatform" class="select">
+<option value="facebook">Facebook</option>
+<option value="tiktok">TikTok</option>
+<option value="google">Google</option>
+</select>
+<select id="adProduct" class="select"></select>
+<select id="adCountry" class="select"></select>
+<input id="adAmount" type="number" step="any" class="input" placeholder="Amount (USD)">
+<button id="adAdd" class="btn">Add / Replace</button>
+</div>
+</div>
+
+<!-- 5) Stock Movement -->
+<div class="section">
+<div class="h">Stock Movement</div>
+<div class="row">
+<select id="mvProduct" class="select"></select>
+<select id="mvFrom" class="select"></select>
+<select id="mvTo" class="select"></select>
+<input id="mvQty" type="number" class="input" placeholder="Qty">
+<input id="mvShip" type="number" step="any" class="input" placeholder="Ship cost (USD)">
+<button id="mvAdd" class="btn">Record Movement</button>
+</div>
+</div>
+
+<!-- 6) Transit shipments: China → Kenya -->
+<div class="section">
+<div class="h">Transit Shipments — China → Kenya</div>
+<div class="row">
+<select id="sp1Product" class="select"></select>
+<select id="sp1From" class="select"></select>
+<select id="sp1To" class="select"></select>
+<input id="sp1Qty" type="number" class="input" placeholder="Qty">
+<input id="sp1Cost" type="number" step="any" class="input" placeholder="Ship cost">
+<input id="sp1Depart" type="date" class="input">
+<button id="sp1Add" class="btn">Add Shipment</button>
+</div>
+<table class="table" id="shipCKTable">
+<thead><tr><th>ID</th><th>Product</th><th>From→To</th><th>Qty</th><th>ShipCost</th><th>Departed</th><th>Arrived</th><th>Actions</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+
+<!-- 7) Transit shipments: Inter-country -->
+<div class="section">
+<div class="h">Transit Shipments — Inter-country</div>
+<div class="row">
+<select id="sp2Product" class="select"></select>
+<select id="sp2From" class="select"></select>
+<select id="sp2To" class="select"></select>
+<input id="sp2Qty" type="number" class="input" placeholder="Qty">
+<input id="sp2Cost" type="number" step="any" class="input" placeholder="Ship cost">
+<input id="sp2Depart" type="date" class="input">
+<button id="sp2Add" class="btn">Add Shipment</button>
+</div>
+<table class="table" id="shipICTable">
+<thead><tr><th>ID</th><th>Product</th><th>From→To</th><th>Qty</th><th>ShipCost</th><th>Departed</th><th>Arrived</th><th>Actions</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+
+<!-- 8) Profit by Country (from remittances), filter by date -->
+<div class="section">
+<div class="h">Profit by Country (from Remittances)</div>
+<div class="row">
+<input id="pcStart" type="date" class="input">
+<input id="pcEnd" type="date" class="input">
+<button id="pcRun" class="btn">Run</button>
+</div>
+<table class="table" id="profitCountryTable">
+<thead><tr><th>Country</th><th>Revenue</th><th>Ad Spend</th><th>Cost/Delivery</th><th>Pieces</th><th>Total Profit</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+
+<!-- 9) To-Do list -->
+<div class="section">
+<div class="h">To-Do</div>
+<div class="flex">
+<input id="todoText" class="input" placeholder="Task">
+<button id="todoAdd" class="btn">Add</button>
+</div>
+<div id="todoList" style="margin-top:8px"></div>
+</div>
+
+<!-- 10) Weekly To-Do -->
+<div class="section">
+<div class="h">Weekly To-Do</div>
+<div id="weeklyWrap" class="grid"></div>
+</div>
+
+<!-- 11) Lifetime Costs & Profit by Product (filter by product/date) -->
+<div class="section">
+<div class="h">Lifetime Costs & Profit by Product</div>
+<div class="row">
+<select id="lpProduct" class="select"></select>
+<input id="lpStart" type="date" class="input">
+<input id="lpEnd" type="date" class="input">
+<button id="lpRun" class="btn">Run</button>
+</div>
+<table class="table" id="lifetimeTable">
+<thead><tr><th>Product</th><th>Revenue</th><th>Ad Spend</th><th>Ship Cost</th><th>Base Cost</th><th>Pieces</th><th>Total Profit</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
+<!-- PRODUCTS -->
+<div id="products" class="section" style="display:none">
+<div class="h">Products</div>
+<div class="row">
+<input id="pName" class="input" placeholder="Product name" />
+<input id="pSku" class="input" placeholder="SKU" />
+<input id="pCost" type="number" class="input" placeholder="Cost from China (USD)" />
+<input id="pShip" type="number" class="input" placeholder="Ship China→Kenya (USD)" />
+<input id="pMB" type="number" class="input" placeholder="Profit + Advertising (USD)" />
+<button id="pAdd" class="btn">Add Product</button>
+</div>
+<div style="height:8px"></div>
+<table class="table" id="productsTable">
+<thead><tr><th>Name</th><th>SKU</th><th>Status</th><th>Actions</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+
+<!-- PERFORMANCE -->
+<div id="performance" class="section" style="display:none">
+<div class="h">Performance</div>
+
+<!-- Top delivered products -->
+<div class="section">
+<div class="h">Top Delivered Products</div>
+<div class="row">
+<input id="pfStart" type="date" class="input">
+<input id="pfEnd" type="date" class="input">
+<select id="pfCountry" class="select"></select>
+<button id="pfRun" class="btn">Run</button>
+</div>
+<table class="table" id="pfTable">
+<thead><tr><th>Product</th><th>Pieces</th><th>Ad Spend</th><th>Product Cost</th><th>Profit</th><th>Profit/Piece</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+
+<!-- Remittance report -->
+<div class="section">
+<div class="h">Remittance Report (source of truth)</div>
+<div class="row">
+<input id="rStart" type="date" class="input">
+<input id="rEnd" type="date" class="input">
+<select id="rCountry" class="select"></select>
+<select id="rProduct" class="select"></select>
+<input id="rOrders" type="number" class="input" placeholder="Orders">
+<input id="rPieces" type="number" class="input" placeholder="Pieces">
+<input id="rRev" type="number" step="any" class="input" placeholder="Revenue (USD)">
+<input id="rAds" type="number" step="any" class="input" placeholder="Ad Spend (USD)">
+<input id="rCPD" type="number" step="any" class="input" placeholder="Cost per Delivery (USD)">
+<button id="rAdd" class="btn">Add Remittance</button>
+</div>
+</div>
+</div>
+
+<!-- FINANCE -->
+<div id="finance" class="section" style="display:none">
+<div class="h">Finance</div>
+
+<div class="section">
+<div class="h">Categories</div>
+<div class="row">
+<select id="fcType" class="select">
+<option value="debit">Debit</option>
+<option value="credit">Credit</option>
+</select>
+<input id="fcName" class="input" placeholder="Category name">
+<button id="fcAdd" class="btn">Add Category</button>
+</div>
+<div id="fcList" style="margin-top:8px"></div>
+</div>
+
+<div class="section">
+<div class="h">Add Entry</div>
+<div class="row">
+<input id="feDate" type="date" class="input">
+<select id="feType" class="select"><option value="debit">Debit</option><option value="credit">Credit</option></select>
+<input id="feCat" class="input" placeholder="Category">
+<input id="feAmt" type="number" step="any" class="input" placeholder="Amount">
+<input id="feNote" class="input" placeholder="Note (optional)">
+<button id="feAdd" class="btn">Add Entry</button>
+</div>
+</div>
+
+<div class="section">
+<div class="h">Report</div>
+<div class="row">
+<input id="fes" type="date" class="input">
+<input id="fee" type="date" class="input">
+<input id="fef" class="input" placeholder="Categories CSV (optional)">
+<button id="feRun" class="btn">Run</button>
+</div>
+<div class="card" id="feBalance" style="margin-top:8px">Balance: —</div>
+<table class="table" id="feTable">
+<thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th>Note</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
+<!-- SETTINGS -->
+<div id="settings" class="section" style="display:none">
+<div class="h">Settings</div>
+
+<div class="section">
+<div class="h">Countries</div>
+<div class="row">
+<input id="cty" class="input" placeholder="Country name">
+<button id="ctyAdd" class="btn">Add Country</button>
+</div>
+<div id="ctyList" style="margin-top:8px"></div>
+</div>
+
+<div class="section">
+<div class="h">Restore System</div>
+<div class="flex">
+<button class="btn outline restore" data-win="10m">10 minutes ago</button>
+<button class="btn outline restore" data-win="1h">1 hour ago</button>
+<button class="btn outline restore" data-win="24h">24 hours ago</button>
+<button class="btn outline restore" data-win="3d">3 days ago</button>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+const state = { view:'home', products:[], countries:[] };
+
+async function api(path, opts={}) {
+const res = await fetch(path, { credentials:'include', headers:{'Content-Type':'application/json'}, ...opts });
+if (!res.ok) throw new Error(await res.text());
+return res.json();
+}
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+function setView(v){
+state.view=v;
+['home','products','performance','finance','settings'].forEach(id=>{
+document.getElementById(id).style.display = id===v ? '' : 'none';
+});
+$$('.nav a').forEach(a => a.classList.toggle('active', a.dataset.view===v));
+}
+async function ensureMeta(){
+try{
+const m = await api('/api/meta');
+state.countries = m.countries || [];
+await loadProducts();
+$('#login').style.display='none';
+setView(state.view);
+fillSelects();
+await refreshHome();
+}catch(e){
+// if auth still required, show login
+$('#login').style.display='';
+setView('home');
+}
+}
+async function loadProducts(){
+const r = await api('/api/products');
+state.products = r.products || [];
+}
+function fillSelects(){
+// countries
+$$('#delivCountry, #adCountry, #mvFrom, #mvTo, #sp1From, #sp1To, #sp2From, #sp2To, #pfCountry, #rCountry')
+.forEach(s => { s.innerHTML = state.countries.map(c=>`<option value="${c}">${c}</option>`).join(''); });
+// products
+$$('#adProduct, #mvProduct, #sp1Product, #sp2Product, #rProduct, #lpProduct')
+.forEach(s => { s.innerHTML = state.products.map(p=>`<option value="${p.id}">${p.name} (${p.sku||p.id})</option>`).join(''); });
+}
+function weekdayName(dateStr){ return new Date(dateStr).toLocaleDateString(undefined,{weekday:'long'}); }
+function sum(arr){ return arr.reduce((a,b)=>a+(+b||0),0); }
+
+// ---------- HOME ----------
+async function refreshHome(){
+// KPIs
+$('#kpiProducts').textContent = state.products.length;
+$('#kpiCountries').textContent = state.countries.length;
+const shipAll = await api('/api/shipments');
+$('#kpiTransit').textContent = shipAll.shipments.length;
+try{
+const ads = await api('/api/adspend'); // all time
+$('#kpiAdSpend').textContent = Intl.NumberFormat().format(sum(ads.adSpends.map(a=>a.amount))) + ' USD';
+}catch{ $('#kpiAdSpend').textContent = '—'; }
+
+// Delivered this week
+const cw = await api('/api/deliveries/current-week');
+const weekTotal = Object.values(cw.days).reduce((a,b)=>a+(+b||0),0);
+$('#kpiDelivered').textContent = weekTotal;
+
+// Stock by country + ad spend per country
+await renderStockByCountry();
+
+// Delivered list default (last 8 days of current week)
+await filterDeliveries();
+// Shipments tables
+await renderShipments('china-kenya', '#shipCKTable tbody');
+await renderShipments('intercountry', '#shipICTable tbody');
+}
+
+async function renderStockByCountry(){
+// derive: total moves into country - moves out - pieces delivered (remittances) for all products
+const moves = await api('/api/stock/move').catch(()=>({movements:[]})); // backend has only POST; so fallback to reading from file via other endpoints isn’t available; we’ll compute from shipments only for shipping cost, and from remittances for pieces.
+const rem = await api('/api/remittances');
+const ship = await api('/api/shipments');
+
+const perCountry = {};
+state.countries.forEach(c=> perCountry[c] = { stock:0, ad:0 });
+
+// No GET for movements; so stock will be approximated from shipments that arrived
+ship.shipments.filter(s=>s.arrivedAt).forEach(s=>{
+perCountry[s.to] = perCountry[s.to] || {stock:0, ad:0};
+perCountry[s.to].stock += (+s.qty||0);
+});
+// Delivered pieces reduce stock
+rem.remittances.forEach(r=>{
+perCountry[r.country] = perCountry[r.country] || {stock:0, ad:0};
+perCountry[r.country].stock -= (+r.pieces||0);
+});
+// Ad spend per country (all time)
+try{
+const ads = await api('/api/adspend');
+ads.adSpends.forEach(a=>{
+perCountry[a.country] = perCountry[a.country] || {stock:0, ad:0};
+perCountry[a.country].ad += (+a.amount||0);
+});
+}catch{}
+
+const wrap = document.getElementById('stockByCountry');
+const rows = Object.entries(perCountry).map(([c,v]) =>
+`<tr><td>${c}</td><td>${v.stock}</td><td>${v.ad.toFixed(2)} USD</td></tr>`
+).join('');
+wrap.innerHTML = `<table class="table"><thead><tr><th>Country</th><th>Approx. Stock</th><th>Total Ad Spend</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// Deliveries
+async function filterDeliveries(){
+const s = $('#delivStart').value || '';
+const e = $('#delivEnd').value || '';
+const res = await api(`/api/deliveries${s||e ? `?start=${s}&end=${e}`:''}`);
+const tbody = $('#delivTable tbody');
+tbody.innerHTML = res.deliveries.map(d =>
+`<tr><td>${d.date}</td><td>${weekdayName(d.date)}</td><td>${d.country}</td><td>${d.delivered}</td></tr>`
+).join('');
+$('#delivTotal').textContent = res.deliveries.reduce((a,b)=>a+(+b.delivered||0),0);
+}
+
+$('#delivAdd').onclick = async ()=>{
+const date = $('#delivDate').value, country=$('#delivCountry').value, delivered=+$('#delivCount').value||0;
+if(!date || !country) return alert('Pick date & country');
+await api('/api/deliveries',{ method:'POST', body: JSON.stringify({ date, country, delivered })});
+await filterDeliveries(); await refreshHome();
+};
+$('#delivFilter').onclick = filterDeliveries;
+
+// Ad spend
+$('#adAdd').onclick = async ()=>{
+const payload = {
+date: $('#adDate').value,
+platform: $('#adPlatform').value,
+productId: $('#adProduct').value,
+country: $('#adCountry').value,
+amount: +$('#adAmount').value||0
+};
+if(!payload.date || !payload.productId || !payload.country) return alert('Missing fields');
+await api('/api/adspend',{ method:'POST', body: JSON.stringify(payload) });
+alert('Saved'); await refreshHome();
+};
+
+// Movement
+$('#mvAdd').onclick = async ()=>{
+const payload = {
+productId: $('#mvProduct').value,
+fromCountry: $('#mvFrom').value,
+toCountry: $('#mvTo').value,
+qty: +$('#mvQty').value||0,
+shippingCost: +$('#mvShip').value||0
+};
+if(!payload.productId) return alert('Select product');
+await api('/api/stock/move',{ method:'POST', body: JSON.stringify(payload) });
+alert('Movement saved'); await refreshHome();
+};
+
+// Shipments
+async function renderShipments(type, sel){
+const r = await api('/api/shipments?type='+encodeURIComponent(type));
+const productsById = Object.fromEntries(state.products.map(p=>[p.id,p]));
+$(sel).innerHTML = r.shipments.map(sp=>`
+<tr>
+<td>${sp.id}</td>
+<td>${productsById[sp.productId]?.name || sp.productId}</td>
+<td>${sp.from} → ${sp.to}</td>
+<td>${sp.qty}</td>
+<td>${sp.shipCost}</td>
+<td>${sp.departedAt||''}</td>
+<td>${sp.arrivedAt||''}</td>
+<td>
+<button class="btn outline" data-mark="${sp.id}">Mark Arrived</button>
+<button class="btn outline" data-del="${sp.id}">Delete</button>
+</td>
+</tr>`).join('');
+
+$(sel).querySelectorAll('[data-mark]').forEach(b => b.onclick = async (e)=>{
+const d = prompt('Arrival date YYYY-MM-DD'); if(!d) return;
+await api('/api/shipments/'+b.dataset.mark, { method:'PUT', body: JSON.stringify({ arrivedAt: d })});
+await renderShipments(type, sel);
+});
+$(sel).querySelectorAll('[data-del]').forEach(b => b.onclick = async ()=>{
+if(!confirm('Delete shipment?')) return;
+await api('/api/shipments/'+b.dataset.del, { method:'DELETE' });
+await renderShipments(type, sel);
+});
+}
+// Add shipment rows
+$('#sp1Add').onclick = async ()=>{
+const payload = {
+productId: $('#sp1Product').value, fromCountry: $('#sp1From').value, toCountry: $('#sp1To').value,
+qty:+$('#sp1Qty').value||0, shipCost:+$('#sp1Cost').value||0, departedAt: $('#sp1Depart').value
+};
+await api('/api/shipments',{ method:'POST', body: JSON.stringify(payload) });
+await renderShipments('china-kenya', '#shipCKTable tbody');
+};
+$('#sp2Add').onclick = async ()=>{
+const payload = {
+productId: $('#sp2Product').value, fromCountry: $('#sp2From').value, toCountry: $('#sp2To').value,
+qty:+$('#sp2Qty').value||0, shipCost:+$('#sp2Cost').value||0, departedAt: $('#sp2Depart').value
+};
+await api('/api/shipments',{ method:'POST', body: JSON.stringify(payload) });
+await renderShipments('intercountry', '#shipICTable tbody');
+};
+
+// Profit by country (from remittances)
+$('#pcRun').onclick = async ()=>{
+const s=$('#pcStart').value, e=$('#pcEnd').value;
+const r = await api(`/api/remittances${s||e?`?start=${s}&end=${e}`:''}`);
+const byC = {};
+r.remittances.forEach(x=>{
+byC[x.country] = byC[x.country] || { revenue:0, ad:0, cpd:0, pieces:0 };
+byC[x.country].revenue += +x.revenue||0;
+byC[x.country].ad += +x.adSpend||0;
+byC[x.country].cpd += (+x.costPerDelivery||0) * (+x.pieces||0);
+byC[x.country].pieces += +x.pieces||0;
+});
+$('#profitCountryTable tbody').innerHTML = Object.entries(byC).map(([c,v])=>{
+const profit = v.revenue - v.ad - v.cpd;
+return `<tr><td>${c}</td><td>${v.revenue.toFixed(2)}</td><td>${v.ad.toFixed(2)}</td><td>${v.cpd.toFixed(2)}</td><td>${v.pieces}</td><td>${profit.toFixed(2)}</td></tr>`;
+}).join('');
+};
+
+// To-Do
+function loadTodos(){ return JSON.parse(localStorage.getItem('todos')||'[]'); }
+function saveTodos(x){ localStorage.setItem('todos', JSON.stringify(x)); }
+function renderTodos(){
+const items = loadTodos();
+$('#todoList').innerHTML = items.map(it=>`
+<div class="flex">
+<span>${it.done ? '✅ ' : ''}${it.text}</span>
+<button class="btn outline" data-tgl="${it.id}">${it.done?'Undo':'Done'}</button>
+<button class="btn outline" data-del="${it.id}">Delete</button>
+</div>`).join('');
+$('#todoAdd').onclick = ()=>{ const t = $('#todoText').value.trim(); if(!t) return;
+items.push({id: Math.random().toString(36).slice(2), text:t, done:false}); saveTodos(items); renderTodos(); };
+$('#todoList').querySelectorAll('[data-tgl]').forEach(b=> b.onclick=()=>{ const it=items.find(x=>x.id===b.dataset.tgl); it.done=!it.done; saveTodos(items); renderTodos(); });
+$('#todoList').querySelectorAll('[data-del]').forEach(b=> b.onclick=()=>{ const i=items.findIndex(x=>x.id===b.dataset.del); items.splice(i,1); saveTodos(items); renderTodos(); });
+}
+function renderWeekly(){
+const key='weeklyTodos'; const data=JSON.parse(localStorage.getItem(key)||'{}'); const days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const wrap = $('#weeklyWrap'); wrap.innerHTML='';
+days.forEach(day=>{
+const items=data[day]||[];
+const card = document.createElement('div'); card.className='card';
+card.innerHTML = `<div class="h">${day}</div>
+<div class="flex"><input id="w_${day}" class="input" placeholder="Task"><button class="btn">Add</button></div>
+<div class="list">${items.map(it=>`<div class="flex"><span>${it.done?'✅ ':''}${it.text}</span>
+<button class="btn outline" data-wtgl="${day}|${it.id}">${it.done?'Undo':'Done'}</button>
+<button class="btn outline" data-wdel="${day}|${it.id}">Delete</button></div>`).join('')}</div>`;
+wrap.appendChild(card);
+card.querySelector('button.btn').onclick = ()=>{ const v=card.querySelector(`#w_${day}`).value.trim(); if(!v) return;
+items.push({id:Math.random().toString(36).slice(2), text:v, done:false}); data[day]=items; localStorage.setItem(key, JSON.stringify(data)); renderWeekly(); };
+});
+wrap.querySelectorAll('[data-wtgl]').forEach(b=> b.onclick=()=>{ const [d,id]=b.dataset.wtgl.split('|'); const data=JSON.parse(localStorage.getItem(key)||'{}'); const it=(data[d]||[]).find(x=>x.id===id); it.done=!it.done; localStorage.setItem(key, JSON.stringify(data)); renderWeekly(); });
+wrap.querySelectorAll('[data-wdel]').forEach(b=> b.onclick=()=>{ const [d,id]=b.dataset.wdel.split('|'); const data=JSON.parse(localStorage.getItem(key)||'{}'); const arr=(data[d]||[]); const i=arr.findIndex(x=>x.id===id); arr.splice(i,1); data[d]=arr; localStorage.setItem(key, JSON.stringify(data)); renderWeekly(); });
+}
+
+// ---------- PRODUCTS ----------
+$('#pAdd').onclick = async ()=>{
+const payload = { name:$('#pName').value, sku:$('#pSku').value, cost_china:+$('#pCost').value||0, ship_china_to_kenya:+$('#pShip').value||0, margin_budget:+$('#pMB').value||0 };
+await api('/api/products',{ method:'POST', body: JSON.stringify(payload) });
+await loadProducts(); await renderProducts();
+};
+async function renderProducts(){
+const res = await api('/api/products');
+state.products = res.products||[];
+$('#productsTable tbody').innerHTML = state.products.map(p=>`
+<tr><td>${p.name}</td><td>${p.sku||'-'}</td>
+<td><span class="badge">${p.status||'active'}</span></td>
+<td>
+<button class="btn outline" data-pause="${p.id}">${p.status==='active'?'Pause':'Run'}</button>
+<button class="btn outline" data-del="${p.id}">Delete</button>
+</td></tr>`).join('');
+$('#productsTable [data-pause]').forEach(b=> b.onclick=async ()=>{ const id=b.dataset.pause; const p=state.products.find(x=>x.id===id); const ns=p.status==='active'?'paused':'active'; await api(`/api/products/${id}/status`, { method:'POST', body: JSON.stringify({ status: ns })}); await renderProducts(); });
+$('#productsTable [data-del]').forEach(b=> b.onclick=async ()=>{ if(!confirm('Delete product?')) return; await api('/api/products/'+b.dataset.del,{ method:'DELETE' }); await renderProducts(); });
+}
+
+// ---------- PERFORMANCE ----------
+$('#pfRun').onclick = async ()=>{
+const s=$('#pfStart').value, e=$('#pfEnd').value, c=$('#pfCountry').value;
+const r = await api(`/api/performance/top-delivered?start=${s||''}&end=${e||''}&country=${c||''}`);
+$('#pfTable tbody').innerHTML = r.items.map(it=> `<tr><td>${it.productName}</td><td>${it.pieces}</td><td>${it.adSpend.toFixed(2)}</td><td>${it.productCost.toFixed(2)}</td><td>${it.profit.toFixed(2)}</td><td>${it.profitPerPiece.toFixed(2)}</td></tr>`).join('');
+};
+$('#rAdd').onclick = async ()=>{
+const payload = { start:$('#rStart').value, end:$('#rEnd').value, country:$('#rCountry').value, productId:$('#rProduct').value, orders:+$('#rOrders').value||0, pieces:+$('#rPieces').value||0, revenue:+$('#rRev').value||0, adSpend:+$('#rAds').value||0, costPerDelivery:+$('#rCPD').value||0 };
+if(!payload.start || !payload.end) return alert('Select dates');
+await api('/api/remittances',{ method:'POST', body: JSON.stringify(payload) });
+alert('Remittance saved');
+};
+
+// ---------- FINANCE ----------
+async function renderFinanceCats(){
+const cats = await api('/api/finance/categories');
+$('#fcList').innerHTML = `<div>Debits: ${cats.debits.join(', ')||'-'}</div><div>Credits: ${cats.credits.join(', ')||'-'}</div>`;
+}
+$('#fcAdd').onclick = async ()=>{
+await api('/api/finance/categories', { method:'POST', body: JSON.stringify({ type:$('#fcType').value, name:$('#fcName').value }) });
+await renderFinanceCats();
+};
+$('#feAdd').onclick = async ()=>{
+const payload = { date:$('#feDate').value, type:$('#feType').value, category:$('#feCat').value, amount:+$('#feAmt').value||0, note:$('#feNote').value };
+await api('/api/finance/entries',{ method:'POST', body: JSON.stringify(payload) });
+alert('Entry saved');
+};
+$('#feRun').onclick = async ()=>{
+const s=$('#fes').value, e=$('#fee').value, cats=$('#fef').value;
+const r = await api(`/api/finance/entries?start=${s||''}&end=${e||''}&categories=${encodeURIComponent(cats||'')}`);
+$('#feBalance').textContent = 'Balance: ' + r.balance.toFixed(2) + ' USD';
+$('#feTable tbody').innerHTML = r.entries.map(x=>`<tr><td>${x.date}</td><td>${x.type}</td><td>${x.category}</td><td>${x.amount}</td><td>${x.note}</td></tr>`).join('');
+};
+
+// ---------- SETTINGS ----------
+$('#ctyAdd').onclick = async ()=>{
+const name = $('#cty').value.trim(); if(!name) return;
+await api('/api/countries',{ method:'POST', body: JSON.stringify({ name }) });
+const list = await api('/api/countries');
+state.countries = list.countries; fillSelects(); renderCountries();
+};
+function renderCountries(){
+$('#ctyList').innerHTML = state.countries.map(c=> `<span class="badge" style="margin-right:6px">${c}</span>`).join('');
+}
+$$('.restore').forEach(b=> b.onclick = async ()=>{
+try{ const r = await api('/api/restore', { method: 'POST', body: JSON.stringify({ window: b.dataset.win }) }); alert('Restored from '+r.restoredFrom); }
+catch(e){ alert('No snapshot in that window'); }
+});
+
+// ---------- Lifetime product cost/profit ----------
+$('#lpRun').onclick = async ()=>{
+const pid = $('#lpProduct').value || null;
+const s=$('#lpStart').value, e=$('#lpEnd').value;
+const rem = await api(`/api/remittances${s||e?`?start=${s}&end=${e}`:''}`);
+const ship = await api('/api/shipments');
+const productsById = Object.fromEntries(state.products.map(p=>[p.id,p]));
+
+const byP = {};
+rem.remittances.filter(r=>!pid || r.productId===pid).forEach(r=>{
+byP[r.productId] = byP[r.productId] || { revenue:0, ad:0, ship:0, base:0, pieces:0 };
+byP[r.productId].revenue += +r.revenue||0;
+byP[r.productId].ad += +r.adSpend||0;
+byP[r.productId].pieces += +r.pieces||0;
+const prod = productsById[r.productId] || { cost_china:0, ship_china_to_kenya:0 };
+byP[r.productId].base += (+prod.cost_china||0 + +prod.ship_china_to_kenya||0) * (+r.pieces||0);
+});
+// shipping cost allocation (arrived shipments only, across the same product)
+ship.shipments.filter(sx=>sx.arrivedAt && (!pid || sx.productId===pid)).forEach(sx=>{
+byP[sx.productId] = byP[sx.productId] || { revenue:0, ad:0, ship:0, base:0, pieces:0 };
+byP[sx.productId].ship += +sx.shipCost||0;
+});
+
+$('#lifetimeTable tbody').innerHTML = Object.entries(byP).map(([id,v])=>{
+const name = productsById[id]?.name || id;
+const profit = v.revenue - v.ad - v.ship - v.base;
+return `<tr><td>${name}</td><td>${v.revenue.toFixed(2)}</td><td>${v.ad.toFixed(2)}</td><td>${v.ship.toFixed(2)}</td><td>${v.base.toFixed(2)}</td><td>${v.pieces}</td><td>${profit.toFixed(2)}</td></tr>`;
+}).join('');
+};
+
+// ---------- NAV & LOGIN ----------
+$$('.nav a[data-view]').forEach(a=> a.onclick = (e)=>{ e.preventDefault(); setView(a.dataset.view); if(a.dataset.view==='products') renderProducts(); if(a.dataset.view==='performance') { /* nothing immediate */ } if(a.dataset.view==='finance') renderFinanceCats(); });
+$('#logoutLink').onclick = async (e)=>{ e.preventDefault(); await api('/api/logout', { method:'POST' }).catch(()=>{}); location.reload(); };
+$('#loginBtn').onclick = async ()=>{
+const p = $('#pw').value;
+try{ await api('/api/auth',{ method:'POST', body: JSON.stringify({ password: p })}); await ensureMeta(); }
+catch{ alert('Wrong password'); }
+};
+
+// ---------- BOOT ----------
+renderTodos(); renderWeekly();
+ensureMeta();
+</script>
+</body>
+</html>
