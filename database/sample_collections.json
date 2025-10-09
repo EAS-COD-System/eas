@@ -1,0 +1,45 @@
+{
+  "countries": [
+    {
+      "_id": "CN",
+      "name": "China"
+    },
+    {
+      "_id": "KE",
+      "name": "Kenya"
+    },
+    {
+      "_id": "TZ",
+      "name": "Tanzania"
+    },
+    {
+      "_id": "UG",
+      "name": "Uganda"
+    },
+    {
+      "_id": "ZM",
+      "name": "Zambia"
+    },
+    {
+      "_id": "ZW",
+      "name": "Zimbabwe"
+    }
+  ],
+  "stock": [
+    {
+      "product": "prod1",
+      "country": "KE",
+      "qty": 200
+    },
+    {
+      "product": "prod1",
+      "country": "TZ",
+      "qty": 120
+    },
+    {
+      "product": "prod2",
+      "country": "UG",
+      "qty": 160
+    }
+  ]
+}

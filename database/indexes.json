@@ -1,0 +1,47 @@
+{
+  "products": [
+    {
+      "sku": 1
+    }
+  ],
+  "shipments": [
+    {
+      "product": 1
+    }
+  ],
+  "ad_spends": [
+    {
+      "date": 1,
+      "country": 1,
+      "product": 1
+    }
+  ],
+  "remittances": [
+    {
+      "date": 1,
+      "product": 1,
+      "country": 1
+    }
+  ],
+  "finance": [
+    {
+      "date": 1,
+      "type": 1
+    }
+  ],
+  "tasks": [
+    {
+      "done": 1
+    }
+  ],
+  "weekly_tasks": [
+    {
+      "weekday": 1
+    }
+  ],
+  "snapshots": [
+    {
+      "date": -1
+    }
+  ]
+}
