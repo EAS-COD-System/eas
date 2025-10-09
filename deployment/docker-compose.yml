@@ -1,0 +1,36 @@
+version: '3.9'
+services:
+  mongo:
+    image: mongo:6
+    container_name: eas-mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: ./backend
+    container_name: eas-backend
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/eas
+      - JWT_SECRET=eassecret
+    depends_on:
+      - mongo
+
+  frontend:
+    build: ./frontend
+    container_name: eas-frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:4000
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
