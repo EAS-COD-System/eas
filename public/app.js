@@ -1,25 +1,451 @@
-// very similar to previous build; trimmed for brevity but functional
-const state={view:'home',authed:false,meta:null,countries:[],products:[]};
-async function api(p,o={}){const r=await fetch(p,{credentials:'include',headers:{'Content-Type':'application/json',...(o.headers||{})},...o});if(!r.ok) throw new Error(await r.text());return r.json();}
-function el(t,a={},...c){const e=document.createElement(t);for(const[k,v]of Object.entries(a)){if(k==='class')e.className=v;else if(k==='html')e.innerHTML=v;else e.setAttribute(k,v)}for(const x of c){if(typeof x==='string')e.appendChild(document.createTextNode(x));else if(x)e.appendChild(x)}return e;}
-async function ensureAuth(){try{const meta=await api('/api/meta');state.authed=true;state.meta=meta.meta;state.countries=meta.countries;await loadProducts();}catch{state.authed=false;}}
-async function loadProducts(){const r=await api('/api/products');state.products=r.products||[]}
-function header(){const links=[['home','Home / Dashboard'],['products','Products'],['performance','Performance'],['finance','Finance'],['settings','Settings'],['logout','Logout']];return el('div',{class:'header'},el('div',{class:'brand'},el('div',{class:'dot'}),el('div',{},'EAS Tracker')),el('div',{class:'nav'},...links.map(([id,l])=>el('a',{href:'#',class:state.view===id?'active':'',onclick:(e)=>{e.preventDefault();if(id==='logout') return doLogout();state.view=id;render();}},l))))}
-async function doLogout(){await api('/api/logout',{method:'POST'});state.authed=false;render();}
-function inputDate(id){return el('input',{id,class:'input',type:'date'})} function inputNumber(id,p){return el('input',{id,class:'input',type:'number',step:'any',placeholder:p})}
-function selectCountries(id){return el('select',{id,class:'select'},...state.countries.map(c=>el('option',{value:c},c)))}
-function selectPlatform(id){return el('select',{id,class:'select'},el('option',{value:'facebook'},'Facebook'),el('option',{value:'tiktok'},'TikTok'),el('option',{value:'google'},'Google'))}
-function selectProduct(id){return el('select',{id,class:'select'},...state.products.map(p=>el('option',{value:p.id},`${p.name} (${p.sku||p.id})`)))}
-function section(t,content){return el('div',{class:'section'},el('div',{class:'h'},t),content)}
-function cardKPI(l,v){return el('div',{class:'card kpi'},el('div',{class:'h'},l),el('div',{class:'v'},String(v)))}
-async function shipmentsSection(title,type){const res=await api('/api/shipments?type='+encodeURIComponent(type));const tbody=el('tbody',{},...res.shipments.map(sp=>el('tr',{},el('td',{},sp.id),el('td',{},sp.productId),el('td',{},`${sp.from} → ${sp.to}`),el('td',{},sp.qty),el('td',{},sp.shipCost),el('td',{},sp.departedAt||''),el('td',{},sp.arrivedAt||''),el('td',{},el('button',{class:'btn outline',onclick:async()=>{const d=prompt('Arrival date YYYY-MM-DD');if(!d)return;await api('/api/shipments/'+sp.id,{method:'PUT',body:JSON.stringify({arrivedAt:d})});alert('Marked');render();}},'Mark Arrived')),el('td',{},el('button',{class:'btn outline',onclick:async()=>{if(!confirm('Delete?'))return;await api('/api/shipments/'+sp.id,{method:'DELETE'});render();}},'Delete'))))); const table=el('table',{class:'table'},el('thead',{},el('tr',{},'ID Product From→To Qty ShipCost Departed Arrived Actions'.split(' ').map(h=>el('th',{},h)))),tbody); const form=el('div',{class:'row'},selectProduct('spProduct'),selectCountries('spFrom'),selectCountries('spTo'),inputNumber('spQty','Qty'),inputNumber('spCost','Ship cost'),inputDate('spDepart'),el('button',{class:'btn',onclick:async()=>{const payload={productId:document.getElementById('spProduct').value,fromCountry:document.getElementById('spFrom').value,toCountry:document.getElementById('spTo').value,qty:+document.getElementById('spQty').value||0,shipCost:+document.getElementById('spCost').value||0,departedAt:document.getElementById('spDepart').value};await api('/api/shipments',{method:'POST',body:JSON.stringify(payload)});render();}},'Add Shipment')); return section(title,el('div',{},form,el('div',{style:'height:8px'},''),table));}
-async function viewHome(c){const kpi=el('div',{class:'grid'},cardKPI('Products',state.products.length),cardKPI('Warehouses (countries)',state.countries.length),cardKPI('Transit Shipments',(await api('/api/shipments')).shipments.length),cardKPI('Ad Spend (selected)','Use filters')); c.appendChild(section('Overview',kpi)); const cw=await api('/api/deliveries/current-week'); const table=el('table',{class:'table'},el('thead',{},el('tr',{},el('th',{},'Date'),el('th',{},'Day'),el('th',{},'Delivered (all countries)'))),el('tbody',{},...Object.entries(cw.days).map(([d,v])=>{const day=new Date(d).toLocaleDateString(undefined,{weekday:'long'});return el('tr',{},el('td',{},d),el('td',{},day),el('td',{},String(v)))}))); const addForm=el('div',{class:'row'},inputDate('delivDate'),selectCountries('delivCountry'),inputNumber('delivCount','Delivered'),el('button',{class:'btn',onclick:async()=>{const date=document.getElementById('delivDate').value;const country=document.getElementById('delivCountry').value;const delivered=+document.getElementById('delivCount').value||0;if(!date||!country) return alert('Pick date and country');await api('/api/deliveries',{method:'POST',body:JSON.stringify({date,country,delivered})});render();}},'Add delivered')); c.appendChild(section('Daily Delivered (auto Monday reset view)',el('div',{},addForm,el('div',{style:'height:8px'},''),table))); const adForm=el('div',{class:'row'},inputDate('adDate'),selectPlatform('adPlatform'),selectProduct('adProduct'),selectCountries('adCountry'),inputNumber('adAmount','Amount (USD)'),el('button',{class:'btn',onclick:async()=>{const payload={date:document.getElementById('adDate').value,platform:document.getElementById('adPlatform').value,productId:document.getElementById('adProduct').value,country:document.getElementById('adCountry').value,amount:+document.getElementById('adAmount').value||0}; if(!payload.date||!payload.platform||!payload.productId||!payload.country) return alert('Fill all fields'); await api('/api/adspend',{method:'POST',body:JSON.stringify(payload)}); alert('Saved');}},'Add / Replace Ad Spend')); c.appendChild(section('Daily Advertising Spend',adForm)); c.appendChild(await shipmentsSection('China → Kenya','china-kenya')); c.appendChild(await shipmentsSection('Inter-country Shipments','intercountry')); c.appendChild(section('To‑Do List',todo())); c.appendChild(section('Weekly To‑Do',weekly())); }
-function todo(){const key='todos'; const items=JSON.parse(localStorage.getItem(key)||'[]'); const box=el('div',{},el('div',{class:'flex'},el('input',{id:'todo',class:'input',placeholder:'Task'}),el('button',{class:'btn',onclick:()=>{const t=document.getElementById('todo').value.trim(); if(!t) return; items.push({id:Math.random().toString(36).slice(2),text:t,done:false}); localStorage.setItem(key,JSON.stringify(items)); render();}},'Add')), ...items.map(it=>el('div',{class:'flex'},el('span',{},it.done?'✅ '+it.text:it.text),el('button',{class:'btn outline',onclick:()=>{it.done=!it.done;localStorage.setItem(key,JSON.stringify(items));render();}},it.done?'Undo':'Done'),el('button',{class:'btn outline',onclick:()=>{const i=items.findIndex(x=>x.id===it.id); items.splice(i,1); localStorage.setItem(key,JSON.stringify(items)); render();}},'Delete')))); return box;}
-function weekly(){const key='weeklyTodos'; const data=JSON.parse(localStorage.getItem(key)||'{}'); const days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']; const wrap=el('div',{class:'grid'}); days.forEach(day=>{const items=data[day]||[]; wrap.appendChild(el('div',{class:'card'},el('div',{class:'h'},day),el('div',{class:'flex'},el('input',{id:'w_'+day,class:'input',placeholder:'Task'}),el('button',{class:'btn',onclick:()=>{const t=document.getElementById('w_'+day).value.trim(); if(!t)return; items.push({id:Math.random().toString(36).slice(2),text:t,done:false}); data[day]=items; localStorage.setItem(key,JSON.stringify(data)); render();}},'Add')), ...items.map(it=>el('div',{class:'flex'},el('span',{},it.done?'✅ '+it.text:it.text),el('button',{class:'btn outline',onclick:()=>{it.done=!it.done;data[day]=items;localStorage.setItem(key,JSON.stringify(data));render();}},it.done?'Undo':'Done'),el('button',{class:'btn outline',onclick:()=>{const i=items.findIndex(x=>x.id===it.id); items.splice(i,1); data[day]=items; localStorage.setItem(key,JSON.stringify(data)); render();}},'Delete')))));}); return wrap;}
-async function viewProducts(c){const form=el('div',{class:'row'},el('input',{id:'pName',class:'input',placeholder:'Product name'}),el('input',{id:'pSku',class:'input',placeholder:'SKU'}),el('input',{id:'pCost',class:'input',type:'number',placeholder:'Cost China USD'}),el('input',{id:'pShip',class:'input',type:'number',placeholder:'Ship China→Kenya USD'}),el('input',{id:'pMB',class:'input',type:'number',placeholder:'Profit + Ads USD'}),el('button',{class:'btn',onclick:async()=>{const payload={name:document.getElementById('pName').value,sku:document.getElementById('pSku').value,cost_china:+document.getElementById('pCost').value||0,ship_china_to_kenya:+document.getElementById('pShip').value||0,margin_budget:+document.getElementById('pMB').value||0}; await api('/api/products',{method:'POST',body:JSON.stringify(payload)}); await loadProducts(); render();}},'Add Product')); c.appendChild(section('Add Product',form)); const res=await api('/api/products'); const table=el('table',{class:'table'},el('thead',{},el('tr',{},el('th',{},'Name'),el('th',{},'SKU'),el('th',{},'Status'),el('th',{},'Actions'))),el('tbody',{},...res.products.map(p=>el('tr',{},el('td',{},p.name),el('td',{},p.sku||'-'),el('td',{},el('span',{class:'badge'},p.status||'active')),el('td',{},el('button',{class:'btn outline',onclick:async()=>{const ns=p.status==='active'?'paused':'active'; await api('/api/products/'+p.id+'/status',{method:'POST',body:JSON.stringify({status:ns})}); await loadProducts(); render();}},p.status==='active'?'Pause':'Run'), ' ', el('button',{class:'btn outline',onclick:()=>alert('Product page can be extended next')},'Open'), ' ', el('button',{class:'btn outline',onclick:async()=>{if(!confirm('Delete product?'))return; await api('/api/products/'+p.id,{method:'DELETE'}); await loadProducts(); render();}},'Delete')))))); c.appendChild(section('Products',table));}
-async function viewPerformance(c){const filter=el('div',{class:'row'},inputDate('pfStart'),inputDate('pfEnd'),selectCountries('pfCountry'),el('button',{class:'btn',onclick:()=>render()},'Run')); c.appendChild(section('Top Delivered Products',filter)); const s=document.getElementById('pfStart')?.value,e=document.getElementById('pfEnd')?.value,cnty=document.getElementById('pfCountry')?.value; if(s&&e){const r=await api(`/api/performance/top-delivered?start=${s}&end=${e}&country=${cnty||''}`); const table=el('table',{class:'table'},el('thead',{},el('tr',{},'Product Pieces AdSpend ProductCost Profit Profit/Piece'.split(' ').map(h=>el('th',{},h)))),el('tbody',{},...r.items.map(it=>el('tr',{},el('td',{},it.productName),el('td',{},it.pieces),el('td',{},it.adSpend.toFixed(2)),el('td',{},it.productCost.toFixed(2)),el('td',{},it.profit.toFixed(2)),el('td',{},it.profitPerPiece.toFixed(2)))))); c.appendChild(section('Results',table)); } const rem=el('div',{class:'row'},inputDate('rStart'),inputDate('rEnd'),selectCountries('rCountry'),selectProduct('rProduct'),inputNumber('rOrders','Orders'),inputNumber('rPieces','Pieces'),inputNumber('rRev','Revenue USD'),inputNumber('rAds','Ad Spend USD'),inputNumber('rCPD','Cost/Delivery USD'),el('button',{class:'btn',onclick:async()=>{const payload={start:document.getElementById('rStart').value,end:document.getElementById('rEnd').value,country:document.getElementById('rCountry').value,productId:document.getElementById('rProduct').value,orders:+document.getElementById('rOrders').value||0,pieces:+document.getElementById('rPieces').value||0,revenue:+document.getElementById('rRev').value||0,adSpend:+document.getElementById('rAds').value||0,costPerDelivery:+document.getElementById('rCPD').value||0}; if(!payload.start||!payload.end) return alert('Select dates'); await api('/api/remittances',{method:'POST',body:JSON.stringify(payload)}); alert('Saved');}},'Add Remittance')); c.appendChild(section('Remittance Report',rem));}
-async function viewFinance(c){const cats=await api('/api/finance/categories'); const add=el('div',{class:'row'},el('select',{id:'fcType',class:'select'},el('option',{value:'debit'},'Debit'),el('option',{value:'credit'},'Credit')),el('input',{id:'fcName',class:'input',placeholder:'Category name'}),el('button',{class:'btn',onclick:async()=>{await api('/api/finance/categories',{method:'POST',body:JSON.stringify({type:document.getElementById('fcType').value,name:document.getElementById('fcName').value})}); render();}},'Add Category')); c.appendChild(section('Categories',el('div',{},add,el('div',{style:'height:8px'}),el('div',{},'Debits: '+cats.debits.join(', ')),el('div',{},'Credits: '+cats.credits.join(', '))))); const entry=el('div',{class:'row'},inputDate('feDate'),el('select',{id:'feType',class:'select'},el('option',{value:'debit'},'Debit'),el('option',{value:'credit'},'Credit')),el('input',{id:'feCat',class:'input',placeholder:'Category'}),inputNumber('feAmt','Amount'),el('input',{id:'feNote',class:'input',placeholder:'Note'}),el('button',{class:'btn',onclick:async()=>{const payload={date:document.getElementById('feDate').value,type:document.getElementById('feType').value,category:document.getElementById('feCat').value,amount:+document.getElementById('feAmt').value||0,note:document.getElementById('feNote').value}; await api('/api/finance/entries',{method:'POST',body:JSON.stringify(payload)}); render();}},'Add Entry')); c.appendChild(section('Add Finance Entry',entry)); const q=el('div',{class:'row'},inputDate('fes'),inputDate('fee'),el('input',{id:'fef',class:'input',placeholder:'Categories CSV'}),el('button',{class:'btn',onclick:()=>render()},'Run')); c.appendChild(section('Report Filter',q)); const s=document.getElementById('fes')?.value,e=document.getElementById('fee')?.value,cc=document.getElementById('fef')?.value; if(s&&e){const res=await api(`/api/finance/entries?start=${s}&end=${e}&categories=${encodeURIComponent(cc||'')}`); const table=el('table',{class:'table'},el('thead',{},el('tr',{},'Date Type Category Amount Note'.split(' ').map(h=>el('th',{},h)))),el('tbody',{},...res.entries.map(it=>el('tr',{},el('td',{},it.date),el('td',{},it.type),el('td',{},it.category),el('td',{},it.amount),el('td',{},it.note))))); c.appendChild(section(`Balance: ${res.balance.toFixed(2)} USD`,table)); }}
-async function viewSettings(c){const add=el('div',{class:'row'},el('input',{id:'cty',class:'input',placeholder:'Country name'}),el('button',{class:'btn',onclick:async()=>{await api('/api/countries',{method:'POST',body:JSON.stringify({name:document.getElementById('cty').value})}); state.countries=(await api('/api/countries')).countries; render();}},'Add Country')); const tags=el('div',{},...state.countries.map(cn=>el('span',{class:'badge',style:'margin-right:6px'},cn))); c.appendChild(section('Countries',el('div',{},add,el('div',{style:'height:8px'},''),tags))); const rs=el('div',{class:'flex'},...['10m','1h','24h','3d'].map(w=>el('button',{class:'btn outline',onclick:async()=>{try{const r=await api('/api/restore',{method:'POST',body:JSON.stringify({window:w})}); alert('Restored from '+r.restoredFrom); render();}catch(e){alert('No snapshot in window');}}},w))); c.appendChild(section('Restore System',rs));}
-async function loginFlow(){const app=document.getElementById('app'); app.innerHTML=''; const box=el('div',{class:'login section'},el('h2',{},'Enter password'),el('input',{class:'input',type:'password',placeholder:'Password',id:'pw'}),el('div',{class:'flex'},el('button',{class:'btn',onclick:async()=>{const pw=document.getElementById('pw').value; try{await api('/api/auth',{method:'POST',body:JSON.stringify({password:pw})}); await ensureAuth(); render();}catch(e){alert('Wrong password')}}},'Login')),el('div',{class:'small'},'Access is remembered per IP.')); app.appendChild(box);}
-async function render(){const app=document.getElementById('app'); if(!state.authed) return loginFlow(); app.innerHTML=''; app.appendChild(header()); const c=el('div',{class:'container'}); if(state.view==='home') await viewHome(c); else if(state.view==='products') await viewProducts(c); else if(state.view==='performance') await viewPerformance(c); else if(state.view==='finance') await viewFinance(c); else if(state.view==='settings') await viewSettings(c); app.appendChild(c);}
-ensureAuth().then(render);
+// --------- utilities ----------
+const state = { view:'home', products:[], countries:[] };
+
+async function api(path, opts={}) {
+const res = await fetch(path, {
+credentials:'include',
+headers:{'Content-Type':'application/json'},
+...opts
+});
+if (!res.ok) {
+// Try to parse error body to surface something useful in alerts
+let t; try { t = await res.text(); } catch {}
+throw new Error(t || ('HTTP '+res.status));
+}
+return res.json();
+}
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+function setView(v){
+state.view=v;
+['home','products','performance','finance','settings'].forEach(id=>{
+const el = document.getElementById(id);
+if (el) el.style.display = id===v ? '' : 'none';
+});
+$$('.nav a').forEach(a => a.classList.toggle('active', a.dataset.view===v));
+}
+function weekdayName(dateStr){ return new Date(dateStr).toLocaleDateString(undefined,{weekday:'long'}); }
+const sum = (arr) => arr.reduce((a,b)=>a+(+b||0),0);
+
+// --------- bootstrap/auth ----------
+async function ensureMeta(){
+try{
+const m = await api('/api/meta');
+state.countries = m.countries || [];
+await loadProducts();
+const login = $('#login'); if (login) login.style.display='none';
+setView(state.view);
+fillSelects();
+await refreshHome();
+}catch(e){
+// Show login if backend still expects it
+const login = $('#login'); if (login) login.style.display='';
+setView('home');
+}
+}
+async function loadProducts(){ try{ const r = await api('/api/products'); state.products = r.products||[]; }catch{/* backend may not have endpoint yet */} }
+function fillSelects(){
+// countries
+const countrySel = '#delivCountry, #adCountry, #mvFrom, #mvTo, #sp1From, #sp1To, #sp2From, #sp2To, #pfCountry, #rCountry';
+$$(countrySel).forEach(s => {
+if (!s) return;
+s.innerHTML = state.countries.map(c=>`<option value="${c}">${c}</option>`).join('');
+});
+// products
+const productSel = '#adProduct, #mvProduct, #sp1Product, #sp2Product, #rProduct, #lpProduct';
+$$(productSel).forEach(s => {
+if (!s) return;
+s.innerHTML = state.products.map(p=>`<option value="${p.id}">${p.name} (${p.sku||p.id})</option>`).join('');
+});
+}
+
+// --------- HOME ----------
+async function refreshHome(){
+// KPIs
+$('#kpiProducts') && ($('#kpiProducts').textContent = state.products.length);
+$('#kpiCountries') && ($('#kpiCountries').textContent = state.countries.length);
+
+try {
+const shipAll = await api('/api/shipments');
+$('#kpiTransit') && ($('#kpiTransit').textContent = shipAll.shipments.length);
+} catch {
+$('#kpiTransit') && ($('#kpiTransit').textContent = '—');
+}
+
+try {
+// optional; if backend lacks GET /api/adspend, this falls back
+const ads = await api('/api/adspend');
+$('#kpiAdSpend') && ($('#kpiAdSpend').textContent = Intl.NumberFormat().format(sum(ads.adSpends.map(a=>a.amount))) + ' USD');
+} catch {
+$('#kpiAdSpend') && ($('#kpiAdSpend').textContent = '—');
+}
+
+// Delivered this week
+try {
+const cw = await api('/api/deliveries/current-week');
+const weekTotal = Object.values(cw.days).reduce((a,b)=>a+(+b||0),0);
+$('#kpiDelivered') && ($('#kpiDelivered').textContent = weekTotal);
+} catch {
+$('#kpiDelivered') && ($('#kpiDelivered').textContent = '—');
+}
+
+// Stock by country + ad spend per country
+await renderStockByCountry();
+
+// Delivered table default
+await filterDeliveries();
+
+// Shipments tables
+await renderShipments('china-kenya', '#shipCKTable tbody');
+await renderShipments('intercountry', '#shipICTable tbody');
+}
+
+async function renderStockByCountry(){
+const wrap = $('#stockByCountry'); if (!wrap) return;
+const perCountry = {};
+state.countries.forEach(c=> perCountry[c] = { stock:0, ad:0 });
+
+// Approx stock: arrived shipments add to 'to', remittances pieces subtract
+try{
+const ship = await api('/api/shipments');
+ship.shipments.filter(s=>s.arrivedAt).forEach(s=>{
+perCountry[s.to] = perCountry[s.to] || {stock:0, ad:0};
+perCountry[s.to].stock += (+s.qty||0);
+});
+}catch{}
+
+try{
+const rem = await api('/api/remittances');
+rem.remittances.forEach(r=>{
+perCountry[r.country] = perCountry[r.country] || {stock:0, ad:0};
+perCountry[r.country].stock -= (+r.pieces||0);
+});
+}catch{}
+
+try{
+const ads = await api('/api/adspend');
+ads.adSpends.forEach(a=>{
+perCountry[a.country] = perCountry[a.country] || {stock:0, ad:0};
+perCountry[a.country].ad += (+a.amount||0);
+});
+}catch{}
+
+const rows = Object.entries(perCountry).map(([c,v]) =>
+`<tr><td>${c}</td><td>${v.stock}</td><td>${(v.ad||0).toFixed(2)} USD</td></tr>`
+).join('');
+wrap.innerHTML = `<table class="table"><thead><tr><th>Country</th><th>Approx. Stock</th><th>Total Ad Spend</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function filterDeliveries(){
+const s = $('#delivStart')?.value || '';
+const e = $('#delivEnd')?.value || '';
+const tbody = $('#delivTable tbody'); if (!tbody) return;
+
+try{
+const res = await api(`/api/deliveries${s||e ? `?start=${s}&end=${e}`:''}`);
+tbody.innerHTML = res.deliveries.map(d =>
+`<tr><td>${d.date}</td><td>${weekdayName(d.date)}</td><td>${d.country}</td><td>${d.delivered}</td></tr>`
+).join('');
+$('#delivTotal') && ($('#delivTotal').textContent = res.deliveries.reduce((a,b)=>a+(+b.delivered||0),0));
+}catch{
+tbody.innerHTML = '';
+$('#delivTotal') && ($('#delivTotal').textContent = '—');
+}
+}
+
+// Add delivered
+$('#delivAdd') && ($('#delivAdd').onclick = async ()=>{
+const date = $('#delivDate').value, country=$('#delivCountry').value, delivered=+$('#delivCount').value||0;
+if(!date || !country) return alert('Pick date & country');
+await api('/api/deliveries',{ method:'POST', body: JSON.stringify({ date, country, delivered })});
+await filterDeliveries(); await refreshHome();
+});
+$('#delivFilter') && ($('#delivFilter').onclick = filterDeliveries);
+
+// Ad spend add/replace
+$('#adAdd') && ($('#adAdd').onclick = async ()=>{
+const payload = {
+date: $('#adDate').value,
+platform: $('#adPlatform').value,
+productId: $('#adProduct').value,
+country: $('#adCountry').value,
+amount: +$('#adAmount').value||0
+};
+if(!payload.date || !payload.productId || !payload.country) return alert('Missing fields');
+await api('/api/adspend',{ method:'POST', body: JSON.stringify(payload) });
+alert('Saved'); await refreshHome();
+});
+
+// Movement
+$('#mvAdd') && ($('#mvAdd').onclick = async ()=>{
+const payload = {
+productId: $('#mvProduct').value,
+fromCountry: $('#mvFrom').value,
+toCountry: $('#mvTo').value,
+qty: +$('#mvQty').value||0,
+shippingCost: +$('#mvShip').value||0
+};
+if(!payload.productId) return alert('Select product');
+await api('/api/stock/move',{ method:'POST', body: JSON.stringify(payload) });
+alert('Movement saved'); await refreshHome();
+});
+
+// Shipments table helpers
+async function renderShipments(type, sel){
+const body = $(sel); if (!body) return;
+try{
+const r = await api('/api/shipments?type='+encodeURIComponent(type));
+const productsById = Object.fromEntries((state.products||[]).map(p=>[p.id,p]));
+body.innerHTML = r.shipments.map(sp=>`
+<tr>
+<td>${sp.id}</td>
+<td>${productsById[sp.productId]?.name || sp.productId}</td>
+<td>${sp.from} → ${sp.to}</td>
+<td>${sp.qty}</td>
+<td>${sp.shipCost}</td>
+<td>${sp.departedAt||''}</td>
+<td>${sp.arrivedAt||''}</td>
+<td>
+<button class="btn outline" data-mark="${sp.id}">Mark Arrived</button>
+<button class="btn outline" data-del="${sp.id}">Delete</button>
+</td>
+</tr>`).join('');
+
+body.querySelectorAll('[data-mark]').forEach(b => b.onclick = async ()=>{
+const d = prompt('Arrival date YYYY-MM-DD'); if(!d) return;
+await api('/api/shipments/'+b.dataset.mark, { method:'PUT', body: JSON.stringify({ arrivedAt: d })});
+await renderShipments(type, sel);
+});
+body.querySelectorAll('[data-del]').forEach(b => b.onclick = async ()=>{
+if(!confirm('Delete shipment?')) return;
+await api('/api/shipments/'+b.dataset.del, { method:'DELETE' });
+await renderShipments(type, sel);
+});
+}catch{
+body.innerHTML = '';
+}
+}
+
+// Profit by country (remittances)
+$('#pcRun') && ($('#pcRun').onclick = async ()=>{
+const s=$('#pcStart').value, e=$('#pcEnd').value;
+const tbody = $('#profitCountryTable tbody'); if (!tbody) return;
+try{
+const r = await api(`/api/remittances${s||e?`?start=${s}&end=${e}`:''}`);
+const byC = {};
+r.remittances.forEach(x=>{
+byC[x.country] = byC[x.country] || { revenue:0, ad:0, cpd:0, pieces:0 };
+byC[x.country].revenue += +x.revenue||0;
+byC[x.country].ad += +x.adSpend||0;
+byC[x.country].cpd += (+x.costPerDelivery||0) * (+x.pieces||0);
+byC[x.country].pieces += +x.pieces||0;
+});
+tbody.innerHTML = Object.entries(byC).map(([c,v])=>{
+const profit = v.revenue - v.ad - v.cpd;
+return `<tr><td>${c}</td><td>${v.revenue.toFixed(2)}</td><td>${v.ad.toFixed(2)}</td><td>${v.cpd.toFixed(2)}</td><td>${v.pieces}</td><td>${profit.toFixed(2)}</td></tr>`;
+}).join('');
+}catch{
+tbody.innerHTML = '';
+}
+});
+
+// To-Do (local only)
+function loadTodos(){ return JSON.parse(localStorage.getItem('todos')||'[]'); }
+function saveTodos(x){ localStorage.setItem('todos', JSON.stringify(x)); }
+function renderTodos(){
+const items = loadTodos();
+const list = $('#todoList'); if (!list) return;
+list.innerHTML = items.map(it=>`
+<div class="flex">
+<span>${it.done ? '✅ ' : ''}${it.text}</span>
+<button class="btn outline" data-tgl="${it.id}">${it.done?'Undo':'Done'}</button>
+<button class="btn outline" data-del="${it.id}">Delete</button>
+</div>`).join('');
+const add = $('#todoAdd');
+add && (add.onclick = ()=>{ const t = $('#todoText').value.trim(); if(!t) return;
+items.push({id: Math.random().toString(36).slice(2), text:t, done:false}); saveTodos(items); renderTodos(); });
+list.querySelectorAll('[data-tgl]').forEach(b=> b.onclick=()=>{ const it=items.find(x=>x.id===b.dataset.tgl); it.done=!it.done; saveTodos(items); renderTodos(); });
+list.querySelectorAll('[data-del]').forEach(b=> b.onclick=()=>{ const i=items.findIndex(x=>x.id===b.dataset.del); items.splice(i,1); saveTodos(items); renderTodos(); });
+}
+function renderWeekly(){
+const key='weeklyTodos'; const data=JSON.parse(localStorage.getItem(key)||'{}'); const days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const wrap = $('#weeklyWrap'); if (!wrap) return;
+wrap.innerHTML='';
+days.forEach(day=>{
+const items=data[day]||[];
+const card = document.createElement('div'); card.className='card';
+card.innerHTML = `<div class="h">${day}</div>
+<div class="flex"><input id="w_${day}" class="input" placeholder="Task"><button class="btn">Add</button></div>
+<div class="list">${items.map(it=>`<div class="flex"><span>${it.done?'✅ ':''}${it.text}</span>
+<button class="btn outline" data-wtgl="${day}|${it.id}">${it.done?'Undo':'Done'}</button>
+<button class="btn outline" data-wdel="${day}|${it.id}">Delete</button></div>`).join('')}</div>`;
+wrap.appendChild(card);
+card.querySelector('button.btn').onclick = ()=>{ const v=card.querySelector(`#w_${day}`).value.trim(); if(!v) return;
+items.push({id:Math.random().toString(36).slice(2), text:v, done:false}); data[day]=items; localStorage.setItem(key, JSON.stringify(data)); renderWeekly(); };
+});
+wrap.querySelectorAll('[data-wtgl]').forEach(b=> b.onclick=()=>{ const [d,id]=b.dataset.wtgl.split('|'); const data=JSON.parse(localStorage.getItem(key)||'{}'); const it=(data[d]||[]).find(x=>x.id===id); it.done=!it.done; localStorage.setItem(key, JSON.stringify(data)); renderWeekly(); });
+wrap.querySelectorAll('[data-wdel]').forEach(b=> b.onclick=()=>{ const [d,id]=b.dataset.wdel.split('|'); const data=JSON.parse(localStorage.getItem(key)||'{}'); const arr=(data[d]||[]); const i=arr.findIndex(x=>x.id===id); arr.splice(i,1); data[d]=arr; localStorage.setItem(key, JSON.stringify(data)); renderWeekly(); });
+}
+
+// ---------- PRODUCTS ----------
+$('#pAdd') && ($('#pAdd').onclick = async ()=>{
+const payload = {
+name:$('#pName').value, sku:$('#pSku').value,
+cost_china:+$('#pCost').value||0,
+ship_china_to_kenya:+$('#pShip').value||0,
+margin_budget:+$('#pMB').value||0
+};
+await api('/api/products',{ method:'POST', body: JSON.stringify(payload) });
+await renderProducts();
+});
+async function renderProducts(){
+let res; try{ res = await api('/api/products'); }catch{ res = {products:[]} }
+state.products = res.products||[];
+const tbody = $('#productsTable tbody'); if (!tbody) return;
+tbody.innerHTML = state.products.map(p=>`
+<tr><td>${p.name}</td><td>${p.sku||'-'}</td>
+<td><span class="badge">${p.status||'active'}</span></td>
+<td>
+<button class="btn outline" data-pause="${p.id}">${p.status==='active'?'Pause':'Run'}</button>
+<button class="btn outline" data-del="${p.id}">Delete</button>
+</td></tr>`).join('');
+tbody.querySelectorAll('[data-pause]').forEach(b=> b.onclick=async ()=>{
+const id=b.dataset.pause; const p=state.products.find(x=>x.id===id);
+const ns=p.status==='active'?'paused':'active';
+await api(`/api/products/${id}/status`, { method:'POST', body: JSON.stringify({ status: ns })});
+await renderProducts();
+});
+tbody.querySelectorAll('[data-del]').forEach(b=> b.onclick=async ()=>{
+if(!confirm('Delete product?')) return;
+await api('/api/products/'+b.dataset.del,{ method:'DELETE' });
+await renderProducts();
+});
+}
+
+// ---------- PERFORMANCE ----------
+$('#pfRun') && ($('#pfRun').onclick = async ()=>{
+const s=$('#pfStart').value, e=$('#pfEnd').value, c=$('#pfCountry').value;
+try{
+const r = await api(`/api/performance/top-delivered?start=${s||''}&end=${e||''}&country=${c||''}`);
+const tbody = $('#pfTable tbody'); if (!tbody) return;
+tbody.innerHTML = r.items.map(it=> `<tr><td>${it.productName}</td><td>${it.pieces}</td><td>${it.adSpend.toFixed(2)}</td><td>${it.productCost.toFixed(2)}</td><td>${it.profit.toFixed(2)}</td><td>${it.profitPerPiece.toFixed(2)}</td></tr>`).join('');
+}catch{
+const tbody = $('#pfTable tbody'); if (tbody) tbody.innerHTML='';
+}
+});
+$('#rAdd') && ($('#rAdd').onclick = async ()=>{
+const payload = {
+start:$('#rStart').value, end:$('#rEnd').value,
+country:$('#rCountry').value, productId:$('#rProduct').value,
+orders:+$('#rOrders').value||0, pieces:+$('#rPieces').value||0,
+revenue:+$('#rRev').value||0, adSpend:+$('#rAds').value||0, costPerDelivery:+$('#rCPD').value||0
+};
+if(!payload.start || !payload.end) return alert('Select dates');
+await api('/api/remittances',{ method:'POST', body: JSON.stringify(payload) });
+alert('Remittance saved');
+});
+
+// ---------- FINANCE ----------
+async function renderFinanceCats(){
+try{
+const cats = await api('/api/finance/categories');
+$('#fcList') && ($('#fcList').innerHTML = `<div>Debits: ${cats.debits.join(', ')||'-'}</div><div>Credits: ${cats.credits.join(', ')||'-'}</div>`);
+}catch{
+$('#fcList') && ($('#fcList').innerHTML = `<div>Debits: -</div><div>Credits: -</div>`);
+}
+}
+$('#fcAdd') && ($('#fcAdd').onclick = async ()=>{
+await api('/api/finance/categories', { method:'POST', body: JSON.stringify({ type:$('#fcType').value, name:$('#fcName').value }) });
+await renderFinanceCats();
+});
+$('#feAdd') && ($('#feAdd').onclick = async ()=>{
+const payload = { date:$('#feDate').value, type:$('#feType').value, category:$('#feCat').value, amount:+$('#feAmt').value||0, note:$('#feNote').value };
+await api('/api/finance/entries',{ method:'POST', body: JSON.stringify(payload) });
+alert('Entry saved');
+});
+$('#feRun') && ($('#feRun').onclick = async ()=>{
+const s=$('#fes').value, e=$('#fee').value, cats=$('#fef').value;
+try{
+const r = await api(`/api/finance/entries?start=${s||''}&end=${e||''}&categories=${encodeURIComponent(cats||'')}`);
+$('#feBalance') && ($('#feBalance').textContent = 'Balance: ' + r.balance.toFixed(2) + ' USD');
+const tbody = $('#feTable tbody'); if (!tbody) return;
+tbody.innerHTML = r.entries.map(x=>`<tr><td>${x.date}</td><td>${x.type}</td><td>${x.category}</td><td>${x.amount}</td><td>${x.note}</td></tr>`).join('');
+}catch{
+$('#feBalance') && ($('#feBalance').textContent = 'Balance: —');
+const tbody = $('#feTable tbody'); if (tbody) tbody.innerHTML='';
+}
+});
+
+// ---------- SETTINGS ----------
+$('#ctyAdd') && ($('#ctyAdd').onclick = async ()=>{
+const name = $('#cty').value.trim(); if(!name) return;
+await api('/api/countries',{ method:'POST', body: JSON.stringify({ name }) });
+try{
+const list = await api('/api/countries');
+state.countries = list.countries; fillSelects(); renderCountries();
+}catch{}
+});
+function renderCountries(){
+$('#ctyList') && ($('#ctyList').innerHTML = state.countries.map(c=> `<span class="badge" style="margin-right:6px">${c}</span>`).join(''));
+}
+$$('.restore').forEach(b=> b.onclick = async ()=>{
+try{
+const r = await api('/api/restore', { method: 'POST', body: JSON.stringify({ window: b.dataset.win }) });
+alert('Restored from '+r.restoredFrom);
+}catch(e){
+alert('No snapshot in that window');
+}
+});
+
+// ---------- Lifetime product cost/profit ----------
+$('#lpRun') && ($('#lpRun').onclick = async ()=>{
+const pid = $('#lpProduct').value || null;
+const s=$('#lpStart').value, e=$('#lpEnd').value;
+try{
+const rem = await api(`/api/remittances${s||e?`?start=${s}&end=${e}`:''}`);
+const ship = await api('/api/shipments');
+const productsById = Object.fromEntries((state.products||[]).map(p=>[p.id,p]));
+
+const byP = {};
+rem.remittances.filter(r=>!pid || r.productId===pid).forEach(r=>{
+byP[r.productId] = byP[r.productId] || { revenue:0, ad:0, ship:0, base:0, pieces:0 };
+byP[r.productId].revenue += +r.revenue||0;
+byP[r.productId].ad += +r.adSpend||0;
+byP[r.productId].pieces += +r.pieces||0;
+const prod = productsById[r.productId] || { cost_china:0, ship_china_to_kenya:0 };
+byP[r.productId].base += (+prod.cost_china||0 + +prod.ship_china_to_kenya||0) * (+r.pieces||0);
+});
+ship.shipments.filter(sx=>sx.arrivedAt && (!pid || sx.productId===pid)).forEach(sx=>{
+byP[sx.productId] = byP[sx.productId] || { revenue:0, ad:0, ship:0, base:0, pieces:0 };
+byP[sx.productId].ship += +sx.shipCost||0;
+});
+
+const tbody = $('#lifetimeTable tbody'); if (!tbody) return;
+tbody.innerHTML = Object.entries(byP).map(([id,v])=>{
+const name = productsById[id]?.name || id;
+const profit = v.revenue - v.ad - v.ship - v.base;
+return `<tr><td>${name}</td><td>${v.revenue.toFixed(2)}</td><td>${v.ad.toFixed(2)}</td><td>${v.ship.toFixed(2)}</td><td>${v.base.toFixed(2)}</td><td>${v.pieces}</td><td>${profit.toFixed(2)}</td></tr>`;
+}).join('');
+}catch{
+const tbody = $('#lifetimeTable tbody'); if (tbody) tbody.innerHTML='';
+}
+});
+
+// ---------- NAV & LOGIN ----------
+$$('.nav a[data-view]').forEach(a=> a.onclick = (e)=>{
+e.preventDefault();
+setView(a.dataset.view);
+if(a.dataset.view==='products') renderProducts();
+if(a.dataset.view==='finance') renderFinanceCats();
+});
+$('#logoutLink') && ($('#logoutLink').onclick = async (e)=>{ e.preventDefault(); try{ await api('/api/logout', { method:'POST' }) }catch{}; location.reload(); });
+$('#loginBtn') && ($('#loginBtn').onclick = async ()=>{
+const p = $('#pw').value;
+try{ await api('/api/auth',{ method:'POST', body: JSON.stringify({ password: p })}); await ensureMeta(); }
+catch{ alert('Wrong password'); }
+});
+
+// ---------- boot ----------
+renderTodos();
+renderWeekly();
+ensureMeta();
