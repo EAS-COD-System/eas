@@ -1,135 +1,223 @@
-/* ===========================
-   EAS Tracker – styles
-   White + Green theme
-   Mobile-first, responsive
-   =========================== */
-
-:root{
-  --bg:#ffffff;
-  --fg:#1f2937;            /* gray-800 */
-  --muted:#6b7280;         /* gray-500 */
-  --primary:#0E9F6E;       /* green */
-  --primary-weak:#d1fae5;  /* green-100 */
-  --border:#e5e7eb;        /* gray-200 */
-  --card:#ffffff;
-  --shadow:0 2px 8px rgba(0,0,0,.06);
+/* =============== BASE THEME =============== */
+:root {
+  --primary: #0E9F6E;
+  --bg: #ffffff;
+  --text: #222;
+  --border: #e5e5e5;
+  --gray: #777;
+  --card-bg: #f9f9f9;
 }
 
-*{ box-sizing:border-box; }
-html,body{ margin:0; padding:0; background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif; }
-a{ color:inherit; text-decoration:none; }
-button{ cursor:pointer; }
-
-/* Layout */
-.container{ max-width:1100px; margin:0 auto; padding:16px; }
-
-.nav{
-  position:sticky; top:0; z-index:20;
-  display:flex; gap:12px; align-items:center;
-  padding:12px 16px; border-bottom:1px solid var(--border);
-  background:rgba(255,255,255,.92); backdrop-filter:saturate(180%) blur(6px);
-}
-.nav a{ padding:8px 10px; border-radius:8px; }
-.nav a.active{ background:var(--primary-weak); color:#065f46; font-weight:600; }
-.nav .nav-right{ margin-left:auto; color:#065f46; }
-
-#login{ max-width:420px; margin:14vh auto; padding:24px; background:var(--card); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow); }
-#login h1{ margin:0 0 8px 0; }
-#login p{ margin:0 0 16px 0; color:var(--muted); }
-
-/* Sections */
-.section{ margin:18px 0 24px; }
-.h{ font-weight:700; margin-bottom:8px; }
-.muted{ color:var(--muted); font-size:.92rem; }
-
-/* Cards */
-.card{
-  background:var(--card); border:1px solid var(--border);
-  border-radius:14px; padding:14px; box-shadow:var(--shadow);
-  margin-bottom:12px;
+body {
+  font-family: "Inter", system-ui, sans-serif;
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
 }
 
-/* Flex helpers */
-.flex{ display:flex; gap:10px; align-items:center; }
-.wrap{ flex-wrap:wrap; }
-
-/* Inputs */
-.input{
-  border:1px solid var(--border); background:#fff; color:var(--fg);
-  border-radius:10px; padding:8px 10px; min-height:38px; min-width:0;
-}
-.input.tiny{ padding:6px 8px; min-height:32px; width:90px; }
-
-/* Buttons */
-.btn{
-  border:0; background:var(--primary); color:#fff; border-radius:10px;
-  padding:9px 14px; font-weight:600; box-shadow:0 1px 0 rgba(0,0,0,.06);
-}
-.btn:hover{ filter:brightness(.97); }
-.btn:active{ transform:translateY(1px); }
-.btn.outline{
-  background:#fff; color:var(--primary);
-  border:1px solid var(--primary);
+/* =============== NAVIGATION BAR =============== */
+.nav {
+  display: flex;
+  align-items: center;
+  background: var(--primary);
+  color: #fff;
+  padding: 12px 18px;
+  font-weight: 600;
+  flex-wrap: wrap;
 }
 
-/* Badges & chips */
-.badge{
-  display:inline-block; padding:4px 8px; border-radius:999px;
-  font-size:.82rem; background:var(--primary-weak); color:#065f46; border:1px solid #a7f3d0;
-}
-.chip{
-  display:inline-block; padding:6px 10px; margin:4px 6px 0 0;
-  border-radius:999px; background:#f3f4f6; border:1px solid var(--border);
-  font-size:.9rem;
+.nav a {
+  color: #fff;
+  text-decoration: none;
+  margin-right: 20px;
+  cursor: pointer;
+  transition: opacity 0.2s;
 }
 
-/* Tables */
-.table{ width:100%; border-collapse:separate; border-spacing:0; background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
-.table thead th{
-  text-align:left; background:#f8fafc; color:#0f172a;
-  font-weight:700; padding:10px; border-bottom:1px solid var(--border);
-}
-.table td{ padding:10px; border-bottom:1px solid var(--border); vertical-align:middle; }
-.table tr:last-child td{ border-bottom:0; }
-.table tbody tr:hover{ background:#fcfffd; }
-
-/* KPI cards row */
-#kpis .flex > .card{ flex:1 1 180px; text-align:center; }
-#kpis .card .h{ color:var(--muted); font-weight:600; }
-#kpis .card div:last-child{ font-size:1.6rem; font-weight:800; }
-
-/* Weekly Delivered Grid */
-#weeklyGrid .table input.wd{
-  width:90px; text-align:right;
+.nav a:hover {
+  opacity: 0.8;
 }
 
-/* Finance running balance box */
-.balance-box{
-  background:linear-gradient(180deg, #ecfdf5 0%, #ffffff 90%);
-  border:1px solid var(--primary-weak);
-  padding:16px; border-radius:14px; display:flex; align-items:center; gap:10px;
+.nav a.active {
+  text-decoration: underline;
 }
-.balance-box .big{ font-size:1.6rem; font-weight:800; color:#065f46; }
 
-/* Product details sub-tables wrap */
-#productDetails .card .table{ margin-top:8px; }
-
-/* Small utilities */
-.hidden{ display:none !important; }
-.center{ text-align:center; }
-.right{ text-align:right; }
-
-/* Responsive tweaks */
-@media (max-width: 960px){
-  .nav{ gap:8px; flex-wrap:wrap; }
-  #kpis .flex{ flex-wrap:wrap; }
+.nav-right {
+  margin-left: auto;
+  font-weight: 500;
 }
-@media (max-width: 640px){
-  .container{ padding:10px; }
-  .flex{ flex-wrap:wrap; }
-  .input{ width:100%; }
-  .btn{ width:100%; }
-  .nav a{ padding:7px 8px; }
-  .table td, .table th{ padding:8px; }
-  #weeklyGrid .table input.wd{ width:76px; }
+
+/* =============== CONTAINERS & SECTIONS =============== */
+.container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: auto;
+}
+
+.section {
+  margin-bottom: 40px;
+}
+
+.section h2 {
+  margin-bottom: 10px;
+  color: var(--primary);
+  font-size: 18px;
+  border-left: 4px solid var(--primary);
+  padding-left: 8px;
+}
+
+/* =============== CARDS =============== */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.card .h {
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 8px;
+}
+
+/* =============== TABLES =============== */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+.table th, .table td {
+  padding: 8px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.table th {
+  background: var(--primary);
+  color: white;
+  font-weight: 600;
+}
+
+.table tr:nth-child(even) {
+  background: #fafafa;
+}
+
+/* =============== INPUTS & BUTTONS =============== */
+.input {
+  border: 1px solid var(--border);
+  padding: 8px;
+  border-radius: 4px;
+  margin-right: 6px;
+  font-size: 14px;
+}
+
+select.input {
+  background: #fff;
+}
+
+.btn {
+  background: var(--primary);
+  border: none;
+  color: white;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.btn:hover {
+  opacity: 0.85;
+}
+
+.btn.outline {
+  background: transparent;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+}
+
+.btn.outline:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* =============== FLEX UTILITIES =============== */
+.flex {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* =============== BADGES =============== */
+.badge {
+  background: var(--primary);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.badge.gray {
+  background: #ccc;
+  color: #333;
+}
+
+/* =============== LOGIN SCREEN =============== */
+#login {
+  max-width: 380px;
+  margin: 100px auto;
+  text-align: center;
+}
+
+#login h1 {
+  color: var(--primary);
+}
+
+#login input {
+  width: 100%;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+/* =============== PRODUCT PAGE STYLES =============== */
+#productDetails h3 {
+  color: var(--primary);
+  border-bottom: 2px solid var(--primary);
+  padding-bottom: 4px;
+  margin-bottom: 10px;
+}
+
+#pdStockByCountry table,
+#pdRTableWrap table,
+#pdLPTableWrap table {
+  font-size: 14px;
+}
+
+/* =============== MOBILE =============== */
+@media (max-width: 768px) {
+  .flex {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .nav {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .input, .btn {
+    width: 100%;
+  }
+
+  .table th, .table td {
+    font-size: 13px;
+    padding: 6px;
+  }
 }
