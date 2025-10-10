@@ -12,16 +12,16 @@ const SNAPSHOT_DIR = path.join(__dirname, "data", "snapshots");
 
 app.use(bodyParser.json());
 app.use(cookieParser());
-
-// serve static assets under /public (your index.html references /public/app.js, /public/styles.css)
 app.use("/public", express.static(path.join(__dirname, "public")));
 
-// ------------------- helpers -------------------
+// tiny request log (useful while stabilizing)
+app.use((req,res,next)=>{ console.log(req.method, req.url); next(); });
+
 function loadDB() {
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeJsonSync(DATA_FILE, {
       password: "eastafricashop",
-      countries: ["china", "kenya", "tanzania", "uganda", "zambia", "zimbabwe"],
+      countries: ["china","kenya","tanzania","uganda","zambia","zimbabwe"],
       products: [],
       adspend: [],
       deliveries: [],
@@ -30,220 +30,162 @@ function loadDB() {
       finance: { categories: { debit: [], credit: [] }, entries: [] },
       influencers: [],
       snapshots: []
-    });
+    }, { spaces:2 });
   }
   return fs.readJsonSync(DATA_FILE);
 }
-function saveDB(data) {
-  fs.writeJsonSync(DATA_FILE, data, { spaces: 2 });
+function saveDB(db){ fs.writeJsonSync(DATA_FILE, db, { spaces:2 }); }
+function snapshotDB(name){
+  fs.ensureDirSync(SNAPSHOT_DIR);
+  const file = path.join(SNAPSHOT_DIR, `${Date.now()}-${(name||"manual").replace(/[^a-z0-9-_]/gi,"_")}.json`);
+  fs.copyFileSync(DATA_FILE, file);
+  return file;
 }
-function snapshotDB(name) {
-  if (!fs.existsSync(SNAPSHOT_DIR)) fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
-  const snapFile = path.join(SNAPSHOT_DIR, `${Date.now()}-${name || "manual"}.json`);
-  fs.copyFileSync(DATA_FILE, snapFile);
-  return snapFile;
-}
-function restoreDB(filename) {
-  const filePath = path.join(SNAPSHOT_DIR, filename);
-  if (fs.existsSync(filePath)) fs.copyFileSync(filePath, DATA_FILE);
+function restoreDB(filename){
+  const p = path.join(SNAPSHOT_DIR, path.basename(filename));
+  if (fs.existsSync(p)) fs.copyFileSync(p, DATA_FILE);
 }
 
-// ------------------- auth -------------------
-app.post("/api/auth", (req, res) => {
-  const { password } = req.body;
+// ---------- auth ----------
+app.post("/api/auth", (req,res)=>{
+  const { password } = req.body || {};
   const db = loadDB();
-  if (password === "logout") {
-    res.clearCookie("auth");
-    return res.json({ ok: true });
+  if (password === "logout"){ res.clearCookie("auth"); return res.json({ok:true}); }
+  if (password === db.password){
+    const secure = (req.headers["x-forwarded-proto"] === "https");
+    res.cookie("auth","1",{ httpOnly:true, sameSite:"Lax", secure, path:"/" });
+    return res.json({ ok:true });
   }
-  if (password === db.password) {
-    res.cookie("auth", "1", { httpOnly: true, sameSite: "lax" });
-    return res.json({ ok: true });
-  }
-  res.status(403).json({ error: "Wrong password" });
+  res.status(403).json({ ok:false, error:"Wrong password" });
 });
-
-function requireAuth(req, res, next) {
+function requireAuth(req,res,next){
   if (req.cookies && req.cookies.auth === "1") return next();
-  res.status(401).json({ ok: false, error: "Unauthorized" });
+  return res.status(403).json({ ok:false, error:"Unauthorized" });
 }
 
-// ------------------- meta -------------------
-app.get("/api/meta", requireAuth, (req, res) => {
+// ---------- meta & countries ----------
+app.get("/api/meta", requireAuth, (req,res)=> res.json({ countries: loadDB().countries }) );
+app.get("/api/countries", requireAuth, (req,res)=> res.json({ countries: loadDB().countries }) );
+app.post("/api/countries", requireAuth, (req,res)=>{
   const db = loadDB();
-  res.json({ countries: db.countries });
-});
-
-// ------------------- countries -------------------
-app.get("/api/countries", requireAuth, (req, res) => {
-  const db = loadDB();
-  res.json({ countries: db.countries });
-});
-app.post("/api/countries", requireAuth, (req, res) => {
-  const db = loadDB();
-  const { name } = req.body;
+  const name = (req.body?.name||"").trim();
   if (name && !db.countries.includes(name)) db.countries.push(name);
   saveDB(db);
-  res.json({ ok: true, countries: db.countries });
+  res.json({ ok:true, countries: db.countries });
 });
 
-// ------------------- products -------------------
-app.get("/api/products", requireAuth, (req, res) => {
+// ---------- products ----------
+app.get("/api/products", requireAuth, (req,res)=> res.json({ products: loadDB().products }) );
+app.post("/api/products", requireAuth, (req,res)=>{
   const db = loadDB();
-  res.json({ products: db.products });
+  const p = { id: uuidv4(), status:"active", ...req.body };
+  db.products.push(p); saveDB(db);
+  res.json({ ok:true, product: p });
 });
-app.post("/api/products", requireAuth, (req, res) => {
+app.delete("/api/products/:id", requireAuth, (req,res)=>{
   const db = loadDB();
-  const newP = { id: uuidv4(), status: "active", ...req.body };
-  db.products.push(newP);
-  saveDB(db);
-  res.json({ ok: true, product: newP });
+  db.products = db.products.filter(p=>p.id !== req.params.id);
+  saveDB(db); res.json({ ok:true });
 });
-app.delete("/api/products/:id", requireAuth, (req, res) => {
+app.post("/api/products/:id/status", requireAuth, (req,res)=>{
   const db = loadDB();
-  db.products = db.products.filter(p => p.id !== req.params.id);
-  saveDB(db);
-  res.json({ ok: true });
-});
-app.post("/api/products/:id/status", requireAuth, (req, res) => {
-  const db = loadDB();
-  const p = db.products.find(x => x.id === req.params.id);
-  if (p) p.status = req.body.status;
-  saveDB(db);
-  res.json({ ok: true });
+  const p = db.products.find(p=>p.id===req.params.id);
+  if (p) p.status = req.body?.status || p.status;
+  saveDB(db); res.json({ ok:true });
 });
 
-// ------------------- ad spend -------------------
-app.get("/api/adspend", requireAuth, (req, res) => {
+// ---------- ad spend (daily, overwrite per product+country+platform) ----------
+app.get("/api/adspend", requireAuth, (req,res)=> res.json({ adSpends: loadDB().adspend }) );
+app.post("/api/adspend", requireAuth, (req,res)=>{
   const db = loadDB();
-  res.json({ adSpends: db.adspend });
-});
-app.post("/api/adspend", requireAuth, (req, res) => {
-  const db = loadDB();
-  const { productId, country, platform, amount } = req.body;
-  const existing = db.adspend.find(
-    a => a.productId === productId && a.country === country && a.platform === platform
-  );
-  if (existing) existing.amount = amount;
-  else db.adspend.push({ id: uuidv4(), productId, country, platform, amount });
-  saveDB(db);
-  res.json({ ok: true });
+  const { productId, country, platform, amount=0 } = req.body || {};
+  if (!productId || !country || !platform) return res.status(400).json({ ok:false, error:"Missing fields" });
+  const found = db.adspend.find(a=>a.productId===productId && a.country===country && a.platform===platform);
+  if (found) found.amount = +amount; else db.adspend.push({ id: uuidv4(), productId, country, platform, amount:+amount });
+  saveDB(db); res.json({ ok:true });
 });
 
-// ------------------- deliveries -------------------
-app.get("/api/deliveries", requireAuth, (req, res) => {
-  const db = loadDB();
-  res.json({ deliveries: db.deliveries });
-});
-app.post("/api/deliveries", requireAuth, (req, res) => {
+// ---------- deliveries ----------
+app.get("/api/deliveries", requireAuth, (req,res)=> res.json({ deliveries: loadDB().deliveries }) );
+app.post("/api/deliveries", requireAuth, (req,res)=>{
   const db = loadDB();
   db.deliveries.push({ id: uuidv4(), ...req.body });
-  saveDB(db);
-  res.json({ ok: true });
+  saveDB(db); res.json({ ok:true });
 });
 
-// ------------------- shipments -------------------
-app.get("/api/shipments", requireAuth, (req, res) => {
-  const db = loadDB();
-  res.json({ shipments: db.shipments });
-});
-app.post("/api/shipments", requireAuth, (req, res) => {
+// ---------- shipments ----------
+app.get("/api/shipments", requireAuth, (req,res)=> res.json({ shipments: loadDB().shipments }) );
+app.post("/api/shipments", requireAuth, (req,res)=>{
   const db = loadDB();
   db.shipments.push({ id: uuidv4(), ...req.body });
-  saveDB(db);
-  res.json({ ok: true });
+  saveDB(db); res.json({ ok:true });
 });
-app.put("/api/shipments/:id", requireAuth, (req, res) => {
+app.put("/api/shipments/:id", requireAuth, (req,res)=>{
   const db = loadDB();
-  const s = db.shipments.find(x => x.id === req.params.id);
+  const s = db.shipments.find(x=>x.id===req.params.id);
   if (s) Object.assign(s, req.body);
-  saveDB(db);
-  res.json({ ok: true });
+  saveDB(db); res.json({ ok:true });
 });
-app.delete("/api/shipments/:id", requireAuth, (req, res) => {
+app.delete("/api/shipments/:id", requireAuth, (req,res)=>{
   const db = loadDB();
-  db.shipments = db.shipments.filter(x => x.id !== req.params.id);
-  saveDB(db);
-  res.json({ ok: true });
+  db.shipments = db.shipments.filter(x=>x.id!==req.params.id);
+  saveDB(db); res.json({ ok:true });
 });
 
-// ------------------- remittances -------------------
-app.get("/api/remittances", requireAuth, (req, res) => {
-  const db = loadDB();
-  res.json({ remittances: db.remittances });
-});
-app.post("/api/remittances", requireAuth, (req, res) => {
+// ---------- remittances ----------
+app.get("/api/remittances", requireAuth, (req,res)=> res.json({ remittances: loadDB().remittances }) );
+app.post("/api/remittances", requireAuth, (req,res)=>{
   const db = loadDB();
   db.remittances.push({ id: uuidv4(), ...req.body });
-  saveDB(db);
-  res.json({ ok: true });
+  saveDB(db); res.json({ ok:true });
 });
 
-// ------------------- finance -------------------
-app.get("/api/finance/categories", requireAuth, (req, res) => {
+// ---------- finance ----------
+app.get("/api/finance/categories", requireAuth, (req,res)=> res.json(loadDB().finance.categories) );
+app.post("/api/finance/categories", requireAuth, (req,res)=>{
   const db = loadDB();
-  res.json(db.finance.categories);
+  const { type, name } = req.body || {};
+  if (!type || !name) return res.status(400).json({ ok:false, error:"Missing fields" });
+  if (!db.finance.categories[type].includes(name)) db.finance.categories[type].push(name);
+  saveDB(db); res.json({ ok:true, categories: db.finance.categories });
 });
-app.post("/api/finance/categories", requireAuth, (req, res) => {
-  const db = loadDB();
-  const { type, name } = req.body;
-  if (type && name && !db.finance.categories[type].includes(name)) {
-    db.finance.categories[type].push(name);
-  }
-  saveDB(db);
-  res.json({ ok: true });
-});
-app.get("/api/finance/entries", requireAuth, (req, res) => {
-  const db = loadDB();
-  res.json({ entries: db.finance.entries });
-});
-app.post("/api/finance/entries", requireAuth, (req, res) => {
+app.get("/api/finance/entries", requireAuth, (req,res)=> res.json({ entries: loadDB().finance.entries }) );
+app.post("/api/finance/entries", requireAuth, (req,res)=>{
   const db = loadDB();
   db.finance.entries.push({ id: uuidv4(), ...req.body });
-  saveDB(db);
-  res.json({ ok: true });
+  saveDB(db); res.json({ ok:true });
 });
-app.delete("/api/finance/entries/:id", requireAuth, (req, res) => {
+app.delete("/api/finance/entries/:id", requireAuth, (req,res)=>{
   const db = loadDB();
-  db.finance.entries = db.finance.entries.filter(e => e.id !== req.params.id);
-  saveDB(db);
-  res.json({ ok: true });
+  db.finance.entries = db.finance.entries.filter(e=>e.id!==req.params.id);
+  saveDB(db); res.json({ ok:true });
 });
 
-// ------------------- snapshots (manual save/restore) -------------------
-app.get("/api/snapshots", requireAuth, (req, res) => {
+// ---------- manual snapshots ----------
+app.get("/api/snapshots", requireAuth, (req,res)=> res.json({ snapshots: loadDB().snapshots }) );
+app.post("/api/snapshots", requireAuth, (req,res)=>{
   const db = loadDB();
-  res.json({ snapshots: db.snapshots });
-});
-app.post("/api/snapshots", requireAuth, (req, res) => {
-  const db = loadDB();
-  const { name } = req.body;
+  const name = (req.body?.name||"").trim() || "manual";
   const file = snapshotDB(name);
-  db.snapshots.push({ id: uuidv4(), name, file });
-  saveDB(db);
-  res.json({ ok: true, file });
+  const rec = { id: uuidv4(), name, file, at: new Date().toISOString() };
+  db.snapshots.push(rec); saveDB(db);
+  res.json({ ok:true, snapshot: rec });
 });
-app.post("/api/snapshots/restore", requireAuth, (req, res) => {
-  const { file } = req.body;
-  restoreDB(path.basename(file));
-  res.json({ ok: true });
+app.post("/api/snapshots/restore", requireAuth, (req,res)=>{
+  const { file } = req.body || {};
+  if (!file) return res.status(400).json({ ok:false, error:"file required" });
+  restoreDB(file); res.json({ ok:true });
 });
-app.delete("/api/snapshots/:id", requireAuth, (req, res) => {
+app.delete("/api/snapshots/:id", requireAuth, (req,res)=>{
   const db = loadDB();
-  const snap = db.snapshots.find(s => s.id === req.params.id);
-  if (snap && fs.existsSync(snap.file)) fs.removeSync(snap.file);
-  db.snapshots = db.snapshots.filter(s => s.id !== req.params.id);
-  saveDB(db);
-  res.json({ ok: true });
+  const s = db.snapshots.find(x=>x.id===req.params.id);
+  if (s && fs.existsSync(s.file)) fs.removeSync(s.file);
+  db.snapshots = db.snapshots.filter(x=>x.id!==req.params.id);
+  saveDB(db); res.json({ ok:true });
 });
 
-// ------------------- pages (serve from /public) -------------------
-app.get("/product.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "product.html"));
-});
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
+// ---------- pages ----------
+app.get("/product.html", (req,res)=> res.sendFile(path.join(__dirname, "product.html")) );
+app.get("/", (req,res)=> res.sendFile(path.join(__dirname, "index.html")) );
 
-// ------------------- server -------------------
-app.listen(PORT, () => console.log(`✅ EAS Tracker running on port ${PORT}`));
+app.listen(PORT, ()=> console.log(`✅ EAS Tracker running on port ${PORT}`));
