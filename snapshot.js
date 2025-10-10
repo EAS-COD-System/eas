@@ -1,44 +1,95 @@
 // snapshot.js
-// Automatic daily backup of db.json into /data/snapshots
+// ---------------------------------------------
+// Create a point-in-time snapshot of db.json,
+// store it under /data/snapshots, and register
+// it in db.json → snapshots[]. Also prunes old
+// snapshots to keep the folder tidy.
+// ---------------------------------------------
 
-const fs = require("fs-extra");
-const path = require("path");
+const fs = require('fs-extra');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 
-const DATA_FILE = path.join(__dirname, "db.json");
-const SNAPSHOT_DIR = path.join(__dirname, "data", "snapshots");
+const ROOT = __dirname;
+const DATA_FILE = path.join(ROOT, 'db.json');
+const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
 
-async function createDailySnapshot() {
-  try {
-    if (!fs.existsSync(DATA_FILE)) {
-      console.error("❌ db.json not found. Snapshot aborted.");
-      return;
-    }
+// How many snapshots to keep (newest first)
+const KEEP = parseInt(process.env.SNAPSHOT_KEEP || '30', 10);
 
-    // Create snapshot directory if not exists
-    await fs.ensureDir(SNAPSHOT_DIR);
-
-    // Generate snapshot name
-    const date = new Date().toISOString().split("T")[0]; // e.g., 2025-10-10
-    const fileName = `${date}-auto.json`;
-    const targetPath = path.join(SNAPSHOT_DIR, fileName);
-
-    // Copy db.json to snapshot
-    await fs.copy(DATA_FILE, targetPath);
-    console.log(`✅ Snapshot created: ${fileName}`);
-
-    // Cleanup old snapshots (keep only 7 latest)
-    const files = (await fs.readdir(SNAPSHOT_DIR))
-      .filter(f => f.endsWith(".json"))
-      .sort((a, b) => fs.statSync(path.join(SNAPSHOT_DIR, b)).mtimeMs - fs.statSync(path.join(SNAPSHOT_DIR, a)).mtimeMs);
-    if (files.length > 7) {
-      const old = files.slice(7);
-      for (const f of old) await fs.remove(path.join(SNAPSHOT_DIR, f));
-      console.log(`🧹 Removed ${old.length} old snapshot(s).`);
-    }
-
-  } catch (err) {
-    console.error("❌ Snapshot creation failed:", err);
+// ---- helpers ----
+function loadDB() {
+  if (!fs.existsSync(DATA_FILE)) {
+    throw new Error(`db.json not found at ${DATA_FILE}. Start the server once to initialize it.`);
   }
+  return fs.readJsonSync(DATA_FILE);
+}
+function saveDB(db) {
+  fs.writeJsonSync(DATA_FILE, db, { spaces: 2 });
+}
+function ensureDirs() {
+  fs.ensureDirSync(SNAPSHOT_DIR);
 }
 
-createDailySnapshot();
+function nowStamp() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const YYYY = d.getFullYear();
+  const MM = pad(d.getMonth() + 1);
+  const DD = pad(d.getDate());
+  const hh = pad(d.getHours());
+  const mm = pad(d.getMinutes());
+  const ss = pad(d.getSeconds());
+  return `${YYYY}-${MM}-${DD}_${hh}-${mm}-${ss}`;
+}
+
+function makeSnapshotName(prefix = 'auto') {
+  return `${nowStamp()}-${prefix}.json`;
+}
+
+// ---- main ----
+(async () => {
+  try {
+    ensureDirs();
+    const db = loadDB();
+
+    const nameFromEnv = (process.env.SNAPSHOT_NAME || '').trim(); // optional
+    const snapName = makeSnapshotName(nameFromEnv || 'auto');
+    const snapPath = path.join(SNAPSHOT_DIR, snapName);
+
+    // Copy current db.json → snapshot file
+    await fs.copy(DATA_FILE, snapPath);
+
+    // Register in db.json
+    const entry = {
+      id: uuidv4(),
+      name: nameFromEnv || `Auto ${new Date().toLocaleString()}`,
+      file: snapPath,
+      createdAt: new Date().toISOString(),
+      kind: 'auto'
+    };
+    db.snapshots = Array.isArray(db.snapshots) ? db.snapshots : [];
+    db.snapshots.push(entry);
+
+    // Sort newest first
+    db.snapshots.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    // Prune older entries beyond KEEP
+    const toDelete = db.snapshots.slice(KEEP);
+    for (const s of toDelete) {
+      if (s.file && fs.existsSync(s.file)) {
+        try { await fs.remove(s.file); } catch {}
+      }
+    }
+    db.snapshots = db.snapshots.slice(0, KEEP);
+
+    saveDB(db);
+
+    console.log('✅ Snapshot created:', snapPath);
+    console.log('🧹 Kept latest', KEEP, 'snapshots. Deleted', toDelete.length, 'older snapshot(s).');
+    process.exit(0);
+  } catch (err) {
+    console.error('❌ Snapshot failed:', err.message);
+    process.exit(1);
+  }
+})();
