@@ -1,40 +1,37 @@
-/* =========================================================
-   EAS Tracker - /public/app.js
-   ========================================================= */
+// ===============================
+// EAS Tracker - Frontend (vanilla JS)
+// ===============================
 
-const state = {
-  view: 'home',
-  products: [],
-  countries: [],
-  currentProductId: null,
-  cats: { debits: [], credits: [] }
-};
-
-// ------------- helpers -------------
+// ---------- tiny helpers ----------
 const $  = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
-const sum = arr => arr.reduce((a,b)=>a+(+b||0),0);
-const fmt = n => (Number(n||0)).toFixed(2) + ' USD';
-const todayStr = () => new Date().toISOString().slice(0,10);
-const weekdayName = d => new Date(d).toLocaleDateString(undefined,{weekday:'long'});
+const nf = (n) => (isNaN(n) ? '0.00' : Number(n).toFixed(2));
+const todayISO = () => new Date().toISOString().slice(0,10);
+const weekdayName = (d) => new Date(d).toLocaleDateString(undefined, { weekday:'long' });
+
+const state = {
+  view:'home',
+  countries: [],
+  products: [],
+  openedProductId: null,
+  financeCats: { debits:[], credits:[] }
+};
 
 async function api(path, opts={}) {
   const res = await fetch(path, {
     credentials:'include',
-    headers:{'Content-Type':'application/json'},
+    headers:{ 'Content-Type':'application/json' },
     ...opts
   });
-  let data = null;
-  try { data = await res.json(); } catch {}
   if (!res.ok) {
-    const msg = (data && (data.error||data.message)) || `HTTP ${res.status}`;
-    throw new Error(msg);
+    let t=''; try{ t=await res.text(); }catch{}
+    throw new Error(t || ('HTTP '+res.status));
   }
-  return data || {};
+  return res.json();
 }
 
 function setView(v){
-  state.view=v;
+  state.view = v;
   ['home','products','performance','finance','settings'].forEach(id=>{
     const el = document.getElementById(id);
     if (el) el.style.display = id===v ? '' : 'none';
@@ -42,42 +39,35 @@ function setView(v){
   $$('.nav a').forEach(a => a.classList.toggle('active', a.dataset.view===v));
 }
 
-// ------------- boot/auth -------------
-async function ensureMeta(){
-  try{
+// ===================================================
+// BOOT / AUTH
+// ===================================================
+async function ensureMeta() {
+  try {
     const m = await api('/api/meta');
     state.countries = m.countries || [];
-    await Promise.all([loadProducts(), loadFinanceCats()]);
-    $('#login')?.style && ($('#login').style.display='none');
-    $('#main').style.display='';
-    setView(state.view);
+    await loadProducts();
+    $('#login').style.display = 'none';
+    $('#main').style.display  = '';
     fillSelects();
     renderCountriesChips();
     await refreshHome();
-  }catch(e){
-    $('#login')?.style && ($('#login').style.display='');
-    $('#main').style.display='none';
-    console.warn('Not authorized yet:', e.message);
+    if (state.view==='products') renderProducts();
+    if (state.view==='finance') renderFinance();
+  } catch (e) {
+    $('#login').style.display = '';
+    $('#main').style.display  = 'none';
   }
 }
+
 async function loadProducts(){
-  try{
-    const r = await api('/api/products');
-    state.products = r.products || [];
-  }catch{ state.products = []; }
-}
-async function loadFinanceCats(){
-  try{
-    const r = await api('/api/finance/categories');
-    state.cats = { debits: r.debits||[], credits: r.credits||[] };
-  }catch{
-    state.cats = { debits: [], credits: [] };
-  }
+  try { const r = await api('/api/products'); state.products = r.products || []; }
+  catch { state.products = []; }
 }
 
 function fillSelects(){
   // countries
-  const cSel = '#delivCountry,#adCountry,#mvFrom,#mvTo,#pfCountry,#rCountry,#pdAdCountry,#pdRCountry,#pdMvFrom,#pdMvTo,#pdInfCountry,#pdInfFilterCountry';
+  const cSel = '#delivCountry,#adCountry,#mvFrom,#mvTo,#pfCountry,#rCountry,#pdAdCountry,#pdRCountry,#pdInfCountry,#pdInfFilterCountry,#pdMvFrom,#pdMvTo';
   $$(cSel).forEach(s=>{
     if(!s) return;
     const opts = (s.id==='pfCountry' || s.id==='pdInfFilterCountry') ? ['<option value="">All countries</option>'] : [];
@@ -88,825 +78,763 @@ function fillSelects(){
   const pSel = '#adProduct,#mvProduct,#rProduct,#lpProduct';
   $$(pSel).forEach(s=>{
     if(!s) return;
-    const opts = (s.id==='lpProduct') ? ['<option value="">All products</option>'] : [];
+    const opts = s.id==='lpProduct' ? ['<option value="">All products</option>'] : [];
     opts.push(...state.products.map(p=>`<option value="${p.id}">${p.name}${p.sku?` (${p.sku})`:''}</option>`));
     s.innerHTML = opts.join('');
   });
-
-  // finance categories (single input -> turn into select)
-  const feCat = $('#feCat');
-  if (feCat && feCat.tagName.toLowerCase() === 'input') {
-    const sel = document.createElement('select');
-    sel.id = 'feCat';
-    sel.className = 'input';
-    sel.innerHTML = [
-      '<option value="" disabled selected>Select category</option>',
-      ...state.cats.debits.map(c=>`<option value="debit:${c}">${c} (debit)</option>`),
-      ...state.cats.credits.map(c=>`<option value="credit:${c}">${c} (credit)</option>`),
-    ].join('');
-    feCat.parentNode.replaceChild(sel, feCat);
-  }
 }
 
 function renderCountriesChips(){
   const wrap = $('#ctyList');
   if (!wrap) return;
-  wrap.innerHTML = (state.countries||[]).map(c=>`<span class="badge" style="margin-right:6px">${c}</span>`).join('');
+  wrap.innerHTML = state.countries.map(c=>`<span class="chip">${c}</span>`).join('');
 }
 
-// ------------- DASHBOARD -------------
+// ===================================================
+// DASHBOARD
+// ===================================================
 async function refreshHome(){
-  // KPIs
-  $('#kpiProducts').textContent = state.products.length;
+  // KPIs: products & warehouses
+  $('#kpiProducts').textContent  = state.products.length;
   $('#kpiCountries').textContent = state.countries.length;
 
-  // Transit
-  try{
+  // Transit count
+  try {
     const s = await api('/api/shipments');
     const inTransit = (s.shipments||[]).filter(x=>!x.arrivedAt).length;
     $('#kpiTransit').textContent = inTransit;
-  }catch{ $('#kpiTransit').textContent='—'; }
+  } catch { $('#kpiTransit').textContent = '—'; }
 
-  // Total ad spend (all time, per-country fix)
-  await updateTotalAdSpendKPI();
+  // Weekly deliveries (Mon-Sun) grid + totals
+  await renderWeeklyDeliveredGrid();
 
-  // Delivered (Mon–Sun) from weekly grid
-  await renderWeeklyDeliveredGrid(true);
+  // Stock + ad spend per country
+  await renderStockAndAdByCountry();
 
-  // Stock + ad spend table
-  await renderStockByCountry();
-
-  // Transit tables
+  // Shipments tables
   await renderShipmentsTable('china-kenya', '#shipCKTable tbody');
   await renderShipmentsTable('intercountry', '#shipICTable tbody');
+
+  // Lifetime table (global) will render when user hits Run
 }
 
-async function updateTotalAdSpendKPI(){
-  try{
-    const a = await api('/api/adspend');
-    const total = sum((a.adSpends||[]).map(x=>+x.amount||0));
-    $('#kpiAdSpend').textContent = Intl.NumberFormat().format(total) + ' USD';
-  }catch{
-    $('#kpiAdSpend').textContent = '—';
-  }
-}
+async function renderStockAndAdByCountry(){
+  const wrap = $('#stockByCountry');
+  const perCountry = {};
+  state.countries.forEach(c=> perCountry[c] = { stock:0, ad:0 });
 
-async function renderStockByCountry(){
-  const wrap = $('#stockByCountry'); if (!wrap) return;
-  const per = {};
-  state.countries.forEach(c=>per[c]={ stock:0, ad:0 });
-
-  try{
-    const s = await api('/api/shipments');
-    (s.shipments||[]).forEach(sp=>{
-      const to = sp.toCountry || sp.to;
-      if (sp.arrivedAt && to){
-        per[to] = per[to] || {stock:0, ad:0};
-        per[to].stock += (+sp.qty||0);
+  try {
+    const ship = await api('/api/shipments');
+    (ship.shipments||[]).forEach(s=>{
+      if (s.arrivedAt) {
+        const to = s.toCountry || s.to;
+        if (!perCountry[to]) perCountry[to] = { stock:0, ad:0 };
+        perCountry[to].stock += (+s.qty||0);
       }
     });
-  }catch{}
+  } catch {}
 
-  try{
-    const r = await api('/api/remittances');
-    (r.remittances||[]).forEach(x=>{
-      if(!x.country) return;
-      per[x.country] = per[x.country] || {stock:0, ad:0};
-      per[x.country].stock -= (+x.pieces||0);
+  try {
+    const rem = await api('/api/remittances');
+    (rem.remittances||[]).forEach(r=>{
+      const c = r.country;
+      if (!perCountry[c]) perCountry[c] = { stock:0, ad:0 };
+      perCountry[c].stock -= (+r.pieces||0);
     });
-  }catch{}
+  } catch {}
 
-  try{
-    const a = await api('/api/adspend');
-    (a.adSpends||[]).forEach(ad=>{
-      if(!ad.country) return;
-      per[ad.country] = per[ad.country] || {stock:0, ad:0};
-      per[ad.country].ad += (+ad.amount||0);
+  try {
+    const ads = await api('/api/adspend');
+    (ads.adSpends||[]).forEach(a=>{
+      const c = a.country;
+      if (!perCountry[c]) perCountry[c] = { stock:0, ad:0 };
+      perCountry[c].ad += (+a.amount||0);
     });
-  }catch{}
+  } catch {}
 
-  const rows = Object.entries(per).map(([c,v]) =>
-    `<tr><td>${c}</td><td>${v.stock}</td><td>${(v.ad||0).toFixed(2)} USD</td></tr>`
+  const rows = Object.entries(perCountry).map(([c,v]) =>
+    `<tr><td>${c}</td><td>${v.stock}</td><td>${nf(v.ad)} USD</td></tr>`
   ).join('');
   wrap.innerHTML = `
     <h2>Total Stock & Ad Spend by Country</h2>
-    <table class="table">
-      <thead><tr><th>Country</th><th>Approx. Stock</th><th>Total Ad Spend</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
+    <table class="table"><thead>
+      <tr><th>Country</th><th>Approx. Stock</th><th>Total Ad Spend</th></tr>
+    </thead><tbody>${rows}</tbody></table>`;
 }
 
-/* -------- Weekly Delivered Grid (Mon–Sun x Country) ---------
-   Storage model: uses /api/deliveries/current-week for read aggregation.
-   Edits: each cell change writes a delivery record with that date/country.
-   Reset: writes zeros across existing filled cells for this week.
----------------------------------------------------------------- */
-const WD_DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-function mondayOf(d){
-  const x=new Date(d); const day=(x.getDay()+6)%7; // Monday=0
-  x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x;
-}
-function dateOfWeekday(weekStart, idx){
-  const d = new Date(weekStart);
-  d.setDate(d.getDate()+idx);
-  return d.toISOString().slice(0,10);
-}
+// --- Weekly Delivered Grid ---
+async function renderWeeklyDeliveredGrid(){
+  // Build grid header: countries vs Mon..Sun
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const grid = $('#weeklyGrid');
+  if (!grid) return;
 
-async function renderWeeklyDeliveredGrid(updateKPIOnly=false){
-  // week anchor = current week Monday
-  const wkStart = mondayOf(new Date());
-  const wkDates = WD_DAYS.map((_,i)=>dateOfWeekday(wkStart,i));
-  let data;
-  try{
-    // Expect aggregated structure: { days: {YYYY-MM-DD: total}, perCountry: { country: {date:count} } }
-    data = await api('/api/deliveries/current-week');
-  }catch{
-    if (updateKPIOnly) { $('#kpiDelivered').textContent='—'; return; }
-    $('#dailyDelivered').querySelector('#delivTable tbody').innerHTML='';
-    return;
-  }
+  // Fetch current week numbers per country/day
+  let data = {};
+  try {
+    const r = await api('/api/deliveries/week-grid');
+    data = r.grid || {}; // { country: { Monday: n, ... } }
+  } catch { data = {}; }
 
-  // KPI (Mon–Sun sum)
-  const weekTotal = Object.values(data.days||{}).reduce((a,b)=>a+(+b||0),0);
-  $('#kpiDelivered').textContent = weekTotal;
-
-  if (updateKPIOnly) return;
-
-  // Build editable grid
-  const countries = state.countries.slice();
-  const perCountry = data.perCountry || {}; // { country: {YYYY-MM-DD: n} }
-
-  const thead = `
-    <thead>
-      <tr><th>Country</th>${WD_DAYS.map(d=>`<th>${d}</th>`).join('')}<th>Total</th></tr>
-    </thead>`;
-
-  const bodyRows = countries.map(c=>{
-    const rowTotals = [];
-    const tds = WD_DAYS.map((d,i)=>{
-      const dt = wkDates[i];
-      const val = perCountry?.[c]?.[dt] ?? 0;
-      rowTotals.push(+val||0);
-      return `<td>
-        <input class="input wd-cell" data-country="${c}" data-date="${dt}" value="${val}" type="number" min="0" style="min-width:70px" />
-      </td>`;
-    }).join('');
-    return `<tr>
-      <th>${c}</th>
-      ${tds}
-      <td class="wd-row-total">${sum(rowTotals)}</td>
-    </tr>`;
-  }).join('');
-
-  const colTotals = WD_DAYS.map((_,i)=>{
-    const dt = wkDates[i];
-    let t=0;
-    for (const c of countries) t += +((perCountry?.[c]?.[dt])||0);
-    return t;
+  // Ensure all countries present
+  state.countries.forEach(c=>{
+    if (!data[c]) data[c] = {};
+    days.forEach(d=>{ if (typeof data[c][d] !== 'number') data[c][d] = 0; });
   });
 
-  const tfoot = `
-    <tfoot>
-      <tr class="wd-foot">
-        <th>All Countries</th>
-        ${colTotals.map(n=>`<td>${n}</td>`).join('')}
-        <td id="wdAllTotal">${sum(colTotals)}</td>
-      </tr>
-    </tfoot>`;
+  // Render table
+  const header = `<tr><th>Country</th>${days.map(d=>`<th>${d}</th>`).join('')}<th>Total</th></tr>`;
+  const rows = state.countries.map(c=>{
+    const total = days.reduce((a,d)=>a + (+data[c][d]||0),0);
+    return `<tr data-row="${c}">
+      <td><strong>${c}</strong></td>
+      ${days.map(d=>`<td><input class="input tiny wd" data-country="${c}" data-day="${d}" type="number" min="0" value="${+data[c][d]||0}"></td>`).join('')}
+      <td class="rowTotal" data-country-total="${c}">${total}</td>
+    </tr>`;
+  }).join('');
+  const grand = state.countries.reduce((a,c)=> a + days.reduce((x,d)=>x+(+data[c][d]||0),0), 0);
 
-  const host = $('#dailyDelivered');
-  let grid = host.querySelector('#weeklyDelivered');
-  if (!grid){
-    grid = document.createElement('div');
-    grid.id = 'weeklyDelivered';
-    grid.className = 'section';
-    host.appendChild(grid);
-  }
   grid.innerHTML = `
-    <h2>Delivered This Week (Mon–Sun)</h2>
+    <h2>Weekly Delivered (Mon–Sun)</h2>
     <div class="card">
-      <div class="flex">
-        <button id="wdSave" class="btn">Save Changes</button>
-        <button id="wdReset" class="btn outline">Reset Week</button>
-        <span class="badge">Week of ${wkDates[0]} → ${wkDates[6]}</span>
+      <div class="flex wrap">
+        <button id="wdSave" class="btn">Save</button>
+        <button id="wdReset" class="btn outline">Reset</button>
+        <div class="badge">Grand total: <span id="wdGrand">${grand}</span></div>
       </div>
     </div>
-    <table class="table" style="margin-top:10px">
-      ${thead}
-      <tbody>${bodyRows}</tbody>
-      ${tfoot}
-    </table>
+    <table class="table"><thead>${header}</thead><tbody>${rows}</tbody></table>
   `;
 
-  // recalc row/col totals on input
-  $$('.wd-cell').forEach(inp=>{
+  // Change handlers to update totals live
+  $$('.wd').forEach(inp=>{
     inp.addEventListener('input', ()=>{
-      // row total
-      const tr = inp.closest('tr');
-      const cells = Array.from(tr.querySelectorAll('.wd-cell'));
-      const rt = cells.reduce((a,b)=>a+(+b.value||0),0);
-      tr.querySelector('.wd-row-total').textContent = rt;
-      // col total
-      const idx = Array.from(tr.children).indexOf(inp.parentElement)-1; // after <th>
-      const colVals = $$('.wd-cell').filter(x=>Array.from(x.parentElement.parentElement.children).indexOf(x.parentElement)===idx);
-      const ct = colVals.reduce((a,b)=>a+(+b.value||0),0);
-      const foot = grid.querySelector('tfoot tr');
-      foot.children[idx+1].textContent = ct;
-      // grand total
-      const newCols = Array.from(foot.children).slice(1,-1).map(td=>+td.textContent||0);
-      foot.lastElementChild.textContent = sum(newCols);
+      const country = inp.dataset.country;
+      const row = document.querySelector(`tr[data-row="${country}"]`);
+      const nums = Array.from(row.querySelectorAll('input.wd')).map(i=>+i.value||0);
+      const sum = nums.reduce((a,b)=>a+b,0);
+      row.querySelector('[data-country-total]').textContent = sum;
+      const newGrand = Array.from($$('.rowTotal')).reduce((a,td)=>a+(+td.textContent||0),0);
+      $('#wdGrand').textContent = newGrand;
     });
   });
 
-  // Save -> upsert each non-empty cell for the week
+  // Save -> POST entire grid
   $('#wdSave').onclick = async ()=>{
-    try{
-      const cells = $$('.wd-cell');
-      const payloads = [];
-      for (const c of cells){
-        const delivered = +c.value||0;
-        const country = c.dataset.country;
-        const date = c.dataset.date;
-        // write even zeros to normalize week
-        payloads.push(api('/api/deliveries', { method:'POST', body: JSON.stringify({ date, country, delivered })}));
-      }
-      await Promise.all(payloads);
-      alert('Weekly deliveries saved');
-      await refreshHome();
-    }catch(e){
-      alert('Save error: '+e.message);
-    }
+    const payload = {};
+    state.countries.forEach(c=>{
+      payload[c] = {};
+      days.forEach(d=>{
+        const el = document.querySelector(`input.wd[data-country="${c}"][data-day="${d}"]`);
+        payload[c][d] = +el.value||0;
+      });
+    });
+    await api('/api/deliveries/week-grid', { method:'POST', body: JSON.stringify({ grid: payload }) });
+    alert('Saved');
+    await refreshHome();
   };
 
-  // Reset -> zero all cells of this week (no hard delete needed)
+  // Reset -> clear to zeros
   $('#wdReset').onclick = async ()=>{
-    if (!confirm('Reset this week to zeros for all countries?')) return;
-    try{
-      const cells = $$('.wd-cell');
-      await Promise.all(cells.map(c=>{
-        return api('/api/deliveries', { method:'POST', body: JSON.stringify({ date:c.dataset.date, country:c.dataset.country, delivered:0 })});
-      }));
-      await renderWeeklyDeliveredGrid(false);
-      await refreshHome();
-    }catch(e){
-      alert('Reset error: '+e.message);
-    }
+    if (!confirm('Clear this week grid?')) return;
+    await api('/api/deliveries/week-grid', { method:'POST', body: JSON.stringify({ grid: {} }) });
+    await renderWeeklyDeliveredGrid();
+    await refreshHome();
   };
+
+  // KPI delivered this week
+  $('#kpiDelivered').textContent = grand;
 }
 
-// ---- Daily Advertising Spend (no date; upsert) ----
-$('#adAdd') && ($('#adAdd').onclick = async ()=>{
+// --- Daily Ad Spend (no date; replace today) ---
+$('#adAdd')?.addEventListener('click', async ()=>{
   const payload = {
     platform: $('#adPlatform').value,
     productId: $('#adProduct').value,
     country: $('#adCountry').value,
     amount: +($('#adAmount').value||0)
   };
-  if(!payload.productId || !payload.country) return alert('Select product and country');
-  try{
-    await api('/api/adspend', { method:'POST', body: JSON.stringify(payload) }); // backend upserts by (productId,country,platform)
-    alert('Saved');
-    await updateTotalAdSpendKPI();
-    await renderStockByCountry(); // so totals reflect
-    if (state.currentProductId) await loadProductDetails(state.currentProductId);
-  }catch(e){
-    alert('Ad spend error: '+e.message);
-  }
+  if (!payload.productId || !payload.country) return alert('Select product and country');
+  await api('/api/adspend', { method:'POST', body: JSON.stringify({ ...payload, date: todayISO(), replaceToday:true }) });
+  alert('Saved'); await refreshHome();
 });
 
-// ---- Stock Movement (create shipment in transit) ----
-$('#mvAdd') && ($('#mvAdd').onclick = async ()=>{
+// --- Create shipment (movement) ---
+$('#mvAdd')?.addEventListener('click', async ()=>{
   const payload = {
     productId: $('#mvProduct').value,
     fromCountry: $('#mvFrom').value,
     toCountry: $('#mvTo').value,
     qty: +($('#mvQty').value||0),
     shipCost: +($('#mvShip').value||0),
-    departedAt: todayStr(),
-    arrivedAt: null
+    departedAt: todayISO()
   };
-  if(!payload.productId) return alert('Select product');
-  try{
-    await api('/api/shipments', { method:'POST', body: JSON.stringify(payload) });
-    alert('Movement saved'); await refreshHome();
-  }catch(e){ alert('Movement error: '+e.message); }
+  if (!payload.productId) return alert('Select product');
+  await api('/api/shipments', { method:'POST', body: JSON.stringify(payload) });
+  alert('Added'); await refreshHome();
 });
 
-// ---- Transit tables (mark arrived, edit qty/shipCost inline) ----
-async function renderShipmentsTable(type, sel){
+// --- Shipments tables + actions ---
+async function renderShipmentsTable(kind, sel){
   const body = $(sel); if (!body) return;
-  try{
+  try {
     const r = await api('/api/shipments');
-    const productsById = Object.fromEntries((state.products||[]).map(p=>[p.id,p]));
-    let list = r.shipments||[];
-    const isCK = s=>{
-      const f=(s.fromCountry||s.from||'').toLowerCase(), t=(s.toCountry||s.to||'').toLowerCase();
-      return f==='china' && t==='kenya';
-    };
-    list = type==='china-kenya' ? list.filter(isCK) : list.filter(s=>!isCK(s));
+    let list = r.shipments || [];
+    const ck = (s) => ( (s.fromCountry||s.from||'').toLowerCase()==='china' && (s.toCountry||s.to||'').toLowerCase()==='kenya' );
+    list = kind==='china-kenya' ? list.filter(ck) : list.filter(s=>!ck(s));
 
-    body.innerHTML = list.map(sp=>`
-      <tr data-id="${sp.id}">
-        <td>${sp.id}</td>
-        <td>${productsById[sp.productId]?.name || sp.productId}</td>
-        <td>${(sp.fromCountry||sp.from)} → ${(sp.toCountry||sp.to)}</td>
-        <td><input class="input ship-edit qty" type="number" min="0" value="${sp.qty||0}"/></td>
-        <td><input class="input ship-edit cost" type="number" min="0" step="0.01" value="${sp.shipCost||0}"/></td>
-        <td>${sp.departedAt||''}</td>
-        <td class="arrive">${sp.arrivedAt||''}${sp.arrivedAt && sp.departedAt ? ` <span class="badge">${daysBetween(sp.departedAt, sp.arrivedAt)}d</span>`:''}</td>
+    const mapProd = Object.fromEntries(state.products.map(p=>[p.id,p.name]));
+    body.innerHTML = list.map(s=>`
+      <tr data-id="${s.id}">
+        <td>${s.id}</td>
+        <td>${mapProd[s.productId] || s.productId}</td>
+        <td>${s.fromCountry||s.from} → ${s.toCountry||s.to}</td>
+        <td><input class="input tiny qty" type="number" min="0" value="${+s.qty||0}"></td>
+        <td><input class="input tiny ship" type="number" min="0" step="0.01" value="${+s.shipCost||0}"></td>
+        <td>${s.departedAt||''}</td>
+        <td>${s.arrivedAt||''}${s.arrivedAt&&s.departedAt?` <span class="badge">${daysBetween(s.departedAt,s.arrivedAt)} days</span>`:''}</td>
         <td>
-          <button class="btn outline" data-mark="${sp.id}">Mark Arrived</button>
-          <button class="btn outline" data-save="${sp.id}">Save</button>
-          <button class="btn outline" data-del="${sp.id}">Delete</button>
+          <button class="btn outline mark">Mark Arrived</button>
+          <button class="btn outline saveRow">Save</button>
+          <button class="btn outline del">Delete</button>
         </td>
       </tr>
     `).join('');
 
-    // handlers
-    body.querySelectorAll('[data-mark]').forEach(b=> b.onclick = async ()=>{
-      const id=b.dataset.mark;
-      let d = prompt('Arrival date (YYYY-MM-DD). Leave blank for today.');
-      if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) d = todayStr();
-      try{
-        const res = await api('/api/shipments/'+id, { method:'PUT', body: JSON.stringify({ arrivedAt:d }) });
-        // update days
-        const tr = body.querySelector(`tr[data-id="${id}"]`);
-        tr.querySelector('.arrive').innerHTML = `${d} <span class="badge">${daysBetween(res.departedAt||todayStr(), d)}d</span>`;
-      }catch(e){ alert('Mark arrived error: '+e.message); }
+    body.querySelectorAll('.mark').forEach(b=>{
+      b.onclick = async ()=>{
+        const tr = b.closest('tr'); const id = tr.dataset.id;
+        const d  = prompt('Arrival date (YYYY-MM-DD)', todayISO());
+        if (!d) return;
+        await api(`/api/shipments/${id}`, { method:'PUT', body: JSON.stringify({ arrivedAt: d }) });
+        await renderShipmentsTable(kind, sel); await refreshHome();
+      };
     });
-    body.querySelectorAll('[data-save]').forEach(b=> b.onclick = async ()=>{
-      const tr = b.closest('tr'); const id=b.dataset.save;
-      const qty = +tr.querySelector('input.qty').value||0;
-      const shipCost = +tr.querySelector('input.cost').value||0;
-      try{
-        await api('/api/shipments/'+id, { method:'PUT', body: JSON.stringify({ qty, shipCost }) });
-        alert('Saved shipment');
-      }catch(e){ alert('Update error: '+e.message); }
+    body.querySelectorAll('.saveRow').forEach(b=>{
+      b.onclick = async ()=>{
+        const tr = b.closest('tr'); const id = tr.dataset.id;
+        const qty = +tr.querySelector('.qty').value||0;
+        const shipCost = +tr.querySelector('.ship').value||0;
+        await api(`/api/shipments/${id}`, { method:'PUT', body: JSON.stringify({ qty, shipCost }) });
+        alert('Saved');
+      };
     });
-    body.querySelectorAll('[data-del]').forEach(b=> b.onclick = async ()=>{
-      if(!confirm('Delete shipment?')) return;
-      try{ await api('/api/shipments/'+b.dataset.del, { method:'DELETE' }); await renderShipmentsTable(type, sel); }
-      catch(e){ alert('Delete error: '+e.message); }
+    body.querySelectorAll('.del').forEach(b=>{
+      b.onclick = async ()=>{
+        const tr = b.closest('tr'); const id = tr.dataset.id;
+        if (!confirm('Delete shipment?')) return;
+        await api(`/api/shipments/${id}`, { method:'DELETE' });
+        await renderShipmentsTable(kind, sel); await refreshHome();
+      };
     });
-  }catch{ body.innerHTML=''; }
+  } catch {
+    body.innerHTML = '';
+  }
 }
 function daysBetween(a,b){
-  const A=new Date(a), B=new Date(b);
-  return Math.max(0, Math.round((B-A)/86400000));
+  const d1 = new Date(a); const d2 = new Date(b);
+  return Math.round( (d2-d1)/(1000*60*60*24) );
 }
 
-// ------------- LIFETIME PRODUCTS (global) -------------
-$('#lpRun') && ($('#lpRun').onclick = async ()=>{
-  const pid = $('#lpProduct').value || null;
-  const s = $('#lpStart').value, e=$('#lpEnd').value;
-  try{
-    const rem = await api(`/api/remittances${(s||e)?`?${[s?`start=${s}`:'', e?`end=${e}`:''].filter(Boolean).join('&')}`:''}`);
-    const ship = await api('/api/shipments');
-    const P = Object.fromEntries((state.products||[]).map(p=>[p.id,p]));
-    const acc = {}; // id -> { revenue, ad, ship, base, pieces }
-
-    (rem.remittances||[]).filter(r=>!pid || r.productId===pid).forEach(r=>{
-      const id=r.productId; const p=P[id]||{};
-      if(!acc[id]) acc[id]={ revenue:0, ad:0, ship:0, base:0, pieces:0 };
-      acc[id].revenue += +r.revenue||0;
-      acc[id].ad += +r.adSpend||0;
-      acc[id].pieces += +r.pieces||0;
-      const baseUnit = (+p.cost_china||0) + (+p.ship_china_to_kenya||0);
-      acc[id].base += baseUnit * (+r.pieces||0);
-    });
-    (ship.shipments||[]).filter(sx=>sx.arrivedAt && (!pid || sx.productId===pid)).forEach(sx=>{
-      const id=sx.productId;
-      if(!acc[id]) acc[id]={ revenue:0, ad:0, ship:0, base:0, pieces:0 };
-      acc[id].ship += +sx.shipCost||0;
-    });
-
-    const tbody = $('#lifetimeTable tbody'); if (!tbody) return;
-    tbody.innerHTML = Object.entries(acc).map(([id,v])=>{
-      const name = P[id]?.name || id;
-      const profit = v.revenue - v.ad - v.ship - v.base;
-      return `<tr><td>${name}</td><td>${v.revenue.toFixed(2)}</td><td>${v.ad.toFixed(2)}</td><td>${v.ship.toFixed(2)}</td><td>${v.base.toFixed(2)}</td><td>${v.pieces}</td><td>${profit.toFixed(2)}</td></tr>`;
-    }).join('');
-  }catch(e){
-    alert('Lifetime run error: '+e.message);
-    const tbody = $('#lifetimeTable tbody'); if (tbody) tbody.innerHTML='';
-  }
+// ===================================================
+// PRODUCTS
+// ===================================================
+$('#pAdd')?.addEventListener('click', async ()=>{
+  const payload = {
+    name: $('#pName').value.trim(),
+    sku: $('#pSku').value.trim(),
+    cost_china: +($('#pCost').value||0),
+    ship_china_to_kenya: +($('#pShip').value||0),
+    margin_budget: +($('#pMB').value||0)
+  };
+  if (!payload.name) return alert('Name is required');
+  await api('/api/products', { method:'POST', body: JSON.stringify(payload) });
+  await loadProducts(); fillSelects(); renderProducts(); alert('Product added');
 });
 
-// ------------- PRODUCTS -------------
 async function renderProducts(){
-  let res; try{ res = await api('/api/products'); }catch{ res = {products:[]} }
-  state.products = res.products||[];
   const tbody = $('#productsTable tbody'); if (!tbody) return;
   tbody.innerHTML = state.products.map(p=>`
     <tr data-id="${p.id}">
       <td>${p.name}</td>
       <td>${p.sku||'-'}</td>
       <td><span class="badge">${p.status||'active'}</span></td>
-      <td>
-        <button class="btn outline" data-open="${p.id}">Open</button>
-        <button class="btn outline" data-pause="${p.id}">${p.status==='active'?'Pause':'Run'}</button>
-        <button class="btn outline" data-del="${p.id}">Delete</button>
+      <td class="flex wrap">
+        <button class="btn outline open">Open</button>
+        <button class="btn outline pause">${(p.status||'active')==='active'?'Pause':'Run'}</button>
+        <button class="btn outline del">Delete</button>
       </td>
-    </tr>`).join('');
+    </tr>
+  `).join('');
 
-  tbody.querySelectorAll('[data-open]').forEach(b=> b.onclick = async ()=>{
-    state.currentProductId = b.dataset.open;
-    await openProductDetails(state.currentProductId);
+  tbody.querySelectorAll('.open').forEach(b=>{
+    b.onclick = (e)=>{
+      const id = e.target.closest('tr').dataset.id;
+      state.openedProductId = id;
+      openProductPanel(id);
+    };
   });
-  tbody.querySelectorAll('[data-pause]').forEach(b=> b.onclick = async ()=>{
-    const id=b.dataset.pause; const p=state.products.find(x=>x.id===id);
-    const ns = p.status==='active'?'paused':'active';
-    await api(`/api/products/${id}/status`, { method:'POST', body: JSON.stringify({ status: ns })});
-    await renderProducts(); await refreshHome();
+  tbody.querySelectorAll('.pause').forEach(b=>{
+    b.onclick = async (e)=>{
+      const tr = e.target.closest('tr'); const id = tr.dataset.id;
+      const prod = state.products.find(x=>x.id===id);
+      const ns = (prod.status||'active')==='active' ? 'paused' : 'active';
+      await api(`/api/products/${id}/status`, { method:'POST', body: JSON.stringify({ status: ns }) });
+      await loadProducts(); renderProducts(); await refreshHome();
+    };
   });
-  tbody.querySelectorAll('[data-del]').forEach(b=> b.onclick = async ()=>{
-    if(!confirm('Delete product?')) return;
-    await api('/api/products/'+b.dataset.del, { method:'DELETE' });
-    await renderProducts(); await refreshHome();
+  tbody.querySelectorAll('.del').forEach(b=>{
+    b.onclick = async (e)=>{
+      const id = e.target.closest('tr').dataset.id;
+      if (!confirm('Delete product?')) return;
+      await api('/api/products/'+id, { method:'DELETE' });
+      await loadProducts(); fillSelects(); renderProducts(); await refreshHome();
+    };
   });
 }
 
-async function openProductDetails(id){
-  setView('products');
-  $('#productDetails').style.display='';
-  await loadProductDetails(id);
-}
-async function loadProductDetails(id){
-  // Stock & ad spend by country for this product
-  const P = state.products.find(p=>p.id===id);
-  $('#productDetails').querySelector('h3').textContent = `Product Details – ${P?.name||id}`;
+// Open product panel (basic pieces wired)
+async function openProductPanel(id){
+  // show details block
+  const details = $('#productDetails');
+  if (!details) return;
+  details.style.display = '';
+  const prod = state.products.find(p=>p.id===id);
+  details.querySelector('h3').textContent = `Product Details — ${prod?.name||id}`;
 
-  // Fill selects for product context
-  $('#pdRCountry') && ( $('#pdRCountry').innerHTML = state.countries.map(c=>`<option value="${c}">${c}</option>`).join('') );
-  $('#pdMvFrom') && ( $('#pdMvFrom').innerHTML = state.countries.map(c=>`<option value="${c}">${c}</option>`).join('') );
-  $('#pdMvTo') && ( $('#pdMvTo').innerHTML = state.countries.map(c=>`<option value="${c}">${c}</option>`).join('') );
-  $('#pdAdCountry') && ( $('#pdAdCountry').innerHTML = state.countries.map(c=>`<option value="${c}">${c}</option>`).join('') );
-  $('#pdInfCountry') && ( $('#pdInfCountry').innerHTML = state.countries.map(c=>`<option value="${c}">${c}</option>`).join('') );
-  $('#pdInfSelect') && ( $('#pdInfSelect').innerHTML = '<option value="" disabled selected>Select influencer</option>' );
+  // fill product selects inside panel
+  $('#pdAdCountry').innerHTML = state.countries.map(c=>`<option value="${c}">${c}</option>`).join('');
+  $('#pdRCountry').innerHTML  = state.countries.map(c=>`<option value="${c}">${c}</option>`).join('');
+  $('#pdMvFrom').innerHTML    = state.countries.map(c=>`<option value="${c}">${c}</option>`).join('');
+  $('#pdMvTo').innerHTML      = state.countries.map(c=>`<option value="${c}">${c}</option>`).join('');
+  $('#pdInfCountry').innerHTML= state.countries.map(c=>`<option value="${c}">${c}</option>`).join('');
 
-  // compute per-country stock/ad
-  const per = {}; state.countries.forEach(c=>per[c]={ stock:0, ad:0 });
-  try{
-    const s = await api('/api/shipments');
-    (s.shipments||[]).filter(x=>x.productId===id && x.arrivedAt).forEach(sp=>{
-      const to = sp.toCountry || sp.to; if(!to) return;
-      per[to] = per[to] || {stock:0, ad:0}; per[to].stock += (+sp.qty||0);
-    });
-  }catch{}
-  try{
-    const rem = await api('/api/remittances');
-    (rem.remittances||[]).filter(x=>x.productId===id).forEach(r=>{
-      per[r.country] = per[r.country] || {stock:0, ad:0};
-      per[r.country].stock -= (+r.pieces||0);
-      per[r.country].ad += (+r.adSpend||0);
-    });
-  }catch{}
+  // render product-specific shipments
+  await renderProductShipments(id);
+  await renderProductLifetime(id);
+  await renderProductInfluencers(id);
 
-  $('#pdStockByCountry').innerHTML = `
-    <table class="table">
-      <thead><tr><th>Country</th><th>Approx. Stock</th><th>Total Ad Spend</th></tr></thead>
-      <tbody>${Object.entries(per).map(([c,v])=>`<tr><td>${c}</td><td>${v.stock}</td><td>${(v.ad||0).toFixed(2)} USD</td></tr>`).join('')}</tbody>
-    </table>`;
-
-  // product daily ad spend add (upsert)
-  $('#pdAdSave') && ($('#pdAdSave').onclick = async ()=>{
+  // wire product panel buttons
+  $('#pdAdSave').onclick = async ()=>{
     const payload = {
-      platform: $('#pdAdPlatform').value,
+      date: todayISO(),
       productId: id,
       country: $('#pdAdCountry').value,
-      amount: +($('#pdAdAmount').value||0)
+      platform: $('#pdAdPlatform').value,
+      amount: +($('#pdAdAmount').value||0),
+      replaceToday: true
     };
-    try{
-      await api('/api/adspend', { method:'POST', body: JSON.stringify(payload) });
-      alert('Spend saved'); await loadProductDetails(id); await refreshHome();
-    }catch(e){ alert('Ad spend error: '+e.message); }
-  });
+    await api('/api/adspend', { method:'POST', body: JSON.stringify(payload) });
+    alert('Saved'); await refreshHome();
+  };
 
-  // remittance add (NOTE: “extra cost to deliver per piece” replaces CPD)
-  $('#pdRAdd') && ($('#pdRAdd').onclick = async ()=>{
+  $('#pdRAdd').onclick = async ()=>{
     const payload = {
-      start: $('#pdRStart').value, end: $('#pdREnd').value,
-      country: $('#pdRCountry').value, productId: id,
-      orders: +($('#pdROrders').value||0), pieces:+($('#pdRPieces').value||0),
-      revenue:+($('#pdRRevenue').value||0), adSpend:+($('#pdRAdSpend').value||0),
-      extraCostPerPiece:+($('#pdRCPD').value||0) // renamed usage in backend required
-    };
-    if(!payload.start || !payload.end) return alert('Select dates');
-    try{
-      await api('/api/remittances', { method:'POST', body: JSON.stringify(payload) });
-      alert('Remittance saved'); await refreshHome();
-    }catch(e){ alert('Remittance error: '+e.message); }
-  });
-
-  // product shipments tables
-  await renderProductShipments(id, true);
-  await renderProductShipments(id, false);
-
-  // product move
-  $('#pdMvAdd') && ($('#pdMvAdd').onclick = async ()=>{
-    const payload = {
+      start: $('#pdRStart').value,
+      end:   $('#pdREnd').value,
+      country: $('#pdRCountry').value,
       productId: id,
-      fromCountry: $('#pdMvFrom').value,
-      toCountry: $('#pdMvTo').value,
-      qty: +($('#pdMvQty').value||0),
-      shipCost: +($('#pdMvShip').value||0),
-      departedAt: todayStr(),
-      arrivedAt: null
+      orders: +($('#pdROrders').value||0),
+      pieces: +($('#pdRPieces').value||0),
+      revenue:+($('#pdRRevenue').value||0),
+      adSpend:+($('#pdRAdSpend').value||0),
+      extraCostPerPiece:+($('#pdRCPD').value||0) // renamed field
     };
-    try{
-      await api('/api/shipments', { method:'POST', body: JSON.stringify(payload) });
-      alert('Movement saved'); await renderProductShipments(id,true); await renderProductShipments(id,false); await refreshHome();
-    }catch(e){ alert('Move error: '+e.message); }
-  });
+    if (!payload.start || !payload.end) return alert('Select dates');
+    await api('/api/remittances', { method:'POST', body: JSON.stringify(payload) });
+    alert('Added'); await refreshHome(); await renderProductLifetime(id);
+  };
 
-  // lifetime (this product)
-  $('#pdLPRun') && ($('#pdLPRun').onclick = async ()=>{
-    const s=$('#pdLPStart').value, e=$('#pdLPEnd').value;
-    try{
-      const rem = await api(`/api/remittances${(s||e)?`?${[s?`start=${s}`:'', e?`end=${e}`:''].filter(Boolean).join('&')}`:''}`);
-      const ship = await api('/api/shipments');
-      const p = state.products.find(x=>x.id===id) || {};
-      let revenue=0, ad=0, shipCost=0, pieces=0, base=0;
-      (rem.remittances||[]).filter(r=>r.productId===id).forEach(r=>{
-        revenue += +r.revenue||0;
-        ad      += +r.adSpend||0;
-        pieces  += +r.pieces||0;
-        base    += ((+p.cost_china||0)+(+p.ship_china_to_kenya||0))*(+r.pieces||0);
-      });
-      (ship.shipments||[]).filter(sx=>sx.arrivedAt && sx.productId===id).forEach(sx=>{
-        shipCost += +sx.shipCost||0;
-      });
-      const profit = revenue - ad - shipCost - base;
-      $('#pdLPTableWrap').innerHTML = `
-        <table class="table">
-          <thead><tr><th>Revenue</th><th>Ad Spend</th><th>Shipping</th><th>Base Cost</th><th>Pieces</th><th>Profit</th></tr></thead>
-          <tbody><tr><td>${revenue.toFixed(2)}</td><td>${ad.toFixed(2)}</td><td>${shipCost.toFixed(2)}</td><td>${base.toFixed(2)}</td><td>${pieces}</td><td>${profit.toFixed(2)}</td></tr></tbody>
-        </table>`;
-    }catch(e){ alert('Product lifetime error: '+e.message); }
-  });
+  $('#pdMvAdd').onclick = async ()=>{
+    const payload = {
+      productId:id,
+      fromCountry: $('#pdMvFrom').value,
+      toCountry:   $('#pdMvTo').value,
+      qty:+($('#pdMvQty').value||0),
+      shipCost:+($('#pdMvShip').value||0),
+      departedAt: todayISO()
+    };
+    await api('/api/shipments', { method:'POST', body: JSON.stringify(payload) });
+    await renderProductShipments(id); await refreshHome();
+  };
 
-  // TODO: Influencers section—wires to backend if present
+  $('#pdLPRun').onclick = async ()=>{ await renderProductLifetime(id); };
+
+  $('#pdInfAdd').onclick = async ()=>{
+    const name = $('#pdInfName').value.trim();
+    const social = $('#pdInfSocial').value.trim();
+    const country = $('#pdInfCountry').value;
+    if (!name) return alert('Name required');
+    await api('/api/influencers', { method:'POST', body: JSON.stringify({ name, social }) });
+    await api('/api/influencers/spend', { method:'POST', body: JSON.stringify({
+      date: todayISO(), influencer: name, country, productId:id, amount: 0
+    })});
+    await renderProductInfluencers(id);
+  };
+  $('#pdInfSpendAdd').onclick = async ()=>{
+    const date   = $('#pdInfDate').value||todayISO();
+    const name   = $('#pdInfSelect').value;
+    const amount = +($('#pdInfAmount').value||0);
+    const country= $('#pdInfCountry').value;
+    if (!name) return alert('Pick influencer');
+    await api('/api/influencers/spend', { method:'POST', body: JSON.stringify({ date, influencer:name, country, productId:id, amount }) });
+    await renderProductInfluencers(id);
+  };
+  $('#pdInfRun').onclick = async ()=>{ await renderProductInfluencers(id); };
 }
 
-async function renderProductShipments(id, chinaKenya){
-  const sel = chinaKenya ? '#pdShipCK tbody' : '#pdShipIC tbody';
-  const body = $(sel); if (!body) return;
-  try{
-    const r = await api('/api/shipments');
-    const isCK = s=>{
-      const f=(s.fromCountry||s.from||'').toLowerCase(), t=(s.toCountry||s.to||'').toLowerCase();
-      return f==='china' && t==='kenya';
-    };
-    let list = (r.shipments||[]).filter(x=>x.productId===id);
-    list = chinaKenya ? list.filter(isCK) : list.filter(s=>!isCK(s));
+async function renderProductShipments(id){
+  const prodName = Object.fromEntries(state.products.map(p=>[p.id,p.name]))[id] || id;
+  const all = await api('/api/shipments'); const list = (all.shipments||[]).filter(s=>s.productId===id);
+  const ck = list.filter(s=> (s.fromCountry||s.from||'').toLowerCase()==='china' && (s.toCountry||s.to||'').toLowerCase()==='kenya');
+  const ic = list.filter(s=> !((s.fromCountry||s.from||'').toLowerCase()==='china' && (s.toCountry||s.to||'').toLowerCase()==='kenya'));
 
-    body.innerHTML = list.map(sp=>`
-      <tr data-id="${sp.id}">
-        <td>${sp.id}</td>
-        <td>${(sp.fromCountry||sp.from)} → ${(sp.toCountry||sp.to)}</td>
-        <td><input class="input ship-edit qty" type="number" min="0" value="${sp.qty||0}"/></td>
-        <td><input class="input ship-edit cost" type="number" min="0" step="0.01" value="${sp.shipCost||0}"/></td>
-        <td>${sp.departedAt||''}</td>
-        <td class="arrive">${sp.arrivedAt||''}${sp.arrivedAt && sp.departedAt ? ` <span class="badge">${daysBetween(sp.departedAt, sp.arrivedAt)}d</span>`:''}</td>
+  const render = (arr, sel)=>{
+    const tbody = $(sel); if (!tbody) return;
+    tbody.innerHTML = arr.map(s=>`
+      <tr data-id="${s.id}">
+        <td>${s.id}</td><td>${(s.fromCountry||s.from)} → ${(s.toCountry||s.to)}</td>
+        <td><input class="input tiny qty" type="number" min="0" value="${+s.qty||0}"></td>
+        <td><input class="input tiny ship" type="number" min="0" step="0.01" value="${+s.shipCost||0}"></td>
+        <td>${s.departedAt||''}</td>
+        <td>${s.arrivedAt||''}${s.arrivedAt&&s.departedAt?` <span class="badge">${daysBetween(s.departedAt,s.arrivedAt)} days</span>`:''}</td>
         <td>
-          <button class="btn outline" data-mark="${sp.id}">Mark Arrived</button>
-          <button class="btn outline" data-save="${sp.id}">Save</button>
-          <button class="btn outline" data-del="${sp.id}">Delete</button>
+          <button class="btn outline mark">Mark Arrived</button>
+          <button class="btn outline saveRow">Save</button>
+          <button class="btn outline del">Delete</button>
         </td>
       </tr>`).join('');
 
-    body.querySelectorAll('[data-mark]').forEach(b=> b.onclick = async ()=>{
-      let d = prompt('Arrival date (YYYY-MM-DD). Leave blank for today.');
-      if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) d = todayStr();
-      try{
-        const res = await api('/api/shipments/'+b.dataset.mark, { method:'PUT', body: JSON.stringify({ arrivedAt:d }) });
-        await renderProductShipments(id, chinaKenya);
-        await refreshHome();
-      }catch(e){ alert('Mark arrived error: '+e.message); }
+    tbody.querySelectorAll('.mark').forEach(b=> b.onclick = async ()=>{
+      const id = b.closest('tr').dataset.id;
+      const d  = prompt('Arrival date (YYYY-MM-DD)', todayISO());
+      if (!d) return;
+      await api(`/api/shipments/${id}`, { method:'PUT', body: JSON.stringify({ arrivedAt:d }) });
+      await renderProductShipments(state.openedProductId); await refreshHome();
     });
-    body.querySelectorAll('[data-save]').forEach(b=> b.onclick = async ()=>{
-      const tr=b.closest('tr'); const qty=+tr.querySelector('input.qty').value||0; const shipCost=+tr.querySelector('input.cost').value||0;
-      try{
-        await api('/api/shipments/'+b.dataset.save, { method:'PUT', body: JSON.stringify({ qty, shipCost }) });
-        alert('Saved'); await renderProductShipments(id, chinaKenya);
-      }catch(e){ alert('Update error: '+e.message); }
+    tbody.querySelectorAll('.saveRow').forEach(b=> b.onclick = async ()=>{
+      const tr = b.closest('tr'); const id = tr.dataset.id;
+      const qty = +tr.querySelector('.qty').value||0;
+      const shipCost = +tr.querySelector('.ship').value||0;
+      await api(`/api/shipments/${id}`, { method:'PUT', body: JSON.stringify({ qty, shipCost }) });
+      alert('Saved');
     });
-    body.querySelectorAll('[data-del]').forEach(b=> b.onclick = async ()=>{
-      if(!confirm('Delete shipment?')) return;
-      try{ await api('/api/shipments/'+b.dataset.del, { method:'DELETE' }); await renderProductShipments(id, chinaKenya); await refreshHome(); }
-      catch(e){ alert('Delete error: '+e.message); }
+    tbody.querySelectorAll('.del').forEach(b=> b.onclick = async ()=>{
+      const id = b.closest('tr').dataset.id;
+      if (!confirm('Delete shipment?')) return;
+      await api(`/api/shipments/${id}`, { method:'DELETE' });
+      await renderProductShipments(state.openedProductId); await refreshHome();
     });
-  }catch{ body.innerHTML=''; }
+  };
+  render(ck, '#pdShipCK tbody');
+  render(ic, '#pdShipIC tbody');
 }
 
-// ------------- PERFORMANCE -------------
-$('#pfRun') && ($('#pfRun').onclick = async ()=>{
-  const quick = $('#pfQuick').value;
-  let s = $('#pfStart').value, e = $('#pfEnd').value;
-  if (quick==='8') { const d=new Date(); d.setDate(d.getDate()-7); s=d.toISOString().slice(0,10); e=todayStr(); }
-  if (quick==='28'){ const d=new Date(); d.setDate(d.getDate()-27); s=d.toISOString().slice(0,10); e=todayStr(); }
-  const c = $('#pfCountry').value;
+async function renderProductLifetime(id){
+  const s = $('#pdLPTableWrap'); if (!s) return;
+  const start = $('#pdLPStart').value || ''; const end = $('#pdLPEnd').value || '';
+  const rem = await api(`/api/remittances${start||end?`?start=${start}&end=${end}`:''}`);
+  const ship= await api('/api/shipments');
+  const prod = state.products.find(p=>p.id===id)||{cost_china:0,ship_china_to_kenya:0};
+  const baseCost = (+prod.cost_china||0) + (+prod.ship_china_to_kenya||0);
 
-  try{
-    const qs = [s?`start=${s}`:'', e?`end=${e}`:'', c?`country=${encodeURIComponent(c)}`:''].filter(Boolean).join('&');
-    const r = await api(`/api/remittances${qs?`?${qs}`:''}`);
-    const P = Object.fromEntries((state.products||[]).map(p=>[p.id,p]));
-    const agg = {}; // id -> { pieces, ad, prodCost, profit, name }
+  let revenue=0, ad=0, pieces=0, shipCost=0, extra=0;
+  (rem.remittances||[]).filter(r=>r.productId===id).forEach(r=>{
+    revenue += +r.revenue||0;
+    ad      += +r.adSpend||0;
+    pieces  += +r.pieces||0;
+    extra   += (+r.extraCostPerPiece||0) * (+r.pieces||0);
+  });
+  (ship.shipments||[]).filter(x=>x.productId===id && x.arrivedAt).forEach(x=>{
+    shipCost += +x.shipCost||0;
+  });
+  const base = baseCost * pieces;
+  const profit = revenue - ad - extra - shipCost - base;
 
-    (r.remittances||[]).forEach(x=>{
-      const id=x.productId; const p=P[id]||{cost_china:0, ship_china_to_kenya:0};
-      if (!agg[id]) agg[id]={ pieces:0, ad:0, prodCost:0, profit:0, name:P[id]?.name||id };
-      agg[id].pieces += (+x.pieces||0);
-      agg[id].ad     += (+x.adSpend||0);
-      const base = (+p.cost_china||0)+(+p.ship_china_to_kenya||0);
-      agg[id].prodCost += base*(+x.pieces||0) + ((+x.extraCostPerPiece||0) * (+x.pieces||0));
-      const profit = (+x.revenue||0) - (+x.adSpend||0) - (base*(+x.pieces||0)) - ((+x.extraCostPerPiece||0) * (+x.pieces||0));
-      agg[id].profit += profit;
-    });
+  s.innerHTML = `
+    <table class="table"><thead>
+      <tr><th>Revenue</th><th>Ad Spend</th><th>Extra Deliver Cost</th><th>Shipping</th><th>Base Cost</th><th>Pieces</th><th>Profit</th></tr>
+    </thead><tbody>
+      <tr><td>${nf(revenue)}</td><td>${nf(ad)}</td><td>${nf(extra)}</td><td>${nf(shipCost)}</td><td>${nf(base)}</td><td>${pieces}</td><td>${nf(profit)}</td></tr>
+    </tbody></table>
+  `;
+}
 
-    const tbody = $('#pfTable tbody');
-    tbody.innerHTML = Object.values(agg).sort((a,b)=>b.pieces-a.pieces).map(it=>`
-      <tr><td>${it.name}</td><td>${it.pieces}</td><td>${it.ad.toFixed(2)}</td><td>${it.prodCost.toFixed(2)}</td><td>${it.profit.toFixed(2)}</td><td>${it.pieces? (it.profit/it.pieces).toFixed(2):'0.00'}</td></tr>
-    `).join('');
-  }catch(e){
-    alert('Top delivered error: '+e.message);
-    $('#pfTable tbody').innerHTML='';
-  }
+async function renderProductInfluencers(id){
+  const wrap = $('#pdInfList'); if (!wrap) return;
+  const start = $('#pdInfStart').value||''; const end = $('#pdInfEnd').value||'';
+  const country = $('#pdInfFilterCountry').value||'';
+  const all = await api(`/api/influencers/spend/list${(start||end||country)?`?start=${start}&end=${end}&country=${encodeURIComponent(country)}`:''}`);
+  const items = (all.items||[]).filter(x=>x.productId===id);
+
+  // populate influencers select
+  const unique = [...new Set(items.map(x=>x.influencer))];
+  $('#pdInfSelect').innerHTML = unique.map(n=>`<option value="${n}">${n}</option>`).join('');
+
+  if (!items.length){ wrap.innerHTML = '<div class="muted">No influencer spend in this period.</div>'; return; }
+  const rows = items.map(x=>`<tr><td>${x.date}</td><td>${x.country}</td><td>${x.influencer}</td><td>${nf(+x.amount||0)}</td></tr>`).join('');
+  const total = items.reduce((a,b)=>a+(+b.amount||0),0);
+  wrap.innerHTML = `
+    <table class="table"><thead><tr><th>Date</th><th>Country</th><th>Influencer</th><th>Spend</th></tr></thead>
+    <tbody>${rows}</tbody><tfoot><tr><td colspan="3">Total</td><td>${nf(total)}</td></tr></tfoot></table>`;
+}
+
+// ===================================================
+// PERFORMANCE
+// ===================================================
+$('#pfRun')?.addEventListener('click', async ()=>{
+  const s = $('#pfStart').value, e = $('#pfEnd').value, c = $('#pfCountry').value;
+  const r = await api(`/api/remittances${(s||e||c) ? `?${[
+    s?`start=${s}`:'', e?`end=${e}`:'', c?`country=${encodeURIComponent(c)}`:''
+  ].filter(Boolean).join('&')}`:''}`);
+
+  const productsById = Object.fromEntries(state.products.map(p=>[p.id,p]));
+  const agg = {};
+  (r.remittances||[]).forEach(x=>{
+    const pid = x.productId;
+    const p = productsById[pid]||{cost_china:0,ship_china_to_kenya:0};
+    const base = (+p.cost_china||0) + (+p.ship_china_to_kenya||0);
+    if (!agg[pid]) agg[pid] = { name: p.name||pid, pieces:0, ad:0, prodCost:0, profit:0 };
+    agg[pid].pieces += (+x.pieces||0);
+    agg[pid].ad     += (+x.adSpend||0);
+    agg[pid].prodCost += base * (+x.pieces||0) + (+x.extraCostPerPiece||0)*(+x.pieces||0);
+    agg[pid].profit += (+x.revenue||0) - (+x.adSpend||0) - ((base + (+x.extraCostPerPiece||0))*(+x.pieces||0));
+  });
+  const rows = Object.values(agg).sort((a,b)=>b.pieces-a.pieces).map(it=>`
+    <tr><td>${it.name}</td><td>${it.pieces}</td><td>${nf(it.ad)}</td><td>${nf(it.prodCost)}</td><td>${nf(it.profit)}</td><td>${it.pieces?nf(it.profit/it.pieces):'0.00'}</td></tr>
+  `).join('');
+  $('#pfTable tbody').innerHTML = rows || '';
 });
 
-// Remittance add (Performance page) — note extraCostPerPiece replaces CPD
-$('#rAdd') && ($('#rAdd').onclick = async ()=>{
+// Remittance add (uses extraCostPerPiece instead of CPD)
+$('#rAdd')?.addEventListener('click', async ()=>{
   const payload = {
     start: $('#rStart').value, end: $('#rEnd').value,
     country: $('#rCountry').value, productId: $('#rProduct').value,
-    orders: +($('#rOrders').value||0), pieces:+($('#rPieces').value||0),
+    orders:+($('#rOrders').value||0), pieces:+($('#rPieces').value||0),
     revenue:+($('#rRev').value||0), adSpend:+($('#rAds').value||0),
     extraCostPerPiece:+($('#rCPD').value||0)
   };
-  if(!payload.start || !payload.end) return alert('Select dates');
-  try{
-    await api('/api/remittances',{ method:'POST', body: JSON.stringify(payload) });
-    alert('Remittance saved');
-    await refreshHome();
-  }catch(e){ alert('Remittance error: '+e.message); }
+  if (!payload.start || !payload.end) return alert('Select dates');
+  await api('/api/remittances', { method:'POST', body: JSON.stringify(payload) });
+  alert('Remittance saved'); await refreshHome();
 });
 
-// ------------- FINANCE -------------
-function detectTypeFromCat(catVal){
-  // catVal format: "debit:Facebook Ads" or "credit:Revenue Boxleo"
-  if (!catVal) return null;
-  return catVal.startsWith('credit:') ? 'credit' : 'debit';
-}
-async function refreshFinanceBalance(){
+// ===================================================
+// FINANCE
+// ===================================================
+async function renderFinance(){
+  // categories
+  const cats = await api('/api/finance/categories');
+  state.financeCats = cats;
+  $('#fcList').innerHTML = `Debits: ${cats.debits.join(', ')||'-'} | Credits: ${cats.credits.join(', ')||'-'}`;
+
+  // fill select for entry add
+  const catSelect = $('#feCat');
+  catSelect.innerHTML = [
+    '<option value="">Select category</option>',
+    ...cats.debits.map(c=>`<option value="debit:${c}">DEBIT — ${c}</option>`),
+    ...cats.credits.map(c=>`<option value="credit:${c}">CREDIT — ${c}</option>`),
+  ].join('');
+
+  // running balance
   try{
-    const r = await api('/api/finance/entries');
-    const bal = +r.balance || 0;
-    const box = document.querySelector('.fin-balance .value');
-    if (box) box.textContent = fmt(bal).replace(' USD','');
-  }catch{}
+    const all = await api('/api/finance/entries');
+    $('#runningBalance').textContent = nf(all.balance) + ' USD';
+  }catch{
+    $('#runningBalance').textContent = '0.00 USD';
+  }
 }
-$('#fcAdd') && ($('#fcAdd').onclick = async ()=>{
+
+$('#fcAdd')?.addEventListener('click', async ()=>{
   const type = $('#fcType').value;
-  const name = $('#fcName').value.trim();
+  const name = ($('#fcName').value||'').trim();
   if (!name) return;
-  try{
-    await api('/api/finance/categories', { method:'POST', body: JSON.stringify({ type, name }) });
-    await loadFinanceCats(); fillSelects();
-    $('#fcName').value='';
-  }catch(e){ alert('Category add error: '+e.message); }
+  await api('/api/finance/categories', { method:'POST', body: JSON.stringify({ type, name }) });
+  $('#fcName').value=''; await renderFinance();
 });
-$('#feAdd') && ($('#feAdd').onclick = async ()=>{
-  const date = $('#feDate').value || todayStr();
+
+$('#feAdd')?.addEventListener('click', async ()=>{
   const catVal = $('#feCat').value;
-  const type = detectTypeFromCat(catVal);
-  if (!type) return alert('Pick a category');
-  const category = catVal.split(':',2)[1];
-  const amount = +($('#feAmt').value||0);
-  const note = $('#feNote').value;
-  try{
-    await api('/api/finance/entries', { method:'POST', body: JSON.stringify({ date, type, category, amount, note }) });
-    alert('Entry saved'); $('#feNote').value=''; $('#feAmt').value='';
-    await refreshFinanceBalance();
-  }catch(e){ alert('Entry error: '+e.message); }
-});
-$('#feRun') && ($('#feRun').onclick = async ()=>{
-  const s=$('#fes').value, e=$('#fee').value, cats=$('#fef').value;
-  try{
-    const r = await api(`/api/finance/entries?start=${s||''}&end=${e||''}&categories=${encodeURIComponent(cats||'')}`);
-    $('#feBalance').textContent = 'End Balance: ' + (r.balance||0).toFixed(2) + ' USD';
-    const tbody = $('#feTable tbody');
-    tbody.innerHTML = (r.entries||[]).map(x=>`
-      <tr>
-        <td>${x.date}</td><td>${x.type}</td><td>${x.category}</td><td>${x.amount}</td><td>${x.note||''}</td>
-        <td><button class="btn outline" data-del-entry="${x.id}">Delete</button></td>
-      </tr>`).join('');
-    tbody.querySelectorAll('[data-del-entry]').forEach(b=> b.onclick = async ()=>{
-      if(!confirm('Delete this entry?')) return;
-      try{
-        await api('/api/finance/entries/'+b.dataset.delEntry, { method:'DELETE' });
-        b.closest('tr').remove();
-        await refreshFinanceBalance();
-      }catch(e){ alert('Delete error: '+e.message); }
-    });
-  }catch(e){
-    alert('Finance run error: '+e.message);
-  }
-});
-
-// ------------- SETTINGS -------------
-$('#ctyAdd') && ($('#ctyAdd').onclick = async ()=>{
-  const name = ($('#cty').value||'').trim(); if(!name) return;
-  try{
-    await api('/api/countries', { method:'POST', body: JSON.stringify({ name }) });
-    const list = await api('/api/countries');
-    state.countries = list.countries||[]; fillSelects(); renderCountriesChips();
-    alert('Country added across the system');
-  }catch(e){ alert('Country add error: '+e.message); }
-});
-
-// Inline product editor in Settings
-(function mountProductEditor(){
-  const wrap = $('#editProductWrap'); if (!wrap) return;
-  wrap.innerHTML = `
-    <div class="flex" style="margin-bottom:8px">
-      <select id="epSel" class="input"></select>
-      <button id="epLoad" class="btn">Load</button>
-    </div>
-    <div id="epForm" class="card" style="display:none">
-      <div class="flex">
-        <input id="epName" class="input" placeholder="Product name"/>
-        <input id="epSku" class="input" placeholder="SKU"/>
-        <input id="epCost" type="number" class="input" placeholder="Cost from China" step="0.01"/>
-        <input id="epShip" type="number" class="input" placeholder="Ship China→Kenya" step="0.01"/>
-        <input id="epMB" type="number" class="input" placeholder="Profit + Ads Budget" step="0.01"/>
-        <button id="epSave" class="btn">Save</button>
-      </div>
-    </div>
-  `;
-  const epSel = $('#epSel');
-  const fill = ()=> epSel.innerHTML = (state.products||[]).map(p=>`<option value="${p.id}">${p.name}${p.sku?` (${p.sku})`:''}</option>`).join('');
-  fill();
-  $('#epLoad').onclick = ()=>{
-    const id = epSel.value; const p = state.products.find(x=>x.id===id);
-    if(!p) return;
-    $('#epForm').style.display='';
-    $('#epName').value = p.name||'';
-    $('#epSku').value  = p.sku||'';
-    $('#epCost').value = p.cost_china||0;
-    $('#epShip').value = p.ship_china_to_kenya||0;
-    $('#epMB').value   = p.margin_budget||0;
-    $('#epSave').onclick = async ()=>{
-      try{
-        await api('/api/products/'+id, { method:'PUT', body: JSON.stringify({
-          name: $('#epName').value,
-          sku: $('#epSku').value,
-          cost_china: +$('#epCost').value||0,
-          ship_china_to_kenya: +$('#epShip').value||0,
-          margin_budget: +$('#epMB').value||0
-        })});
-        alert('Product updated');
-        await loadProducts(); fill(); await refreshHome();
-      }catch(e){ alert('Save error: '+e.message); }
-    };
+  if (!catVal) return alert('Pick a category');
+  const [type, category] = catVal.split(':');
+  const payload = {
+    date: $('#feDate').value || todayISO(),
+    type, category,
+    amount:+($('#feAmt').value||0),
+    note: $('#feNote').value
   };
-})();
+  await api('/api/finance/entries', { method:'POST', body: JSON.stringify(payload) });
+  alert('Entry added'); await renderFinance();
+});
 
-// Restore
-$$('.restore').forEach(b=> b.onclick = async ()=>{
-  const win = b.dataset.win;
+$('#feRun')?.addEventListener('click', async ()=>{
+  const s=$('#fes').value, e=$('#fee').value, cats=$('#fef').value;
+  const r = await api(`/api/finance/entries?start=${s||''}&end=${e||''}&categories=${encodeURIComponent(cats||'')}`);
+  // period balance label
+  $('#feBalance').textContent = 'Period balance: ' + nf(r.balance) + ' USD';
+  const tbody = $('#feTable tbody');
+  tbody.innerHTML = (r.entries||[]).map(x=>`
+    <tr data-id="${x.id}">
+      <td>${x.date}</td><td>${x.type.toUpperCase()}</td><td>${x.category}</td>
+      <td>${nf(x.amount)}</td><td>${x.note||''}</td>
+      <td><button class="btn outline del">Delete</button></td>
+    </tr>`).join('');
+  tbody.querySelectorAll('.del').forEach(b=>{
+    b.onclick = async ()=>{
+      const id = b.closest('tr').dataset.id;
+      if (!confirm('Delete entry?')) return;
+      await api('/api/finance/entries/'+id, { method:'DELETE' });
+      b.closest('tr').remove();
+      await renderFinance();
+    };
+  });
+});
+
+// ===================================================
+// SETTINGS — Countries + Snapshot save/restore
+// ===================================================
+$('#ctyAdd')?.addEventListener('click', async ()=>{
+  const name = ($('#cty').value||'').trim();
+  if (!name) return;
+  await api('/api/countries', { method:'POST', body: JSON.stringify({ name }) });
+  const list = await api('/api/countries');
+  state.countries = list.countries || [];
+  fillSelects(); renderCountriesChips(); await refreshHome();
+});
+
+// Snapshots (manual)
+$('#snapSave')?.addEventListener('click', async ()=>{
+  const label = prompt('Name this snapshot (e.g. "Before Black Friday")');
+  if (!label) return;
+  await api('/api/snapshots', { method:'POST', body: JSON.stringify({ label }) });
+  await loadSnapshots();
+});
+async function loadSnapshots(){
+  const list = await api('/api/snapshots');
+  const tbody = $('#snapTable tbody');
+  tbody.innerHTML = (list.items||[]).map(s=>`
+    <tr data-id="${s.id}">
+      <td>${s.label}</td><td>${s.createdAt}</td>
+      <td class="flex wrap">
+        <button class="btn outline restore">Restore</button>
+        <button class="btn outline del">Delete</button>
+      </td></tr>`).join('');
+  tbody.querySelectorAll('.restore').forEach(b=> b.onclick = async ()=>{
+    const id = b.closest('tr').dataset.id;
+    if (!confirm('Restore snapshot?')) return;
+    await api('/api/snapshots/'+id+'/restore', { method:'POST' });
+    alert('Restored'); location.reload();
+  });
+  tbody.querySelectorAll('.del').forEach(b=> b.onclick = async ()=>{
+    const id = b.closest('tr').dataset.id;
+    if (!confirm('Delete snapshot?')) return;
+    await api('/api/snapshots/'+id, { method:'DELETE' });
+    await loadSnapshots();
+  });
+}
+
+// ===================================================
+// To-Do (localStorage) + Weekly To-Do (localStorage)
+// ===================================================
+function loadTodos(){ return JSON.parse(localStorage.getItem('todos')||'[]'); }
+function saveTodos(x){ localStorage.setItem('todos', JSON.stringify(x)); }
+function renderTodos(){
+  const listEl = $('#todoList'); if (!listEl) return;
+  const items = loadTodos();
+  listEl.innerHTML = items.map(it=>`
+    <div class="flex">
+      <span>${it.done?'✅ ':''}${it.text}</span>
+      <span class="muted">${it.createdAt||''}</span>
+      <span style="margin-left:auto"></span>
+      <button class="btn outline tgl" data-id="${it.id}">${it.done?'Undo':'Done'}</button>
+      <button class="btn outline del" data-id="${it.id}">Delete</button>
+    </div>`).join('');
+  $('#todoAdd').onclick = ()=>{
+    const v = ($('#todoText').value||'').trim();
+    if (!v) return;
+    items.push({ id: Math.random().toString(36).slice(2), text:v, done:false, createdAt: new Date().toLocaleString() });
+    saveTodos(items); $('#todoText').value=''; renderTodos();
+  };
+  listEl.querySelectorAll('.tgl').forEach(b=> b.onclick = ()=>{
+    const it = items.find(x=>x.id===b.dataset.id); it.done=!it.done; saveTodos(items); renderTodos();
+  });
+  listEl.querySelectorAll('.del').forEach(b=> b.onclick = ()=>{
+    const i = items.findIndex(x=>x.id===b.dataset.id); items.splice(i,1); saveTodos(items); renderTodos();
+  });
+}
+
+function renderWeekly(){
+  const key = 'weeklyTodos';
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const store = JSON.parse(localStorage.getItem(key)||'{}');
+  const wrap = $('#weeklyWrap'); if (!wrap) return;
+  wrap.innerHTML = '';
+  days.forEach(day=>{
+    const items = store[day]||[];
+    const card = document.createElement('div'); card.className='card';
+    card.innerHTML = `
+      <div class="h">${day}</div>
+      <div class="flex"><input id="w_${day}" class="input" placeholder="Task"><button class="btn">Add</button></div>
+      <div class="list">${items.map(it=>`
+        <div class="flex">
+          <span>${it.done?'✅ ':''}${it.text}</span>
+          <span class="muted">${it.createdAt||''}</span>
+          <span style="margin-left:auto"></span>
+          <button class="btn outline wtgl" data-key="${day}|${it.id}">${it.done?'Undo':'Done'}</button>
+          <button class="btn outline wdel" data-key="${day}|${it.id}">Delete</button>
+        </div>`).join('')}</div>`;
+    wrap.appendChild(card);
+    card.querySelector('button.btn').onclick = ()=>{
+      const v = (card.querySelector(`#w_${day}`).value||'').trim(); if(!v) return;
+      items.push({ id: Math.random().toString(36).slice(2), text:v, done:false, createdAt: new Date().toLocaleString() });
+      store[day]=items; localStorage.setItem(key, JSON.stringify(store)); renderWeekly();
+    };
+  });
+  wrap.querySelectorAll('.wtgl').forEach(b=> b.onclick = ()=>{
+    const [day,id] = b.dataset.key.split('|');
+    const store = JSON.parse(localStorage.getItem(key)||'{}');
+    const it = (store[day]||[]).find(x=>x.id===id); if (!it) return;
+    it.done=!it.done; localStorage.setItem(key, JSON.stringify(store)); renderWeekly();
+  });
+  wrap.querySelectorAll('.wdel').forEach(b=> b.onclick = ()=>{
+    const [day,id] = b.dataset.key.split('|');
+    const store = JSON.parse(localStorage.getItem(key)||'{}');
+    const arr = store[day]||[]; const i = arr.findIndex(x=>x.id===id); if (i>=0) arr.splice(i,1);
+    store[day]=arr; localStorage.setItem(key, JSON.stringify(store)); renderWeekly();
+  });
+}
+
+// ===================================================
+// NAV + LOGIN
+// ===================================================
+$$('.nav a[data-view]').forEach(a=>{
+  a.onclick = (e)=>{
+    e.preventDefault();
+    setView(a.dataset.view);
+    if (a.dataset.view==='products') renderProducts();
+    if (a.dataset.view==='finance')  renderFinance();
+    if (a.dataset.view==='settings') loadSnapshots();
+  };
+});
+
+$('#loginBtn')?.addEventListener('click', async ()=>{
+  const p = $('#pw').value;
   try{
-    const r = await api('/api/restore', { method:'POST', body: JSON.stringify({ window: win }) });
-    if (!r.ok) throw new Error(r.error||'No snapshot');
-    alert('Restored from: '+r.restoredFrom);
-    location.reload();
-  }catch(e){
-    alert('Restore error: '+(e.message||'No snapshots found'));
-  }
+    await api('/api/auth', { method:'POST', body: JSON.stringify({ password: p }) });
+    await ensureMeta();
+  }catch{ alert('Wrong password'); }
 });
 
-// ------------- NAV & LOGIN -------------
-$$('.nav a[data-view]').forEach(a=> a.onclick = (e)=>{
+$('#logoutLink')?.addEventListener('click', async (e)=>{
   e.preventDefault();
-  setView(a.dataset.view);
-  if(a.dataset.view==='products') renderProducts();
-  if(a.dataset.view==='finance') refreshFinanceBalance();
-});
-
-$('#logoutLink') && ($('#logoutLink').onclick = async (e)=>{
-  e.preventDefault();
-  try{ await api('/api/logout',{ method:'POST' }) }catch{}
+  try{ await api('/api/logout', { method:'POST' }); }catch{}
   location.reload();
 });
 
-$('#loginBtn') && ($('#loginBtn').onclick = async ()=>{
-  const p = $('#pw').value || '';
-  try{
-    await api('/api/auth', { method:'POST', body: JSON.stringify({ password:p }) });
-    await ensureMeta();
-  }catch(e){
-    alert('Wrong password');
-  }
-});
-
-// ------------- boot -------------
+// ===================================================
+// BOOT
+// ===================================================
+renderTodos();
+renderWeekly();
 ensureMeta();
