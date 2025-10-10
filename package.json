@@ -1,49 +1,33 @@
 {
   "name": "eas-tracker",
-  "version": "2.0.0",
-  "description": "EastAfricaShop business tracker system (Express + JSON backend + static UI)",
+  "version": "1.0.0",
+  "description": "EastAfricaShop Business Tracker - full-stack dashboard for daily performance, shipments, remittances, and finance management.",
   "main": "server.js",
-  "type": "module",
   "scripts": {
     "start": "node server.js",
-    "snapshot": "node scripts/snapshot.js"
+    "snapshot": "node snapshot.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "cors": "^2.8.5",
     "body-parser": "^1.20.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
     "fs-extra": "^11.2.0",
+    "morgan": "^1.10.0",
     "path": "^0.12.7",
     "uuid": "^9.0.1"
   },
-  "devDependencies": {
-    "nodemon": "^3.1.4"
-  },
   "engines": {
-    "node": ">=18.x"
+    "node": ">=18.0.0"
   },
-  "render": {
-    "services": [
-      {
-        "type": "web",
-        "name": "eas-tracker",
-        "env": "node",
-        "plan": "starter",
-        "buildCommand": "npm install",
-        "startCommand": "node server.js",
-        "envVars": {
-          "DATA_DIR": "/data",
-          "PORT": "10000"
-        }
-      }
-    ],
-    "cronJobs": [
-      {
-        "name": "daily-snapshot",
-        "schedule": "0 3 * * *",
-        "command": "npm run snapshot"
-      }
-    ]
-  },
+  "keywords": [
+    "eastafricashop",
+    "dashboard",
+    "ecommerce",
+    "performance-tracker",
+    "render",
+    "cod-business"
+  ],
+  "author": "EAS Systems",
   "license": "MIT"
 }
