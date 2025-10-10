@@ -1,13 +1,12 @@
 // server.js
-// EAS Tracker – Express backend using a single JSON file (db.json) for storage.
-// Password-protected; cookie-based; works on Render with a mounted /data volume.
+// EAS Tracker — Express backend (password auth + JSON DB + snapshots)
 
 import express from 'express';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import morgan from 'morgan';
-import fs from 'fs-extra';
+import fse from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuid } from 'uuid';
@@ -15,529 +14,436 @@ import { v4 as uuid } from 'uuid';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
-// ---------- Config ----------
-const PORT            = process.env.PORT || 10000;
-const ADMIN_PASSWORD  = process.env.ADMIN_PASSWORD || 'eastafricashop';
-const TZ              = process.env.TZ || 'Africa/Casablanca';
+const app  = express();
+const PORT = process.env.PORT || 3000;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'eastafricashop';
 
-process.env.TZ = TZ;
+const PUBLIC_DIR   = path.join(__dirname, 'public');
+const DATA_FILE    = path.join(__dirname, 'db.json');
+const SNAP_DIR     = path.join(__dirname, 'data', 'snapshots'); // manual saves live here
 
-// Data paths
-const DATA_DIR   = path.join(__dirname, 'data');      // Render disk mount should point here
-const DB_FILE    = path.join(__dirname, 'db.json');   // We keep db.json in repo root; copy to DATA_DIR on boot
-const LIVE_DB    = path.join(DATA_DIR, 'db.json');    // The live/persistent copy used by the app
-const SNAP_DIR   = path.join(DATA_DIR, 'snapshots');  // snapshot.js will populate this
+// ---------- middleware ----------
+app.use(morgan('dev'));
+app.use(cors({ origin: true, credentials: true }));
+app.use(bodyParser.json({ limit: '2mb' }));
+app.use(cookieParser());
+app.use('/public', express.static(PUBLIC_DIR, { fallthrough: true }));
 
-// Ensure dirs exist
-await fs.ensureDir(DATA_DIR);
-await fs.ensureDir(SNAP_DIR);
-
-// If there is no live db yet, seed from repo db.json or create fresh
-if (!(await fs.pathExists(LIVE_DB))) {
-  if (await fs.pathExists(DB_FILE)) {
-    await fs.copy(DB_FILE, LIVE_DB);
-  } else {
-    await fs.writeJson(LIVE_DB, freshDB(), { spaces: 2 });
-  }
-}
-
-// ---------- Util ----------
-const loadDB = async () => (await fs.readJson(LIVE_DB).catch(()=>freshDB()));
-const saveDB = async (db) => fs.writeJson(LIVE_DB, db, { spaces: 2 });
-
-const todayISO = () => new Date().toISOString().slice(0,10);
-const toDate = (d) => new Date(d);
-const clampDate = (d) => new Date(new Date(d).toDateString()); // strip time
-const diffDays = (a,b) => Math.round((clampDate(b)-clampDate(a))/86400000);
-
-function mondayOf(date) {
+// ---------- tiny helpers ----------
+const todayStr = () => new Date().toISOString().slice(0,10);
+const parseDate = (d) => new Date(d);
+const inRange = (d, s, e) => {
+  const t = +new Date(d);
+  if (s && t < +new Date(s)) return false;
+  if (e && t > +new Date(e)) return false;
+  return true;
+};
+const isoWeekBounds = (date=new Date()) => {
   const d = new Date(date);
   const day = (d.getDay()+6)%7; // Monday=0
-  d.setDate(d.getDate()-day);
-  d.setHours(0,0,0,0);
-  return d;
-}
-function sundayOf(date) {
-  const m = mondayOf(date);
-  const s = new Date(m);
-  s.setDate(m.getDate()+6);
-  s.setHours(23,59,59,999);
-  return s;
-}
-function weekKey(date=new Date()) {
-  return mondayOf(date).toISOString().slice(0,10); // YYYY-MM-DD (monday)
-}
-function ensureWeeklyGrid(db, wk, countries) {
-  if (!db.deliveriesWeekly[wk]) {
-    db.deliveriesWeekly[wk] = {};
-  }
-  countries.forEach(c=>{
-    if (!db.deliveriesWeekly[wk][c]) {
-      db.deliveriesWeekly[wk][c] = { Mon:0, Tue:0, Wed:0, Thu:0, Fri:0, Sat:0, Sun:0 };
-    }
-  });
-  return db.deliveriesWeekly[wk];
-}
-function dayKeyFromDate(dateStr) {
-  const d = new Date(dateStr);
-  const map = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  return map[d.getDay()];
-}
+  const start = new Date(d); start.setDate(d.getDate()-day); start.setHours(0,0,0,0);
+  const end   = new Date(start); end.setDate(start.getDate()+6); end.setHours(23,59,59,999);
+  return { start, end };
+};
 
-// Fresh DB shape
-function freshDB(){
-  return {
-    meta: { currency:'USD', theme:{primary:'#0E9F6E', bg:'#fff'}, createdAt: new Date().toISOString() },
-    countries: ["china","kenya","tanzania","uganda","zambia","zimbabwe"],
-    products: [],                  // {id,name,sku,cost_china,ship_china_to_kenya,margin_budget,status}
-    shipments: [],                 // {id,productId,fromCountry,toCountry,qty,shipCost,departedAt,arrivedAt,daysInTransit}
-    remittances: [],               // {id,start,end,country,productId,orders,pieces,revenue,adSpend,extraCostPerPiece}
-    adSpends: [],                  // daily upsert rows: {id,date,country,productId,platform,amount}
-    deliveries: [],                // legacy list: {date,country,delivered}
-    deliveriesWeekly: {},          // { weekKey: { country: {Mon..Sun} } }
-    financeCategories: {debits:["Facebook Ads","TikTok Ads","Google Ads","Shipping","Salaries"], credits:["Revenue Boxleo","Other Revenue"]},
-    financeEntries: [],            // {id,date,type('debit'|'credit'),category,amount,note}
-    influencers: [],               // {id,name,social,country}
-    influencersSpend: [],          // {id,date,influencerId,amount,country,productId?}
-    allowlistIPs: []               // IPs passed login
-  };
-}
+// ensure db & dirs
+await fse.ensureFile(DATA_FILE);
+await fse.ensureDir(SNAP_DIR);
 
-// ---------- App ----------
-const app = express();
-app.use(morgan('tiny'));
-app.use(cors({ origin: true, credentials: true }));
-app.use(bodyParser.json());
-app.use(cookieParser());
+// ---------- DB (single JSON) ----------
+const defaultDB = {
+  meta:   { currency: 'USD', theme: { primary:'#0E9F6E', bg:'#fff' }, createdAt: new Date().toISOString() },
+  countries: ["china","kenya","tanzania","uganda","zambia","zimbabwe"],
+  products: [],                 // {id,name,sku,status, cost_china, ship_china_to_kenya, margin_budget}
+  deliveries: [],               // {id,date,country,delivered}
+  adSpends: [],                 // {id,date,platform,productId,country,amount}
+  shipments: [],                // {id,productId,fromCountry,toCountry,qty,shipCost,departedAt,arrivedAt}
+  remittances: [],              // {id,start,end,country,productId,orders,pieces,revenue,adSpend,extraCostPerPiece}
+  finance: {
+    categories: { debits:["Facebook Ads","TikTok Ads","Google Ads","Shipping","Salaries"], credits:["Revenue Boxleo","Other Revenue"]},
+    entries: []                // {id,date,type,category,amount,note}
+  },
+  snapshots: []                 // {id,label,createdAt,filepath}
+};
 
-// Static frontend
-app.use('/public', express.static(path.join(__dirname, 'public')));
-app.get('/', (req,res)=> res.sendFile(path.join(__dirname,'public','index.html')));
-
-// ---------- Auth ----------
-function clientIP(req){
-  return (req.headers['x-forwarded-for']?.split(',')[0]?.trim())
-      || req.headers['x-real-ip']
-      || req.ip
-      || 'unknown';
-}
-
-async function authed(req,res,next){
+async function readDB(){
   try{
-    const db = await loadDB();
-    const ip = clientIP(req);
-    const hasCookie = req.cookies.eas_auth === '1';
-    const whitelisted = db.allowlistIPs.includes(ip);
-    if (hasCookie || whitelisted) return next();
-    return res.status(401).json({ ok:false, error:'Unauthorized' });
-  }catch(e){
-    return res.status(500).json({ ok:false, error:'Auth check failed' });
+    const raw = await fse.readFile(DATA_FILE, 'utf8');
+    if (!raw.trim()) { await writeDB(defaultDB); return { ...defaultDB }; }
+    const obj = JSON.parse(raw);
+    // shallow patch for missing keys
+    return {
+      ...defaultDB,
+      ...obj,
+      meta: { ...defaultDB.meta, ...(obj.meta||{}) },
+      finance: { ...defaultDB.finance, ...(obj.finance||{}),
+        categories: { ...defaultDB.finance.categories, ...((obj.finance||{}).categories||{}) },
+        entries: (obj.finance?.entries)||[]
+      }
+    };
+  }catch{
+    await writeDB(defaultDB);
+    return { ...defaultDB };
   }
 }
+async function writeDB(db){
+  await fse.writeJson(DATA_FILE, db, { spaces: 2 });
+}
 
-// Login (password -> cookie + IP allow)
+// ---------- auth ----------
+function guard(req,res,next){
+  // allow static, auth, health
+  if (req.path.startsWith('/public') || req.path === '/api/auth' || req.path === '/health' ) return next();
+  if (req.cookies?.eas_auth === '1') return next();
+  return res.status(401).json({ ok:false, error: 'Unauthorized' });
+}
+app.use(guard);
+
 app.post('/api/auth', async (req,res)=>{
   const { password } = req.body || {};
-  const db = await loadDB();
-  const ip = clientIP(req);
-
-  if (password === ADMIN_PASSWORD) {
-    if (!db.allowlistIPs.includes(ip)) {
-      db.allowlistIPs.push(ip);
-      await saveDB(db);
-    }
+  if (password === ADMIN_PASSWORD){
     const isProd = process.env.NODE_ENV === 'production';
-    res.cookie('eas_auth', '1', { httpOnly:true, sameSite:'lax', secure:isProd, path:'/' });
-    return res.json({ ok:true, ip });
+    res.cookie('eas_auth','1',{ httpOnly:true, sameSite:'lax', secure:isProd, path:'/' });
+    return res.json({ ok:true });
   }
-  // soft logout support (some old frontends used password:'logout')
-  if (password === 'logout') {
-    db.allowlistIPs = db.allowlistIPs.filter(x=>x!==ip);
-    await saveDB(db);
-    res.clearCookie('eas_auth');
-    return res.json({ ok:true, loggedOut:true });
+  // cheap logout path used by frontend:
+  if (password === 'logout'){
+    res.clearCookie('eas_auth'); return res.json({ ok:true });
   }
   return res.status(401).json({ ok:false, error:'Invalid password' });
 });
 
-// ---------- Meta ----------
-app.get('/api/meta', authed, async (req,res)=>{
-  const db = await loadDB();
-  const wkStart = mondayOf(new Date());
-  const wkEnd   = sundayOf(new Date());
-  return res.json({
-    meta: db.meta,
-    countries: db.countries,
-    week: { start: wkStart, end: wkEnd }
-  });
+app.get('/health', (req,res)=> res.json({ ok:true }));
+
+// ---------- meta ----------
+app.get('/api/meta', async (req,res)=>{
+  const db = await readDB();
+  const { start, end } = isoWeekBounds(new Date());
+  res.json({ meta: db.meta, countries: db.countries, week: { start, end }});
 });
 
-// ---------- Countries ----------
-app.get('/api/countries', authed, async (req,res)=>{
-  const db = await loadDB();
+// ---------- countries ----------
+app.get('/api/countries', async (req,res)=>{
+  const db = await readDB();
   res.json({ countries: db.countries });
 });
-app.post('/api/countries', authed, async (req,res)=>{
+app.post('/api/countries', async (req,res)=>{
+  const db = await readDB();
   const { name } = req.body || {};
   if (!name) return res.status(400).json({ ok:false, error:'Missing name' });
-  const db = await loadDB();
-  if (!db.countries.includes(name)) db.countries.push(name);
-  await saveDB(db);
+  const n = String(name).trim();
+  if (!db.countries.includes(n)) db.countries.push(n);
+  await writeDB(db);
   res.json({ ok:true, countries: db.countries });
 });
-app.delete('/api/countries/:name', authed, async (req,res)=>{
-  const db = await loadDB();
-  db.countries = db.countries.filter(c=>c!==req.params.name);
-  await saveDB(db);
+app.delete('/api/countries/:name', async (req,res)=>{
+  const db = await readDB();
+  const n = req.params.name;
+  db.countries = db.countries.filter(c => c !== n);
+  await writeDB(db);
   res.json({ ok:true, countries: db.countries });
 });
 
-// ---------- Products ----------
-app.get('/api/products', authed, async (req,res)=>{
-  const db = await loadDB();
+// ---------- products ----------
+app.get('/api/products', async (req,res)=>{
+  const db = await readDB();
   res.json({ products: db.products });
 });
-app.post('/api/products', authed, async (req,res)=>{
-  const { name, sku, cost_china=0, ship_china_to_kenya=0, margin_budget=0 } = req.body || {};
+app.post('/api/products', async (req,res)=>{
+  const db = await readDB();
+  const { name, sku, cost_china=0, ship_china_to_kenya=0, margin_budget=0 } = req.body||{};
   if (!name) return res.status(400).json({ ok:false, error:'Missing name' });
-  const db = await loadDB();
-  const p = { id: uuid(), name, sku: sku||'', cost_china:+cost_china||0, ship_china_to_kenya:+ship_china_to_kenya||0, margin_budget:+margin_budget||0, status:'active' };
+  const p = { id: uuid(), status:'active', name, sku: sku||'', cost_china:+cost_china||0, ship_china_to_kenya:+ship_china_to_kenya||0, margin_budget:+margin_budget||0 };
   db.products.push(p);
-  await saveDB(db);
+  await writeDB(db);
   res.json({ ok:true, product:p });
 });
-app.post('/api/products/:id/status', authed, async (req,res)=>{
-  const db = await loadDB();
-  const p = db.products.find(x=>x.id===req.params.id);
+app.delete('/api/products/:id', async (req,res)=>{
+  const db = await readDB();
+  db.products = db.products.filter(p => p.id !== req.params.id);
+  await writeDB(db);
+  res.json({ ok:true });
+});
+app.post('/api/products/:id/status', async (req,res)=>{
+  const db = await readDB();
+  const { status } = req.body || {};
+  const p = db.products.find(p => p.id === req.params.id);
   if (!p) return res.status(404).json({ ok:false, error:'Not found' });
-  p.status = req.body?.status==='paused' ? 'paused' : 'active';
-  await saveDB(db);
+  p.status = status === 'paused' ? 'paused' : 'active';
+  await writeDB(db);
   res.json({ ok:true, product:p });
 });
-app.delete('/api/products/:id', authed, async (req,res)=>{
-  const db = await loadDB();
-  db.products = db.products.filter(x=>x.id!==req.params.id);
-  await saveDB(db);
+app.put('/api/products/:id', async (req,res)=>{
+  const db = await readDB();
+  const p = db.products.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok:false, error:'Not found' });
+  const patch = req.body || {};
+  Object.assign(p, {
+    name: patch.name ?? p.name,
+    sku: patch.sku ?? p.sku,
+    cost_china: patch.cost_china!=null ? +patch.cost_china : p.cost_china,
+    ship_china_to_kenya: patch.ship_china_to_kenya!=null ? +patch.ship_china_to_kenya : p.ship_china_to_kenya,
+    margin_budget: patch.margin_budget!=null ? +patch.margin_budget : p.margin_budget
+  });
+  await writeDB(db);
+  res.json({ ok:true, product:p });
+});
+
+// ---------- deliveries (daily) ----------
+app.get('/api/deliveries', async (req,res)=>{
+  const db = await readDB();
+  const { start, end } = req.query;
+  let list = db.deliveries;
+  if (start || end) list = list.filter(d => inRange(d.date, start, end));
+  // Limit to 8 most recent by default (if no filters)
+  if (!start && !end) {
+    list = [...list].sort((a,b)=> b.date.localeCompare(a.date)).slice(0, 8);
+  }
+  res.json({ deliveries: list });
+});
+app.get('/api/deliveries/current-week', async (req,res)=>{
+  const db = await readDB();
+  const { start, end } = isoWeekBounds(new Date());
+  const days = {};
+  db.deliveries.forEach(d=>{
+    const dt = new Date(d.date);
+    if (dt >= start && dt <= end){
+      const key = d.date;
+      days[key] = (days[key]||0) + (+d.delivered||0);
+    }
+  });
+  res.json({ days });
+});
+app.post('/api/deliveries', async (req,res)=>{
+  const db = await readDB();
+  const { date, country, delivered } = req.body||{};
+  if (!date || !country) return res.status(400).json({ ok:false, error:'Missing fields' });
+  const row = { id: uuid(), date, country, delivered:+delivered||0 };
+  db.deliveries.push(row);
+  await writeDB(db);
+  res.json({ ok:true, delivery: row });
+});
+app.put('/api/deliveries/:id', async (req,res)=>{
+  const db = await readDB();
+  const it = db.deliveries.find(x => x.id === req.params.id);
+  if (!it) return res.status(404).json({ ok:false, error:'Not found' });
+  const { delivered } = req.body || {};
+  if (delivered != null) it.delivered = +delivered;
+  await writeDB(db);
+  res.json({ ok:true, delivery: it });
+});
+app.delete('/api/deliveries/:id', async (req,res)=>{
+  const db = await readDB();
+  db.deliveries = db.deliveries.filter(x => x.id !== req.params.id);
+  await writeDB(db);
   res.json({ ok:true });
 });
 
-// ---------- Shipments (movements + transit) ----------
-app.get('/api/shipments', authed, async (req,res)=>{
-  const db = await loadDB();
+// ---------- ad spend ----------
+// NOTE: If client omits `date`, we auto-use today, and we REPLACE existing entry
+// for the same (productId, country, platform, date=today) by overwriting amount.
+app.get('/api/adspend', async (req,res)=>{
+  const db = await readDB();
+  res.json({ adSpends: db.adSpends });
+});
+app.post('/api/adspend', async (req,res)=>{
+  const db = await readDB();
+  let { date, platform, productId, country, amount } = req.body || {};
+  if (!platform || !productId || !country) {
+    return res.status(400).json({ ok:false, error:'Missing fields' });
+  }
+  date = date || todayStr();
+  amount = +amount || 0;
+
+  // replace same key (same day, product, platform, country)
+  const idx = db.adSpends.findIndex(a => a.date===date && a.platform===platform && a.productId===productId && a.country===country);
+  if (idx >= 0){
+    db.adSpends[idx].amount = amount;
+    await writeDB(db);
+    return res.json({ ok:true, ad: db.adSpends[idx], replaced:true });
+  } else {
+    const row = { id: uuid(), date, platform, productId, country, amount };
+    db.adSpends.push(row);
+    await writeDB(db);
+    return res.json({ ok:true, ad: row, replaced:false });
+  }
+});
+
+// ---------- shipments (stock movements & transit) ----------
+app.get('/api/shipments', async (req,res)=>{
+  const db = await readDB();
   res.json({ shipments: db.shipments });
 });
-app.post('/api/shipments', authed, async (req,res)=>{
-  const { productId, fromCountry, toCountry, qty=0, shipCost=0, departedAt, arrivedAt=null } = req.body || {};
+app.post('/api/shipments', async (req,res)=>{
+  const db = await readDB();
+  const { productId, fromCountry, toCountry, qty=0, shipCost=0, departedAt, arrivedAt=null } = req.body||{};
   if (!productId || !fromCountry || !toCountry) return res.status(400).json({ ok:false, error:'Missing fields' });
-  const db = await loadDB();
-  const s = {
+  const row = {
     id: uuid(),
     productId,
-    fromCountry,
-    toCountry,
+    fromCountry, toCountry,
     qty:+qty||0,
     shipCost:+shipCost||0,
-    departedAt: departedAt || todayISO(),
-    arrivedAt: arrivedAt || null,
-    daysInTransit: arrivedAt ? diffDays(departedAt||todayISO(), arrivedAt) : null
+    departedAt: departedAt || todayStr(),
+    arrivedAt: arrivedAt || null
   };
-  db.shipments.push(s);
-  await saveDB(db);
-  res.json({ ok:true, shipment: s });
+  db.shipments.push(row);
+  await writeDB(db);
+  res.json({ ok:true, shipment: row });
 });
-app.put('/api/shipments/:id', authed, async (req,res)=>{
-  const db = await loadDB();
-  const s = db.shipments.find(x=>x.id===req.params.id);
-  if (!s) return res.status(404).json({ ok:false, error:'Not found' });
-
-  // Editable fields: qty, shipCost, departedAt, arrivedAt
-  if (req.body.hasOwnProperty('qty'))      s.qty = +req.body.qty || 0;
-  if (req.body.hasOwnProperty('shipCost')) s.shipCost = +req.body.shipCost || 0;
-  if (req.body.departedAt) s.departedAt = req.body.departedAt;
-  if (req.body.arrivedAt !== undefined) {
-    s.arrivedAt = req.body.arrivedAt || null;
-    s.daysInTransit = s.arrivedAt ? diffDays(s.departedAt || todayISO(), s.arrivedAt) : null;
-  }
-  await saveDB(db);
-  res.json({ ok:true, shipment: s });
+app.put('/api/shipments/:id', async (req,res)=>{
+  const db = await readDB();
+  const shp = db.shipments.find(s => s.id === req.params.id);
+  if (!shp) return res.status(404).json({ ok:false, error:'Not found' });
+  const { qty, shipCost, arrivedAt, departedAt, fromCountry, toCountry } = req.body||{};
+  if (qty != null) shp.qty = +qty;
+  if (shipCost != null) shp.shipCost = +shipCost;
+  if (arrivedAt != null) shp.arrivedAt = arrivedAt || null;
+  if (departedAt != null) shp.departedAt = departedAt || shp.departedAt;
+  if (fromCountry) shp.fromCountry = fromCountry;
+  if (toCountry)   shp.toCountry   = toCountry;
+  await writeDB(db);
+  res.json({ ok:true, shipment: shp });
 });
-app.delete('/api/shipments/:id', authed, async (req,res)=>{
-  const db = await loadDB();
-  db.shipments = db.shipments.filter(x=>x.id!==req.params.id);
-  await saveDB(db);
+app.delete('/api/shipments/:id', async (req,res)=>{
+  const db = await readDB();
+  db.shipments = db.shipments.filter(s => s.id !== req.params.id);
+  await writeDB(db);
   res.json({ ok:true });
 });
 
-// ---------- Daily Delivered (Weekly grid) ----------
-// Returns current week grid + totals
-app.get('/api/deliveries/current-week', authed, async (req,res)=>{
-  const db = await loadDB();
-  const wk = weekKey(new Date());
-  const grid = ensureWeeklyGrid(db, wk, db.countries);
-  // totals by weekday
-  const days = { Mon:0, Tue:0, Wed:0, Thu:0, Fri:0, Sat:0, Sun:0 };
-  Object.values(grid).forEach(row=>{
-    Object.keys(days).forEach(k=> days[k] += (+row[k]||0));
-  });
-  await saveDB(db);
-  return res.json({ ok:true, week:wk, grid, days });
-});
-
-// Upsert a single cell in the weekly table: {week, country, dayKey('Mon'...'Sun'), value}
-app.post('/api/deliveries/week-cell', authed, async (req,res)=>{
-  const { week, country, day, value } = req.body || {};
-  if (!week || !country || !day) return res.status(400).json({ ok:false, error:'Missing fields' });
-  const db = await loadDB();
-  ensureWeeklyGrid(db, week, db.countries);
-  if (!db.deliveriesWeekly[week][country]) {
-    db.deliveriesWeekly[week][country] = { Mon:0, Tue:0, Wed:0, Thu:0, Fri:0, Sat:0, Sun:0 };
-  }
-  db.deliveriesWeekly[week][country][day] = +value || 0;
-
-  // Also mirror to legacy "deliveries" list with a concrete date (for charts/filters):
-  // Map day -> actual date within week
-  const base = mondayOf(week);
-  const mapIdx = {Mon:0, Tue:1, Wed:2, Thu:3, Fri:4, Sat:5, Sun:6};
-  const d = new Date(base); d.setDate(base.getDate() + (mapIdx[day]||0));
-  const dateISO = d.toISOString().slice(0,10);
-  // Remove any previous entry for that date/country, then push new
-  db.deliveries = db.deliveries.filter(x=> !(x.date===dateISO && x.country===country));
-  db.deliveries.push({ date: dateISO, country, delivered: (+value||0) });
-
-  await saveDB(db);
-  res.json({ ok:true, grid: db.deliveriesWeekly[week][country] });
-});
-
-// Reset the whole current week (all countries Mon..Sun -> 0)
-app.post('/api/deliveries/reset-week', authed, async (req,res)=>{
-  const db = await loadDB();
-  const wk = req.body?.week || weekKey(new Date());
-  ensureWeeklyGrid(db, wk, db.countries);
-  Object.keys(db.deliveriesWeekly[wk]).forEach(country=>{
-    db.deliveriesWeekly[wk][country] = { Mon:0, Tue:0, Wed:0, Thu:0, Fri:0, Sat:0, Sun:0 };
-  });
-  // Also clear legacy deliveries within that week window
-  const start = mondayOf(wk), end = sundayOf(wk);
-  db.deliveries = db.deliveries.filter(x=>{
-    const dx = new Date(x.date);
-    return !(dx >= start && dx <= end);
-  });
-  await saveDB(db);
-  res.json({ ok:true });
-});
-
-// Legacy list/filter for compatibility with UI filterDeliveries()
-app.get('/api/deliveries', authed, async (req,res)=>{
-  const { start, end } = req.query;
-  const db = await loadDB();
-  let list = db.deliveries.slice().sort((a,b)=> a.date.localeCompare(b.date));
-  if (start) list = list.filter(x => new Date(x.date) >= new Date(start));
-  if (end)   list = list.filter(x => new Date(x.date) <= new Date(end));
-  // limit to last 8 rows if no filter (as per original requirement to avoid many lines)
-  if (!start && !end) list = list.slice(-8);
-  res.json({ ok:true, deliveries: list });
-});
-
-// ---------- Daily Ad Spend (no date pick; upsert per day/platform/product/country) ----------
-app.get('/api/adspend', authed, async (req,res)=>{
-  const db = await loadDB();
-  res.json({ ok:true, adSpends: db.adSpends });
-});
-
-// body: {platform, productId, country, amount}
-app.post('/api/adspend', authed, async (req,res)=>{
-  const { platform, productId, country, amount=0 } = req.body || {};
-  if (!platform || !productId || !country) return res.status(400).json({ ok:false, error:'Missing fields' });
-  const db = await loadDB();
-  const date = todayISO();
-
-  // Replace any existing spend for (date, platform, productId, country)
-  db.adSpends = db.adSpends.filter(x=> !(x.date===date && x.platform===platform && x.productId===productId && x.country===country));
-  db.adSpends.push({ id: uuid(), date, platform, productId, country, amount:+amount||0 });
-
-  await saveDB(db);
-  res.json({ ok:true });
-});
-
-// ---------- Remittances (used for profits, top delivered, stock deduction) ----------
-// GET with optional filters: start, end, country, productId
-app.get('/api/remittances', authed, async (req,res)=>{
-  const db = await loadDB();
-  let list = db.remittances.slice();
+// ---------- remittances (performance source of truth) ----------
+app.get('/api/remittances', async (req,res)=>{
+  const db = await readDB();
   const { start, end, country, productId } = req.query || {};
-  if (start)   list = list.filter(x => new Date(x.end || x.start) >= new Date(start));
-  if (end)     list = list.filter(x => new Date(x.start) <= new Date(end));
-  if (country) list = list.filter(x => x.country === country);
-  if (productId) list = list.filter(x => x.productId === productId);
-  res.json({ ok:true, remittances: list });
+  let list = db.remittances;
+  if (start || end) list = list.filter(r => inRange(r.start, start, end) || inRange(r.end, start, end));
+  if (country) list = list.filter(r => r.country === country);
+  if (productId) list = list.filter(r => r.productId === productId);
+  res.json({ remittances: list });
 });
-
-// POST body: {start,end,country,productId,orders,pieces,revenue,adSpend,extraCostPerPiece}
-app.post('/api/remittances', authed, async (req,res)=>{
+app.post('/api/remittances', async (req,res)=>{
+  const db = await readDB();
   const {
     start, end, country, productId,
-    orders=0, pieces=0, revenue=0, adSpend=0, extraCostPerPiece=0
+    orders=0, pieces=0, revenue=0, adSpend=0,
+    extraCostPerPiece=0 // replaces "costPerDelivery"
   } = req.body || {};
-  if (!start || !end || !country || !productId) return res.status(400).json({ ok:false, error:'Missing fields' });
-
-  const db = await loadDB();
-  const r = {
+  if (!start || !end || !country || !productId){
+    return res.status(400).json({ ok:false, error:'Missing fields' });
+  }
+  const row = {
     id: uuid(),
     start, end, country, productId,
     orders:+orders||0, pieces:+pieces||0,
     revenue:+revenue||0, adSpend:+adSpend||0,
     extraCostPerPiece:+extraCostPerPiece||0
   };
-  db.remittances.push(r);
-
-  // Stock deduction is computed dynamically (arrived shipments - pieces sold).
-  await saveDB(db);
-  res.json({ ok:true, remittance: r });
+  db.remittances.push(row);
+  // subtract delivered pieces from "stock" approximation (implicit, reported via lists)
+  await writeDB(db);
+  res.json({ ok:true, remittance: row });
+});
+app.delete('/api/remittances/:id', async (req,res)=>{
+  const db = await readDB();
+  db.remittances = db.remittances.filter(x => x.id !== req.params.id);
+  await writeDB(db);
+  res.json({ ok:true });
 });
 
-// ---------- Finance ----------
-app.get('/api/finance/categories', authed, async (req,res)=>{
-  const db = await loadDB();
-  res.json(db.financeCategories);
+// ---------- finance ----------
+app.get('/api/finance/categories', async (req,res)=>{
+  const db = await readDB();
+  res.json(db.finance.categories);
 });
-
-// Add category {type:'debit'|'credit', name}
-app.post('/api/finance/categories', authed, async (req,res)=>{
+app.post('/api/finance/categories', async (req,res)=>{
+  const db = await readDB();
   const { type, name } = req.body || {};
-  if (!['debit','credit'].includes(type) || !name) return res.status(400).json({ ok:false, error:'Bad input' });
-  const db = await loadDB();
-  const list = type==='debit' ? db.financeCategories.debits : db.financeCategories.credits;
-  if (!list.includes(name)) list.push(name);
-  await saveDB(db);
-  res.json({ ok:true, financeCategories: db.financeCategories });
+  if (!type || !name) return res.status(400).json({ ok:false, error:'Missing fields' });
+  const t = type === 'credit' ? 'credits' : 'debits';
+  const set = db.finance.categories[t] || [];
+  if (!set.includes(name)) set.push(name);
+  db.finance.categories[t] = set;
+  await writeDB(db);
+  res.json({ ok:true, categories: db.finance.categories });
 });
 
-// List entries with optional filter (start, end, categories="A,B")
-app.get('/api/finance/entries', authed, async (req,res)=>{
-  const db = await loadDB();
-  let list = db.financeEntries.slice().sort((a,b)=> (a.date||'').localeCompare(b.date||''));
-  const { start, end, categories } = req.query || {};
-  if (start) list = list.filter(x => new Date(x.date) >= new Date(start));
-  if (end)   list = list.filter(x => new Date(x.date) <= new Date(end));
+app.get('/api/finance/entries', async (req,res)=>{
+  const db = await readDB();
+  const { start, end, categories='' } = req.query || {};
+  let list = db.finance.entries;
+  if (start || end) list = list.filter(e => inRange(e.date, start, end));
   if (categories) {
-    const set = new Set(String(categories).split(',').map(s=>s.trim()).filter(Boolean));
-    if (set.size) list = list.filter(x => set.has(x.category));
+    const set = new Set(categories.split(',').map(s=>s.trim()).filter(Boolean));
+    list = list.filter(e => set.has(e.category));
   }
-  const balance = list.reduce((acc,x)=> acc + (x.type==='credit'? +x.amount : -x.amount), 0);
-  res.json({ ok:true, entries:list, balance });
+  const balance = list.reduce((acc, e)=> acc + (e.type==='credit' ? +e.amount : -e.amount), 0);
+  res.json({ entries: list, balance });
 });
+app.post('/api/finance/entries', async (req,res)=>{
+  const db = await readDB();
+  const { date, category, amount=0, note='' } = req.body || {};
+  if (!date || !category) return res.status(400).json({ ok:false, error:'Missing fields' });
 
-// Add entry {date,type,category,amount,note}
-app.post('/api/finance/entries', authed, async (req,res)=>{
-  const { date, type, category, amount=0, note='' } = req.body || {};
-  if (!date || !category || !['debit','credit'].includes(type)) return res.status(400).json({ ok:false, error:'Bad input' });
-  const db = await loadDB();
-  db.financeEntries.push({ id:uuid(), date, type, category, amount:+amount||0, note });
-  await saveDB(db);
+  // infer type from category groups automatically
+  const isCredit = (db.finance.categories.credits || []).includes(category);
+  const isDebit  = (db.finance.categories.debits  || []).includes(category);
+  const type = isCredit ? 'credit' : 'debit';
+
+  const row = { id: uuid(), date, type, category, amount:+amount||0, note };
+  db.finance.entries.push(row);
+  await writeDB(db);
+  res.json({ ok:true, entry: row });
+});
+app.delete('/api/finance/entries/:id', async (req,res)=>{
+  const db = await readDB();
+  db.finance.entries = db.finance.entries.filter(e => e.id !== req.params.id);
+  await writeDB(db);
   res.json({ ok:true });
 });
 
-// Delete finance entry
-app.delete('/api/finance/entries/:id', authed, async (req,res)=>{
-  const db = await loadDB();
-  db.financeEntries = db.financeEntries.filter(x=>x.id!==req.params.id);
-  await saveDB(db);
+// ---------- manual snapshots (save/restore/delete) ----------
+app.get('/api/snapshots', async (req,res)=>{
+  const db = await readDB();
+  res.json({ snapshots: db.snapshots });
+});
+app.post('/api/snapshots', async (req,res)=>{
+  const db = await readDB();
+  const { label } = req.body || {};
+  const id = uuid();
+  const fname = `${id}.json`;
+  const filepath = path.join(SNAP_DIR, fname);
+  await fse.ensureDir(SNAP_DIR);
+  await fse.writeJson(filepath, db, { spaces: 2 });
+  const rec = { id, label: (label||'Manual Save'), createdAt: new Date().toISOString(), filepath };
+  db.snapshots.push(rec);
+  await writeDB(db);
+  res.json({ ok:true, snapshot: { id: rec.id, label: rec.label, createdAt: rec.createdAt } });
+});
+app.post('/api/snapshots/:id/restore', async (req,res)=>{
+  const db = await readDB();
+  const s = db.snapshots.find(x => x.id === req.params.id);
+  if (!s || !(await fse.pathExists(s.filepath))) return res.status(404).json({ ok:false, error:'Snapshot not found' });
+  const snap = await fse.readJson(s.filepath);
+  // keep snapshots list; replace rest
+  const keep = db.snapshots;
+  await writeDB({ ...snap, snapshots: keep });
+  res.json({ ok:true, restoredFrom: s.label || s.id });
+});
+app.delete('/api/snapshots/:id', async (req,res)=>{
+  const db = await readDB();
+  const s = db.snapshots.find(x => x.id === req.params.id);
+  db.snapshots = db.snapshots.filter(x => x.id !== req.params.id);
+  if (s && s.filepath) { try { await fse.remove(s.filepath); } catch {} }
+  await writeDB(db);
   res.json({ ok:true });
 });
 
-// Running balance (all-time) for the big header box
-app.get('/api/finance/balance', authed, async (req,res)=>{
-  const db = await loadDB();
-  const bal = db.financeEntries.reduce((acc,x)=> acc + (x.type==='credit'? +x.amount : -x.amount), 0);
-  res.json({ ok:true, balance: bal });
-});
+// ---------- SPA fallback ----------
+app.get('/', (req,res)=> res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
+app.get('*', (req,res)=> res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
 
-// ---------- Lifetime Performance helper (server-side compute) ----------
-app.get('/api/lifetime', authed, async (req,res)=>{
-  const db = await loadDB();
-  const { start, end, productId } = req.query || {};
-  const productsById = Object.fromEntries(db.products.map(p=>[p.id,p]));
-  // filter remittances by date/product
-  let rem = db.remittances.slice();
-  if (start) rem = rem.filter(x=> new Date(x.end||x.start) >= new Date(start));
-  if (end)   rem = rem.filter(x=> new Date(x.start) <= new Date(end));
-  if (productId) rem = rem.filter(x=> x.productId===productId);
-
-  // sum shipping costs per product (arrived shipments only)
-  let ship = db.shipments.filter(s=> s.arrivedAt);
-  if (productId) ship = ship.filter(s=> s.productId===productId);
-
-  const byP = {};
-  rem.forEach(r=>{
-    const base = (+productsById[r.productId]?.cost_china||0) + (+productsById[r.productId]?.ship_china_to_kenya||0);
-    const pieces = +r.pieces||0;
-    if (!byP[r.productId]) byP[r.productId] = { revenue:0, ad:0, ship:0, base:0, pieces:0 };
-    byP[r.productId].revenue += +r.revenue||0;
-    byP[r.productId].ad      += +r.adSpend||0;
-    byP[r.productId].base    += base * pieces;
-    byP[r.productId].pieces  += pieces;
-    // include extra cost per piece (new requirement replaces old CPD)
-    byP[r.productId].base    += (+r.extraCostPerPiece||0) * pieces;
-  });
-  ship.forEach(s=>{
-    if (!byP[s.productId]) byP[s.productId] = { revenue:0, ad:0, ship:0, base:0, pieces:0 };
-    byP[s.productId].ship += +s.shipCost||0;
-  });
-
-  const rows = Object.entries(byP).map(([pid,v])=>{
-    const profit = v.revenue - v.ad - v.ship - v.base;
-    return {
-      productId: pid,
-      productName: productsById[pid]?.name || pid,
-      revenue: v.revenue, adSpend: v.ad, shipping: v.ship, baseCost: v.base, pieces: v.pieces, profit
-    };
-  });
-  res.json({ ok:true, items: rows });
-});
-
-// ---------- Restore from snapshots ----------
-app.post('/api/restore', authed, async (req,res)=>{
-  try{
-    const { window } = req.body || {}; // '10m'|'1h'|'24h'|'3d'
-    const now = new Date();
-    const cutoff = new Date(now);
-
-    const map = { '10m': 10*60e3, '1h': 60*60e3, '24h': 24*60*60e3, '3d': 3*24*60*60e3 };
-    const ms = map[window] || map['24h'];
-    cutoff.setTime(now.getTime() - ms);
-
-    // Find latest snapshot folder newer than cutoff that contains db.json
-    const entries = await fs.readdir(SNAP_DIR).catch(()=>[]);
-    let candidates = [];
-    for (const name of entries) {
-      const p = path.join(SNAP_DIR, name);
-      const stat = await fs.stat(p).catch(()=>null);
-      if (!stat || !stat.isDirectory()) continue;
-      const dbp = path.join(p, 'db.json');
-      if (await fs.pathExists(dbp)) {
-        candidates.push({ name, path: p, time: stat.mtime });
-      }
-    }
-    candidates = candidates
-      .filter(c => c.time >= cutoff)
-      .sort((a,b)=> b.time - a.time);
-
-    if (!candidates.length) {
-      return res.status(404).json({ ok:false, error:'No snapshots found' });
-    }
-
-    const pick = candidates[0];
-    await fs.copy(path.join(pick.path, 'db.json'), LIVE_DB);
-    return res.json({ ok:true, restoredFrom: pick.name });
-  }catch(e){
-    return res.status(500).json({ ok:false, error: 'Restore failed' });
-  }
-});
-
-// ---------- Fallback to SPA ----------
-app.get('*', (req,res)=> res.sendFile(path.join(__dirname,'public','index.html')));
-
-// ---------- Start ----------
+// ---------- start ----------
 app.listen(PORT, ()=> {
-  console.log(`EAS Tracker listening on ${PORT} (TZ=${TZ})`);
+  console.log(`EAS Tracker running on :${PORT}`);
 });
