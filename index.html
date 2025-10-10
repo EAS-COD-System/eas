@@ -9,16 +9,21 @@
 <body>
   <div id="app">
 
-    <!-- ================= LOGIN ================= -->
-    <div id="login" class="auth">
-      <h1 class="brand">EAS Tracker</h1>
-      <p>Enter password to access</p>
-      <div class="row">
-        <input id="pw" type="password" class="input" placeholder="Password"/>
-        <button id="loginBtn" class="btn">Login</button>
-      </div>
-    </div>
+    <!-- LOGIN -->
+<div id="login">
+  <form id="loginForm" class="card">
+    <h1>EAS Tracker</h1>
+    <p>Enter password to access</p>
+    <input id="pw" type="password" class="input" placeholder="Password" autocomplete="current-password" />
+    <button id="loginBtn" class="btn" type="submit">Login</button>
+  </form>
+</div>
 
+<!-- Main app wrapper should exist and be hidden initially -->
+<div id="main" style="display:none"></div>
+
+<!-- IMPORTANT: defer so app.js can bind after DOM is parsed -->
+<script src="/public/app.js" defer></script>
     <!-- ================= MAIN APP ================= -->
     <div id="main" style="display:none">
       <nav class="nav">
