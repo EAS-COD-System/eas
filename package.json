@@ -1,1 +1,21 @@
-{"name":"eas-tracker","version":"1.0.0","private":true,"type":"module","main":"server.js","scripts":{"start":"node server.js"},"engines":{"node":">=18 <23"},"dependencies":{"express":"^4.19.2","body-parser":"^1.20.2","cors":"^2.8.5","cookie-parser":"^1.4.6","morgan":"^1.10.0"}}
+{
+  "name": "eas-tracker",
+  "version": "1.1.0",
+  "description": "EastAfricaShop business tracking system (Express + JSON storage + snapshots)",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "morgan": "^1.10.0"
+  },
+  "engines": {
+    "node": ">=18 <23"
+  },
+  "private": true
+}
