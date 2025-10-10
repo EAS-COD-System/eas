@@ -1,223 +1,163 @@
-/* =============== BASE THEME =============== */
-:root {
-  --primary: #0E9F6E;
-  --bg: #ffffff;
-  --text: #222;
-  --border: #e5e5e5;
-  --gray: #777;
-  --card-bg: #f9f9f9;
+/* =========================
+   EAS Tracker – styles.css
+   Mobile-first, clean and readable
+   ========================= */
+
+:root{
+  --bg:#0f1216;
+  --panel:#161b22;
+  --panel-2:#1d2330;
+  --text:#e8ecf3;
+  --muted:#9aa4b2;
+  --brand:#4da3ff;
+  --ok:#38d497;
+  --warn:#ffcf5a;
+  --danger:#ff6b6b;
+  --line:#232a36;
+  --chip:#2a3242;
+  --shadow: 0 6px 20px rgba(0,0,0,.25);
+  --radius:12px;
+  --radius-sm:8px;
+  --gap:12px;
+  --gap-lg:18px;
+  --input:#11161e;
 }
 
-body {
-  font-family: "Inter", system-ui, sans-serif;
-  margin: 0;
-  padding: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 15px;
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
+  color:var(--text);
+  background: radial-gradient(1200px 600px at 20% -10%, #172033 0%, #0f1216 55%) fixed;
 }
 
-/* =============== NAVIGATION BAR =============== */
-.nav {
-  display: flex;
-  align-items: center;
-  background: var(--primary);
-  color: #fff;
-  padding: 12px 18px;
-  font-weight: 600;
-  flex-wrap: wrap;
+/* utils */
+.hide{display:none !important;}
+.muted{color:var(--muted)}
+.totals{background:rgba(255,255,255,.03); font-weight:600}
+.flex{display:flex; align-items:center; gap:var(--gap)}
+.row{display:flex; gap:var(--gap); flex-wrap:wrap}
+.container{max-width:1100px; margin:0 auto; padding:16px}
+
+/* nav */
+.nav{
+  position:sticky; top:0; z-index:10;
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  background:rgba(13,16,23,.7); backdrop-filter: blur(8px);
+  border-bottom:1px solid var(--line);
+  padding:10px 16px;
+}
+.nav a{
+  color:var(--muted); text-decoration:none; padding:8px 10px; border-radius:8px;
+  transition:.18s ease color, .18s ease background;
+  cursor:pointer;
+}
+.nav a.active{color:white; background:var(--chip)}
+.nav .nav-right{margin-left:auto; color:#fff; background:#263146}
+
+/* sections & cards */
+.section{margin:22px 0}
+.card{
+  background:linear-gradient(180deg, var(--panel), var(--panel-2));
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:14px;
+}
+.card .h{font-weight:700; margin-bottom:8px}
+
+/* inputs & buttons */
+.input, select.input, input.input{
+  background:var(--input); color:var(--text);
+  border:1px solid #253043; border-radius:10px;
+  height:38px; padding:0 12px; outline:none; min-width:120px;
+}
+.input::placeholder{color:#7a8596}
+.input:focus{border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.2)}
+
+.btn{
+  height:38px; padding:0 14px;
+  border-radius:10px; border:none; cursor:pointer;
+  color:#07111c; background:linear-gradient(180deg,#70b8ff,#4da3ff);
+  font-weight:700;
+  box-shadow:0 8px 24px rgba(77,163,255,.25), inset 0 1px 0 rgba(255,255,255,.2);
+  transition:transform .08s ease, filter .12s ease;
+}
+.btn:hover{filter:brightness(1.03)}
+.btn:active{transform:translateY(1px)}
+.btn.outline{
+  background:transparent; color:var(--text);
+  border:1px solid #334155; box-shadow:none;
+}
+.badge{
+  display:inline-block; padding:4px 10px; border-radius:999px;
+  background:#243046; color:#d8e7ff; font-weight:700; font-size:12px;
+}
+.chip{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:6px 10px; border-radius:999px; background:var(--chip); color:#e5ecff;
+  border:1px solid #2e3646; margin:3px 6px 0 0; white-space:nowrap;
 }
 
-.nav a {
-  color: #fff;
-  text-decoration: none;
-  margin-right: 20px;
-  cursor: pointer;
-  transition: opacity 0.2s;
+/* KPIs */
+#kpis .card{
+  flex:1 1 160px; text-align:center; padding:16px 12px;
+}
+#kpis .card .h{font-size:12px; color:var(--muted); letter-spacing:.4px; text-transform:uppercase}
+#kpis .card > div:last-child{font-size:22px; font-weight:800; margin-top:6px}
+
+/* tables */
+.table{
+  width:100%; border-collapse:separate; border-spacing:0;
+  overflow:hidden; border:1px solid var(--line); border-radius:12px;
+}
+.table thead th{
+  background:#151b26; color:#c7d3e7; font-weight:700; text-align:left;
+  padding:10px; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:1;
+}
+.table td{padding:10px; border-bottom:1px solid #1f2734}
+.table tr:hover td{background:rgba(255,255,255,.02)}
+.table tfoot th, .table tfoot td{padding:10px; border-top:1px solid var(--line); font-weight:700}
+
+/* login */
+#login{
+  max-width:360px; margin:14vh auto; text-align:center;
+  background:linear-gradient(180deg, var(--panel), var(--panel-2));
+  border:1px solid var(--line); border-radius:14px; padding:22px;
+  box-shadow:var(--shadow);
+}
+#login h1{margin:6px 0 2px}
+#login p{margin:0 0 14px; color:var(--muted)}
+
+/* weekly grid inputs */
+#weeklyGrid input[type="number"]{
+  width:86px; text-align:right;
 }
 
-.nav a:hover {
-  opacity: 0.8;
+/* product page bits */
+#pdHeader{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;
+}
+#pdTransitBadge{margin-left:auto}
+
+/* responsive helpers */
+@media (max-width: 900px){
+  .flex{flex-wrap:wrap}
+  #kpis .card{flex:1 1 calc(50% - 12px)}
+  .input{min-width:0; flex:1}
+  #weeklyGrid{display:block; overflow:auto; border-radius:12px}
+}
+@media (max-width: 520px){
+  .nav{gap:6px}
+  .btn, .input{height:36px}
+  #kpis .card{flex:1 1 100%}
 }
 
-.nav a.active {
-  text-decoration: underline;
-}
+/* link reset appearance in tables/buttons */
+a.btn{display:inline-flex; align-items:center; justify-content:center; text-decoration:none}
 
-.nav-right {
-  margin-left: auto;
-  font-weight: 500;
-}
-
-/* =============== CONTAINERS & SECTIONS =============== */
-.container {
-  padding: 20px;
-  max-width: 1200px;
-  margin: auto;
-}
-
-.section {
-  margin-bottom: 40px;
-}
-
-.section h2 {
-  margin-bottom: 10px;
-  color: var(--primary);
-  font-size: 18px;
-  border-left: 4px solid var(--primary);
-  padding-left: 8px;
-}
-
-/* =============== CARDS =============== */
-.card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 14px;
-  margin-bottom: 16px;
-}
-
-.card .h {
-  font-weight: 600;
-  color: var(--primary);
-  margin-bottom: 8px;
-}
-
-/* =============== TABLES =============== */
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-  margin-top: 10px;
-}
-
-.table th, .table td {
-  padding: 8px;
-  border: 1px solid var(--border);
-  text-align: left;
-}
-
-.table th {
-  background: var(--primary);
-  color: white;
-  font-weight: 600;
-}
-
-.table tr:nth-child(even) {
-  background: #fafafa;
-}
-
-/* =============== INPUTS & BUTTONS =============== */
-.input {
-  border: 1px solid var(--border);
-  padding: 8px;
-  border-radius: 4px;
-  margin-right: 6px;
-  font-size: 14px;
-}
-
-select.input {
-  background: #fff;
-}
-
-.btn {
-  background: var(--primary);
-  border: none;
-  color: white;
-  padding: 8px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: opacity 0.2s;
-}
-
-.btn:hover {
-  opacity: 0.85;
-}
-
-.btn.outline {
-  background: transparent;
-  border: 1px solid var(--primary);
-  color: var(--primary);
-}
-
-.btn.outline:hover {
-  background: var(--primary);
-  color: #fff;
-}
-
-/* =============== FLEX UTILITIES =============== */
-.flex {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-/* =============== BADGES =============== */
-.badge {
-  background: var(--primary);
-  color: #fff;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.badge.gray {
-  background: #ccc;
-  color: #333;
-}
-
-/* =============== LOGIN SCREEN =============== */
-#login {
-  max-width: 380px;
-  margin: 100px auto;
-  text-align: center;
-}
-
-#login h1 {
-  color: var(--primary);
-}
-
-#login input {
-  width: 100%;
-  margin-top: 10px;
-  margin-bottom: 10px;
-}
-
-/* =============== PRODUCT PAGE STYLES =============== */
-#productDetails h3 {
-  color: var(--primary);
-  border-bottom: 2px solid var(--primary);
-  padding-bottom: 4px;
-  margin-bottom: 10px;
-}
-
-#pdStockByCountry table,
-#pdRTableWrap table,
-#pdLPTableWrap table {
-  font-size: 14px;
-}
-
-/* =============== MOBILE =============== */
-@media (max-width: 768px) {
-  .flex {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .nav {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .input, .btn {
-    width: 100%;
-  }
-
-  .table th, .table td {
-    font-size: 13px;
-    padding: 6px;
-  }
-}
+/* small helpers for states */
+.ok{color:var(--ok)}
+.warn{color:var(--warn)}
+.danger{color:var(--danger)}
