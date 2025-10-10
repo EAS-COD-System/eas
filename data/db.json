@@ -1,0 +1,15 @@
+{
+  "countries": ["china","kenya","tanzania","uganda","zambia","zimbabwe"],
+  "products": [],
+  "deliveries": [],
+  "adspend": [],
+  "shipments": [],
+  "remittances": [],
+  "financeCategories": {
+    "debits": ["Facebook Ads","TikTok Ads","Google Ads","Shipping","Salaries"],
+    "credits": ["Revenue Boxleo","Other Revenue"]
+  },
+  "financeEntries": [],
+  "influencers": [],
+  "influencersSpend": []
+}
