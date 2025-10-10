@@ -184,8 +184,11 @@ app.delete("/api/snapshots/:id", requireAuth, (req,res)=>{
   saveDB(db); res.json({ ok:true });
 });
 
-// ---------- pages ----------
-app.get("/product.html", (req,res)=> res.sendFile(path.join(__dirname, "product.html")) );
-app.get("/", (req,res)=> res.sendFile(path.join(__dirname, "index.html")) );
+// ------------------- pages -------------------
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
 
-app.listen(PORT, ()=> console.log(`✅ EAS Tracker running on port ${PORT}`));
+app.get("/product.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "product.html"));
+});
