@@ -4,6 +4,7 @@ const path = require("path");
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const { v4: uuidv4 } = require("uuid");
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, "db.json");
@@ -11,6 +12,8 @@ const SNAPSHOT_DIR = path.join(__dirname, "data", "snapshots");
 
 app.use(bodyParser.json());
 app.use(cookieParser());
+
+// serve static assets under /public (your index.html references /public/app.js, /public/styles.css)
 app.use("/public", express.static(path.join(__dirname, "public")));
 
 // ------------------- helpers -------------------
@@ -54,15 +57,15 @@ app.post("/api/auth", (req, res) => {
     return res.json({ ok: true });
   }
   if (password === db.password) {
-    res.cookie("auth", "1", { httpOnly: true });
+    res.cookie("auth", "1", { httpOnly: true, sameSite: "lax" });
     return res.json({ ok: true });
   }
   res.status(403).json({ error: "Wrong password" });
 });
 
 function requireAuth(req, res, next) {
-  if (req.cookies.auth === "1") return next();
-  res.status(403).json({ error: "Unauthorized" });
+  if (req.cookies && req.cookies.auth === "1") return next();
+  res.status(401).json({ ok: false, error: "Unauthorized" });
 }
 
 // ------------------- meta -------------------
@@ -118,7 +121,9 @@ app.get("/api/adspend", requireAuth, (req, res) => {
 app.post("/api/adspend", requireAuth, (req, res) => {
   const db = loadDB();
   const { productId, country, platform, amount } = req.body;
-  const existing = db.adspend.find(a => a.productId === productId && a.country === country && a.platform === platform);
+  const existing = db.adspend.find(
+    a => a.productId === productId && a.country === country && a.platform === platform
+  );
   if (existing) existing.amount = amount;
   else db.adspend.push({ id: uuidv4(), productId, country, platform, amount });
   saveDB(db);
@@ -182,7 +187,9 @@ app.get("/api/finance/categories", requireAuth, (req, res) => {
 app.post("/api/finance/categories", requireAuth, (req, res) => {
   const db = loadDB();
   const { type, name } = req.body;
-  if (type && name && !db.finance.categories[type].includes(name)) db.finance.categories[type].push(name);
+  if (type && name && !db.finance.categories[type].includes(name)) {
+    db.finance.categories[type].push(name);
+  }
   saveDB(db);
   res.json({ ok: true });
 });
@@ -230,12 +237,12 @@ app.delete("/api/snapshots/:id", requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// ------------------- pages -------------------
+// ------------------- pages (serve from /public) -------------------
 app.get("/product.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "product.html"));
+  res.sendFile(path.join(__dirname, "public", "product.html"));
 });
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 // ------------------- server -------------------
