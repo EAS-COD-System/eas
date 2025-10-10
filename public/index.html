@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>EAS Tracker</title>
-  <link rel="stylesheet" href="/public/styles.css"/>
+
+  <!-- Force-refresh CSS on mobile Safari with ?v=2 -->
+  <link rel="stylesheet" href="/public/styles.css?v=2"/>
 </head>
 <body>
   <div id="app">
@@ -47,7 +49,6 @@
           <!-- 2) Stock + Ad Spend by Country -->
           <div id="stockByCountry" class="section">
             <h2>Total Stock & Ad Spend by Country</h2>
-            <!-- table filled by JS -->
           </div>
 
           <!-- 3) Daily Delivered -->
@@ -173,9 +174,7 @@
             <h2>Lifetime Product Performance</h2>
             <div class="card">
               <div class="flex">
-                <select id="lpProduct" class="input">
-                  <option value="">All products</option>
-                </select>
+                <select id="lpProduct" class="input"><option value="">All products</option></select>
                 <input id="lpStart" type="date" class="input"/>
                 <input id="lpEnd" type="date" class="input"/>
                 <button id="lpRun" class="btn">Run</button>
@@ -193,7 +192,7 @@
         <!-- ===================== PRODUCTS ===================== -->
         <section id="products" style="display:none">
           <h2>Products</h2>
-          <!-- Add Product -->
+
           <div class="card">
             <div class="h">Add Product</div>
             <div class="flex">
@@ -206,24 +205,23 @@
             </div>
           </div>
 
-          <!-- Products Table -->
           <table id="productsTable" class="table">
             <thead><tr><th>Name</th><th>SKU</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody></tbody>
           </table>
 
-          <!-- Product Details (shown when clicking "Open") -->
+          <!-- Product details placeholder hooks (JS fills) -->
           <div id="productDetails" class="section" style="display:none">
             <h3>Product Details</h3>
 
             <div class="card">
               <div class="h">Stock & Ad Spend by Country</div>
-              <div id="pdStockByCountry"><!-- filled by JS --></div>
+              <div id="pdStockByCountry"></div>
             </div>
 
             <div class="card">
               <div class="h">Profit + Advertising by Country (Editable)</div>
-              <div id="pdProfitBudget"><!-- editable UI by JS --></div>
+              <div id="pdProfitBudget"></div>
             </div>
 
             <div class="card">
@@ -254,7 +252,7 @@
                 <input id="pdRCPD" type="number" class="input" placeholder="Cost/Delivered" min="0" step="0.01"/>
                 <button id="pdRAdd" class="btn">Add</button>
               </div>
-              <div id="pdRTableWrap"><!-- table by JS --></div>
+              <div id="pdRTableWrap"></div>
             </div>
 
             <div class="card">
@@ -292,7 +290,7 @@
                 <input id="pdLPEnd" type="date" class="input"/>
                 <button id="pdLPRun" class="btn">Run</button>
               </div>
-              <div id="pdLPTableWrap"><!-- table by JS --></div>
+              <div id="pdLPTableWrap"></div>
             </div>
 
             <div class="card">
@@ -315,7 +313,7 @@
                 <select id="pdInfFilterCountry" class="input"><option value="">All countries</option></select>
                 <button id="pdInfRun" class="btn outline">Filter</button>
               </div>
-              <div id="pdInfList"><!-- table/list by JS --></div>
+              <div id="pdInfList"></div>
             </div>
           </div>
         </section>
@@ -324,7 +322,6 @@
         <section id="performance" style="display:none">
           <h2>Performance</h2>
 
-          <!-- 1) Top Delivered Products -->
           <div class="card">
             <div class="h">Top Delivered Products</div>
             <div class="flex">
@@ -344,7 +341,6 @@
             </table>
           </div>
 
-          <!-- 2) Remittance Report -->
           <div class="card">
             <div class="h">Remittance Report</div>
             <div class="flex">
@@ -366,7 +362,6 @@
         <section id="finance" style="display:none">
           <h2>Finance</h2>
 
-          <!-- Categories -->
           <div class="card">
             <div class="h">Debit / Credit Categories</div>
             <div id="fcList" style="margin-bottom:8px">Debits: - | Credits: -</div>
@@ -380,7 +375,6 @@
             </div>
           </div>
 
-          <!-- Entries -->
           <div class="card">
             <div class="h">Entries</div>
             <div class="flex">
@@ -414,26 +408,22 @@
         <section id="settings" style="display:none">
           <h2>Settings</h2>
 
-          <!-- Countries -->
           <div class="card">
             <div class="h">Countries</div>
             <div class="flex">
               <input id="cty" class="input" placeholder="Add country"/>
               <button id="ctyAdd" class="btn">Add</button>
             </div>
-            <div id="ctyList" style="margin-top:8px"><!-- chips here --></div>
+            <div id="ctyList" style="margin-top:8px"></div>
           </div>
 
-          <!-- Edit Product Info (inline) -->
           <div class="card">
             <div class="h">Edit Product Info</div>
             <div id="editProductWrap">
-              <!-- Keep simple placeholder; JS can render a selector + editable fields -->
               <p>Use the Products page to change status (Pause/Run) and delete. If you want inline edit UI here, say the word and I’ll add it.</p>
             </div>
           </div>
 
-          <!-- Restore -->
           <div class="card">
             <div class="h">System Restore</div>
             <div class="flex">
@@ -445,10 +435,37 @@
           </div>
         </section>
 
-      </div><!-- /.container -->
-    </div><!-- /#main -->
-  </div><!-- /#app -->
+      </div>
+    </div>
+  </div>
 
-  <script src="/public/app.js"></script>
+  <!-- Force-refresh script on mobile Safari with ?v=2; defer so DOM exists -->
+  <script src="/public/app.js?v=2" defer></script>
+
+  <!-- Tiny inline fallback so Login works even if app.js fails to load -->
+  <script>
+  (function(){
+    function post(url, data){
+      return fetch(url, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        credentials:'include', body: JSON.stringify(data||{})
+      });
+    }
+    function boot(){
+      var btn=document.getElementById('loginBtn');
+      if(!btn) return;
+      btn.addEventListener('click', async function(){
+        var p=(document.getElementById('pw')||{}).value||'';
+        try{
+          const r=await post('/api/auth',{password:p});
+          if(!r.ok){ alert('Wrong password'); return; }
+          location.reload();
+        }catch(e){ alert('Network error'); }
+      });
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot);
+    else boot();
+  })();
+  </script>
 </body>
 </html>
