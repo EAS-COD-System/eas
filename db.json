@@ -1,41 +1,43 @@
 {
-"meta": {
-"currency": "USD",
-"theme": {
-"primary": "#0E9F6E",
-"bg": "#FFFFFF"
-},
-"createdAt": "2025-10-10T00:00:00.000Z"
-},
-"countries": [
-"china",
-"kenya",
-"tanzania",
-"uganda",
-"zambia",
-"zimbabwe"
-],
-"products": [],
-"shipments": [],
-"remittances": [],
-"adSpends": [],
-"deliveries": [],
-"deliveriesWeekly": {},
-"financeCategories": {
-"debits": [
-"Facebook Ads",
-"TikTok Ads",
-"Google Ads",
-"Shipping",
-"Salaries"
-],
-"credits": [
-"Revenue Boxleo",
-"Other Revenue"
-]
-},
-"financeEntries": [],
-"influencers": [],
-"influencersSpend": [],
-"allowlistIPs": []
+  "meta": {
+    "currency": "USD",
+    "theme": {
+      "primary": "#0E9F6E",
+      "bg": "#FFFFFF"
+    },
+    "createdAt": "2025-01-01T00:00:00.000Z"
+  },
+  "countries": [
+    "china",
+    "kenya",
+    "tanzania",
+    "uganda",
+    "zambia",
+    "zimbabwe"
+  ],
+  "products": [],
+  "deliveries": [],
+  "adSpends": [],
+  "shipments": [],
+  "remittances": [],
+  "finance": {
+    "categories": {
+      "debits": [
+        "Facebook Ads",
+        "TikTok Ads",
+        "Google Ads",
+        "Shipping",
+        "Salaries",
+        "Office",
+        "Misc Expenses"
+      ],
+      "credits": [
+        "Revenue Boxleo",
+        "Other Revenue",
+        "Investments"
+      ]
+    },
+    "entries": []
+  },
+  "snapshots": []
 }
