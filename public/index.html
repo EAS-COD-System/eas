@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>EAS Tracker</title>
   <link rel="stylesheet" href="/public/styles.css"/>
 </head>
@@ -35,7 +35,7 @@
           <!-- 1) KPIs -->
           <div id="kpis" class="section">
             <h2>Overview</h2>
-            <div class="flex">
+            <div class="flex wrap">
               <div class="card"><div class="h">Products</div><div id="kpiProducts">0</div></div>
               <div class="card"><div class="h">Warehouses (Countries)</div><div id="kpiCountries">0</div></div>
               <div class="card"><div class="h">Transit Shipments</div><div id="kpiTransit">0</div></div>
@@ -50,55 +50,44 @@
             <!-- table filled by JS -->
           </div>
 
-          <!-- 3) Weekly Delivered (Mon-Sun grid, per country) -->
+          <!-- 3) Weekly Delivered (per day & country) -->
           <div id="weeklyDelivered" class="section">
-            <h2>Weekly Delivered (Monday → Sunday)</h2>
+            <h2>Weekly Delivered (Mon–Sun)</h2>
+
             <div class="card">
-              <div class="flex">
-                <div class="badge" id="wdWeekLabel">This week</div>
-                <button id="wdSave" class="btn">Save / Update</button>
+              <div class="flex wrap">
+                <select id="wdCountry" class="input"></select>
+                <select id="wdDay" class="input">
+                  <option value="Monday">Monday</option>
+                  <option value="Tuesday">Tuesday</option>
+                  <option value="Wednesday">Wednesday</option>
+                  <option value="Thursday">Thursday</option>
+                  <option value="Friday">Friday</option>
+                  <option value="Saturday">Saturday</option>
+                  <option value="Sunday">Sunday</option>
+                </select>
+                <input id="wdCount" type="number" class="input" placeholder="Delivered" min="0"/>
+                <button id="wdSet" class="btn">Set / Update</button>
                 <button id="wdReset" class="btn outline">Reset Week</button>
-                <span class="muted">Editable cells. Totals auto-calc.</span>
+              </div>
+              <div class="muted" style="margin-top:6px">
+                Tip: Use Set/Update to overwrite that cell. Reset Week clears all Monday–Sunday cells for every country.
               </div>
             </div>
-            <div class="card">
-              <table id="delivWeekTable" class="table">
-                <thead>
-                  <tr>
-                    <th>Country</th>
-                    <th>Monday</th>
-                    <th>Tuesday</th>
-                    <th>Wednesday</th>
-                    <th>Thursday</th>
-                    <th>Friday</th>
-                    <th>Saturday</th>
-                    <th>Sunday</th>
-                    <th>Total</th>
-                  </tr>
-                </thead>
-                <tbody><!-- rows filled by JS --></tbody>
-                <tfoot>
-                  <tr>
-                    <th>All Countries</th>
-                    <th id="wdMonT">0</th>
-                    <th id="wdTueT">0</th>
-                    <th id="wdWedT">0</th>
-                    <th id="wdThuT">0</th>
-                    <th id="wdFriT">0</th>
-                    <th id="wdSatT">0</th>
-                    <th id="wdSunT">0</th>
-                    <th id="wdAllTotal">0</th>
-                  </tr>
-                </tfoot>
-              </table>
+
+            <div id="wdTableWrap">
+              <!-- JS renders a table:
+                   Columns: Country | Monday..Sunday | Total
+                   Rows: countries in the system
+                   Footer: All countries total -->
             </div>
           </div>
 
-          <!-- 4) Daily Advertising Spend (no date selector; replace today's spend) -->
+          <!-- 4) Daily Advertising Spend (no date; replaces existing for that product+country+platform) -->
           <div id="dailyAdSpend" class="section">
-            <h2>Daily Advertising Spend (Today)</h2>
+            <h2>Daily Advertising Spend</h2>
             <div class="card">
-              <div class="flex">
+              <div class="flex wrap">
                 <select id="adPlatform" class="input">
                   <option value="facebook">Facebook</option>
                   <option value="tiktok">TikTok</option>
@@ -108,7 +97,9 @@
                 <select id="adCountry" class="input"></select>
                 <input id="adAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
                 <button id="adAdd" class="btn">Save / Replace</button>
-                <span class="muted">Saving again replaces today’s spend for the same Product + Platform + Country.</span>
+              </div>
+              <div class="muted" style="margin-top:6px">
+                Saving the same Product + Country + Platform again replaces the previous amount for today.
               </div>
             </div>
           </div>
@@ -117,7 +108,7 @@
           <div id="stockMovement" class="section">
             <h2>Stock Movement (Create Shipment)</h2>
             <div class="card">
-              <div class="flex">
+              <div class="flex wrap">
                 <select id="mvFrom" class="input"></select>
                 <span>→</span>
                 <select id="mvTo" class="input"></select>
@@ -157,7 +148,7 @@
           <div id="profitByCountry" class="section">
             <h2>Profit by Country</h2>
             <div class="card">
-              <div class="flex">
+              <div class="flex wrap">
                 <input id="pcStart" type="date" class="input"/>
                 <input id="pcEnd" type="date" class="input"/>
                 <button id="pcRun" class="btn">Run</button>
@@ -175,7 +166,7 @@
           <div id="todo" class="section">
             <h2>To-Do</h2>
             <div class="card">
-              <div class="flex">
+              <div class="flex wrap">
                 <input id="todoText" class="input" placeholder="Task"/>
                 <button id="todoAdd" class="btn">Add</button>
               </div>
@@ -186,14 +177,14 @@
           <!-- 10) Weekly To-Do -->
           <div id="weeklyTodo" class="section">
             <h2>Weekly To-Do</h2>
-            <div id="weeklyWrap"></div>
+            <div id="weeklyWrap"><!-- JS renders Monday..Sunday columns; add/done/delete per day --></div>
           </div>
 
           <!-- 11) Lifetime Product Performance (Global) -->
           <div id="lifetimeProducts" class="section">
             <h2>Lifetime Product Performance</h2>
             <div class="card">
-              <div class="flex">
+              <div class="flex wrap">
                 <select id="lpProduct" class="input">
                   <option value="">All products</option>
                 </select>
@@ -201,7 +192,6 @@
                 <input id="lpEnd" type="date" class="input"/>
                 <button id="lpRun" class="btn">Run</button>
               </div>
-              <div class="muted">Pulls from remittances + shipments + product base costs.</div>
             </div>
             <table id="lifetimeTable" class="table">
               <thead><tr>
@@ -215,10 +205,11 @@
         <!-- ===================== PRODUCTS ===================== -->
         <section id="products" style="display:none">
           <h2>Products</h2>
+
           <!-- Add Product -->
           <div class="card">
             <div class="h">Add Product</div>
-            <div class="flex">
+            <div class="flex wrap">
               <input id="pName" class="input" placeholder="Name"/>
               <input id="pSku" class="input" placeholder="SKU"/>
               <input id="pCost" type="number" class="input" placeholder="Cost from China (USD)" min="0" step="0.01"/>
@@ -230,11 +221,13 @@
 
           <!-- Products Table -->
           <table id="productsTable" class="table">
-            <thead><tr><th>Name</th><th>SKU</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead>
+              <tr><th>Name</th><th>SKU</th><th>Status</th><th>Actions</th></tr>
+            </thead>
             <tbody></tbody>
           </table>
 
-          <!-- Product Details (in-page, shown when "Open") -->
+          <!-- Product Details (opened via "Open") -->
           <div id="productDetails" class="section" style="display:none">
             <h3>Product Details</h3>
 
@@ -249,8 +242,8 @@
             </div>
 
             <div class="card">
-              <div class="h">Daily Ad Spend (Replace Today's)</div>
-              <div class="flex">
+              <div class="h">Daily Ad Spend (per Country & Platform)</div>
+              <div class="flex wrap">
                 <select id="pdAdCountry" class="input"></select>
                 <select id="pdAdPlatform" class="input">
                   <option value="facebook">Facebook</option>
@@ -264,7 +257,7 @@
 
             <div class="card">
               <div class="h">Remittance / Profit Entries</div>
-              <div class="flex">
+              <div class="flex wrap">
                 <input id="pdRStart" type="date" class="input"/>
                 <input id="pdREnd" type="date" class="input"/>
                 <select id="pdRCountry" class="input"></select>
@@ -272,8 +265,8 @@
                 <input id="pdRPieces" type="number" class="input" placeholder="Pieces" min="0"/>
                 <input id="pdRRevenue" type="number" class="input" placeholder="Revenue (USD)" min="0" step="0.01"/>
                 <input id="pdRAdSpend" type="number" class="input" placeholder="Ad Spend (USD)" min="0" step="0.01"/>
-                <!-- replaced CPD with extra delivery cost per piece -->
-                <input id="pdRExtra" type="number" class="input" placeholder="Extra cost to deliver per piece (USD)" min="0" step="0.01"/>
+                <!-- replaced CPD with extra cost per piece -->
+                <input id="pdRExtra" type="number" class="input" placeholder="Extra delivery cost / piece (USD)" min="0" step="0.01"/>
                 <button id="pdRAdd" class="btn">Add</button>
               </div>
               <div id="pdRTableWrap"><!-- table by JS --></div>
@@ -281,7 +274,7 @@
 
             <div class="card">
               <div class="h">Stock Movement</div>
-              <div class="flex">
+              <div class="flex wrap">
                 <select id="pdMvFrom" class="input"></select>
                 <span>→</span>
                 <select id="pdMvTo" class="input"></select>
@@ -309,7 +302,7 @@
 
             <div class="card">
               <div class="h">Lifetime (This Product)</div>
-              <div class="flex">
+              <div class="flex wrap">
                 <input id="pdLPStart" type="date" class="input"/>
                 <input id="pdLPEnd" type="date" class="input"/>
                 <button id="pdLPRun" class="btn">Run</button>
@@ -319,19 +312,19 @@
 
             <div class="card">
               <div class="h">Influencer Spend</div>
-              <div class="flex">
+              <div class="flex wrap">
                 <input id="pdInfName" class="input" placeholder="Influencer Name"/>
                 <input id="pdInfSocial" class="input" placeholder="Social @handle"/>
                 <select id="pdInfCountry" class="input"></select>
                 <button id="pdInfAdd" class="btn">Add Influencer</button>
               </div>
-              <div class="flex" style="margin-top:8px">
+              <div class="flex wrap" style="margin-top:8px">
                 <input id="pdInfDate" type="date" class="input"/>
                 <select id="pdInfSelect" class="input"></select>
                 <input id="pdInfAmount" type="number" class="input" placeholder="Spend (USD)" min="0" step="0.01"/>
                 <button id="pdInfSpendAdd" class="btn">Add Spend</button>
               </div>
-              <div class="flex" style="margin-top:8px">
+              <div class="flex wrap" style="margin-top:8px">
                 <input id="pdInfStart" type="date" class="input"/>
                 <input id="pdInfEnd" type="date" class="input"/>
                 <select id="pdInfFilterCountry" class="input"><option value="">All countries</option></select>
@@ -349,7 +342,7 @@
           <!-- 1) Top Delivered Products -->
           <div class="card">
             <div class="h">Top Delivered Products</div>
-            <div class="flex">
+            <div class="flex wrap">
               <select id="pfQuick" class="input">
                 <option value="8">Last 8 days</option>
                 <option value="28">Last 28 days</option>
@@ -366,10 +359,10 @@
             </table>
           </div>
 
-          <!-- 2) Remittance Report (CPD replaced with Extra cost per piece) -->
+          <!-- 2) Remittance Report -->
           <div class="card">
             <div class="h">Remittance Report</div>
-            <div class="flex">
+            <div class="flex wrap">
               <input id="rStart" type="date" class="input"/>
               <input id="rEnd" type="date" class="input"/>
               <select id="rCountry" class="input"></select>
@@ -378,7 +371,8 @@
               <input id="rPieces" type="number" class="input" placeholder="Pieces" min="0"/>
               <input id="rRev" type="number" class="input" placeholder="Revenue (USD)" min="0" step="0.01"/>
               <input id="rAds" type="number" class="input" placeholder="Ad Spend (USD)" min="0" step="0.01"/>
-              <input id="rExtra" type="number" class="input" placeholder="Extra cost to deliver per piece (USD)" min="0" step="0.01"/>
+              <!-- replaced CPD with extra cost per piece -->
+              <input id="rExtra" type="number" class="input" placeholder="Extra delivery cost / piece (USD)" min="0" step="0.01"/>
               <button id="rAdd" class="btn">Add</button>
             </div>
           </div>
@@ -388,17 +382,17 @@
         <section id="finance" style="display:none">
           <h2>Finance</h2>
 
-          <!-- Big running balance -->
-          <div class="card">
+          <!-- Running Balance -->
+          <div class="card emphasize">
             <div class="h">Running Balance</div>
-            <div id="finBalanceBig" style="font-size:28px;font-weight:800;">0 USD</div>
+            <div id="finRunning" style="font-size:28px;font-weight:700">0.00 USD</div>
           </div>
 
-          <!-- Categories (view + add) -->
+          <!-- Categories -->
           <div class="card">
             <div class="h">Debit / Credit Categories</div>
             <div id="fcList" style="margin-bottom:8px">Debits: - | Credits: -</div>
-            <div class="flex">
+            <div class="flex wrap">
               <select id="fcType" class="input">
                 <option value="debit">Debit</option>
                 <option value="credit">Credit</option>
@@ -411,22 +405,19 @@
           <!-- Entries -->
           <div class="card">
             <div class="h">Entries</div>
-            <div class="flex">
+            <div class="flex wrap">
               <input id="feDate" type="date" class="input"/>
-              <!-- category selection replaces free text -->
-              <select id="feCat" class="input"></select>
+              <select id="feCatSelect" class="input"><option value="">Select category…</option></select>
               <input id="feAmt" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
               <input id="feNote" class="input" placeholder="Note"/>
               <button id="feAdd" class="btn">Add Entry</button>
             </div>
 
-            <div class="flex" style="margin-top:8px">
+            <div class="flex wrap" style="margin-top:8px">
               <input id="fes" type="date" class="input"/>
               <input id="fee" type="date" class="input"/>
-              <!-- multi-select filter; end-of-range balance shows below -->
-              <select id="fef" class="input" multiple style="min-width:220px"></select>
               <button id="feRun" class="btn outline">Run</button>
-              <div id="feBalance" class="badge">Balance (range): —</div>
+              <div id="feBalance" class="badge">End Balance in range: —</div>
             </div>
 
             <table id="feTable" class="table" style="margin-top:8px">
@@ -443,7 +434,7 @@
           <!-- Countries -->
           <div class="card">
             <div class="h">Countries</div>
-            <div class="flex">
+            <div class="flex wrap">
               <input id="cty" class="input" placeholder="Add country"/>
               <button id="ctyAdd" class="btn">Add</button>
             </div>
@@ -453,28 +444,28 @@
           <!-- Edit Product Info -->
           <div class="card">
             <div class="h">Edit Product Info</div>
-            <div class="flex">
-              <select id="epSelect" class="input" style="min-width:220px"></select>
-              <input id="epName" class="input" placeholder="Name"/>
-              <input id="epSku" class="input" placeholder="SKU"/>
-              <input id="epCost" type="number" class="input" placeholder="Cost from China (USD)" min="0" step="0.01"/>
-              <input id="epShip" type="number" class="input" placeholder="Ship China→Kenya (USD)" min="0" step="0.01"/>
-              <input id="epMB" type="number" class="input" placeholder="Profit + Ads Budget (USD)" min="0" step="0.01"/>
-              <button id="epSave" class="btn">Save Changes</button>
+            <div class="flex wrap">
+              <select id="epiSelect" class="input"></select>
+              <input id="epiName" class="input" placeholder="Product name"/>
+              <input id="epiSku" class="input" placeholder="SKU"/>
+              <input id="epiCost" type="number" class="input" placeholder="Cost from China (USD)" min="0" step="0.01"/>
+              <input id="epiShip" type="number" class="input" placeholder="Ship China→Kenya (USD)" min="0" step="0.01"/>
+              <input id="epiMB" type="number" class="input" placeholder="Profit + Ads Budget (USD)" min="0" step="0.01"/>
+              <button id="epiSave" class="btn">Save Changes</button>
             </div>
-            <div class="muted">Pick a product, edit fields, click Save. Pause/Run & Delete are in Products table.</div>
           </div>
 
-          <!-- Restore -->
+          <!-- Manual Saves (Snapshots) -->
           <div class="card">
-            <div class="h">System Restore</div>
-            <div class="flex">
-              <button class="btn outline restore" data-win="10m">10 minutes ago</button>
-              <button class="btn outline restore" data-win="1h">1 hour ago</button>
-              <button class="btn outline restore" data-win="24h">24 hours ago</button>
-              <button class="btn outline restore" data-win="3d">3 days ago</button>
-              <span class="muted">Requires snapshots in /data/snapshots (use daily cron or run snapshot manually).</span>
+            <div class="h">Manual Saves</div>
+            <div class="flex wrap">
+              <input id="snapName" class="input" placeholder="Save name (e.g., 'Before Q4 push')"/>
+              <button id="snapSave" class="btn">Save Current System Data</button>
             </div>
+            <table id="snapTable" class="table" style="margin-top:8px">
+              <thead><tr><th>Name</th><th>Created</th><th>Actions</th></tr></thead>
+              <tbody><!-- rows: Restore | Delete --></tbody>
+            </table>
           </div>
         </section>
 
