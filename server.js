@@ -15,6 +15,9 @@ const ROOT = __dirname;
 const DATA_FILE = path.join(ROOT, 'db.json');
 const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
 
+// IMPORTANT on Render (proxy) so secure cookies work:
+app.set('trust proxy', 1);
+
 // ---------- middleware ----------
 app.use(morgan('dev'));
 app.use(bodyParser.json({ limit: '1mb' }));
@@ -78,8 +81,8 @@ app.post('/api/auth', (req, res) => {
   if (password === 'logout') {
     res.clearCookie('auth', {
       httpOnly: true,
-      sameSite: 'Lax',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      secure: !!process.env.RENDER || process.env.NODE_ENV === 'production',
       path: '/'
     });
     return res.json({ ok: true });
@@ -89,8 +92,8 @@ app.post('/api/auth', (req, res) => {
   if (password && password === db.password) {
     res.cookie('auth', '1', {
       httpOnly: true,
-      sameSite: 'Lax',
-      secure: process.env.NODE_ENV === 'production', // Render uses HTTPS
+      sameSite: 'lax', // lowercase
+      secure: !!process.env.RENDER || process.env.NODE_ENV === 'production',
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
@@ -104,6 +107,11 @@ function requireAuth(req, res, next) {
   if (req.cookies.auth === '1') return next();
   return res.status(403).json({ error: 'Unauthorized' });
 }
+
+// quick helper to verify cookie from browser
+app.get('/api/whoami', (req, res) => {
+  res.json({ authed: req.cookies.auth === '1' });
+});
 
 // ---------- meta ----------
 app.get('/api/meta', requireAuth, (req, res) => {
@@ -152,7 +160,7 @@ app.post('/api/products', requireAuth, (req, res) => {
     cost_china: +req.body.cost_china || 0,
     ship_china_to_kenya: +req.body.ship_china_to_kenya || 0,
     margin_budget: +req.body.margin_budget || 0,
-    budgets: req.body.budgets || {} // manual per-country budget for product page
+    budgets: req.body.budgets || {}
   };
   if (!p.name) return res.status(400).json({ error: 'Name required' });
   db.products.push(p);
@@ -192,7 +200,7 @@ app.delete('/api/products/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// ---------- daily ad spend (upsert by product+country+platform) ----------
+// ---------- daily ad spend ----------
 app.get('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ adSpends: db.adspend || [] });
@@ -217,7 +225,7 @@ app.post('/api/adspend', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// ---------- deliveries (grid uses these) ----------
+// ---------- deliveries ----------
 app.get('/api/deliveries', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ deliveries: db.deliveries || [] });
@@ -268,7 +276,7 @@ app.put('/api/shipments/:id', requireAuth, (req, res) => {
   if (up.qty !== undefined) s.qty = +up.qty || 0;
   if (up.shipCost !== undefined) s.shipCost = +up.shipCost || 0;
   if (up.departedAt !== undefined) s.departedAt = up.departedAt;
-  if (up.arrivedAt !== undefined) s.arrivedAt = up.arrivedAt; // mark arrived here
+  if (up.arrivedAt !== undefined) s.arrivedAt = up.arrivedAt;
   saveDB(db);
   res.json({ ok: true, shipment: s });
 });
@@ -332,7 +340,6 @@ app.post('/api/finance/categories', requireAuth, (req, res) => {
   res.json({ ok: true, categories: db.finance.categories });
 });
 
-// optional delete category
 app.delete('/api/finance/categories', requireAuth, (req, res) => {
   const db = loadDB();
   const { type, name } = req.query || {};
