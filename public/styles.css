@@ -1,205 +1,118 @@
-/* ---------- EAS Tracker Theme (white + green) ---------- */
-:root {
-  --green: #0E9F6E;
-  --green-dark: #0B7E56;
+/* EAS Tracker – styles (mobile-first, white + green) */
+:root{
   --bg: #ffffff;
-  --gray: #f6f6f6;
-  --text: #222;
-  --border: #ddd;
-  font-family: 'Inter', sans-serif;
+  --text: #111827;
+  --muted: #6b7280;
+  --green: #0E9F6E;    /* primary */
+  --green-600: #0b8a61;
+  --green-100: #e6f7f0;
+  --border: #e5e7eb;
+  --card: #ffffff;
+  --shadow: 0 1px 2px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.08);
 }
 
-html, body {
-  margin: 0;
-  padding: 0;
+* { box-sizing: border-box; }
+html, body { margin:0; padding:0; background:var(--bg); color:var(--text); font: 15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+
+/* --------- Layout --------- */
+#login, #main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+h1{ font-weight:800; font-size: 36px; margin: 20px 0 12px; }
+h2{ font-size: 20px; margin: 4px 0 12px; }
+h3{ font-size: 18px; margin: 8px 0 10px; color: var(--text); }
+p { color: var(--muted); }
+
+.container { padding-top: 12px; }
+.section { margin: 18px 0 22px; }
+
+/* --------- Nav --------- */
+.nav{
+  position: sticky; top: 0; z-index: 10;
+  display:flex; align-items:center; gap:10px; flex-wrap: wrap;
   background: var(--bg);
-  color: var(--text);
-  font-family: 'Inter', sans-serif;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
 }
-
-h1, h2, h3 {
-  color: var(--green-dark);
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
+.nav a{
+  display:inline-block; padding:8px 12px; border-radius: 8px; cursor:pointer;
+  text-decoration:none; color: var(--text);
 }
+.nav a.active{ background: var(--green-100); color: var(--green); }
+.nav-right{ margin-left:auto; color: var(--muted); }
 
-h1 {
-  border-bottom: 3px solid var(--green);
-  padding-bottom: 0.3rem;
-}
-
-/* ---------- NAVIGATION ---------- */
-.nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--green);
-  padding: 0.75rem 1rem;
-  color: white;
-}
-
-.nav a {
-  color: white;
-  margin-right: 1.2rem;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.nav a.active {
-  border-bottom: 2px solid white;
-  padding-bottom: 2px;
-}
-
-.nav-right {
-  margin-left: auto;
-}
-
-/* ---------- COMMON UI ---------- */
-.btn {
-  background: var(--green);
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background 0.2s;
-}
-
-.btn:hover {
-  background: var(--green-dark);
-}
-
-.btn.outline {
-  background: transparent;
-  border: 1px solid var(--green);
-  color: var(--green);
-}
-
-.btn.outline:hover {
-  background: var(--green);
-  color: white;
-}
-
-.input, select, textarea {
+/* --------- Cards / blocks --------- */
+.card{
+  background: var(--card);
   border: 1px solid var(--border);
-  padding: 6px 8px;
-  border-radius: 4px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-select {
-  background: white;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 0.8rem 0;
-  font-size: 14px;
-}
-
-.table th, .table td {
-  border: 1px solid var(--border);
-  padding: 8px 10px;
-  text-align: left;
-}
-
-.table th {
-  background: var(--green);
-  color: white;
-}
-
-.table tr:nth-child(even) {
-  background: var(--gray);
-}
-
-/* ---------- LAYOUT ---------- */
-.container {
-  max-width: 1150px;
-  margin: 1rem auto;
-  padding: 0 1rem;
-}
-
-.card {
-  background: var(--gray);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 1rem;
-  margin: 1rem 0;
-}
-
-.flex {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.badge {
-  background: var(--green);
-  color: white;
   border-radius: 12px;
-  padding: 3px 8px;
-  font-size: 12px;
+  padding: 12px;
+  box-shadow: var(--shadow);
+  margin: 8px 0;
+}
+.card .h{ font-weight:600; margin-bottom:8px; }
+
+/* --------- Flex helper --------- */
+.flex{ display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+
+/* --------- Inputs & buttons --------- */
+.input{
+  height: 36px; padding: 6px 10px; border-radius: 8px;
+  border:1px solid var(--border); background:#fff; color:var(--text);
+}
+.input:focus{ outline:none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(14,159,110,.15); }
+
+.btn{
+  height: 36px; padding: 0 14px; border-radius: 8px; border:1px solid var(--green);
+  background: var(--green); color: #fff; font-weight:600; cursor:pointer;
+}
+.btn:hover{ background: var(--green-600); border-color: var(--green-600); }
+.btn:disabled{ opacity:.6; cursor:not-allowed; }
+
+.btn.outline{
+  background: #fff; color: var(--green); border:1px solid var(--green);
+}
+.btn.outline:hover{ background: var(--green-100); }
+
+/* --------- Badges --------- */
+.badge{
+  display:inline-block; padding:4px 8px; border-radius:999px;
+  background: var(--green-100); color: var(--green); border:1px solid var(--green);
+  font-size:12px; font-weight:600;
 }
 
-.h {
-  font-weight: 700;
-  font-size: 16px;
-  color: var(--green-dark);
-  margin-bottom: 6px;
+/* --------- Tables --------- */
+.table{
+  width:100%; border-collapse: collapse; background:#fff;
+  border:1px solid var(--border); border-radius:12px; overflow:hidden;
+  box-shadow: var(--shadow);
+}
+.table thead th{
+  text-align:left; font-weight:700; color:#374151; background:#f9fafb;
+  border-bottom:1px solid var(--border); padding:10px;
+}
+.table td{ padding:10px; border-bottom:1px solid var(--border); }
+.table tr:last-child td{ border-bottom:0; }
+
+/* --------- KPI cards --------- */
+#kpis .card { flex: 1 1 160px; text-align:center; }
+#kpis .card .h{ color:var(--muted); font-size:12px; text-transform: uppercase; letter-spacing: .04em; }
+#kpis .card div:last-child{ font-size:22px; font-weight:800; }
+
+/* --------- Login --------- */
+#login .input{ width: 260px; max-width: 80%; }
+#login .btn{ vertical-align: middle; }
+
+/* --------- Small screens --------- */
+@media (max-width: 700px){
+  h1{ font-size: 28px; }
+  .nav{ gap:6px; }
+  .btn, .input{ height: 40px; }
+  #kpis .card div:last-child{ font-size:20px; }
 }
 
-/* ---------- SECTIONS ---------- */
-.section {
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 2px solid var(--border);
-}
-
-.section h3 {
-  margin-top: 0;
-}
-
-/* ---------- LOGIN ---------- */
-#login {
-  max-width: 320px;
-  margin: 6rem auto;
-  text-align: center;
-  padding: 2rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--gray);
-}
-
-#login input {
-  margin-top: 1rem;
-}
-
-#login button {
-  width: 100%;
-  margin-top: 1rem;
-}
-
-/* ---------- TODO LISTS ---------- */
-#todoList, #weeklyWrap {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-#weeklyWrap {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
-}
-
-/* ---------- RESPONSIVE ---------- */
-@media (max-width: 700px) {
-  .flex { flex-direction: column; align-items: stretch; }
-  .nav { flex-wrap: wrap; }
-  .table th, .table td { font-size: 12px; padding: 6px; }
+/* --------- Very small screens --------- */
+@media (max-width: 420px){
+  .nav a{ padding:6px 10px; }
+  .card{ padding:10px; }
+  .table thead{ font-size: 13px; }
+  .table td{ font-size: 13px; }
 }
