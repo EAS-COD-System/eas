@@ -1,63 +1,30 @@
 {
   "password": "eastafricashop",
   "countries": ["china", "kenya", "tanzania", "uganda", "zambia", "zimbabwe"],
-
-  "products": [
-    /*
-      Example product (uncomment to test quickly):
-      {
-        "id": "demo-1",
-        "name": "Neck Massager",
-        "sku": "NECK-001",
-        "status": "active",
-        "cost_china": 6.5,
-        "ship_china_to_kenya": 1.2,
-        "margin_budget": 8
-      }
-    */
-  ],
-
-  "adspend": [
-    /* { "id":"...", "productId":"...", "country":"kenya", "platform":"facebook", "amount": 12.34 } */
-  ],
-
-  "deliveries": [
-    /* { "id":"...", "date":"2025-10-01", "country":"kenya", "delivered": 42 } */
-  ],
-
-  "shipments": [
-    /* { "id":"...", "productId":"...", "fromCountry":"china", "toCountry":"kenya", "qty":100, "shipCost":120, "departedAt":"2025-10-01", "arrivedAt":null } */
-  ],
-
-  "remittances": [
-    /* {
-         "id":"...",
-         "start":"2025-10-01",
-         "end":"2025-10-08",
-         "country":"kenya",
-         "productId":"...",
-         "orders": 50,
-         "pieces": 70,
-         "revenue": 2100,
-         "adSpend": 600
-       } */
-  ],
-
+  "products": [],
+  "adspend": [],
+  "deliveries": [],
+  "shipments": [],
+  "remittances": [],
   "finance": {
     "categories": {
-      "debit": ["Facebook Ads", "TikTok Ads", "Google Ads", "Shipping", "Salaries", "Rent", "Misc"],
-      "credit": ["Product Revenue", "Boxleo Payout", "Other Revenue"]
+      "debit": [
+        "Facebook Ads",
+        "TikTok Ads",
+        "Google Ads",
+        "Shipping",
+        "Salaries",
+        "Rent",
+        "Misc"
+      ],
+      "credit": [
+        "Product Revenue",
+        "Boxleo Payout",
+        "Other Revenue"
+      ]
     },
-    "entries": [
-      /* { "id":"...", "date":"2025-10-05", "type":"debit", "category":"Facebook Ads", "amount": 250, "note":"Daily ads" } */
-    ]
+    "entries": []
   },
-
-  "influencers": [
-    /* optional future use; your current build doesn't require records at boot */
-  ],
-
-  "snapshots": [
-    /* populated when you click “Save current system data” in Settings */
-  ]
+  "influencers": [],
+  "snapshots": []
 }
