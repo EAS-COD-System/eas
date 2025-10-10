@@ -1,11 +1,67 @@
 {
   "password": "eastafricashop",
-  "countries": ["china", "kenya", "tanzania", "uganda", "zambia", "zimbabwe"],
-  "products": [],
-  "adspend": [],
-  "deliveries": [],
-  "shipments": [],
-  "remittances": [],
+
+  "countries": [
+    "china",
+    "kenya",
+    "tanzania",
+    "uganda",
+    "zambia",
+    "zimbabwe"
+  ],
+
+  "products": [
+    /*
+      Example (uncomment to test quickly):
+      {
+        "id": "demo-1",
+        "name": "Neck Massager",
+        "sku": "NECK-001",
+        "status": "active",
+        "cost_china": 6.5,
+        "ship_china_to_kenya": 1.2,
+        "margin_budget": 8,
+        "budgets": {}
+      }
+    */
+  ],
+
+  "adspend": [
+    /* { "id":"...", "productId":"...", "country":"kenya", "platform":"facebook", "amount": 25.50 } */
+  ],
+
+  "deliveries": [
+    /* { "id":"...", "date":"2025-10-10", "country":"kenya", "delivered": 42 } */
+  ],
+
+  "shipments": [
+    /* {
+         "id":"...",
+         "productId":"...",
+         "fromCountry":"china",
+         "toCountry":"kenya",
+         "qty":100,
+         "shipCost":120,
+         "departedAt":"2025-10-01",
+         "arrivedAt":null
+       } */
+  ],
+
+  "remittances": [
+    /* {
+         "id":"...",
+         "start":"2025-10-01",
+         "end":"2025-10-08",
+         "country":"kenya",
+         "productId":"...",
+         "orders": 50,
+         "pieces": 70,
+         "revenue": 2100,
+         "adSpend": 600,
+         "extraPerPiece": 0
+       } */
+  ],
+
   "finance": {
     "categories": {
       "debit": [
@@ -23,8 +79,20 @@
         "Other Revenue"
       ]
     },
-    "entries": []
+    "entries": [
+      /* { "id":"...", "date":"2025-10-05", "type":"debit", "category":"Facebook Ads", "amount": 250, "note":"Daily ads" } */
+    ]
   },
-  "influencers": [],
-  "snapshots": []
+
+  "influencers": [
+    /* { "id":"...", "name":"Influencer Name", "social":"@handle", "country":"kenya" } */
+  ],
+
+  "influencerSpends": [
+    /* { "id":"...", "date":"2025-10-09", "influencerId":"...", "country":"kenya", "productId":"...", "amount":100 } */
+  ],
+
+  "snapshots": [
+    /* { "id":"...", "name":"Manual Save", "file":"data/snapshots/2025-10-10_manual.json", "createdAt":"2025-10-10T12:00:00Z", "kind":"manual" } */
+  ]
 }
