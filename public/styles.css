@@ -1,302 +1,116 @@
-/* =========================================================
-   EAS Tracker - /public/styles.css
-   Theme: white & green
-   ========================================================= */
-
+/* =============== Base =============== */
 :root{
-  --bg: #ffffff;
-  --fg: #0b1a14;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-
-  --green: #0E9F6E;        /* primary */
-  --green-600: #0c8e63;
-  --green-700: #0a7c57;
-  --green-050: #e7f7f1;
-
-  --card: #ffffff;
-  --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 12px rgba(0,0,0,.03);
+  --green:#0E9F6E;
+  --green-2:#0aa06b;
+  --bg:#ffffff;
+  --ink:#1e293b;
+  --muted:#6b7280;
+  --line:#e5e7eb;
+  --chip:#f1f5f9;
 }
 
-*{ box-sizing: border-box; }
-html, body{ height:100%; }
-body{
-  margin:0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-  background: var(--bg);
-  color: var(--fg);
-  line-height: 1.35;
-}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+h1,h2,h3{margin:0 0 10px}
+h1{font-size:28px}
+h2{font-size:20px}
+h3{font-size:18px}
+a{color:var(--green);text-decoration:none}
+.muted{color:var(--muted);font-size:12px}
 
-/* ---------- layout ---------- */
+/* =============== Layout =============== */
+.container{max-width:1100px;margin:0 auto;padding:16px}
+.section{margin:18px 0}
 
-.container{
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 16px;
-}
-
-.section{
-  margin: 18px 0 26px;
-}
-
-.flex{
-  display:flex;
-  align-items:center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.h{
-  font-weight: 600;
-  color: var(--fg);
-  margin-bottom: 8px;
-}
-
-.badge{
-  display:inline-block;
-  font-size: 12px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: var(--green-050);
-  color: var(--green-700);
-  border: 1px solid var(--green);
-  white-space: nowrap;
-}
-
-/* ---------- nav ---------- */
-
+/* =============== Nav =============== */
 .nav{
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: #fff;
-  border-bottom: 1px solid var(--border);
-  display:flex;
-  align-items:center;
-  gap: 10px;
-  padding: 10px 16px;
-  overflow-x: auto;
+  display:flex; gap:10px; align-items:center;
+  padding:12px 16px; border-bottom:1px solid var(--line);
+  position:sticky; top:0; background:#fff; z-index:5;
 }
-
 .nav a{
-  color: var(--muted);
-  text-decoration: none;
-  padding: 8px 10px;
-  border-radius: 8px;
-  flex: 0 0 auto;
+  padding:8px 12px;border-radius:8px;font-weight:600;color:var(--ink)
 }
+.nav a.active{background:var(--chip); color:var(--green)}
+.nav .nav-right{margin-left:auto;color:#ef4444}
 
-.nav a.active{
-  color: #fff;
-  background: var(--green);
-}
-
-.nav a:hover{
-  color: var(--green-700);
-}
-
-.nav .nav-right{
-  margin-left: auto;
-  background: #f8fafc;
-  border: 1px solid var(--border);
-}
-
-/* ---------- cards ---------- */
-
+/* =============== Cards & flex =============== */
 .card{
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px;
-  box-shadow: var(--shadow);
+  border:1px solid var(--line); border-radius:12px; padding:12px; background:#fff;
 }
+.card .h{font-weight:700;margin-bottom:8px}
 
-/* KPI cards more visual */
-#kpis .card{
-  flex: 1 1 170px;
-  text-align:center;
-  padding: 14px 12px;
-}
-#kpis .card .h{
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: .02em;
-}
-#kpis .card > div:last-child{
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--green-700);
-}
+.flex{display:flex; gap:8px; align-items:center}
+.wrap{flex-wrap:wrap}
 
-/* ---------- inputs & buttons ---------- */
-
+/* =============== Inputs & buttons =============== */
 .input{
-  height: 36px;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--fg);
-  outline: none;
-  min-width: 140px;
+  border:1px solid var(--line); border-radius:8px; padding:8px 10px; min-height:36px;
+  background:#fff; color:var(--ink);
 }
-.input:focus{
-  border-color: var(--green);
-  box-shadow: 0 0 0 2px rgba(14,159,110,.12);
-}
+.input:focus{outline:2px solid rgba(14,159,110,.2); border-color:var(--green)}
 
 .btn{
-  appearance: none;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 14px;
-  background: var(--green);
-  color: #fff;
-  cursor: pointer;
-  font-weight: 600;
-  height: 36px;
+  border:none; background:var(--green); color:#fff; padding:9px 14px; border-radius:8px;
+  cursor:pointer; font-weight:600; min-height:36px;
 }
-.btn:hover{ background: var(--green-600); }
-.btn:active{ background: var(--green-700); }
-
+.btn:hover{background:var(--green-2)}
+.btn:disabled{opacity:.5; cursor:not-allowed}
 .btn.outline{
-  background: #fff;
-  color: var(--green-700);
-  border: 1px solid var(--green);
+  background:#fff; color:var(--green);
+  border:1px solid var(--green);
 }
-.btn.outline:hover{
-  background: var(--green-050);
-}
-
-button[disabled], .btn[disabled]{
-  opacity: .6;
-  cursor: not-allowed;
+.badge{
+  display:inline-block; padding:4px 8px; border-radius:999px; background:var(--chip); color:var(--ink); font-size:12px;
 }
 
-/* ---------- tables ---------- */
-
-.table{
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-  background: #fff;
-}
-
+/* =============== Tables =============== */
+.table{width:100%; border-collapse:separate; border-spacing:0; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden}
 .table thead th{
-  background: #f8fafc;
-  color: #111827;
-  font-weight: 600;
-  text-align: left;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
-  white-space: nowrap;
+  text-align:left; background:#f8fafc; font-size:12px; color:#475569;
+  border-bottom:1px solid var(--line); padding:10px;
 }
+.table tbody td{padding:10px; border-bottom:1px solid var(--line); vertical-align:top}
+.table tbody tr:last-child td{border-bottom:none}
+.table tfoot td{padding:10px; background:#f8fafc; font-weight:700}
 
-.table tbody td, .table tbody th{
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
-}
+/* =============== KPI cards =============== */
+#kpis .card{flex:1; min-width:180px; text-align:center}
+#kpis .card .h{font-size:12px; color:var(--muted)}
+#kpis .card div:last-child{font-size:22px; font-weight:800}
 
-.table tbody tr:hover{
-  background: #fafafa;
-}
-
-/* narrow numeric columns (weekly delivered inputs) */
-.table input.wd-cell{
-  width: 100%;
-  text-align: right;
-}
-
-/* table footer */
-.table tfoot td, .table tfoot th{
-  padding: 10px 12px;
-  font-weight: 700;
-  background: #f3f4f6;
-  border-top: 1px solid var(--border);
-}
-
-/* ---------- login ---------- */
-
+/* =============== Login =============== */
 #login{
-  max-width: 380px;
-  margin: 12vh auto 0;
-  text-align: center;
-  padding: 24px;
+  max-width:520px; margin:48px auto; padding:24px;
 }
-#login h1{
-  margin: 0 0 6px 0;
-}
-#login p{
-  margin: 0 0 14px 0;
-  color: var(--muted);
-}
+#login h1{font-size:34px}
 
-/* ---------- finance balance header ---------- */
+/* =============== Weekly To-do grid =============== */
+#weeklyWrap{
+  display:grid; gap:10px;
+  grid-template-columns:repeat(7, minmax(140px,1fr));
+}
+#weeklyWrap .card .flex{margin-bottom:8px}
+#weeklyWrap .list .flex{justify-content:space-between}
 
-.fin-balance{
-  display:flex;
-  align-items:center;
-  justify-content: space-between;
-  gap: 10px;
-  background: linear-gradient(135deg, var(--green) 0%, #20b486 100%);
-  color:#fff;
-  padding: 14px 16px;
-  border-radius: 12px;
-  box-shadow: var(--shadow);
-}
-.fin-balance .label{
-  opacity:.9;
-  font-weight:600;
-  letter-spacing:.02em;
-}
-.fin-balance .value{
-  font-size: 28px;
-  font-weight: 800;
+/* =============== Chips list (countries) =============== */
+#ctyList .chip{
+  display:inline-block; background:var(--chip); border:1px solid var(--line);
+  padding:6px 10px; border-radius:999px; margin:4px 6px 0 0;
 }
 
-/* ---------- product details subtables ---------- */
+/* =============== Emphasize (finance running balance) =============== */
+.emphasize{background:linear-gradient(180deg,#f7fffb,#fff);}
 
-#productDetails .card .h{
-  margin-bottom: 6px;
-}
-
-/* ---------- utilities ---------- */
-
-hr{
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 16px 0;
-}
-
-.hidden{ display:none !important; }
-
-/* ---------- responsive ---------- */
-
-@media (max-width: 960px){
-  .container{ padding: 12px; }
-  #kpis .card > div:last-child{ font-size: 20px; }
-}
-
+/* =============== Responsive =============== */
 @media (max-width: 720px){
-  .input{ min-width: 120px; }
-  .nav{ gap: 6px; padding: 8px 12px; }
-  .btn{ padding: 8px 12px; }
-  .table thead th, .table tbody td{ padding: 8px 10px; }
+  .nav{flex-wrap:wrap}
+  #kpis .card{min-width:140px}
+  #weeklyWrap{grid-template-columns:repeat(2,1fr)}
 }
-
-@media (max-width: 520px){
-  /* stack most control rows */
-  .flex{ gap: 6px; }
-  .input{ min-width: 100px; }
-  #kpis .card{ flex: 1 1 47%; }
-  .fin-balance .value{ font-size: 22px; }
+@media (max-width: 420px){
+  .container{padding:12px}
+  .flex{flex-direction:column; align-items:stretch}
+  .nav a{padding:8px}
+  #weeklyWrap{grid-template-columns:1fr}
 }
-
-/* Keep long strings from blowing layouts */
-td, th{ word-break: break-word; }
