@@ -1,15 +1,38 @@
 {
-  "countries": ["china","kenya","tanzania","uganda","zambia","zimbabwe"],
+  "meta": {
+    "currency": "USD",
+    "theme": {
+      "primary": "#0E9F6E",
+      "bg": "#ffffff"
+    },
+    "createdAt": "2025-10-10T00:00:00.000Z"
+  },
+  "countries": [
+    "china",
+    "kenya",
+    "tanzania",
+    "uganda",
+    "zambia",
+    "zimbabwe"
+  ],
   "products": [],
   "deliveries": [],
-  "adspend": [],
+  "adSpends": [],
   "shipments": [],
   "remittances": [],
   "financeCategories": {
-    "debits": ["Facebook Ads","TikTok Ads","Google Ads","Shipping","Salaries"],
-    "credits": ["Revenue Boxleo","Other Revenue"]
+    "debits": [
+      "Facebook Ads",
+      "TikTok Ads",
+      "Google Ads",
+      "Shipping",
+      "Salaries"
+    ],
+    "credits": [
+      "Revenue Boxleo",
+      "Other Revenue"
+    ]
   },
   "financeEntries": [],
-  "influencers": [],
-  "influencersSpend": []
+  "allowlistIPs": []
 }
