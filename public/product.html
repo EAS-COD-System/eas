@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>EAS Product</title>
+  <link rel="stylesheet" href="/public/styles.css"/>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/" class="active">← Back to Dashboard</a>
+    <span class="nav-right"><a id="logoutLink">Logout</a></span>
+  </nav>
+
+  <div class="container" id="wrap" style="display:none">
+    <h1 id="pTitle">Product</h1>
+
+    <!-- 1) Stock & Ad Spend by Country -->
+    <div class="card">
+      <div class="h">Stock & Ad Spend by Country</div>
+      <table class="table">
+        <thead><tr><th>Country</th><th>Available Stock</th><th>Ad Spend (USD)</th></tr></thead>
+        <tbody id="pStockTable"></tbody>
+        <tfoot>
+          <tr>
+            <th>Totals</th>
+            <th id="pStockTotal">0</th>
+            <th id="pAdTotal">0 USD</th>
+          </tr>
+        </tfoot>
+      </table>
+      <div class="badge">Transit stock: <span id="pTransit">0</span></div>
+    </div>
+
+    <!-- 2) Profit + Advertising Budget (editable) -->
+    <div class="card">
+      <div class="h">Profit + Advertising Budget (per country)</div>
+      <div id="pBudgetWrap"></div>
+    </div>
+
+    <!-- 3) Daily Ad Spend (replace) -->
+    <div class="card">
+      <div class="h">Daily Ad Spend (replace current)</div>
+      <div class="flex">
+        <select id="pdAdCountry" class="input"></select>
+        <select id="pdAdPlatform" class="input">
+          <option value="facebook">Facebook</option>
+          <option value="tiktok">TikTok</option>
+          <option value="google">Google</option>
+        </select>
+        <input id="pdAdAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
+        <button id="pdAdSave" class="btn">Save</button>
+      </div>
+      <div id="pdAdList" style="margin-top:8px"></div>
+    </div>
+
+    <!-- 4) Remittance / Profit Entries -->
+    <div class="card">
+      <div class="h">Remittance / Profit Entries</div>
+      <div class="flex">
+        <input id="pdRStart" type="date" class="input"/>
+        <input id="pdREnd" type="date" class="input"/>
+        <select id="pdRCountry" class="input"></select>
+        <input id="pdROrders" type="number" class="input" placeholder="Orders" min="0"/>
+        <input id="pdRPieces" type="number" class="input" placeholder="Pieces" min="0"/>
+        <input id="pdRRevenue" type="number" class="input" placeholder="Revenue (USD)" min="0" step="0.01"/>
+        <input id="pdRAdSpend" type="number" class="input" placeholder="Ad Spend (USD)" min="0" step="0.01"/>
+        <input id="pdRExtra" type="number" class="input" placeholder="Extra cost / piece" min="0" step="0.01"/>
+        <button id="pdRAdd" class="btn">Add</button>
+      </div>
+      <table class="table" style="margin-top:8px">
+        <thead>
+          <tr><th>Period</th><th>Country</th><th>Orders</th><th>Pieces</th><th>Revenue</th><th>Ad</th><th>Extra</th><th>Profit</th><th></th></tr>
+        </thead>
+        <tbody id="pdRTable"></tbody>
+        <tfoot>
+          <tr>
+            <th colspan="3">Totals</th>
+            <th id="pdPiecesT">0</th>
+            <th id="pdRevT">0</th>
+            <th id="pdAdT">0</th>
+            <th id="pdExtraT">0</th>
+            <th id="pdProfitT">0</th>
+            <th></th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- 5) Stock Movement -->
+    <div class="card">
+      <div class="h">Stock Movement</div>
+      <div class="flex">
+        <select id="pdMvFrom" class="input"></select>
+        <span>→</span>
+        <select id="pdMvTo" class="input"></select>
+        <input id="pdMvQty" type="number" class="input" placeholder="Qty" min="0"/>
+        <input id="pdMvShip" type="number" class="input" placeholder="Shipping Cost (USD)" min="0" step="0.01"/>
+        <button id="pdMvAdd" class="btn">Add Movement</button>
+      </div>
+    </div>
+
+    <!-- 6) Transit (China → Kenya) -->
+    <div class="card">
+      <div class="h">Transit (China → Kenya)</div>
+      <table class="table">
+        <thead><tr><th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Actions</th></tr></thead>
+        <tbody id="pdShipCK"></tbody>
+      </table>
+    </div>
+
+    <!-- 7) Transit (Inter-country) -->
+    <div class="card">
+      <div class="h">Transit (Inter-country)</div>
+      <table class="table">
+        <thead><tr><th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Actions</th></tr></thead>
+        <tbody id="pdShipIC"></tbody>
+      </table>
+    </div>
+
+    <!-- 8) Lifetime (this product) -->
+    <div class="card">
+      <div class="h">Lifetime (This Product)</div>
+      <div class="flex">
+        <input id="pdLPStart" type="date" class="input"/>
+        <input id="pdLPEnd" type="date" class="input"/>
+        <button id="pdLPRun" class="btn">Run</button>
+      </div>
+      <table class="table" style="margin-top:8px">
+        <thead><tr><th>Revenue</th><th>Ad</th><th>Shipping</th><th>Base Cost</th><th>Pieces</th><th>Profit</th></tr></thead>
+        <tbody id="pdLPBody"></tbody>
+      </table>
+    </div>
+
+    <!-- 9) Influencer Spend -->
+    <div class="card">
+      <div class="h">Influencer Spend</div>
+      <div class="flex">
+        <input id="pdInfName" class="input" placeholder="Influencer Name"/>
+        <input id="pdInfSocial" class="input" placeholder="Social @handle"/>
+        <select id="pdInfCountry" class="input"></select>
+        <button id="pdInfAdd" class="btn">Add Influencer</button>
+      </div>
+      <div class="flex" style="margin-top:8px">
+        <select id="pdInfSelect" class="input"></select>
+        <input id="pdInfAmount" type="number" class="input" placeholder="Spend (USD)" min="0" step="0.01"/>
+        <button id="pdInfSpendAdd" class="btn">Add Spend</button>
+      </div>
+      <div class="flex" style="margin-top:8px">
+        <input id="pdInfStart" type="date" class="input"/>
+        <input id="pdInfEnd" type="date" class="input"/>
+        <select id="pdInfFilterCountry" class="input"><option value="">All countries</option></select>
+        <button id="pdInfRun" class="btn outline">Filter</button>
+      </div>
+      <table class="table" style="margin-top:8px">
+        <thead><tr><th>Date</th><th>Influencer</th><th>Country</th><th>Amount</th><th></th></tr></thead>
+        <tbody id="pdInfList"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+  // ----- tiny helper -----
+  const $ = s => document.querySelector(s);
+  const fmt = n => (Number(n||0)).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  async function api(path, opts={}) {
+    const res = await fetch(path, { credentials:'include', headers:{'Content-Type':'application/json'}, ...opts });
+    if (!res.ok) { let t=''; try{t=await res.text()}catch{}; throw new Error(t||('HTTP '+res.status)); }
+    return res.headers.get('content-type')?.includes('application/json') ? res.json() : {ok:true};
+  }
+  const qs = new URLSearchParams(location.search);
+  const pid = qs.get('id');
+
+  const product = { id: pid };
+  let countries = [];
+  let products = [];
+
+  // boot
+  (async function init(){
+    if (!pid) { alert('Missing product id'); location.href='/'; return; }
+
+    // meta
+    try {
+      const m = await api('/api/meta');
+      countries = m.countries||[];
+    } catch {}
+    try {
+      const r = await api('/api/products');
+      products = r.products||[];
+      const p = products.find(x=>x.id===pid);
+      if (p) { product.name = p.name; product.base = (+p.cost_china||0)+(+p.ship_china_to_kenya||0); }
+      $('#pTitle').textContent = p ? p.name : ('Product '+pid);
+    } catch {}
+
+    // fill selects
+    $('#pdAdCountry').innerHTML = countries.map(c=>`<option>${c}</option>`).join('');
+    $('#pdRCountry').innerHTML = countries.map(c=>`<option>${c}</option>`).join('');
+    $('#pdMvFrom').innerHTML = countries.map(c=>`<option>${c}</option>`).join('');
+    $('#pdMvTo').innerHTML = countries.map(c=>`<option>${c}</option>`).join('');
+    $('#pdInfCountry').innerHTML = countries.map(c=>`<option>${c}</option>`).join('');
+    $('#pdInfFilterCountry').innerHTML += countries.map(c=>`<option>${c}</option>`).join('');
+
+    // data renders
+    await renderStockAd();
+    await renderDailyAdList();
+    await renderRemittances();
+    await renderShipTables();
+    $('#wrap').style.display = '';
+  })();
+
+  // 1) stock + ad per country (approx, same logic as dashboard but filtered to this product)
+  async function renderStockAd(){
+    const per = {}; countries.forEach(c=> per[c]={stock:0, ad:0});
+    try {
+      const s = await api('/api/shipments?productId='+encodeURIComponent(pid));
+      (s.shipments||[]).forEach(sp=>{
+        if (sp.arrivedAt) {
+          const to = sp.toCountry||sp.to;
+          if (!per[to]) per[to]={stock:0,ad:0};
+          per[to].stock += (+sp.qty||0);
+        }
+      });
+      const inTransit = (s.shipments||[]).filter(x=>!x.arrivedAt).reduce((a,b)=>a+(+b.qty||0),0);
+      $('#pTransit').textContent = inTransit;
+    } catch {}
+    try {
+      const r = await api('/api/remittances?productId='+encodeURIComponent(pid));
+      (r.remittances||[]).forEach(x=>{
+        if(!per[x.country]) per[x.country]={stock:0,ad:0};
+        per[x.country].stock -= (+x.pieces||0);
+        per[x.country].ad += (+x.adSpend||0);
+      });
+    } catch {}
+
+    const tbody = $('#pStockTable');
+    tbody.innerHTML = Object.entries(per).map(([c,v])=>`<tr><td>${c}</td><td>${v.stock}</td><td>${fmt(v.ad||0)}</td></tr>`).join('');
+    const tStock = Object.values(per).reduce((a,v)=>a+(+v.stock||0),0);
+    const tAd = Object.values(per).reduce((a,v)=>a+(+v.ad||0),0);
+    $('#pStockTotal').textContent = tStock;
+    $('#pAdTotal').textContent = fmt(tAd)+' USD';
+
+    // budget editor
+    const wrap = $('#pBudgetWrap');
+    wrap.innerHTML = countries.map(c=>{
+      const cur = (per[c]?.ad)||0;
+      return `<div class="flex" style="margin-bottom:6px">
+        <div style="width:160px">${c}</div>
+        <input type="number" class="input" step="0.01" min="0" value="${cur}" data-bud="${c}" />
+        <button class="btn outline" data-budsave="${c}">Save</button>
+      </div>`;
+    }).join('');
+    wrap.querySelectorAll('[data-budsave]').forEach(b=>{
+      b.onclick = async ()=>{
+        const c = b.dataset.budsave;
+        const val = +wrap.querySelector('[data-bud="'+c+'"]').value||0;
+        // store as a note entry in finance OR keep a small per-product config endpoint; we’ll reuse adspend replace for now with a "budget" platform
+        await api('/api/adspend', {method:'POST', body: JSON.stringify({ platform:'budget', productId: pid, country: c, amount: val })});
+        alert('Saved');
+        await renderStockAd();
+      };
+    });
+  }
+
+  // 3) daily ad spend replace
+  async function renderDailyAdList(){
+    try {
+      const r = await api('/api/adspend/current?productId='+encodeURIComponent(pid));
+      const by = {};
+      (r.items||[]).filter(x=>x.productId===pid).forEach(x=>{
+        const key = x.country+'|'+x.platform;
+        by[key]=x.amount;
+      });
+      $('#pdAdList').innerHTML = Object.entries(by).map(([k,v])=>{
+        const [c,p] = k.split('|');
+        return `<span class="chip">${c} • ${p}: ${fmt(v)} USD</span>`;
+      }).join('') || '<span class="muted">No daily spends set for this product.</span>';
+    } catch {
+      $('#pdAdList').innerHTML = '<span class="muted">No daily spends set for this product.</span>';
+    }
+  }
+  $('#pdAdSave').onclick = async ()=>{
+    const payload = {
+      platform: $('#pdAdPlatform').value,
+      productId: pid,
+      country: $('#pdAdCountry').value,
+      amount: +$('#pdAdAmount').value||0
+    };
+    await api('/api/adspend', {method:'POST', body: JSON.stringify(payload)});
+    await renderDailyAdList();
+    alert('Saved');
+  };
+
+  // 4) remittances
+  async function renderRemittances(){
+    const r = await api('/api/remittances?productId='+encodeURIComponent(pid));
+    const tbody = $('#pdRTable');
+    let tPieces=0,tRev=0,tAd=0,tExtra=0,tProfit=0;
+    tbody.innerHTML = (r.remittances||[]).map(x=>{
+      const base = product.base * (+x.pieces||0);
+      const extra = (+x.extraPerPiece||0) * (+x.pieces||0);
+      const profit = (+x.revenue||0) - (+x.adSpend||0) - base - extra;
+      tPieces += (+x.pieces||0); tRev += (+x.revenue||0); tAd += (+x.adSpend||0); tExtra += extra; tProfit += profit;
+      return `<tr>
+        <td>${x.start} → ${x.end}</td>
+        <td>${x.country}</td>
+        <td>${x.orders||0}</td>
+        <td>${x.pieces||0}</td>
+        <td>${fmt(x.revenue||0)}</td>
+        <td>${fmt(x.adSpend||0)}</td>
+        <td>${fmt(extra)}</td>
+        <td>${fmt(profit)}</td>
+        <td><button class="btn outline danger" data-del="${x.id}">Delete</button></td>
+      </tr>`;
+    }).join('');
+    $('#pdPiecesT').textContent = tPieces;
+    $('#pdRevT').textContent = fmt(tRev);
+    '#pdAdT' in window || 0;
+    $('#pdAdT').textContent = fmt(tAd);
+    $('#pdExtraT').textContent = fmt(tExtra);
+    $('#pdProfitT').textContent = fmt(tProfit);
+
+    tbody.querySelectorAll('[data-del]').forEach(b=> b.onclick = async ()=>{
+      if(!confirm('Delete entry?')) return;
+      await api('/api/remittances/'+b.dataset.del, {method:'DELETE'});
+      await renderRemittances(); await renderStockAd();
+    });
+  }
+  $('#pdRAdd').onclick = async ()=>{
+    const payload = {
+      start: $('#pdRStart').value, end: $('#pdREnd').value,
+      country: $('#pdRCountry').value, productId: pid,
+      orders: +$('#pdROrders').value||0, pieces: +$('#pdRPieces').value||0,
+      revenue: +$('#pdRRevenue').value||0, adSpend: +$('#pdRAdSpend').value||0,
+      extraPerPiece: +$('#pdRExtra').value||0
+    };
+    if(!payload.start || !payload.end) return alert('Pick period');
+    await api('/api/remittances', {method:'POST', body: JSON.stringify(payload)});
+    await renderRemittances(); await renderStockAd();
+  };
+
+  // 5-7) shipments (filtered to product)
+  async function renderShipTables(){
+    const s = await api('/api/shipments?productId='+encodeURIComponent(pid));
+    const active = (s.shipments||[]);
+    const ck = active.filter(sp=>(sp.fromCountry||sp.from||'').toLowerCase()==='china' && (sp.toCountry||sp.to||'').toLowerCase()==='kenya');
+    const ic = active.filter(sp=>!( (sp.fromCountry||sp.from||'').toLowerCase()==='china' && (sp.toCountry||sp.to||'').toLowerCase()==='kenya'));
+
+    const render = (list, tbodySel)=>{
+      const tb = $(tbodySel);
+      tb.innerHTML = list.map(sp=>`
+        <tr data-id="${sp.id}">
+          <td>${sp.id}</td>
+          <td>${(sp.fromCountry||sp.from)} → ${(sp.toCountry||sp.to)}</td>
+          <td contenteditable="true" data-edit="qty">${sp.qty||0}</td>
+          <td contenteditable="true" data-edit="shipCost">${sp.shipCost||0}</td>
+          <td>${sp.departedAt||''}</td>
+          <td>${sp.arrivedAt||''}</td>
+          <td>
+            <button class="btn outline" data-mark="${sp.id}">Mark Arrived</button>
+            <button class="btn outline danger" data-del="${sp.id}">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+
+      tb.querySelectorAll('[data-edit]').forEach(cell=>{
+        cell.addEventListener('blur', async ()=>{
+          const tr = cell.closest('tr'); const id = tr.dataset.id;
+          const field = cell.dataset.edit; const value = +cell.textContent.trim()||0;
+          await api('/api/shipments/'+id, {method:'PUT', body: JSON.stringify({[field]: value})});
+        });
+      });
+      tb.querySelectorAll('[data-mark]').forEach(b=> b.onclick = async ()=>{
+        const d = prompt('Arrival date (YYYY-MM-DD):', new Date().toISOString().slice(0,10));
+        if(!d) return;
+        await api('/api/shipments/'+b.dataset.mark, {method:'PUT', body: JSON.stringify({ arrivedAt: d })});
+        await renderShipTables(); await renderStockAd();
+      });
+      tb.querySelectorAll('[data-del]').forEach(b=> b.onclick = async ()=>{
+        if(!confirm('Delete shipment?')) return;
+        await api('/api/shipments/'+b.dataset.del, {method:'DELETE'});
+        await renderShipTables(); await renderStockAd();
+      });
+    };
+
+    render(ck, '#pdShipCK');
+    render(ic, '#pdShipIC');
+  }
+  $('#pdMvAdd').onclick = async ()=>{
+    const payload = {
+      productId: pid,
+      fromCountry: $('#pdMvFrom').value,
+      toCountry: $('#pdMvTo').value,
+      qty: +$('#pdMvQty').value||0,
+      shipCost: +$('#pdMvShip').value||0,
+      departedAt: new Date().toISOString().slice(0,10)
+    };
+    await api('/api/shipments', {method:'POST', body: JSON.stringify(payload)});
+    await renderShipTables(); await renderStockAd();
+  };
+
+  // 8) lifetime this product
+  $('#pdLPRun').onclick = async ()=>{
+    const s=$('#pdLPStart').value, e=$('#pdLPEnd').value;
+    const qs = []; if(s) qs.push('start='+s); if(e) qs.push('end='+e);
+    const r = await api(`/api/remittances?productId=${encodeURIComponent(pid)}${qs.length?`&${qs.join('&')}`:''}`);
+    let rev=0, ad=0, ship=0, base=0, pcs=0;
+    (r.remittances||[]).forEach(x=>{
+      rev += (+x.revenue||0);
+      ad  += (+x.adSpend||0);
+      ship += (+x.extraPerPiece||0) * (+x.pieces||0);
+      base += ((product.base||0) * (+x.pieces||0));
+      pcs  += (+x.pieces||0);
+    });
+    const profit = rev - ad - ship - base;
+    $('#pdLPBody').innerHTML = `<tr>
+      <td>${fmt(rev)}</td><td>${fmt(ad)}</td><td>${fmt(ship)}</td><td>${fmt(base)}</td><td>${pcs}</td><td>${fmt(profit)}</td>
+    </tr>`;
+  };
+
+  // 9) Influencers
+  async function loadInfluencersSel(){
+    try{
+      const r = await api('/api/influencers');
+      $('#pdInfSelect').innerHTML = (r.items||[]).map(x=>`<option value="${x.id}">${x.name}${x.social?' ('+x.social+')':''}</option>`).join('');
+    }catch{ $('#pdInfSelect').innerHTML=''; }
+  }
+  $('#pdInfAdd').onclick = async ()=>{
+    const name = ($('#pdInfName').value||'').trim();
+    const social = $('#pdInfSocial').value.trim();
+    const country = $('#pdInfCountry').value;
+    if(!name) return alert('Name required');
+    await api('/api/influencers', {method:'POST', body: JSON.stringify({name, social, country})});
+    $('#pdInfName').value=''; $('#pdInfSocial').value='';
+    await loadInfluencersSel();
+  };
+  $('#pdInfSpendAdd').onclick = async ()=>{
+    const influencerId = $('#pdInfSelect').value;
+    const amount = +$('#pdInfAmount').value||0;
+    const date = new Date().toISOString().slice(0,10);
+    const country = $('#pdInfCountry').value;
+    await api('/api/influencers/spend', {method:'POST', body: JSON.stringify({influencerId, productId: pid, country, date, amount})});
+    $('#pdInfAmount').value='';
+    await runInfFilter();
+  };
+  $('#pdInfRun').onclick = runInfFilter;
+  async function runInfFilter(){
+    const s=$('#pdInfStart').value, e=$('#pdInfEnd').value, c=$('#pdInfFilterCountry').value;
+    const qs=[]; if(s) qs.push('start='+s); if(e) qs.push('end='+e); if(c) qs.push('country='+encodeURIComponent(c));
+    const r = await api(`/api/influencers/spend?productId=${encodeURIComponent(pid)}${qs.length?`&${qs.join('&')}`:''}`);
+    const tbody = $('#pdInfList');
+    tbody.innerHTML = (r.items||[]).map(x=>`
+      <tr>
+        <td>${x.date}</td><td>${x.name||x.influencerName||x.influencerId}</td><td>${x.country||''}</td>
+        <td>${fmt(x.amount||0)}</td>
+        <td><button class="btn outline danger" data-del="${x.id}">Delete</button></td>
+      </tr>
+    `).join('') || '<tr><td colspan="5">No items</td></tr>';
+    tbody.querySelectorAll('[data-del]').forEach(b=> b.onclick=async()=>{
+      if(!confirm('Delete spend row?')) return;
+      await api('/api/influencers/spend/'+b.dataset.del, {method:'DELETE'});
+      await runInfFilter();
+    });
+  }
+  loadInfluencersSel();
+
+  // logout
+  $('#logoutLink').onclick = async (e)=>{ e.preventDefault(); try{ await api('/api/logout',{method:'POST'}) }catch{} location.href='/' }
+  </script>
+</body>
+</html>
