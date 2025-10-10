@@ -1,55 +1,44 @@
 // snapshot.js
-// EAS Tracker — Automatic snapshot backup every 10 minutes
+// Automatic daily backup of db.json into /data/snapshots
 
-import fse from 'fs-extra';
-import path from 'path';
-import { fileURLToPath } from 'url';
+const fs = require("fs-extra");
+const path = require("path");
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const DATA_FILE = path.join(__dirname, "db.json");
+const SNAPSHOT_DIR = path.join(__dirname, "data", "snapshots");
 
-const DATA_FILE = path.join(__dirname, 'db.json');
-const SNAP_DIR  = path.join(__dirname, 'data', 'snapshots');
-
-// Ensure directories exist
-await fse.ensureFile(DATA_FILE);
-await fse.ensureDir(SNAP_DIR);
-
-async function createSnapshot() {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const destFile = path.join(SNAP_DIR, `snapshot_${timestamp}.json`);
-
+async function createDailySnapshot() {
   try {
-    const exists = await fse.pathExists(DATA_FILE);
-    if (!exists) {
-      console.log('⚠️  No db.json found — skipping snapshot.');
+    if (!fs.existsSync(DATA_FILE)) {
+      console.error("❌ db.json not found. Snapshot aborted.");
       return;
     }
 
-    await fse.copy(DATA_FILE, destFile);
-    console.log(`✅ Snapshot created: ${destFile}`);
+    // Create snapshot directory if not exists
+    await fs.ensureDir(SNAPSHOT_DIR);
 
-    // Limit number of stored snapshots
-    const files = (await fse.readdir(SNAP_DIR))
-      .filter(f => f.startsWith('snapshot_'))
-      .sort()
-      .reverse();
+    // Generate snapshot name
+    const date = new Date().toISOString().split("T")[0]; // e.g., 2025-10-10
+    const fileName = `${date}-auto.json`;
+    const targetPath = path.join(SNAPSHOT_DIR, fileName);
 
-    if (files.length > 50) {
-      const old = files.slice(50);
-      for (const f of old) {
-        await fse.remove(path.join(SNAP_DIR, f));
-      }
-      console.log(`🧹 Cleaned ${old.length} old snapshots`);
+    // Copy db.json to snapshot
+    await fs.copy(DATA_FILE, targetPath);
+    console.log(`✅ Snapshot created: ${fileName}`);
+
+    // Cleanup old snapshots (keep only 7 latest)
+    const files = (await fs.readdir(SNAPSHOT_DIR))
+      .filter(f => f.endsWith(".json"))
+      .sort((a, b) => fs.statSync(path.join(SNAPSHOT_DIR, b)).mtimeMs - fs.statSync(path.join(SNAPSHOT_DIR, a)).mtimeMs);
+    if (files.length > 7) {
+      const old = files.slice(7);
+      for (const f of old) await fs.remove(path.join(SNAPSHOT_DIR, f));
+      console.log(`🧹 Removed ${old.length} old snapshot(s).`);
     }
 
   } catch (err) {
-    console.error('❌ Snapshot creation failed:', err);
+    console.error("❌ Snapshot creation failed:", err);
   }
 }
 
-// Run immediately and then every 10 minutes
-await createSnapshot();
-setInterval(createSnapshot, 10 * 60 * 1000);
-
-console.log('📦 EAS Tracker snapshot service running (every 10 minutes)...');
+createDailySnapshot();
