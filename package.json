@@ -1,7 +1,7 @@
 {
   "name": "eas-tracker",
-  "version": "1.0.0",
-  "description": "EastAfricaShop Business Tracker - full-stack dashboard for daily performance, shipments, remittances, and finance management.",
+  "version": "2.0.0",
+  "description": "EastAfricaShop Business Tracker — full-stack dashboard for operations, finance, shipments, and performance tracking.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -18,15 +18,18 @@
     "uuid": "^9.0.1"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0 <21.0.0"
   },
   "keywords": [
     "eastafricashop",
+    "eas",
     "dashboard",
     "ecommerce",
-    "performance-tracker",
+    "tracker",
+    "performance",
     "render",
-    "cod-business"
+    "cod",
+    "africa"
   ],
   "author": "EAS Systems",
   "license": "MIT"
