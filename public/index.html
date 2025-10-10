@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>EAS Tracker</title>
   <link rel="stylesheet" href="/public/styles.css"/>
@@ -35,7 +35,7 @@
           <!-- 1) KPIs -->
           <div id="kpis" class="section">
             <h2>Overview</h2>
-            <div class="flex wrap">
+            <div class="flex">
               <div class="card"><div class="h">Products</div><div id="kpiProducts">0</div></div>
               <div class="card"><div class="h">Warehouses (Countries)</div><div id="kpiCountries">0</div></div>
               <div class="card"><div class="h">Transit Shipments</div><div id="kpiTransit">0</div></div>
@@ -44,46 +44,67 @@
             </div>
           </div>
 
-          <!-- 2) Stock + Ad Spend by Country -->
+          <!-- 2) Stock + Ad Spend by Country (includes TOTAL row) -->
           <div id="stockByCountry" class="section">
-            <h2>Total Stock & Ad Spend by Country</h2>
-            <!-- table filled by JS -->
+            <h2>Total Stock &amp; Ad Spend by Country</h2>
+            <table class="table" id="stockCountryTable">
+              <thead>
+                <tr><th>Country</th><th>Approx. Stock</th><th>Total Ad Spend</th></tr>
+              </thead>
+              <tbody><!-- filled by JS --></tbody>
+              <tfoot>
+                <tr class="totals">
+                  <th>ALL COUNTRIES</th>
+                  <th id="stockTotal">0</th>
+                  <th id="adTotal">0.00 USD</th>
+                </tr>
+              </tfoot>
+            </table>
           </div>
 
-          <!-- 3) Weekly Delivered (per day & country) -->
+          <!-- 3) Weekly Delivered (grid Monday→Sunday per country) -->
           <div id="weeklyDelivered" class="section">
-            <h2>Weekly Delivered (Mon–Sun)</h2>
+            <h2>Weekly Delivered</h2>
 
             <div class="card">
+              <div class="h">Add / Edit Delivered</div>
               <div class="flex wrap">
-                <select id="wdCountry" class="input"></select>
+                <select id="wdCountry" class="input"><!-- countries injected by JS --></select>
                 <select id="wdDay" class="input">
-                  <option value="Monday">Monday</option>
-                  <option value="Tuesday">Tuesday</option>
-                  <option value="Wednesday">Wednesday</option>
-                  <option value="Thursday">Thursday</option>
-                  <option value="Friday">Friday</option>
-                  <option value="Saturday">Saturday</option>
-                  <option value="Sunday">Sunday</option>
+                  <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+                  <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
                 </select>
                 <input id="wdCount" type="number" class="input" placeholder="Delivered" min="0"/>
-                <button id="wdSet" class="btn">Set / Update</button>
-                <button id="wdReset" class="btn outline">Reset Week</button>
+                <button id="wdSave" class="btn">Save</button>
+                <button id="wdReset" class="btn outline danger">Reset Week</button>
               </div>
-              <div class="muted" style="margin-top:6px">
-                Tip: Use Set/Update to overwrite that cell. Reset Week clears all Monday–Sunday cells for every country.
-              </div>
+              <small class="muted">This table stores the current week only. Totals at top KPI come from here.</small>
             </div>
 
-            <div id="wdTableWrap">
-              <!-- JS renders a table:
-                   Columns: Country | Monday..Sunday | Total
-                   Rows: countries in the system
-                   Footer: All countries total -->
+            <div class="table-scroll">
+              <table class="table" id="wdTable">
+                <thead>
+                  <tr>
+                    <th>Country</th>
+                    <th>Monday</th><th>Tuesday</th><th>Wednesday</th>
+                    <th>Thursday</th><th>Friday</th><th>Saturday</th><th>Sunday</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody><!-- filled by JS with all countries --></tbody>
+                <tfoot>
+                  <tr class="totals">
+                    <th>ALL COUNTRIES</th>
+                    <th id="wdMonT">0</th><th id="wdTueT">0</th><th id="wdWedT">0</th>
+                    <th id="wdThuT">0</th><th id="wdFriT">0</th><th id="wdSatT">0</th><th id="wdSunT">0</th>
+                    <th id="wdAllT">0</th>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           </div>
 
-          <!-- 4) Daily Advertising Spend (no date; replaces existing for that product+country+platform) -->
+          <!-- 4) Daily Advertising Spend (no date selector; always current setting per product/platform/country) -->
           <div id="dailyAdSpend" class="section">
             <h2>Daily Advertising Spend</h2>
             <div class="card">
@@ -93,18 +114,16 @@
                   <option value="tiktok">TikTok</option>
                   <option value="google">Google</option>
                 </select>
-                <select id="adProduct" class="input"></select>
-                <select id="adCountry" class="input"></select>
+                <select id="adProduct" class="input"><!-- products injected --></select>
+                <select id="adCountry" class="input"><!-- countries injected --></select>
                 <input id="adAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
-                <button id="adAdd" class="btn">Save / Replace</button>
+                <button id="adAdd" class="btn">Save (Replace)</button>
               </div>
-              <div class="muted" style="margin-top:6px">
-                Saving the same Product + Country + Platform again replaces the previous amount for today.
-              </div>
+              <small class="muted">Saving replaces the current day’s spend for that product/platform/country.</small>
             </div>
           </div>
 
-          <!-- 5) Stock Movement -->
+          <!-- 5) Stock Movement (create shipment) -->
           <div id="stockMovement" class="section">
             <h2>Stock Movement (Create Shipment)</h2>
             <div class="card">
@@ -120,13 +139,13 @@
             </div>
           </div>
 
-          <!-- 6) Transit China → Kenya -->
+          <!-- 6) Transit China → Kenya (arrived -> disappears from dashboard) -->
           <div id="shipChinaKenya" class="section">
             <h2>Transit Shipments (China → Kenya)</h2>
             <table id="shipCKTable" class="table">
               <thead><tr>
                 <th>ID</th><th>Product</th><th>Route</th><th>Qty</th>
-                <th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
+                <th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Actions</th>
               </tr></thead>
               <tbody></tbody>
             </table>
@@ -138,17 +157,18 @@
             <table id="shipICTable" class="table">
               <thead><tr>
                 <th>ID</th><th>Product</th><th>Route</th><th>Qty</th>
-                <th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
+                <th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Actions</th>
               </tr></thead>
               <tbody></tbody>
             </table>
           </div>
 
-          <!-- 8) Profit by Country -->
+          <!-- 8) Profit by Country (now includes country selector) -->
           <div id="profitByCountry" class="section">
             <h2>Profit by Country</h2>
             <div class="card">
               <div class="flex wrap">
+                <select id="pcCountry" class="input"><option value="">All countries</option></select>
                 <input id="pcStart" type="date" class="input"/>
                 <input id="pcEnd" type="date" class="input"/>
                 <button id="pcRun" class="btn">Run</button>
@@ -166,7 +186,7 @@
           <div id="todo" class="section">
             <h2>To-Do</h2>
             <div class="card">
-              <div class="flex wrap">
+              <div class="flex">
                 <input id="todoText" class="input" placeholder="Task"/>
                 <button id="todoAdd" class="btn">Add</button>
               </div>
@@ -177,7 +197,7 @@
           <!-- 10) Weekly To-Do -->
           <div id="weeklyTodo" class="section">
             <h2>Weekly To-Do</h2>
-            <div id="weeklyWrap"><!-- JS renders Monday..Sunday columns; add/done/delete per day --></div>
+            <div id="weeklyWrap"></div>
           </div>
 
           <!-- 11) Lifetime Product Performance (Global) -->
@@ -221,118 +241,11 @@
 
           <!-- Products Table -->
           <table id="productsTable" class="table">
-            <thead>
-              <tr><th>Name</th><th>SKU</th><th>Status</th><th>Actions</th></tr>
-            </thead>
-            <tbody></tbody>
+            <thead><tr><th>Name</th><th>SKU</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody><!-- rows by JS; Actions include Pause/Run, Delete, Open --></tbody>
           </table>
 
-          <!-- Product Details (opened via "Open") -->
-          <div id="productDetails" class="section" style="display:none">
-            <h3>Product Details</h3>
-
-            <div class="card">
-              <div class="h">Stock & Ad Spend by Country</div>
-              <div id="pdStockByCountry"><!-- filled by JS --></div>
-            </div>
-
-            <div class="card">
-              <div class="h">Profit + Advertising by Country (Editable)</div>
-              <div id="pdProfitBudget"><!-- editable UI by JS --></div>
-            </div>
-
-            <div class="card">
-              <div class="h">Daily Ad Spend (per Country & Platform)</div>
-              <div class="flex wrap">
-                <select id="pdAdCountry" class="input"></select>
-                <select id="pdAdPlatform" class="input">
-                  <option value="facebook">Facebook</option>
-                  <option value="tiktok">TikTok</option>
-                  <option value="google">Google</option>
-                </select>
-                <input id="pdAdAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
-                <button id="pdAdSave" class="btn">Save / Replace</button>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="h">Remittance / Profit Entries</div>
-              <div class="flex wrap">
-                <input id="pdRStart" type="date" class="input"/>
-                <input id="pdREnd" type="date" class="input"/>
-                <select id="pdRCountry" class="input"></select>
-                <input id="pdROrders" type="number" class="input" placeholder="Orders" min="0"/>
-                <input id="pdRPieces" type="number" class="input" placeholder="Pieces" min="0"/>
-                <input id="pdRRevenue" type="number" class="input" placeholder="Revenue (USD)" min="0" step="0.01"/>
-                <input id="pdRAdSpend" type="number" class="input" placeholder="Ad Spend (USD)" min="0" step="0.01"/>
-                <!-- replaced CPD with extra cost per piece -->
-                <input id="pdRExtra" type="number" class="input" placeholder="Extra delivery cost / piece (USD)" min="0" step="0.01"/>
-                <button id="pdRAdd" class="btn">Add</button>
-              </div>
-              <div id="pdRTableWrap"><!-- table by JS --></div>
-            </div>
-
-            <div class="card">
-              <div class="h">Stock Movement</div>
-              <div class="flex wrap">
-                <select id="pdMvFrom" class="input"></select>
-                <span>→</span>
-                <select id="pdMvTo" class="input"></select>
-                <input id="pdMvQty" type="number" class="input" placeholder="Qty" min="0"/>
-                <input id="pdMvShip" type="number" class="input" placeholder="Shipping Cost (USD)" min="0" step="0.01"/>
-                <button id="pdMvAdd" class="btn">Add Movement</button>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="h">Transit (China → Kenya)</div>
-              <table id="pdShipCK" class="table">
-                <thead><tr><th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th></tr></thead>
-                <tbody></tbody>
-              </table>
-            </div>
-
-            <div class="card">
-              <div class="h">Transit (Inter-country)</div>
-              <table id="pdShipIC" class="table">
-                <thead><tr><th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th></tr></thead>
-                <tbody></tbody>
-              </table>
-            </div>
-
-            <div class="card">
-              <div class="h">Lifetime (This Product)</div>
-              <div class="flex wrap">
-                <input id="pdLPStart" type="date" class="input"/>
-                <input id="pdLPEnd" type="date" class="input"/>
-                <button id="pdLPRun" class="btn">Run</button>
-              </div>
-              <div id="pdLPTableWrap"><!-- table by JS --></div>
-            </div>
-
-            <div class="card">
-              <div class="h">Influencer Spend</div>
-              <div class="flex wrap">
-                <input id="pdInfName" class="input" placeholder="Influencer Name"/>
-                <input id="pdInfSocial" class="input" placeholder="Social @handle"/>
-                <select id="pdInfCountry" class="input"></select>
-                <button id="pdInfAdd" class="btn">Add Influencer</button>
-              </div>
-              <div class="flex wrap" style="margin-top:8px">
-                <input id="pdInfDate" type="date" class="input"/>
-                <select id="pdInfSelect" class="input"></select>
-                <input id="pdInfAmount" type="number" class="input" placeholder="Spend (USD)" min="0" step="0.01"/>
-                <button id="pdInfSpendAdd" class="btn">Add Spend</button>
-              </div>
-              <div class="flex wrap" style="margin-top:8px">
-                <input id="pdInfStart" type="date" class="input"/>
-                <input id="pdInfEnd" type="date" class="input"/>
-                <select id="pdInfFilterCountry" class="input"><option value="">All countries</option></select>
-                <button id="pdInfRun" class="btn outline">Filter</button>
-              </div>
-              <div id="pdInfList"><!-- table/list by JS --></div>
-            </div>
-          </div>
+          <small class="muted">“Open” goes to <code>product.html?id=PRODUCT_ID</code> with full per-product dashboard.</small>
         </section>
 
         <!-- ===================== PERFORMANCE ===================== -->
@@ -371,8 +284,8 @@
               <input id="rPieces" type="number" class="input" placeholder="Pieces" min="0"/>
               <input id="rRev" type="number" class="input" placeholder="Revenue (USD)" min="0" step="0.01"/>
               <input id="rAds" type="number" class="input" placeholder="Ad Spend (USD)" min="0" step="0.01"/>
-              <!-- replaced CPD with extra cost per piece -->
-              <input id="rExtra" type="number" class="input" placeholder="Extra delivery cost / piece (USD)" min="0" step="0.01"/>
+              <!-- NOTE: CPD removed per your request; we will compute using “extra cost per piece to deliver to country” -->
+              <input id="rExtraPerPiece" type="number" class="input" placeholder="Extra Deliver Cost / piece (USD)" min="0" step="0.01"/>
               <button id="rAdd" class="btn">Add</button>
             </div>
           </div>
@@ -383,15 +296,15 @@
           <h2>Finance</h2>
 
           <!-- Running Balance -->
-          <div class="card emphasize">
-            <div class="h">Running Balance</div>
-            <div id="finRunning" style="font-size:28px;font-weight:700">0.00 USD</div>
+          <div class="card">
+            <div class="h">Running Balance (All time)</div>
+            <div id="finRunning" class="big-number">0.00 USD</div>
           </div>
 
           <!-- Categories -->
           <div class="card">
             <div class="h">Debit / Credit Categories</div>
-            <div id="fcList" style="margin-bottom:8px">Debits: - | Credits: -</div>
+            <div id="fcList" class="chips"></div>
             <div class="flex wrap">
               <select id="fcType" class="input">
                 <option value="debit">Debit</option>
@@ -407,7 +320,7 @@
             <div class="h">Entries</div>
             <div class="flex wrap">
               <input id="feDate" type="date" class="input"/>
-              <select id="feCatSelect" class="input"><option value="">Select category…</option></select>
+              <select id="feCat" class="input"><!-- categories injected; value carries type --></select>
               <input id="feAmt" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
               <input id="feNote" class="input" placeholder="Note"/>
               <button id="feAdd" class="btn">Add Entry</button>
@@ -417,7 +330,7 @@
               <input id="fes" type="date" class="input"/>
               <input id="fee" type="date" class="input"/>
               <button id="feRun" class="btn outline">Run</button>
-              <div id="feBalance" class="badge">End Balance in range: —</div>
+              <div id="feBalance" class="badge">Range Balance: —</div>
             </div>
 
             <table id="feTable" class="table" style="margin-top:8px">
@@ -438,20 +351,20 @@
               <input id="cty" class="input" placeholder="Add country"/>
               <button id="ctyAdd" class="btn">Add</button>
             </div>
-            <div id="ctyList" style="margin-top:8px"><!-- chips here --></div>
+            <div id="ctyList" class="chips" style="margin-top:8px"><!-- chips here --></div>
           </div>
 
           <!-- Edit Product Info -->
           <div class="card">
             <div class="h">Edit Product Info</div>
             <div class="flex wrap">
-              <select id="epiSelect" class="input"></select>
-              <input id="epiName" class="input" placeholder="Product name"/>
-              <input id="epiSku" class="input" placeholder="SKU"/>
-              <input id="epiCost" type="number" class="input" placeholder="Cost from China (USD)" min="0" step="0.01"/>
-              <input id="epiShip" type="number" class="input" placeholder="Ship China→Kenya (USD)" min="0" step="0.01"/>
-              <input id="epiMB" type="number" class="input" placeholder="Profit + Ads Budget (USD)" min="0" step="0.01"/>
-              <button id="epiSave" class="btn">Save Changes</button>
+              <select id="epSelect" class="input"><!-- products injected --></select>
+              <input id="epName" class="input" placeholder="Product name"/>
+              <input id="epSku" class="input" placeholder="SKU"/>
+              <input id="epCost" type="number" class="input" placeholder="Cost China (USD)" step="0.01" min="0"/>
+              <input id="epShip" type="number" class="input" placeholder="Ship China→Kenya (USD)" step="0.01" min="0"/>
+              <input id="epMB" type="number" class="input" placeholder="Profit+Ads Budget (USD)" step="0.01" min="0"/>
+              <button id="epSave" class="btn">Save Changes</button>
             </div>
           </div>
 
@@ -459,12 +372,12 @@
           <div class="card">
             <div class="h">Manual Saves</div>
             <div class="flex wrap">
-              <input id="snapName" class="input" placeholder="Save name (e.g., 'Before Q4 push')"/>
-              <button id="snapSave" class="btn">Save Current System Data</button>
+              <input id="snapName" class="input" placeholder="Name this save (e.g., 'Before Black Friday')"/>
+              <button id="snapCreate" class="btn">Save Current System Data</button>
             </div>
-            <table id="snapTable" class="table" style="margin-top:8px">
-              <thead><tr><th>Name</th><th>Created</th><th>Actions</th></tr></thead>
-              <tbody><!-- rows: Restore | Delete --></tbody>
+            <table class="table" id="snapTable" style="margin-top:8px">
+              <thead><tr><th>Name</th><th>When</th><th>Actions</th></tr></thead>
+              <tbody><!-- rows with Restore / Delete buttons --></tbody>
             </table>
           </div>
         </section>
