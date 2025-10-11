@@ -59,7 +59,6 @@ app.use('/public', express.static(path.join(ROOT, 'public')));
 /* ------------------------------ Auth -------------------------------- */
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
-  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'eastafricashop';
 
   // logout
   if (password === 'logout') {
@@ -68,20 +67,19 @@ app.post('/api/auth', (req, res) => {
   }
 
   // login
-  if (password === ADMIN_PASSWORD) {
+  if (password && password === ADMIN_PASSWORD) {
     res.cookie('auth', '1', {
       httpOnly: true,
       sameSite: 'Lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production', // stays true on Render
       path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000
     });
     return res.json({ ok: true });
   }
 
   return res.status(403).json({ error: 'Wrong password' });
 });
-
 function requireAuth(req, res, next) {
   if (req.cookies && req.cookies.auth === '1') return next();
   return res.status(403).json({ error: 'Unauthorized' });
