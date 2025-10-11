@@ -1,6 +1,5 @@
 {
   "password": "eastafricashop",
-
   "countries": [
     "china",
     "kenya",
@@ -9,7 +8,6 @@
     "zambia",
     "zimbabwe"
   ],
-
   "products": [
     {
       "id": "prod-001",
@@ -20,13 +18,11 @@
       "ship_china_to_kenya": 1.2,
       "margin_budget": 8,
       "budgets": {
-        "kenya": 250,
-        "tanzania": 180,
-        "uganda": 160
+        "kenya": 120,
+        "tanzania": 90
       }
     }
   ],
-
   "adspend": [
     {
       "id": "ad-001",
@@ -40,10 +36,9 @@
       "productId": "prod-001",
       "country": "tanzania",
       "platform": "tiktok",
-      "amount": 19.2
+      "amount": 12.3
     }
   ],
-
   "deliveries": [
     {
       "id": "del-001",
@@ -55,10 +50,9 @@
       "id": "del-002",
       "date": "2025-10-07",
       "country": "tanzania",
-      "delivered": 33
+      "delivered": 30
     }
   ],
-
   "shipments": [
     {
       "id": "ship-001",
@@ -81,7 +75,6 @@
       "arrivedAt": null
     }
   ],
-
   "remittances": [
     {
       "id": "rem-001",
@@ -94,21 +87,8 @@
       "revenue": 2100,
       "adSpend": 600,
       "extraPerPiece": 0.35
-    },
-    {
-      "id": "rem-002",
-      "start": "2025-09-25",
-      "end": "2025-10-05",
-      "country": "tanzania",
-      "productId": "prod-001",
-      "orders": 35,
-      "pieces": 50,
-      "revenue": 1550,
-      "adSpend": 400,
-      "extraPerPiece": 0.25
     }
   ],
-
   "finance": {
     "categories": {
       "debit": [
@@ -142,18 +122,9 @@
         "category": "Product Revenue",
         "amount": 900,
         "note": "Payout"
-      },
-      {
-        "id": "fin-003",
-        "date": "2025-10-08",
-        "type": "debit",
-        "category": "Shipping",
-        "amount": 120,
-        "note": "China–Kenya"
       }
     ]
   },
-
   "influencers": [
     {
       "id": "inf-001",
@@ -163,12 +134,11 @@
     },
     {
       "id": "inf-002",
-      "name": "Brian T.",
-      "social": "@brian_tz",
+      "name": "John T.",
+      "social": "@john_tz",
       "country": "tanzania"
     }
   ],
-
   "influencerSpends": [
     {
       "id": "infsp-001",
@@ -184,9 +154,8 @@
       "influencerId": "inf-002",
       "country": "tanzania",
       "productId": "prod-001",
-      "amount": 60
+      "amount": 50
     }
   ],
-
   "snapshots": []
 }
