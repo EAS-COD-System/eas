@@ -1,13 +1,6 @@
 {
   "password": "eastafricashop",
-  "countries": [
-    "china",
-    "kenya",
-    "tanzania",
-    "uganda",
-    "zambia",
-    "zimbabwe"
-  ],
+  "countries": ["china", "kenya", "tanzania", "uganda", "zambia", "zimbabwe"],
   "products": [],
   "adspend": [],
   "deliveries": [],
