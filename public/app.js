@@ -1,5 +1,5 @@
 /* ======================================================================
-   EAS Tracker – app.js (full build)
+   EAS Tracker – app.js (FINAL full build)
    Works for: index.html and product.html?id=<PRODUCT_ID>
    ====================================================================== */
 
@@ -10,12 +10,23 @@ const fmt = (n, d = 2) => Number(n || 0).toLocaleString(undefined, { maximumFrac
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const getParam = k => new URLSearchParams(location.search).get(k);
 
+// Robust fetch wrapper (auto-JSON stringify + cookie include)
 async function api(path, opts = {}) {
-  const res = await fetch(path, {
+  const init = {
+    method: 'GET',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {},
     ...opts
-  });
+  };
+  // auto stringify JSON body
+  if (init.body && typeof init.body !== 'string') {
+    init.headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify(init.body);
+  } else if (init.method !== 'GET') {
+    init.headers['Content-Type'] = init.headers['Content-Type'] || 'application/json';
+  }
+
+  const res = await fetch(path, init);
   const ct = res.headers.get('content-type') || '';
   const data = ct.includes('application/json') ? await res.json() : await res.text();
   if (!res.ok) throw new Error(data?.error || data || `HTTP ${res.status}`);
@@ -38,7 +49,7 @@ const state = {
 /* ------------------------- AUTH / BOOT ------------------------- */
 async function boot() {
   try {
-    // If authenticated, /api/meta returns countries; otherwise server sends 403.
+    // If authed, /api/meta returns countries. Otherwise it 403s and we show login.
     const meta = await api('/api/meta');
     state.countries = meta.countries || [];
     showMain();
@@ -69,7 +80,7 @@ function showLogin() {
     const pw = Q('#pw')?.value?.trim();
     if (!pw) { alert('Please enter the password'); return; }
     try {
-      await api('/api/auth', { method: 'POST', body: JSON.stringify({ password: pw }) });
+      await api('/api/auth', { method: 'POST', body: { password: pw } });
       showMain();
       await loadAllData();
       fillGlobalSelects();
@@ -89,8 +100,10 @@ function showLogin() {
     }
   };
 
+  // handle click, Enter, and (important) form submit to avoid Safari quirks
   Q('#loginBtn')?.addEventListener('click', doLogin);
   Q('#pw')?.addEventListener('keydown', e => (e.key === 'Enter') && doLogin());
+  Q('#loginForm')?.addEventListener('submit', e => { e.preventDefault(); doLogin(); });
 }
 
 function showMain() {
@@ -100,7 +113,7 @@ function showMain() {
 
 Q('#logoutLink')?.addEventListener('click', async e => {
   e.preventDefault();
-  try { await api('/api/auth', { method: 'POST', body: JSON.stringify({ password: 'logout' }) }); } catch {}
+  try { await api('/api/auth', { method: 'POST', body: { password: 'logout' } }); } catch {}
   location.reload();
 });
 
@@ -120,7 +133,7 @@ async function loadAllData() {
 
   state.products     = prodR.value?.products     || [];
   state.countries    = ctyR.value?.countries     || [];
-  state.adspend      = adR.value?.adspend        || []; // ✅ matches server.js
+  state.adspend      = adR.value?.adspend        || []; // server returns { adspend: [] }
   state.shipments    = shR.value?.shipments      || [];
   state.remittances  = remR.value?.remittances   || [];
   state.deliveries   = delR.value?.deliveries    || [];
@@ -153,7 +166,7 @@ function fillGlobalSelects() {
     });
   });
 
-  // products (global inputs only)
+  // products
   const prodSelectors = ['#adProduct','#rProduct','#mvProduct'];
   prodSelectors.forEach(sel => {
     QA(sel).forEach(el => {
@@ -163,7 +176,7 @@ function fillGlobalSelects() {
     });
   });
 
-  // lifetime (global) optional
+  // lifetime global selector (optional exists)
   if (Q('#lpProduct')) {
     Q('#lpProduct').innerHTML = `<option value="">All products</option>` +
       state.products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
@@ -175,7 +188,7 @@ function fillGlobalSelects() {
       state.products.map(p => `<option value="${p.id}">${p.name}${p.sku?' ('+p.sku+')':''}</option>`).join('');
   }
 
-  // ensure “All countries” sits on top for performance page
+  // performance country (ensure All countries on top)
   if (Q('#pfCountry')) {
     Q('#pfCountry').innerHTML = `<option value="">All countries</option>` +
       state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
@@ -341,7 +354,7 @@ function initWeeklyDeliveredGrid() {
       .filter(x => x.delivered > 0);
     try {
       for (const rec of payloads) {
-        await api('/api/deliveries', { method: 'POST', body: JSON.stringify(rec) });
+        await api('/api/deliveries', { method: 'POST', body: rec });
       }
       // reload deliveries & refresh KPIs
       const r = await api('/api/deliveries');
@@ -368,7 +381,7 @@ function initDailyAdSpend() {
     };
     if (!payload.platform || !payload.productId || !payload.country) return alert('Fill all fields');
     try {
-      await api('/api/adspend', { method: 'POST', body: JSON.stringify(payload) });
+      await api('/api/adspend', { method: 'POST', body: payload });
       const r = await api('/api/adspend'); state.adspend = r.adspend || [];
       renderKpis(); renderStockAndSpendByCountry();
       alert('Saved / Replaced.');
@@ -390,7 +403,7 @@ function initCreateShipment() {
     };
     if (!payload.productId || !payload.fromCountry || !payload.toCountry) return alert('Select product & countries');
     try {
-      await api('/api/shipments', { method: 'POST', body: JSON.stringify(payload) });
+      await api('/api/shipments', { method: 'POST', body: payload });
       const r = await api('/api/shipments'); state.shipments = r.shipments || [];
       renderTransitTables();
       alert('Shipment created');
@@ -431,17 +444,17 @@ function renderTransitTables() {
     icBody.innerHTML = ic.map(row).join('') || `<tr><td colspan="9" class="muted">No transit</td></tr>`;
   }
 
-  // actions
-  const host = Q('#home') || document;
-  host.addEventListener('click', async e => {
-    const id = e.target.dataset?.arr || e.target.dataset?.edit || e.target.dataset?.del;
+  // actions (persistent listener)
+  document.addEventListener('click', async e => {
+    const el = e.target;
+    const id = el?.dataset?.arr || el?.dataset?.edit || el?.dataset?.del;
     if (!id) return;
 
-    if (e.target.dataset.arr) {
+    if (el.dataset.arr) {
       const date = prompt('Arrival date (YYYY-MM-DD)', todayISO());
       if (!date) return;
       try {
-        await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) });
+        await api(`/api/shipments/${id}`, { method: 'PUT', body: { arrivedAt: date } });
         const r = await api('/api/shipments'); state.shipments = r.shipments || [];
         renderTransitTables(); renderStockAndSpendByCountry();
       } catch (err) {
@@ -449,18 +462,18 @@ function renderTransitTables() {
       }
     }
 
-    if (e.target.dataset.edit) {
+    if (el.dataset.edit) {
       const qty = Number(prompt('New quantity?'));
       const cost = Number(prompt('New shipping cost?'));
       if (isNaN(qty) || isNaN(cost)) return;
       try {
-        await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost: cost }) });
+        await api(`/api/shipments/${id}`, { method: 'PUT', body: { qty, shipCost: cost } });
         const r = await api('/api/shipments'); state.shipments = r.shipments || [];
         renderTransitTables();
       } catch (err) { alert(err.message); }
     }
 
-    if (e.target.dataset.del) {
+    if (el.dataset.del) {
       if (!confirm('Delete this shipment?')) return;
       try {
         await api(`/api/shipments/${id}`, { method: 'DELETE' });
@@ -468,7 +481,7 @@ function renderTransitTables() {
         renderTransitTables(); renderStockAndSpendByCountry();
       } catch (err) { alert(err.message); }
     }
-  });
+  }, { once: true });
 }
 
 /* ---- Profit by Country (global) ---- */
@@ -614,7 +627,7 @@ function initProducts() {
       margin_budget: +Q('#pMB')?.value || 0
     };
     if (!payload.name) return alert('Name required');
-    await api('/api/products', { method: 'POST', body: JSON.stringify(payload) });
+    await api('/api/products', { method: 'POST', body: payload });
     const pr = await api('/api/products'); state.products = pr.products || [];
     fillGlobalSelects(); renderProductsTable();
     alert('Product added');
@@ -642,13 +655,13 @@ function renderProductsTable() {
     if (pid) {
       const p = state.products.find(x => x.id === pid);
       const ns = (p.status === 'active') ? 'paused' : 'active';
-      await api(`/api/products/${pid}/status`, { method: 'POST', body: JSON.stringify({ status: ns }) });
+      await api(`/api/products/${pid}/status`, { method: 'POST', body: { status: ns } });
       const pr = await api('/api/products'); state.products = pr.products || [];
       renderProductsTable(); renderKpis(); renderStockAndSpendByCountry(); renderTransitTables();
     } else if (del) {
       if (!confirm('Delete this product and remove it from all calculations?')) return;
       await api('/api/products/' + del, { method: 'DELETE' });
-      // client-side cascade removal from state (server also cascade-deletes)
+      // client-side cascade removal from state
       state.products    = state.products.filter(x => x.id !== del);
       state.adspend     = state.adspend.filter(x => x.productId !== del);
       state.shipments   = state.shipments.filter(x => x.productId !== del);
@@ -727,7 +740,7 @@ function initPerformance() {
     };
     if (!payload.start || !payload.end || !payload.country || !payload.productId)
       return alert('Please fill the required fields');
-    await api('/api/remittances', { method: 'POST', body: JSON.stringify(payload) });
+    await api('/api/remittances', { method: 'POST', body: payload });
     // refresh remittances in memory
     const rr = await api('/api/remittances'); state.remittances = rr.remittances || [];
     alert('Remittance saved');
@@ -744,7 +757,7 @@ function initFinance() {
     const type = Q('#fcType')?.value;
     const name = Q('#fcName')?.value?.trim();
     if (!type || !name) return;
-    await api('/api/finance/categories', { method: 'POST', body: JSON.stringify({ type, name }) });
+    await api('/api/finance/categories', { method: 'POST', body: { type, name } });
     const cats = await api('/api/finance/categories');
     state.financeCats = cats;
     renderFinanceCats();
@@ -759,8 +772,7 @@ function initFinance() {
     const amount = +Q('#feAmt')?.value || 0;
     const note = Q('#feNote')?.value || '';
     if (!date || !type || !category) return alert('Pick date, type and category');
-    const body = JSON.stringify({ date, type, category, amount, note });
-    await api('/api/finance/entries', { method: 'POST', body });
+    await api('/api/finance/entries', { method: 'POST', body: { date, type, category, amount, note } });
     Q('#feNote').value = ''; Q('#feAmt').value = '';
     renderFinancePeriod();
   });
@@ -787,7 +799,7 @@ function renderFinanceCats() {
   if (Q('#feCat')) Q('#feCat').innerHTML = `<option value="" disabled selected>Select category</option>` +
     all.map(x => `<option>${x}</option>`).join('');
 
-  // delete category
+  // delete category (persistent listener)
   Q('#finance')?.addEventListener('click', async e => {
     const delD = e.target.dataset.delDebit, delC = e.target.dataset.delCredit;
     const type = delD ? 'debit' : (delC ? 'credit' : '');
@@ -797,7 +809,7 @@ function renderFinanceCats() {
     await api(`/api/finance/categories?type=${encodeURIComponent(type)}&name=${encodeURIComponent(name)}`, { method: 'DELETE' });
     const cats = await api('/api/finance/categories');
     state.financeCats = cats; renderFinanceCats();
-  });
+  }, { once: true });
 }
 
 async function renderFinancePeriod() {
@@ -836,7 +848,7 @@ function initSettings() {
   Q('#ctyAdd')?.addEventListener('click', async () => {
     const name = Q('#cty')?.value?.trim();
     if (!name) return;
-    await api('/api/countries', { method: 'POST', body: JSON.stringify({ name }) });
+    await api('/api/countries', { method: 'POST', body: { name } });
     const c = await api('/api/countries'); state.countries = c.countries || [];
     fillGlobalSelects(); renderCountryChips();
     Q('#cty').value = '';
@@ -865,7 +877,7 @@ function initSettings() {
       ship_china_to_kenya: +Q('#epShip')?.value || 0,
       margin_budget: +Q('#epMB')?.value || 0
     };
-    await api('/api/products/' + id, { method: 'PUT', body: JSON.stringify(payload) });
+    await api('/api/products/' + id, { method: 'PUT', body: payload });
     const pr = await api('/api/products'); state.products = pr.products || [];
     fillGlobalSelects();
     alert('Saved');
@@ -874,7 +886,7 @@ function initSettings() {
   // Snapshots
   Q('#snapSave')?.addEventListener('click', async () => {
     const name = Q('#snapName')?.value?.trim() || '';
-    await api('/api/snapshots', { method: 'POST', body: JSON.stringify({ name }) });
+    await api('/api/snapshots', { method: 'POST', body: { name } });
     Q('#snapName').value = '';
     renderSnapshots();
   });
@@ -913,7 +925,7 @@ async function renderSnapshots() {
   tb.onclick = async e => {
     const push = e.target.dataset.push, del = e.target.dataset.del;
     if (push) {
-      await api('/api/snapshots/restore', { method: 'POST', body: JSON.stringify({ file: push }) });
+      await api('/api/snapshots/restore', { method: 'POST', body: { file: push } });
       alert('Snapshot pushed. (It remains saved until you delete it.)');
       // optional refresh
       await loadAllData(); renderKpis(); renderStockAndSpendByCountry(); renderProductsTable();
@@ -934,6 +946,7 @@ async function loadProduct(id) {
   state.product  = state.products.find(p => p.id === id) || null;
   if (!state.product) { alert('Product not found'); location.href = '/'; }
 }
+
 function renderProductPage() {
   if (!state.product) return;
 
@@ -959,7 +972,7 @@ function bindProductControls() {
     if (!c) return;
     const budgets = Object.assign({}, state.product.budgets || {});
     budgets[c] = v;
-    await api('/api/products/' + state.product.id, { method: 'PUT', body: JSON.stringify({ budgets }) });
+    await api('/api/products/' + state.product.id, { method: 'PUT', body: { budgets } });
     await loadProduct(state.product.id);
     renderPBTable();
   });
@@ -973,7 +986,7 @@ function bindProductControls() {
       amount: +Q('#pdAdAmount')?.value || 0
     };
     if (!payload.country || !payload.platform) return alert('Pick country & platform');
-    await api('/api/adspend', { method: 'POST', body: JSON.stringify(payload) });
+    await api('/api/adspend', { method: 'POST', body: payload });
     const a = await api('/api/adspend'); state.adspend = a.adspend || [];
     renderProductStockAd();
     renderProductAdTable();
@@ -991,7 +1004,7 @@ function bindProductControls() {
       arrivedAt: null
     };
     if (!payload.fromCountry || !payload.toCountry) return alert('Select from/to');
-    await api('/api/shipments', { method: 'POST', body: JSON.stringify(payload) });
+    await api('/api/shipments', { method: 'POST', body: payload });
     const r = await api('/api/shipments'); state.shipments = r.shipments || [];
     renderProductTransit();
     renderProductStockAd();
@@ -1005,7 +1018,7 @@ function bindProductControls() {
     const name = Q('#pdInfName')?.value?.trim(); if (!name) return;
     const social = Q('#pdInfSocial')?.value?.trim() || '';
     const country = Q('#pdInfCountry')?.value || '';
-    await api('/api/influencers', { method: 'POST', body: JSON.stringify({ name, social, country }) });
+    await api('/api/influencers', { method: 'POST', body: { name, social, country } });
     Q('#pdInfName').value=''; Q('#pdInfSocial').value='';
     renderInfluencers();
   });
@@ -1015,7 +1028,7 @@ function bindProductControls() {
     const country = Q('#pdInfSpendCountry')?.value || '';
     const amount = +Q('#pdInfAmount')?.value || 0;
     if (!influencerId) return alert('Select influencer');
-    await api('/api/influencers/spend', { method: 'POST', body: JSON.stringify({ date, influencerId, country, productId: state.product.id, amount }) });
+    await api('/api/influencers/spend', { method: 'POST', body: { date, influencerId, country, productId: state.product.id, amount } });
     Q('#pdInfAmount').value=''; renderInfluencers();
   });
   Q('#pdInfRun')?.addEventListener('click', renderInfluencers);
@@ -1067,7 +1080,7 @@ function renderProductStockAd() {
 
 /* -- product: manual “Profit + Ads Budget” table -- */
 function renderPBTable() {
-  const tb = Q('#pdPBBBody'); if (!tb) return;
+  const tb = Q('#pdPBBody'); if (!tb) return;
   const map = state.product.budgets || {};
   tb.innerHTML = state.countries.map(c => `
     <tr>
@@ -1079,7 +1092,7 @@ function renderPBTable() {
   tb.onclick = async e => {
     const c = e.target.dataset.clearB; if (!c) return;
     const budgets = Object.assign({}, state.product.budgets || {}); delete budgets[c];
-    await api('/api/products/' + state.product.id, { method: 'PUT', body: JSON.stringify({ budgets }) });
+    await api('/api/products/' + state.product.id, { method: 'PUT', body: { budgets } });
     await loadProduct(state.product.id); renderPBTable();
   };
 }
@@ -1118,29 +1131,29 @@ function renderProductTransit() {
   tb1.innerHTML = ck.map(row).join('') || `<tr><td colspan="8" class="muted">No shipments</td></tr>`;
   tb2.innerHTML = ic.map(row).join('') || `<tr><td colspan="8" class="muted">No shipments</td></tr>`;
 
-  const host = document; // keep listener active across re-renders
-  host.addEventListener('click', async e => {
-    const id = e.target?.dataset?.arr || e.target?.dataset?.edit || e.target?.dataset?.del; if (!id) return;
-    if (e.target.dataset.arr) {
+  document.addEventListener('click', async e => {
+    const el = e.target;
+    const id = el?.dataset?.arr || el?.dataset?.edit || el?.dataset?.del; if (!id) return;
+    if (el.dataset.arr) {
       const date = prompt('Arrival date (YYYY-MM-DD)', todayISO()); if (!date) return;
-      await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) });
+      await api(`/api/shipments/${id}`, { method: 'PUT', body: { arrivedAt: date } });
       const s = await api('/api/shipments'); state.shipments = s.shipments || [];
       renderProductTransit(); renderProductStockAd();
     }
-    if (e.target.dataset.edit) {
+    if (el.dataset.edit) {
       const qty = Number(prompt('New quantity?')); const shipCost = Number(prompt('New shipping cost?'));
       if (isNaN(qty) || isNaN(shipCost)) return;
-      await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost }) });
+      await api(`/api/shipments/${id}`, { method: 'PUT', body: { qty, shipCost } });
       const s = await api('/api/shipments'); state.shipments = s.shipments || [];
       renderProductTransit();
     }
-    if (e.target.dataset.del) {
+    if (el.dataset.del) {
       if (!confirm('Delete this shipment?')) return;
       await api(`/api/shipments/${id}`, { method: 'DELETE' });
       const s = await api('/api/shipments'); state.shipments = s.shipments || [];
       renderProductTransit(); renderProductStockAd();
     }
-  });
+  }, { once: true });
 }
 
 /* -- product: Lifetime table (by country, filter by date) -- */
@@ -1244,3 +1257,14 @@ function initNav() {
    BOOT
    ===================================================================== */
 boot();
+
+/* ================== What I fixed for login reliability ==================
+1) api(): auto-JSON stringifies bodies and always includes credentials (cookies).
+2) Login handling: added a submit listener on #loginForm and an Enter handler on #pw,
+   so Safari or any browser won’t “swallow” the click/enter due to form quirks.
+3) After successful auth, app reboots the same init pipeline used for authed sessions.
+4) All fetch calls use the same wrapper; server routes and keys align exactly:
+   - /api/meta exists and is used to detect auth
+   - /api/adspend returns { adspend: [] } (handled correctly)
+   - China is excluded in remittance selectors; not deletable in country chips
+========================================================================= */
