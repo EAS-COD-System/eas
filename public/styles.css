@@ -25,9 +25,16 @@ img { max-width: 100%; display: block; }
 .section h2 { margin: 0 0 12px; font-size: 20px; font-weight: 700; color: #0f172a; }
 
 /* --------- Auth / Login --------- */
-.auth { max-width: 420px; margin: 10vh auto; text-align: center; padding: 32px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 6px 18px rgba(2, 6, 23, 0.06); }
+.auth {
+  max-width: 420px; margin: 10vh auto; text-align: center; padding: 32px;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(2, 6, 23, 0.06);
+}
 .brand { margin: 0 0 6px; font-size: 28px; letter-spacing: .3px; }
 .auth p { margin: 0 0 16px; color: #475569; }
+.auth .row { justify-content: center; }
+#loginForm .input { width: 100%; max-width: 320px; }
+#loginBtn { width: 100%; max-width: 320px; }
 
 /* --------- Top Navigation --------- */
 .nav {
@@ -83,11 +90,13 @@ button.x {
 button.x:hover { background: #f8fafc; }
 
 /* --------- Tables --------- */
-.table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+.table {
+  width: 100%; border-collapse: collapse; background: #fff;
+  border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;
+}
 .table thead th {
   background: #f1f5f9; color: #0f172a; font-weight: 700; text-align: left; font-size: 13px;
-  padding: 10px;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 10px; border-bottom: 1px solid #e2e8f0;
 }
 .table tbody td { padding: 10px; border-bottom: 1px solid #eef2f7; font-size: 14px; color: #0f172a; }
 .table tfoot th, .table tfoot td { padding: 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; }
@@ -118,7 +127,10 @@ button.x:hover { background: #f8fafc; }
 code { background: #0f172a; color: #e2e8f0; border-radius: 6px; padding: 2px 6px; }
 
 /* --------- Todo lists --------- */
-.todo { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; }
+.todo {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+}
 .todo + .todo { margin-top: 8px; }
 .weeks { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; }
 .weeks .card { height: 100%; }
