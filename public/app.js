@@ -118,7 +118,7 @@ async function loadAllData() {
 
   state.products     = prodR.value?.products     || [];
   state.countries    = ctyR.value?.countries     || [];
-  state.adspend      = adR.value?.adSpends       || [];
+  state.adspend      = adR.value?.adSpends ?? adR.value?.adspend ?? [];
   state.shipments    = shR.value?.shipments      || [];
   state.remittances  = remR.value?.remittances   || [];
   state.deliveries   = delR.value?.deliveries    || [];
@@ -364,7 +364,8 @@ function initDailyAdSpend() {
     if (!payload.platform || !payload.productId || !payload.country) return alert('Fill all fields');
     try {
       await api('/api/adspend', { method: 'POST', body: JSON.stringify(payload) });
-      const r = await api('/api/adspend'); state.adspend = r.adSpends || [];
+      const r = await api('/api/adspend');
+      state.adspend = r.adSpends ?? r.adspend ?? [];
       renderKpis(); renderStockAndSpendByCountry();
       alert('Saved / Replaced.');
     } catch (e) { alert(e.message); }
@@ -639,7 +640,7 @@ function renderProductsTable() {
     } else if (del) {
       if (!confirm('Delete this product and remove it from all calculations?')) return;
       await api('/api/products/' + del, { method: 'DELETE' });
-      // client-side cascade removal from state (server doesn’t hard-delete linked rows)
+      // client-side cascade removal from state
       state.products    = state.products.filter(x => x.id !== del);
       state.adspend     = state.adspend.filter(x => x.productId !== del);
       state.shipments   = state.shipments.filter(x => x.productId !== del);
@@ -673,7 +674,7 @@ function initPerformance() {
     const act = activeProductIds();
     const prodMap = Object.fromEntries(state.products.map(p => [p.id, p]));
 
-    const byPK = {}; // product+country buckets to show country in table too
+    const byPK = {}; // product+country buckets
     (r.remittances || []).forEach(x => {
       if (!act.has(x.productId)) return;
       const key = `${x.productId}|${x.country}`;
@@ -779,17 +780,21 @@ function renderFinanceCats() {
   if (Q('#feCat')) Q('#feCat').innerHTML = `<option value="" disabled selected>Select category</option>` +
     all.map(x => `<option>${x}</option>`).join('');
 
-  // delete category
-  Q('#finance')?.addEventListener('click', async e => {
-    const delD = e.target.dataset.delDebit, delC = e.target.dataset.delCredit;
-    const type = delD ? 'debit' : (delC ? 'credit' : '');
-    const name = delD || delC;
-    if (!type || !name) return;
-    if (!confirm(`Delete category "${name}"?`)) return;
-    await api(`/api/finance/categories?type=${encodeURIComponent(type)}&name=${encodeURIComponent(name)}`, { method: 'DELETE' });
-    const cats = await api('/api/finance/categories');
-    state.financeCats = cats; renderFinanceCats();
-  }, { once: true });
+  // delete category (allow multiple deletes without reload)
+  const container = Q('#finance');
+  if (!container._catsBound) {
+    container._catsBound = true;
+    container.addEventListener('click', async e => {
+      const delD = e.target.dataset.delDebit, delC = e.target.dataset.delCredit;
+      const type = delD ? 'debit' : (delC ? 'credit' : '');
+      const name = delD || delC;
+      if (!type || !name) return;
+      if (!confirm(`Delete category "${name}"?`)) return;
+      await api(`/api/finance/categories?type=${encodeURIComponent(type)}&name=${encodeURIComponent(name)}`, { method: 'DELETE' });
+      const cats = await api('/api/finance/categories');
+      state.financeCats = cats; renderFinanceCats();
+    });
+  }
 }
 
 async function renderFinancePeriod() {
@@ -800,10 +805,25 @@ async function renderFinancePeriod() {
   const r = await api('/api/finance/entries' + (qs.length?`?${qs.join('&')}`:''));
   const entries = r.entries || [];
 
-  // Running all-time
-  if (Q('#runBalance')) Q('#runBalance').textContent = `${fmt(r.running)} USD`;
-  // Period balance
-  if (Q('#feBalance')) Q('#feBalance').textContent = `Period Balance: ${fmt(r.balance)} USD`;
+  // Running all-time (fallback compute if server didn't send)
+  let running = r.running;
+  if (running == null) {
+    running = (r.allEntries || entries).reduce((acc, it) => {
+      const amt = +it.amount || 0;
+      return acc + (it.type === 'credit' ? amt : -amt);
+    }, 0);
+  }
+  if (Q('#runBalance')) Q('#runBalance').textContent = `${fmt(running)} USD`;
+
+  // Period balance (fallback compute)
+  let balance = r.balance;
+  if (balance == null) {
+    balance = entries.reduce((acc, it) => {
+      const amt = +it.amount || 0;
+      return acc + (it.type === 'credit' ? amt : -amt);
+    }, 0);
+  }
+  if (Q('#feBalance')) Q('#feBalance').textContent = `Period Balance: ${fmt(balance)} USD`;
 
   const tb = Q('#feTable tbody'); if (!tb) return;
   tb.innerHTML = entries.map(x => `
@@ -966,7 +986,7 @@ function bindProductControls() {
     };
     if (!payload.country || !payload.platform) return alert('Pick country & platform');
     await api('/api/adspend', { method: 'POST', body: JSON.stringify(payload) });
-    const a = await api('/api/adspend'); state.adspend = a.adSpends || [];
+    const a = await api('/api/adspend'); state.adspend = a.adSpends ?? a.adspend ?? [];
     renderProductStockAd();
     renderProductAdTable();
   });
@@ -1016,7 +1036,9 @@ function bindProductControls() {
 async function refreshProductSections() {
   // re-pull latest
   const [a, s, r] = await Promise.all([api('/api/adspend'), api('/api/shipments'), api('/api/remittances')]);
-  state.adspend = a.adSpends || []; state.shipments = s.shipments || []; state.remittances = r.remittances || [];
+  state.adspend = a.adSpends ?? a.adspend ?? [];
+  state.shipments = s.shipments || [];
+  state.remittances = r.remittances || [];
 
   renderProductStockAd();
   renderPBTable();
