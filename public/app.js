@@ -65,15 +65,14 @@ function showLogin() {
   Q('#login')?.classList.remove('hide');
   Q('#main')?.setAttribute('style', 'display:none');
 
-  const form = Q('#loginForm');        // ok if null
+  const form = Q('#loginForm');
   const btn  = Q('#loginBtn');
   const inp  = Q('#pw');
 
-  // ensure the button never acts like a submit
   if (btn) btn.type = 'button';
 
   const doLogin = async (e) => {
-    if (e) e.preventDefault();          // stop native submit
+    if (e) e.preventDefault();
     const pw = inp?.value?.trim();
     if (!pw) { alert('Enter password'); return; }
 
@@ -97,15 +96,12 @@ function showLogin() {
       }
     } catch (e) {
       alert(e?.message || 'Wrong password');
-      // keep the text so user can correct it; do not clear inp.value
     } finally {
       btn && (btn.disabled = false);
     }
   };
 
-  // Intercept any form submit (e.g., pressing “Go” on mobile keyboards)
   form && form.addEventListener('submit', doLogin);
-
   btn?.addEventListener('click', doLogin);
   inp?.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); doLogin(e); }
@@ -158,7 +154,6 @@ function fillGlobalSelects() {
   ];
   countrySelectors.forEach(sel => {
     QA(sel).forEach(el => {
-      // special cases:
       const id = el.id || '';
       const excludeChinaForRemit = (id === 'rCountry');
       const list = excludeChinaForRemit
@@ -348,7 +343,6 @@ function initWeeklyDeliveredGrid() {
   Q('#weeklyNext')?.addEventListener('click', () => { refDate.setDate(refDate.getDate() + 7); render(); });
   Q('#weeklyReset')?.addEventListener('click', () => { QA('.wd', body).forEach(i => i.value = ''); computeWeeklyTotals(); });
   Q('#weeklySave')?.addEventListener('click', async () => {
-    // post all non-zero cells as delivery rows
     const cells = QA('.wd', body);
     const payloads = cells
       .map(i => ({ date: i.dataset.date, country: i.dataset.country, delivered: +i.value || 0 }))
@@ -357,7 +351,6 @@ function initWeeklyDeliveredGrid() {
       for (const rec of payloads) {
         await api('/api/deliveries', { method: 'POST', body: JSON.stringify(rec) });
       }
-      // reload deliveries & refresh KPIs
       const r = await api('/api/deliveries');
       state.deliveries = r.deliveries || [];
       renderKpis();
@@ -486,40 +479,56 @@ function renderTransitTables() {
 function initProfitByCountry() {
   const btn = Q('#pcRun'); if (!btn) return;
   btn.addEventListener('click', async () => {
-    const s = Q('#pcStart')?.value || '';
-    const e = Q('#pcEnd')?.value || '';
-    const c = Q('#pcCountry')?.value || '';
+    const quick = Q('#pfQuick')?.value;
+    let start = Q('#pfStart')?.value, end = Q('#pfEnd')?.value;
+    if (quick && quick !== 'custom') {
+      const d = new Date(); d.setDate(d.getDate() - (+quick));
+      start = d.toISOString().slice(0,10); end = todayISO();
+    }
+    const country = Q('#pfCountry')?.value || '';
 
     const qs = [];
-    if (s) qs.push('start=' + encodeURIComponent(s));
-    if (e) qs.push('end=' + encodeURIComponent(e));
-    if (c) qs.push('country=' + encodeURIComponent(c));
+    if (start) qs.push('start=' + encodeURIComponent(start));
+    if (end) qs.push('end=' + encodeURIComponent(end));
+    if (country) qs.push('country=' + encodeURIComponent(country));
     const r = await api('/api/remittances' + (qs.length ? `?${qs.join('&')}` : ''));
 
+    // Client-side country filter (works even if server ignores the query)
+    let list = r.remittances || [];
+    if (country) list = list.filter(x => x.country === country);
+
     const act = activeProductIds();
-    const byC = {};
-    (r.remittances || []).forEach(x => {
+    const prodMap = Object.fromEntries(state.products.map(p => [p.id, p]));
+
+    const byPK = {}; // product+country buckets
+    list.forEach(x => {
       if (!act.has(x.productId)) return;
-      byC[x.country] = byC[x.country] || { rev:0, ad:0, del:0, pcs:0 };
-      byC[x.country].rev += (+x.revenue || 0);
-      byC[x.country].ad  += (+x.adSpend || 0);
-      byC[x.country].del += (+x.extraPerPiece || 0) * (+x.pieces || 0);
-      byC[x.country].pcs += (+x.pieces || 0);
+      const key = `${x.productId}|${x.country}`;
+      const prod = prodMap[x.productId] || {};
+      if (!byPK[key]) byPK[key] = {
+        productId: x.productId,
+        product: prod.name || x.productId,
+        country: x.country,
+        pieces: 0, ad:0, prodCost:0, profit:0
+      };
+      const base = (+prod.cost_china || 0) + (+prod.ship_china_to_kenya || 0);
+      const pcs = (+x.pieces||0);
+      const extra = (+x.extraPerPiece||0) * pcs;
+      byPK[key].pieces   += pcs;
+      byPK[key].ad       += (+x.adSpend||0);
+      byPK[key].prodCost += base * pcs;
+      byPK[key].profit   += (+x.revenue||0) - (+x.adSpend||0) - (base*pcs) - extra;
     });
 
-    const tb = Q('#profitCountryBody');
-    let R=0,A=0,D=0,P=0,PCS=0;
-    tb.innerHTML = Object.entries(byC).map(([k,v]) => {
-      const profit = v.rev - v.ad - v.del;
-      R+=v.rev; A+=v.ad; D+=v.del; PCS+=v.pcs; P+=profit;
-      return `<tr><td>${k}</td><td>${fmt(v.rev)}</td><td>${fmt(v.ad)}</td><td>${fmt(v.del)}</td><td>${fmt(v.pcs,0)}</td><td>${fmt(profit)}</td></tr>`;
-    }).join('') || `<tr><td colspan="6" class="muted">No data</td></tr>`;
-
-    Q('#pcRevT').textContent    = fmt(R);
-    Q('#pcAdT').textContent     = fmt(A);
-    Q('#pcDelT').textContent    = fmt(D);
-    Q('#pcPiecesT').textContent = fmt(PCS,0);
-    Q('#pcProfitT').textContent = fmt(P);
+    const tb = Q('#pfTable tbody');
+    tb.innerHTML = Object.values(byPK)
+      .sort((a,b) => b.pieces - a.pieces)
+      .map(it => `<tr>
+        <td>${it.product}</td><td>${it.country}</td>
+        <td>${fmt(it.pieces,0)}</td><td>${fmt(it.ad)}</td>
+        <td>${fmt(it.prodCost)}</td><td>${fmt(it.profit)}</td>
+        <td>${it.pieces ? fmt(it.profit/it.pieces) : '0'}</td>
+      </tr>`).join('') || `<tr><td colspan="7" class="muted">No data</td></tr>`;
   });
 }
 
@@ -528,7 +537,6 @@ function initTodos() {
   const QUICK_KEY = 'eas_todos_quick';
   const WEEK_KEY  = 'eas_todos_week';
 
-  // quick
   const wrap = Q('#todoList'); if (!wrap) return;
   const addBtn = Q('#todoAdd');
 
@@ -688,13 +696,17 @@ function initPerformance() {
     if (start) qs.push('start='+encodeURIComponent(start));
     if (end)   qs.push('end='+encodeURIComponent(end));
     if (country) qs.push('country='+encodeURIComponent(country));
-
     const r = await api('/api/remittances' + (qs.length ? `?${qs.join('&')}` : ''));
+
+    // Apply client-side country filter to ensure correctness even if the API returns all.
+    let list = r.remittances || [];
+    if (country) list = list.filter(x => x.country === country);
+
     const act = activeProductIds();
     const prodMap = Object.fromEntries(state.products.map(p => [p.id, p]));
 
     const byPK = {}; // product+country buckets
-    (r.remittances || []).forEach(x => {
+    list.forEach(x => {
       if (!act.has(x.productId)) return;
       const key = `${x.productId}|${x.country}`;
       const prod = prodMap[x.productId] || {};
@@ -740,7 +752,6 @@ function initPerformance() {
     if (!payload.start || !payload.end || !payload.country || !payload.productId)
       return alert('Please fill the required fields');
     await api('/api/remittances', { method: 'POST', body: JSON.stringify(payload) });
-    // refresh remittances in memory
     const rr = await api('/api/remittances'); state.remittances = rr.remittances || [];
     alert('Remittance saved');
   });
@@ -946,7 +957,6 @@ async function renderSnapshots() {
     if (push) {
       await api('/api/snapshots/restore', { method: 'POST', body: JSON.stringify({ file: push }) });
       alert('Snapshot pushed. (It remains saved until you delete it.)');
-      // optional refresh
       await loadAllData(); renderKpis(); renderStockAndSpendByCountry(); renderProductsTable();
     } else if (del) {
       if (!confirm('Delete this snapshot?')) return;
@@ -1053,7 +1063,6 @@ function bindProductControls() {
 }
 
 async function refreshProductSections() {
-  // re-pull latest
   const [a, s, r] = await Promise.all([api('/api/adspend'), api('/api/shipments'), api('/api/remittances')]);
   state.adspend = a.adSpends ?? a.adspend ?? [];
   state.shipments = s.shipments || [];
@@ -1180,7 +1189,6 @@ function renderProductTransit() {
 function renderProductLifetime() {
   const s = Q('#pdLPStart')?.value || '';
   const e = Q('#pdLPEnd')?.value || '';
-  // use current in-memory remittances (they’re already loaded)
   let list = state.remittances.filter(x => x.productId === state.product.id);
   if (s) list = list.filter(x => x.start >= s);
   if (e) list = list.filter(x => x.end <= e);
@@ -1220,12 +1228,10 @@ function renderProductLifetime() {
 async function renderInfluencers() {
   const infs = await api('/api/influencers');
   const spends = await api('/api/influencers/spend');
-  // select options
   if (Q('#pdInfSelect')) {
     Q('#pdInfSelect').innerHTML = (infs.influencers||[]).map(i => `<option value="${i.id}">${i.name}</option>`).join('');
   }
 
-  // filters
   const s = Q('#pdInfStart')?.value || '';
   const e = Q('#pdInfEnd')?.value || '';
   const c = Q('#pdInfFilterCountry')?.value || '';
@@ -1269,7 +1275,7 @@ function initNav() {
       if (el) el.style.display = (id===v) ? '' : 'none';
     });
     QA('.nav a').forEach(x => x.classList.toggle('active', x === a));
-    if (v === 'home') { renderKpis(); renderStockAndSpendByCountry(); renderTransitTables(); } // keep fresh
+    if (v === 'home') { renderKpis(); renderStockAndSpendByCountry(); renderTransitTables(); }
   }));
 }
 
