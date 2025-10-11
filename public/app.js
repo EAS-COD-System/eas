@@ -64,17 +64,27 @@ async function boot() {
 function showLogin() {
   Q('#login')?.classList.remove('hide');
   Q('#main')?.setAttribute('style', 'display:none');
-  // button + Enter key
-  const doLogin = async () => {
-    const pw = Q('#pw')?.value?.trim();
-    if (!pw) return alert('Enter password');
+
+  const form = Q('#loginForm');        // ok if null
+  const btn  = Q('#loginBtn');
+  const inp  = Q('#pw');
+
+  // ensure the button never acts like a submit
+  if (btn) btn.type = 'button';
+
+  const doLogin = async (e) => {
+    if (e) e.preventDefault();          // stop native submit
+    const pw = inp?.value?.trim();
+    if (!pw) { alert('Enter password'); return; }
+
     try {
+      btn && (btn.disabled = true);
       await api('/api/auth', { method: 'POST', body: JSON.stringify({ password: pw }) });
       showMain();
       await loadAllData();
       fillGlobalSelects();
       initNav();
-      // route to proper page
+
       if (state.productId) {
         await loadProduct(state.productId);
         renderProductPage();
@@ -86,11 +96,20 @@ function showLogin() {
         initSettings();
       }
     } catch (e) {
-      alert('Wrong password');
+      alert(e?.message || 'Wrong password');
+      // keep the text so user can correct it; do not clear inp.value
+    } finally {
+      btn && (btn.disabled = false);
     }
   };
-  Q('#loginBtn')?.addEventListener('click', doLogin);
-  Q('#pw')?.addEventListener('keydown', e => (e.key === 'Enter') && doLogin());
+
+  // Intercept any form submit (e.g., pressing “Go” on mobile keyboards)
+  form && form.addEventListener('submit', doLogin);
+
+  btn?.addEventListener('click', doLogin);
+  inp?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); doLogin(e); }
+  });
 }
 function showMain() {
   Q('#login')?.classList.add('hide');
