@@ -10,6 +10,7 @@ const morgan = require('morgan');
 const { v4: uuidv4 } = require('uuid');
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'eastafricashop';
 const app = express();
+app.set('trust proxy', 1); // ✅ required on Render/Heroku/etc for Secure cookies
 const PORT = process.env.PORT || 3000;
 
 const ROOT = __dirname;
