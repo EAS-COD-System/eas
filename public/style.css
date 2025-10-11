@@ -1,124 +1,81 @@
-/* ========== BASE ========== */
+/* =====================================================
+   EAS Tracker - Final Clean Build Stylesheet
+   Theme: White + Green
+   ===================================================== */
+
 :root {
-  --green: #1db954;
-  --green-dark: #159a44;
-  --red: #ff3b30;
-  --gray: #f4f4f4;
+  --green: #009b5c;
+  --green-dark: #007744;
+  --bg: #f5f7f6;
   --text: #222;
-  --muted: #888;
+  --border: #ddd;
+  --radius: 6px;
+  --shadow: 0 1px 4px rgba(0,0,0,0.08);
+  --transition: 0.2s ease-in-out;
 }
 
 * {
   box-sizing: border-box;
-}
-
-html, body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   margin: 0;
   padding: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
-  background: #fff;
-  color: var(--text);
 }
 
-/* ========== LOGIN ========== */
+body {
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.4;
+  min-height: 100vh;
+}
+
+/* ---------------- AUTH PAGE ---------------- */
 .auth {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
   text-align: center;
-  margin-top: 20vh;
 }
 
 .auth .brand {
-  font-size: 2rem;
-  font-weight: 600;
+  font-size: 2.3rem;
   color: var(--green);
+  font-weight: 700;
+  margin-bottom: 10px;
 }
 
-.auth input {
-  padding: 10px;
-  width: 200px;
-  margin-right: 10px;
+.auth p {
+  margin-bottom: 16px;
+  color: #555;
 }
 
-.auth .btn {
-  background: var(--green);
-  color: #fff;
-  border: none;
-  padding: 10px 16px;
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-.auth .btn:hover {
-  background: var(--green-dark);
-}
-
-/* ========== NAVIGATION ========== */
-.nav {
+.auth form {
   display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  background: var(--green);
-  color: #fff;
-  padding: 10px;
-  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.nav a {
-  color: #fff;
-  margin-right: 15px;
-  text-decoration: none;
-  font-weight: 500;
-  cursor: pointer;
+.input {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 15px;
+  outline: none;
+  transition: border var(--transition);
 }
 
-.nav a.active {
-  text-decoration: underline;
-}
-
-.nav .nav-right {
-  margin-left: auto;
-}
-
-.badge {
-  background: #fff;
-  color: var(--green);
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-weight: 600;
-}
-
-/* ========== CONTAINERS ========== */
-.container {
-  padding: 20px;
-}
-
-.section {
-  margin-bottom: 40px;
-}
-
-.h {
-  font-weight: 600;
-  font-size: 1.1rem;
-  margin-bottom: 8px;
-}
-
-/* ========== INPUTS, BUTTONS ========== */
-.input, select, input[type="number"], input[type="date"] {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  min-width: 140px;
-  margin: 4px;
+.input:focus {
+  border-color: var(--green);
 }
 
 .btn {
   background: var(--green);
   color: #fff;
   border: none;
-  border-radius: 4px;
-  padding: 8px 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
   cursor: pointer;
-  font-weight: 500;
-  margin: 4px;
+  transition: background var(--transition);
 }
 
 .btn:hover {
@@ -127,8 +84,8 @@ html, body {
 
 .btn.outline {
   background: transparent;
-  border: 1px solid var(--green);
   color: var(--green);
+  border: 1px solid var(--green);
 }
 
 .btn.outline:hover {
@@ -136,158 +93,199 @@ html, body {
   color: #fff;
 }
 
-.btn.danger {
-  background: var(--red);
-}
-
-.btn.danger:hover {
-  opacity: 0.8;
-}
-
-/* ========== TABLES ========== */
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-}
-
-.table th, .table td {
-  border: 1px solid #ddd;
-  padding: 8px;
-  text-align: left;
-  font-size: 0.9rem;
-}
-
-.table th {
-  background: var(--gray);
-}
-
-.table tr:nth-child(even) {
-  background: #fafafa;
-}
-
-.table tr:hover {
-  background: #f0f9f2;
-}
-
-.table .totals {
-  font-weight: 600;
-  background: #e6f7ed;
-}
-
-.table-scroll {
-  overflow-x: auto;
-}
-
-/* ========== CARDS ========== */
-.card {
-  border: 1px solid #eee;
-  border-radius: 6px;
-  padding: 12px;
-  margin-bottom: 12px;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-
-/* ========== KPI ========== */
-.kpis {
+/* ---------------- NAVIGATION ---------------- */
+.nav {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
 }
 
-.kpi {
-  background: #f8fdf9;
-  border: 1px solid #e3f3e8;
-  border-radius: 6px;
-  padding: 10px;
-  text-align: center;
-  flex: 1 1 150px;
+.nav a {
+  text-decoration: none;
+  color: var(--green);
+  font-weight: 500;
+  margin-right: 12px;
+  transition: color var(--transition);
 }
 
-.kpi .h {
-  color: var(--muted);
-  font-size: 0.8rem;
-}
-
-.kpi div:last-child {
-  font-size: 1.2rem;
-  font-weight: 700;
+.nav a:hover {
   color: var(--green-dark);
 }
 
-/* ========== ROWS & FLEX ========== */
+.nav a.active {
+  color: var(--green-dark);
+  font-weight: 600;
+}
+
+.nav-right {
+  margin-left: auto;
+}
+
+/* ---------------- CONTAINERS ---------------- */
+.container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.section {
+  margin-bottom: 24px;
+}
+
 .row {
   display: flex;
+  gap: 12px;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 6px 0;
 }
 
 .wrap {
   flex-wrap: wrap;
 }
 
-/* ========== BADGES, CHIPS, TODO ========== */
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+/* ---------------- CARDS ---------------- */
+.card {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  border: 1px solid var(--border);
 }
 
-.chip {
-  background: var(--gray);
-  padding: 6px 10px;
-  border-radius: 16px;
-  font-size: 0.85rem;
-  cursor: default;
+.card .h {
+  font-weight: 600;
+  color: var(--green-dark);
+  margin-bottom: 12px;
+  font-size: 15px;
 }
 
-.chip.deletable {
-  cursor: pointer;
+/* ---------------- TABLES ---------------- */
+.table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
 }
 
-.todo-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 600px;
+  font-size: 14px;
 }
 
-.todo {
-  border: 1px solid #eee;
-  padding: 8px;
-  border-radius: 4px;
+.table th,
+.table td {
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table th {
+  background: #f1f1f1;
+  color: #333;
+  font-weight: 600;
+}
+
+.table tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+.table .totals th {
+  background: var(--green);
+  color: #fff;
+  font-weight: 700;
+}
+
+/* ---------------- BADGE / LABEL ---------------- */
+.badge {
+  background: var(--green);
+  color: #fff;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 13px;
+  margin-left: 8px;
+}
+
+/* ---------------- HIDE ---------------- */
+.hide {
+  display: none !important;
+}
+
+/* ---------------- UTILITIES ---------------- */
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.flex-between {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+}
+
+/* ---------------- SETTINGS ---------------- */
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-list button {
+  align-self: flex-start;
+}
+
+/* ---------------- SNAPSHOTS ---------------- */
+.snapshot-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  box-shadow: var(--shadow);
 }
 
-.todo.done {
-  text-decoration: line-through;
-  color: var(--muted);
+.snapshot-item small {
+  color: #555;
 }
 
-.muted {
-  color: var(--muted);
-  font-size: 0.85rem;
+/* ---------------- RESPONSIVE ---------------- */
+@media (max-width: 768px) {
+  .nav {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .container {
+    padding: 10px;
+  }
+
+  .table {
+    font-size: 13px;
+  }
+
+  .row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .btn,
+  .input {
+    font-size: 14px;
+  }
 }
 
-/* ========== BALANCE CARD ========== */
-.big-balance {
-  background: #f8fdf9;
-  border-left: 5px solid var(--green);
-}
-
-.balance {
-  font-size: 1.8rem;
-  font-weight: bold;
-  color: var(--green-dark);
-}
-
-/* ========== RESPONSIVE ========== */
-@media (max-width: 700px) {
-  .kpis { flex-direction: column; }
-  .nav { justify-content: center; }
-  .btn, .input, select { width: 100%; }
+/* ---------------- FOOTER ---------------- */
+footer {
+  margin-top: 30px;
+  text-align: center;
+  font-size: 13px;
+  color: #888;
 }
