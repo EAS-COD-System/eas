@@ -189,7 +189,8 @@ app.delete('/api/products/:id', requireAuth, (req, res) => {
 /* ========================== Ad Spend (upsert) ========================== */
 app.get('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB();
-  res.json({ adspend: db.adspend || [] });
+  // IMPORTANT: frontend expects `adSpends`
+  res.json({ adSpends: db.adspend || [] });
 });
 
 app.post('/api/adspend', requireAuth, (req, res) => {
