@@ -8,7 +8,7 @@ const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const { v4: uuidv4 } = require('uuid');
-
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'eastafricashop';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
