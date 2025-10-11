@@ -85,9 +85,13 @@ function requireAuth(req, res, next) {
 }
 
 // Used by the frontend to detect auth + prefetch minimal data
-app.get('/api/meta', requireAuth, (req, res) => {
+// NOTE: do NOT protect with requireAuth; return 403 when not logged in.
+app.get('/api/meta', (req, res) => {
   const db = loadDB();
-  res.json({ ok: true, countries: db.countries || [] });
+  if (req.cookies?.auth === '1') {
+    return res.json({ ok: true, countries: db.countries || [] });
+  }
+  return res.status(403).json({ error: 'Unauthorized' });
 });
 
 /* ========================== Countries ========================== */
@@ -189,7 +193,7 @@ app.delete('/api/products/:id', requireAuth, (req, res) => {
 /* ========================== Ad Spend (upsert) ========================== */
 app.get('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB();
-  // IMPORTANT: frontend expects `adSpends`
+  // IMPORTANT: Frontend expects `adSpends`
   res.json({ adSpends: db.adspend || [] });
 });
 
