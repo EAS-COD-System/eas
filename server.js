@@ -16,6 +16,9 @@ const ROOT = __dirname;
 const DATA_FILE = path.join(ROOT, 'db.json');
 const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
 
+// Make Express aware it’s behind a proxy (Render), so secure cookies behave
+app.set('trust proxy', 1);
+
 /* ========================== Helpers ========================== */
 function initDBIfMissing() {
   if (!fs.existsSync(DATA_FILE)) {
@@ -60,16 +63,28 @@ app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
 
+  // logout
   if (password === 'logout') {
-    res.clearCookie('auth');
+    res.clearCookie('auth', { path: '/' });
+    res.clearCookie('auth_client', { path: '/' });
     return res.json({ ok: true });
   }
 
+  // login
   if (password && password === db.password) {
+    // Secure cookie for the server to check
     res.cookie('auth', '1', {
       httpOnly: true,
       sameSite: 'Lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,        // we’re on HTTPS on Render
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+    // Small non-httpOnly cookie so you can verify on phones that it landed
+    res.cookie('auth_client', '1', {
+      httpOnly: false,
+      sameSite: 'Lax',
+      secure: true,
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
@@ -84,14 +99,15 @@ function requireAuth(req, res, next) {
   return res.status(403).json({ error: 'Unauthorized' });
 }
 
+// Quick status check (handy on iOS)
+app.get('/api/auth/status', (req, res) => {
+  res.json({ authed: req.cookies.auth === '1', cookies: Object.keys(req.cookies || {}) });
+});
+
 // Used by the frontend to detect auth + prefetch minimal data
-// NOTE: do NOT protect with requireAuth; return 403 when not logged in.
-app.get('/api/meta', (req, res) => {
+app.get('/api/meta', requireAuth, (req, res) => {
   const db = loadDB();
-  if (req.cookies?.auth === '1') {
-    return res.json({ ok: true, countries: db.countries || [] });
-  }
-  return res.status(403).json({ error: 'Unauthorized' });
+  res.json({ ok: true, countries: db.countries || [] });
 });
 
 /* ========================== Countries ========================== */
@@ -193,8 +209,7 @@ app.delete('/api/products/:id', requireAuth, (req, res) => {
 /* ========================== Ad Spend (upsert) ========================== */
 app.get('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB();
-  // IMPORTANT: Frontend expects `adSpends`
-  res.json({ adSpends: db.adspend || [] });
+  res.json({ adspend: db.adspend || [] });
 });
 
 app.post('/api/adspend', requireAuth, (req, res) => {
@@ -350,10 +365,8 @@ app.get('/api/finance/entries', requireAuth, (req, res) => {
   const db = loadDB();
   const all = db.finance?.entries || [];
 
-  // Running all-time balance
   const running = all.reduce((acc, e) => acc + ((e.type === 'credit' ? 1 : -1) * (+e.amount || 0)), 0);
 
-  // Filtered period
   let entries = all;
   if (start) entries = entries.filter(e => e.date >= start);
   if (end)   entries = entries.filter(e => e.date <= end);
