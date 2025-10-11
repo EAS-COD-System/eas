@@ -1,97 +1,97 @@
+// ======================================================================
 // snapshot.js
-// Manual save and restore handler for EAS Tracker
+// Handles manual save and restore of db.json snapshots
+// Integrated with server.js for EAS Tracker system
+// ======================================================================
 
-const fs = require('fs-extra');
-const path = require('path');
-const { v4: uuidv4 } = require('uuid');
+import fs from "fs-extra";
+import path from "path";
 
-// Root directories
-const ROOT = __dirname;
-const DATA_FILE = path.join(ROOT, 'db.json');
-const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
+const DB_PATH = path.resolve("db.json");
+const SNAP_DIR = path.resolve("snapshots");
 
-// Initialize snapshot directory if missing
-function ensureSnapshotDir() {
-  fs.ensureDirSync(SNAPSHOT_DIR);
+// Ensure snapshot directory exists
+if (!fs.existsSync(SNAP_DIR)) {
+  fs.mkdirSync(SNAP_DIR, { recursive: true });
 }
 
+// ----------------------------------------------------------------------
 // Create a new snapshot
-async function createSnapshot(name = '') {
-  ensureSnapshotDir();
-  if (!fs.existsSync(DATA_FILE)) {
-    console.error('❌ db.json not found — cannot snapshot.');
-    process.exit(1);
-  }
-
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const safeName = name.trim().replace(/\s+/g, '_') || 'ManualSave';
-  const filename = `${stamp}-${safeName}.json`;
-  const snapshotPath = path.join(SNAPSHOT_DIR, filename);
-
+// ----------------------------------------------------------------------
+export async function createSnapshot(name = "") {
   try {
-    await fs.copy(DATA_FILE, snapshotPath);
-    const db = await fs.readJson(DATA_FILE);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const safeName = name ? name.replace(/[^\w\s-]/g, "_") : "manual";
+    const fileName = `${timestamp}_${safeName}.json`;
+    const dest = path.join(SNAP_DIR, fileName);
 
-    const entry = {
-      id: uuidv4(),
-      name: name || `Manual ${new Date().toLocaleString()}`,
-      file: snapshotPath,
-      createdAt: new Date().toISOString(),
-      kind: 'manual'
-    };
-
-    db.snapshots = db.snapshots || [];
-    db.snapshots.push(entry);
-    db.snapshots.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    await fs.writeJson(DATA_FILE, db, { spaces: 2 });
-
-    console.log(`✅ Snapshot saved as ${filename}`);
+    await fs.copy(DB_PATH, dest);
+    console.log(`✅ Snapshot saved: ${fileName}`);
+    return { success: true, file: fileName };
   } catch (err) {
-    console.error('❌ Failed to create snapshot:', err);
+    console.error("❌ Snapshot save failed:", err);
+    return { success: false, error: err.message };
   }
 }
 
-// Restore a snapshot
-async function restoreSnapshot(snapshotFile) {
-  ensureSnapshotDir();
-
-  if (!snapshotFile) {
-    console.error('❌ Please provide a snapshot filename to restore.');
-    process.exit(1);
-  }
-
-  const safe = path.join(SNAPSHOT_DIR, path.basename(snapshotFile));
-  if (!fs.existsSync(safe)) {
-    console.error('❌ Snapshot file not found:', safe);
-    process.exit(1);
-  }
-
+// ----------------------------------------------------------------------
+// List all snapshots
+// ----------------------------------------------------------------------
+export async function listSnapshots() {
   try {
-    await fs.copy(safe, DATA_FILE);
-    console.log(`✅ Database restored from snapshot: ${snapshotFile}`);
+    const files = await fs.readdir(SNAP_DIR);
+    const list = files
+      .filter(f => f.endsWith(".json"))
+      .map((f, i) => ({
+        id: i + 1,
+        name: f.replace(".json", ""),
+        file: f
+      }))
+      .sort((a, b) => (a.file < b.file ? 1 : -1));
+
+    return { success: true, snapshots: list };
   } catch (err) {
-    console.error('❌ Failed to restore snapshot:', err);
+    console.error("❌ Snapshot list failed:", err);
+    return { success: false, error: err.message, snapshots: [] };
   }
 }
 
-// CLI arguments support
-const [,, command, arg] = process.argv;
-
-(async () => {
-  switch (command) {
-    case 'create':
-      await createSnapshot(arg || '');
-      break;
-    case 'restore':
-      await restoreSnapshot(arg);
-      break;
-    default:
-      console.log('\nEAS Snapshot Tool');
-      console.log('===================');
-      console.log('Usage:');
-      console.log('  node snapshot.js create [name]   → Create a new snapshot');
-      console.log('  node snapshot.js restore [file]  → Restore a snapshot file\n');
-      break;
+// ----------------------------------------------------------------------
+// Restore from snapshot
+// ----------------------------------------------------------------------
+export async function restoreSnapshot(file) {
+  try {
+    const src = path.join(SNAP_DIR, file);
+    if (!fs.existsSync(src)) throw new Error("Snapshot not found");
+    await fs.copy(src, DB_PATH);
+    console.log(`♻️  Snapshot restored from ${file}`);
+    return { success: true };
+  } catch (err) {
+    console.error("❌ Snapshot restore failed:", err);
+    return { success: false, error: err.message };
   }
-})();
+}
+
+// ----------------------------------------------------------------------
+// Delete a snapshot manually
+// ----------------------------------------------------------------------
+export async function deleteSnapshot(idOrFile) {
+  try {
+    const files = await fs.readdir(SNAP_DIR);
+    const match = files.find(
+      f =>
+        f === idOrFile ||
+        f.includes(idOrFile) ||
+        f.replace(".json", "") === idOrFile
+    );
+    if (!match) throw new Error("Snapshot not found");
+
+    const target = path.join(SNAP_DIR, match);
+    await fs.remove(target);
+    console.log(`🗑️ Snapshot deleted: ${match}`);
+    return { success: true };
+  } catch (err) {
+    console.error("❌ Snapshot delete failed:", err);
+    return { success: false, error: err.message };
+  }
+}
