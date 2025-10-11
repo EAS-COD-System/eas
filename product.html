@@ -7,15 +7,13 @@
   <link href="/public/style.css" rel="stylesheet" />
 </head>
 <body>
-<noscript>Please enable JavaScript to use EAS Tracker.</noscript>
-
 <div id="app">
 
   <!-- Auth -->
   <section id="login" class="auth">
     <h1 class="brand">EAS Tracker</h1>
     <p>Enter your password to continue.</p>
-    <form id="loginForm" class="row wrap" action="#" novalidate>
+    <form id="loginForm" class="row wrap" action="#">
       <input id="pw" class="input" type="password" placeholder="Password" autocomplete="current-password" />
       <button id="loginBtn" type="button" class="btn">Login</button>
     </form>
@@ -230,7 +228,6 @@
   </section>
 </div>
 
-<!-- Scripts (ES modules) -->
-<script type="module" src="/public/app.js"></script>
+<script src="/public/app.js" defer></script>
 </body>
 </html>
