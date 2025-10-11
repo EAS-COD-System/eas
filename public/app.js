@@ -38,7 +38,7 @@ const state = {
 /* ------------------------- AUTH / BOOT ------------------------- */
 async function boot() {
   try {
-    // Ping meta: if authed, we get countries; else 403 triggers catch
+    // If authed, /api/meta returns countries; else 403 -> showLogin()
     const meta = await api('/api/meta');
     state.countries = meta.countries || [];
     showMain();
@@ -66,10 +66,12 @@ function showLogin() {
   if (Q('#main')) Q('#main').style.display = 'none';
 
   const doLogin = async () => {
-    const pw = Q('#pw')?.value?.trim();
+    const pwEl = Q('#pw');
+    const pw = pwEl?.value?.trim();
     if (!pw) { alert('Please enter the password'); return; }
     try {
       await api('/api/auth', { method: 'POST', body: JSON.stringify({ password: pw }) });
+      if (pwEl) pwEl.value = ''; // clear after success
       showMain();
       await loadAllData();
       fillGlobalSelects();
@@ -84,13 +86,29 @@ function showLogin() {
         initFinance();
         initSettings();
       }
-    } catch (e) {
+    } catch {
       alert('Wrong password');
     }
   };
 
-  Q('#loginBtn')?.addEventListener('click', doLogin);
-  Q('#pw')?.addEventListener('keydown', e => (e.key === 'Enter') && doLogin());
+  // ✅ Prevent native form submission (fixes Enter key refresh)
+  const form = Q('#loginForm');
+  if (form && !form.dataset.bound) {
+    form.addEventListener('submit', e => { e.preventDefault(); doLogin(); });
+    form.dataset.bound = '1';
+  }
+
+  // Buttons / Enter
+  const btn = Q('#loginBtn');
+  if (btn && !btn.dataset.bound) {
+    btn.addEventListener('click', doLogin);
+    btn.dataset.bound = '1';
+  }
+  const pwInput = Q('#pw');
+  if (pwInput && !pwInput.dataset.bound) {
+    pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doLogin(); } });
+    pwInput.dataset.bound = '1';
+  }
 }
 
 function showMain() {
@@ -120,7 +138,7 @@ async function loadAllData() {
 
   state.products     = prodR.value?.products     || [];
   state.countries    = ctyR.value?.countries     || [];
-  state.adspend      = adR.value?.adspend        || []; // ✅ correct key
+  state.adspend      = adR.value?.adspend        || []; // correct key
   state.shipments    = shR.value?.shipments      || [];
   state.remittances  = remR.value?.remittances   || [];
   state.deliveries   = delR.value?.deliveries    || [];
@@ -153,7 +171,7 @@ function fillGlobalSelects() {
     });
   });
 
-  // products (global inputs only)
+  // products
   const prodSelectors = ['#adProduct','#rProduct','#mvProduct'];
   prodSelectors.forEach(sel => {
     QA(sel).forEach(el => {
@@ -239,7 +257,7 @@ function renderStockAndSpendByCountry() {
     if (map[r.country]) map[r.country].stock -= (+r.pieces || 0);
   });
 
-  // Ad spend from current adspend table (replace style)
+  // Ad spend
   state.adspend.filter(a => activeIds.has(a.productId)).forEach(a => {
     if (map[a.country]) map[a.country].ad += (+a.amount || 0);
   });
@@ -417,44 +435,47 @@ function renderTransitTables() {
     icBody.innerHTML = ic.map(row).join('') || `<tr><td colspan="9" class="muted">No transit</td></tr>`;
   }
 
-  // actions (no once: true, so it keeps working after updates)
+  // Delegate once per page to avoid duplicate listeners
   const host = Q('#home') || document;
-  host.addEventListener('click', async e => {
-    const id = e.target?.dataset?.arr || e.target?.dataset?.edit || e.target?.dataset?.del;
-    if (!id) return;
+  if (!host.dataset.transitBound) {
+    host.addEventListener('click', async e => {
+      const id = e.target?.dataset?.arr || e.target?.dataset?.edit || e.target?.dataset?.del;
+      if (!id) return;
 
-    if (e.target.dataset.arr) {
-      const date = prompt('Arrival date (YYYY-MM-DD)', todayISO());
-      if (!date) return;
-      try {
-        await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) });
-        const r = await api('/api/shipments'); state.shipments = r.shipments || [];
-        renderTransitTables(); renderStockAndSpendByCountry();
-      } catch (err) {
-        alert('Arrive failed: ' + err.message);
+      if (e.target.dataset.arr) {
+        const date = prompt('Arrival date (YYYY-MM-DD)', todayISO());
+        if (!date) return;
+        try {
+          await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) });
+          const r = await api('/api/shipments'); state.shipments = r.shipments || [];
+          renderTransitTables(); renderStockAndSpendByCountry();
+        } catch (err) {
+          alert('Arrive failed: ' + err.message);
+        }
       }
-    }
 
-    if (e.target.dataset.edit) {
-      const qty = Number(prompt('New quantity?'));
-      const cost = Number(prompt('New shipping cost?'));
-      if (isNaN(qty) || isNaN(cost)) return;
-      try {
-        await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost: cost }) });
-        const r = await api('/api/shipments'); state.shipments = r.shipments || [];
-        renderTransitTables();
-      } catch (err) { alert(err.message); }
-    }
+      if (e.target.dataset.edit) {
+        const qty = Number(prompt('New quantity?'));
+        const cost = Number(prompt('New shipping cost?'));
+        if (isNaN(qty) || isNaN(cost)) return;
+        try {
+          await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost: cost }) });
+          const r = await api('/api/shipments'); state.shipments = r.shipments || [];
+          renderTransitTables();
+        } catch (err) { alert(err.message); }
+      }
 
-    if (e.target.dataset.del) {
-      if (!confirm('Delete this shipment?')) return;
-      try {
-        await api(`/api/shipments/${id}`, { method: 'DELETE' });
-        const r = await api('/api/shipments'); state.shipments = r.shipments || [];
-        renderTransitTables(); renderStockAndSpendByCountry();
-      } catch (err) { alert(err.message); }
-    }
-  });
+      if (e.target.dataset.del) {
+        if (!confirm('Delete this shipment?')) return;
+        try {
+          await api(`/api/shipments/${id}`, { method: 'DELETE' });
+          const r = await api('/api/shipments'); state.shipments = r.shipments || [];
+          renderTransitTables(); renderStockAndSpendByCountry();
+        } catch (err) { alert(err.message); }
+      }
+    });
+    host.dataset.transitBound = '1';
+  }
 }
 
 /* ---- Profit by Country (global) ---- */
@@ -631,7 +652,7 @@ function renderProductsTable() {
     } else if (del) {
       if (!confirm('Delete this product and remove it from all calculations?')) return;
       await api('/api/products/' + del, { method: 'DELETE' });
-      // remove from local state too
+      // client-side cascade removal from state (mirror backend cascade)
       state.products    = state.products.filter(x => x.id !== del);
       state.adspend     = state.adspend.filter(x => x.productId !== del);
       state.shipments   = state.shipments.filter(x => x.productId !== del);
@@ -1030,7 +1051,8 @@ function renderProductStockAd() {
 
 /* -- product: manual “Profit + Ads Budget” table -- */
 function renderPBTable() {
-  const tb = Q('#pdPBBody'); if (!tb) return;
+  // ✅ match product.html tbody id = pdPBBBody
+  const tb = Q('#pdPBBBody'); if (!tb) return;
   const map = state.product.budgets || {};
   tb.innerHTML = state.countries.map(c => `
     <tr>
@@ -1081,29 +1103,32 @@ function renderProductTransit() {
   tb1.innerHTML = ck.map(row).join('') || `<tr><td colspan="8" class="muted">No shipments</td></tr>`;
   tb2.innerHTML = ic.map(row).join('') || `<tr><td colspan="8" class="muted">No shipments</td></tr>`;
 
-  const host = document; // keep listener active across re-renders
-  host.addEventListener('click', async e => {
-    const id = e.target?.dataset?.arr || e.target?.dataset?.edit || e.target?.dataset?.del; if (!id) return;
-    if (e.target.dataset.arr) {
-      const date = prompt('Arrival date (YYYY-MM-DD)', todayISO()); if (!date) return;
-      await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) });
-      const s = await api('/api/shipments'); state.shipments = s.shipments || [];
-      renderProductTransit(); renderProductStockAd();
-    }
-    if (e.target.dataset.edit) {
-      const qty = Number(prompt('New quantity?')); const shipCost = Number(prompt('New shipping cost?'));
-      if (isNaN(qty) || isNaN(shipCost)) return;
-      await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost }) });
-      const s = await api('/api/shipments'); state.shipments = s.shipments || [];
-      renderProductTransit();
-    }
-    if (e.target.dataset.del) {
-      if (!confirm('Delete this shipment?')) return;
-      await api(`/api/shipments/${id}`, { method: 'DELETE' });
-      const s = await api('/api/shipments'); state.shipments = s.shipments || [];
-      renderProductTransit(); renderProductStockAd();
-    }
-  });
+  // delegate once
+  if (!document.dataset.productTransitBound) {
+    document.addEventListener('click', async e => {
+      const id = e.target?.dataset?.arr || e.target?.dataset?.edit || e.target?.dataset?.del; if (!id) return;
+      if (e.target.dataset.arr) {
+        const date = prompt('Arrival date (YYYY-MM-DD)', todayISO()); if (!date) return;
+        await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) });
+        const s = await api('/api/shipments'); state.shipments = s.shipments || [];
+        renderProductTransit(); renderProductStockAd();
+      }
+      if (e.target.dataset.edit) {
+        const qty = Number(prompt('New quantity?')); const shipCost = Number(prompt('New shipping cost?'));
+        if (isNaN(qty) || isNaN(shipCost)) return;
+        await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost }) });
+        const s = await api('/api/shipments'); state.shipments = s.shipments || [];
+        renderProductTransit();
+      }
+      if (e.target.dataset.del) {
+        if (!confirm('Delete this shipment?')) return;
+        await api(`/api/shipments/${id}`, { method: 'DELETE' });
+        const s = await api('/api/shipments'); state.shipments = s.shipments || [];
+        renderProductTransit(); renderProductStockAd();
+      }
+    });
+    document.dataset.productTransitBound = '1';
+  }
 }
 
 /* -- product: Lifetime table (by country, filter by date) -- */
