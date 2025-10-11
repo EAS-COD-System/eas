@@ -1,13 +1,6 @@
 {
   "password": "eastafricashop",
-  "countries": [
-    "china",
-    "kenya",
-    "tanzania",
-    "uganda",
-    "zambia",
-    "zimbabwe"
-  ],
+  "countries": ["china", "kenya", "tanzania", "uganda", "zambia", "zimbabwe"],
   "products": [],
   "adspend": [],
   "deliveries": [],
@@ -15,20 +8,8 @@
   "remittances": [],
   "finance": {
     "categories": {
-      "debit": [
-        "Facebook Ads",
-        "TikTok Ads",
-        "Google Ads",
-        "Shipping",
-        "Salaries",
-        "Rent",
-        "Misc"
-      ],
-      "credit": [
-        "Product Revenue",
-        "Boxleo Payout",
-        "Other Revenue"
-      ]
+      "debit": [],
+      "credit": []
     },
     "entries": []
   },
