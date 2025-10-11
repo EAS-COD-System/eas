@@ -1,235 +1,258 @@
-/* =====================================================================
-   EAS Tracker – Modern Green Theme (style.css)
-   Clean, focused, business-dashboard aesthetic
-   ===================================================================== */
+/* ==========================================================
+   EAS Tracker – style.css
+   Modern clean theme (white + green)
+   ========================================================== */
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  font-family: 'Inter', system-ui, -apple-system, Roboto, Arial, sans-serif;
-  background: #f9fafb;
-  color: #0f172a;
-  line-height: 1.5;
+/* --- Base reset --- */
+* {
+  box-sizing: border-box;
+}
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif;
+  background: #f6f8fa;
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* -------------------- NAV -------------------- */
+/* --- Utility --- */
+.hide { display: none !important; }
+.container { max-width: 1200px; margin: 20px auto; padding: 0 16px; }
+.section { margin: 24px 0; }
+.section h2 { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+
+/* --- Auth / Login --- */
+.auth {
+  background: #fff;
+  max-width: 400px;
+  margin: 10vh auto;
+  padding: 40px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+  text-align: center;
+}
+.auth .brand {
+  font-size: 28px;
+  font-weight: 800;
+  color: #059669;
+  margin-bottom: 6px;
+}
+.auth p { color: #6b7280; margin-bottom: 18px; }
+
+/* --- Nav --- */
 .nav {
-  position: sticky;
-  top: 0;
-  background: #10b981; /* Green */
-  color: #fff;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  padding: 12px 20px;
-  gap: 14px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  gap: 10px;
+  background: #059669;
+  color: #fff;
+  padding: 10px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
-
 .nav a {
-  padding: 8px 14px;
-  border-radius: 8px;
-  transition: 0.2s;
-  font-weight: 600;
-  opacity: 0.9;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: background 0.2s;
 }
-
-.nav a:hover { opacity: 1; background: rgba(255,255,255,0.15); }
-.nav a.active { background: #fff; color: #10b981; }
-
+.nav a:hover { background: rgba(255,255,255,0.15); }
+.nav a.active {
+  background: #047857;
+}
 .nav .nav-right {
   margin-left: auto;
-  background: #059669;
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-weight: 600;
+  background: rgba(255,255,255,0.15);
 }
-.nav .nav-right:hover { background: #047857; }
+.nav .nav-right:hover { background: rgba(255,255,255,0.25); }
 
-/* -------------------- CONTAINER -------------------- */
-.container {
-  max-width: 1200px;
-  margin: 28px auto;
-  padding: 0 20px;
-}
-
-/* -------------------- CARDS / KPI -------------------- */
-.card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-}
-
-.kpis {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 16px;
-}
-
-.kpi {
-  text-align: center;
-  padding: 16px;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: 12px;
-}
-.kpi .h { color: #6b7280; font-size: 13px; margin-bottom: 6px; }
-.kpi div:last-child { font-size: 22px; font-weight: 800; color: #065f46; }
-
-/* -------------------- BUTTONS -------------------- */
+/* --- Buttons --- */
 .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 16px;
-  height: 38px;
-  font-weight: 600;
+  background: #059669;
+  color: #fff;
   border: none;
   border-radius: 8px;
+  height: 38px;
+  padding: 0 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: 0.2s;
+  transition: 0.2s ease;
 }
-
-.btn:hover { transform: translateY(-1px); }
-
-.btn.primary { background: #10b981; color: #fff; }
-.btn.primary:hover { background: #059669; }
-
+.btn:hover { background: #047857; }
 .btn.outline {
   background: #fff;
   border: 1px solid #d1d5db;
-  color: #111827;
+  color: #059669;
 }
-.btn.outline:hover { background: #f3f4f6; }
-
+.btn.outline:hover { background: #ecfdf5; }
 .btn.danger {
   background: #dc2626;
-  color: #fff;
 }
 .btn.danger:hover { background: #b91c1c; }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* -------------------- INPUTS -------------------- */
+/* --- Inputs --- */
 .input, select.input, input.input {
   height: 38px;
   padding: 8px 10px;
-  border-radius: 8px;
   border: 1px solid #d1d5db;
-  min-width: 160px;
+  border-radius: 8px;
   background: #fff;
-  font-size: 14px;
+  color: #111827;
+  min-width: 150px;
 }
-
 .input:focus {
-  border-color: #10b981;
-  outline: 2px solid rgba(16,185,129,0.3);
+  border-color: #059669;
+  outline: 2px solid #a7f3d0;
 }
 
-/* -------------------- TABLES -------------------- */
+/* --- Layout helpers --- */
+.row { display: flex; align-items: center; gap: 10px; }
+.wrap { flex-wrap: wrap; }
+
+/* --- Cards --- */
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.card .h {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+/* --- KPIs --- */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+.kpi {
+  text-align: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px;
+}
+.kpi .h { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
+.kpi > div:last-child { font-size: 22px; font-weight: 800; }
+
+/* --- Tables --- */
 .table {
   width: 100%;
   border-collapse: collapse;
   background: #fff;
-  border: 1px solid #e5e7eb;
   border-radius: 10px;
   overflow: hidden;
 }
-
-.table thead {
-  background: #f0fdf4;
-  color: #065f46;
-  font-weight: 700;
-}
-.table th, .table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #f1f5f9;
-  font-size: 14px;
-}
-.table tbody tr:hover { background: #f9fafb; }
-.table tfoot { background: #f3f4f6; font-weight: 700; }
-
-/* -------------------- TAGS / BADGES -------------------- */
-.badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 9999px;
+.table thead th {
   background: #ecfdf5;
   color: #065f46;
-  font-weight: 600;
-  font-size: 12px;
-}
-.badge.muted { background: #f9fafb; color: #6b7280; }
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  font-weight: 600;
-  color: #065f46;
+  text-align: left;
   font-size: 13px;
+  padding: 10px;
+  border-bottom: 1px solid #d1fae5;
 }
-.chip button.x {
-  margin-left: 6px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-weight: bold;
-  color: #047857;
+.table tbody td {
+  padding: 10px;
+  border-bottom: 1px solid #f3f4f6;
+}
+.table tfoot th {
+  background: #f0fdfa;
+  font-weight: 700;
+  color: #064e3b;
+  padding: 10px;
+  border-top: 1px solid #d1fae5;
+}
+.table tr:hover td {
+  background: #f9fafb;
 }
 
-/* -------------------- TODO & NOTES -------------------- */
+/* --- Scroll wrappers --- */
+.table-scroll {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+}
+
+/* --- Todo list --- */
 .todo {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 10px 12px;
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .todo span { flex: 1; }
-
-/* -------------------- AUTH -------------------- */
-.auth {
-  max-width: 400px;
-  margin: 15vh auto;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  padding: 30px;
-  border-radius: 12px;
-  text-align: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+.todo button {
+  border: none;
+  background: #ef4444;
+  color: #fff;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
 }
-.auth h1 { margin-bottom: 10px; color: #10b981; }
-.auth input {
-  width: 100%;
-  margin-top: 10px;
-  border-radius: 8px;
-}
-.auth .btn { margin-top: 14px; width: 100%; }
+.todo button:hover { background: #dc2626; }
 
-/* -------------------- PRODUCT PAGE -------------------- */
-#productHeader {
+/* --- Chips / Badges --- */
+.badge {
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+}
+.deletable {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 6px;
 }
-#pdTitle { font-size: 24px; font-weight: 800; color: #065f46; }
-#pdSku { font-size: 13px; color: #6b7280; }
+.deletable .chip {
+  background: #f0fdfa;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.deletable .chip button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #dc2626;
+  font-size: 14px;
+}
 
-/* -------------------- RESPONSIVE -------------------- */
+/* --- Responsive tweaks --- */
 @media (max-width: 900px) {
+  .kpis { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+  .row { flex-wrap: wrap; }
   .nav { flex-wrap: wrap; }
-  .kpis { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+  .auth { padding: 28px; }
+  .nav a { font-size: 14px; }
+  .container { padding: 0 10px; }
 }
 
-@media (max-width: 600px) {
-  .kpis { grid-template-columns: 1fr; }
-  .row { flex-direction: column; align-items: stretch; }
-}
+/* --- Scrollbar --- */
+.table-scroll::-webkit-scrollbar { height: 10px; }
+.table-scroll::-webkit-scrollbar-thumb { background: #a7f3d0; border-radius: 8px; }
+.table-scroll::-webkit-scrollbar-track { background: #f0fdfa; }
