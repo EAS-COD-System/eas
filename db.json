@@ -19,7 +19,11 @@
       "cost_china": 6.5,
       "ship_china_to_kenya": 1.2,
       "margin_budget": 8,
-      "budgets": {}
+      "budgets": {
+        "kenya": 250,
+        "tanzania": 180,
+        "uganda": 160
+      }
     }
   ],
 
@@ -30,6 +34,13 @@
       "country": "kenya",
       "platform": "facebook",
       "amount": 25.5
+    },
+    {
+      "id": "ad-002",
+      "productId": "prod-001",
+      "country": "tanzania",
+      "platform": "tiktok",
+      "amount": 19.2
     }
   ],
 
@@ -39,6 +50,12 @@
       "date": "2025-10-06",
       "country": "kenya",
       "delivered": 42
+    },
+    {
+      "id": "del-002",
+      "date": "2025-10-07",
+      "country": "tanzania",
+      "delivered": 33
     }
   ],
 
@@ -77,6 +94,18 @@
       "revenue": 2100,
       "adSpend": 600,
       "extraPerPiece": 0.35
+    },
+    {
+      "id": "rem-002",
+      "start": "2025-09-25",
+      "end": "2025-10-05",
+      "country": "tanzania",
+      "productId": "prod-001",
+      "orders": 35,
+      "pieces": 50,
+      "revenue": 1550,
+      "adSpend": 400,
+      "extraPerPiece": 0.25
     }
   ],
 
@@ -113,6 +142,14 @@
         "category": "Product Revenue",
         "amount": 900,
         "note": "Payout"
+      },
+      {
+        "id": "fin-003",
+        "date": "2025-10-08",
+        "type": "debit",
+        "category": "Shipping",
+        "amount": 120,
+        "note": "China–Kenya"
       }
     ]
   },
@@ -123,6 +160,12 @@
       "name": "Aisha M.",
       "social": "@aisha_ke",
       "country": "kenya"
+    },
+    {
+      "id": "inf-002",
+      "name": "Brian T.",
+      "social": "@brian_tz",
+      "country": "tanzania"
     }
   ],
 
@@ -134,6 +177,14 @@
       "country": "kenya",
       "productId": "prod-001",
       "amount": 75
+    },
+    {
+      "id": "infsp-002",
+      "date": "2025-10-08",
+      "influencerId": "inf-002",
+      "country": "tanzania",
+      "productId": "prod-001",
+      "amount": 60
     }
   ],
 
