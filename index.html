@@ -14,9 +14,10 @@
       <h1 class="brand">EAS Tracker</h1>
       <p>Enter password to access</p>
       <div class="row">
-        <input id="pw" type="password" class="input" placeholder="Password"/>
+        <input id="pw" type="password" class="input" placeholder="Password" autocomplete="current-password"/>
         <button id="loginBtn" class="btn">Login</button>
       </div>
+      <div id="loginError" class="muted" style="margin-top:6px;"></div>
     </div>
 
     <!-- ================= MAIN APP ================= -->
@@ -42,11 +43,12 @@
               <div class="card kpi"><div class="h">Warehouses (Countries)</div><div id="kpiCountries">0</div></div>
               <div class="card kpi"><div class="h">Transit Shipments</div><div id="kpiTransit">0</div></div>
               <div class="card kpi"><div class="h">Total Ad Spend</div><div id="kpiAdSpend">0 USD</div></div>
+              <!-- IMPORTANT: This is filled from the Weekly Delivered grand total -->
               <div class="card kpi"><div class="h">Delivered (Mon–Sun)</div><div id="kpiDelivered">0</div></div>
             </div>
           </div>
 
-          <!-- Total Stock & Ad Spend by Country (from shipments+remittances+adspend) -->
+          <!-- Total Stock & Ad Spend by Country (totals row included) -->
           <div class="section">
             <h2>Total Stock &amp; Ad Spend by Country</h2>
             <table id="stockByCountryTbl" class="table">
@@ -55,32 +57,53 @@
               </thead>
               <tbody><!-- rows injected by app.js --></tbody>
               <tfoot>
-                <tr class="totals"><th>Totals</th><th id="stockTotal">0</th><th id="adTotal">0.00</th></tr>
+                <tr class="totals"><th>Totals</th><th id="stockT">0</th><th id="adT">0.00</th></tr>
               </tfoot>
             </table>
+            <small>
+              Daily Ad Spend entries are upserted per <b>product + country + platform</b>. Adding again replaces the amount (used in totals).
+            </small>
           </div>
 
           <!-- Weekly Delivered: editable grid Monday–Sunday by country -->
           <div class="section">
             <h2>Weekly Delivered (Mon → Sun)</h2>
             <div class="card">
-              <div class="row wrap" style="gap:8px">
-                <button id="weeklyPrev" class="btn outline">◀ Prev week</button>
-                <div class="badge" id="weeklyRange">Week:</div>
-                <button id="weeklyNext" class="btn outline">Next week ▶</button>
+              <div class="row wrap">
+                <button id="wdPrev" class="btn outline">◀ Prev week</button>
+                <div class="badge" id="wdRange">Week: </div>
+                <button id="wdNext" class="btn outline">Next week ▶</button>
                 <button id="wdSave" class="btn">Save</button>
                 <button id="wdReset" class="btn danger outline">Reset</button>
               </div>
-              <small>The grid shows <b>all countries</b>. Click any cell to edit pieces delivered that day. Save to persist.</small>
+              <small>
+                This grid lists <b>all countries</b> in your system. The KPI “Delivered (Mon–Sun)” above is exactly the
+                grand total in this grid for the selected week.
+              </small>
             </div>
             <div class="table-scroll">
               <table id="weeklyGrid" class="table compact">
-                <!-- app.js renders head/body/foot with Mon..Sun and all countries -->
+                <thead><!-- Mon..Sun headers injected --></thead>
+                <tbody><!-- one row per country injected --></tbody>
+                <tfoot>
+                  <tr class="totals">
+                    <th>All Countries</th>
+                    <!-- 7 day column totals are injected here -->
+                    <th class="col-total">0</th>
+                    <th class="col-total">0</th>
+                    <th class="col-total">0</th>
+                    <th class="col-total">0</th>
+                    <th class="col-total">0</th>
+                    <th class="col-total">0</th>
+                    <th class="col-total">0</th>
+                    <th id="wdGrand">0</th>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>
 
-          <!-- Daily Advertising Spend (no date; upsert per product+country+platform) -->
+          <!-- Daily Advertising Spend (no date; replace if exists) -->
           <div class="section">
             <h2>Daily Advertising Spend</h2>
             <div class="card">
@@ -95,7 +118,7 @@
                 <input id="adAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
                 <button id="adAdd" class="btn">Save / Replace</button>
               </div>
-              <small>Saving again for the same <b>product + platform + country</b> replaces the previous value.</small>
+              <small>Saving again for the same <b>product + platform + country</b> will replace the previous amount.</small>
             </div>
           </div>
 
@@ -112,7 +135,7 @@
                 <input id="mvShip" type="number" class="input" placeholder="Shipping Cost (USD)" min="0" step="0.01"/>
                 <button id="mvAdd" class="btn">Add Movement</button>
               </div>
-              <small>When marked as arrived, the system <b>adds to destination</b> and <b>deducts from origin</b>.</small>
+              <small>When marked as arrived, the system will <b>add to destination</b> and <b>deduct from origin</b>.</small>
             </div>
           </div>
 
@@ -121,7 +144,7 @@
             <h2>Transit (China → Kenya)</h2>
             <table class="table">
               <thead><tr>
-                <th>ID</th><th>Product</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Actions</th>
+                <th>ID</th><th>Product</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
               </tr></thead>
               <tbody id="shipCKBody"><!-- rows injected --></tbody>
             </table>
@@ -132,7 +155,7 @@
             <h2>Transit (Inter-country)</h2>
             <table class="table">
               <thead><tr>
-                <th>ID</th><th>Product</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Actions</th>
+                <th>ID</th><th>Product</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
               </tr></thead>
               <tbody id="shipICBody"><!-- rows injected --></tbody>
             </table>
@@ -152,6 +175,11 @@
                 <th>Country</th><th>Revenue</th><th>Ad Spend</th><th>Delivery Cost</th><th>Pieces</th><th>Profit</th>
               </tr></thead>
               <tbody><!-- rows injected --></tbody>
+              <tfoot>
+                <tr class="totals">
+                  <th>Totals</th><th id="pcRevT">0</th><th id="pcAdT">0</th><th id="pcDelT">0</th><th id="pcPiecesT">0</th><th id="pcProfitT">0</th>
+                </tr>
+              </tfoot>
             </table>
           </div>
 
@@ -167,7 +195,7 @@
 
           <div class="section">
             <h2>Weekly To-Do</h2>
-            <div id="weeklyWrap" class="weeks"><!-- 7 day-cards injected --></div>
+            <div id="weeklyWrap" class="weeks"><!-- 7 cards injected --></div>
           </div>
 
           <!-- Lifetime Product Performance (global) -->
@@ -214,7 +242,7 @@
             <tbody><!-- rows injected --></tbody>
           </table>
 
-          <small>Click <b>Open</b> to go to that product’s page: <code>product.html?id=&lt;PRODUCT_ID&gt;</code></small>
+          <small>Click <b>Open</b> to go to that product’s own page: <code>product.html?id=&lt;PRODUCT_ID&gt;</code></small>
         </section>
 
         <!-- ============ PERFORMANCE ============ -->
@@ -255,6 +283,7 @@
               <input id="rPieces" type="number" class="input" placeholder="Pieces" min="0"/>
               <input id="rRev" type="number" class="input" placeholder="Revenue (USD)" min="0" step="0.01"/>
               <input id="rAds" type="number" class="input" placeholder="Ad Spend (USD)" min="0" step="0.01"/>
+              <!-- Extra per-piece delivery cost (used everywhere for profit) -->
               <input id="rExtra" type="number" class="input" placeholder="Extra cost / piece (USD)" min="0" step="0.01"/>
               <button id="rAdd" class="btn">Add</button>
             </div>
@@ -286,27 +315,34 @@
             <div class="row cats">
               <div>
                 <h4>Debits</h4>
-                <div id="fcDebitList" class="chips deletable"><!-- chips injected --></div>
+                <div id="fcDebitList" class="chips deletable"><!-- chips with delete buttons --></div>
               </div>
               <div>
                 <h4>Credits</h4>
-                <div id="fcCreditList" class="chips deletable"><!-- chips injected --></div>
+                <div id="fcCreditList" class="chips deletable"><!-- chips with delete buttons --></div>
               </div>
             </div>
           </div>
 
-          <!-- Entries -->
+          <!-- Entries (with date range filter) -->
           <div class="card">
             <div class="h">Entries</div>
             <div class="row wrap">
               <input id="feDate" type="date" class="input"/>
-              <select id="feCat" class="input"><!-- options injected from categories --></select>
+              <!-- type is derived from category; keep visible but not required -->
+              <select id="feType" class="input">
+                <option value="debit">Debit</option>
+                <option value="credit">Credit</option>
+              </select>
+              <!-- category must be selected from existing list -->
+              <select id="feCat" class="input"></select>
               <input id="feAmt" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
               <input id="feNote" class="input" placeholder="Note"/>
               <button id="feAdd" class="btn">Add Entry</button>
             </div>
 
             <div class="row wrap">
+              <!-- PERIOD FILTER (from – to) -->
               <input id="fes" type="date" class="input"/>
               <input id="fee" type="date" class="input"/>
               <button id="feRun" class="btn outline">Run</button>
@@ -352,9 +388,13 @@
           <div class="card">
             <div class="h">Manual Save &amp; Restore</div>
             <div class="row">
+              <input id="snapName" class="input" placeholder="Name this snapshot"/>
               <button id="ssSave" class="btn">Save current system data</button>
             </div>
-            <div id="ssList" class="list"><!-- rows with Push / Delete buttons --></div>
+            <table class="table">
+              <thead><tr><th>Name</th><th>File</th><th>Actions</th></tr></thead>
+              <tbody id="ssList"><!-- rows with Push / Delete buttons (must work) --></tbody>
+            </table>
           </div>
         </section>
 
@@ -362,7 +402,7 @@
     </div><!-- /main -->
   </div><!-- /app -->
 
-  <!-- keep this as THE LAST LINE before </body> -->
+  <!-- Keep the script AT THE VERY END so login + handlers always bind correctly -->
   <script src="/public/app.js"></script>
 </body>
 </html>
