@@ -1,66 +1,114 @@
-// snapshot.js
-// Utility module to manage manual snapshots of db.json for EAS Tracker
+/* ================================================================
+   snapshot.js — Manual Save & Restore handler
+   ================================================================ */
 
-const fs = require('fs-extra');
-const path = require('path');
-const { v4: uuidv4 } = require('uuid');
-
-const ROOT = __dirname;
-const DATA_FILE = path.join(ROOT, 'db.json');
-const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
-
-// Ensure directory exists
-function ensureSnapshotDir() {
-  fs.ensureDirSync(SNAPSHOT_DIR);
+async function getSnapshots() {
+  try {
+    const res = await fetch('/api/snapshots');
+    if (!res.ok) throw new Error('Failed to fetch snapshots');
+    const data = await res.json();
+    renderSnapshots(data.snapshots || []);
+  } catch (err) {
+    console.error('Error loading snapshots:', err);
+  }
 }
 
-// Create a new manual snapshot
-async function createSnapshot(name = '') {
-  ensureSnapshotDir();
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const safeName = name.trim() || `Manual_${stamp}`;
-  const file = path.join(SNAPSHOT_DIR, `${stamp}-${safeName.replace(/\s+/g, '_')}.json`);
-  await fs.copy(DATA_FILE, file);
+function renderSnapshots(list) {
+  const body = document.getElementById('snapList');
+  if (!body) return;
+  body.innerHTML = '';
+  if (!list.length) {
+    body.innerHTML = '<tr><td colspan="3" class="muted">No snapshots yet</td></tr>';
+    return;
+  }
+  list.forEach(snap => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${snap.name}</td>
+      <td>${snap.file ? snap.file.split('/').pop() : '—'}</td>
+      <td>
+        <button class="btn small push" data-file="${snap.file}">Push</button>
+        <button class="btn small danger del" data-id="${snap.id}">Delete</button>
+      </td>
+    `;
+    body.appendChild(tr);
+  });
 
-  return {
-    id: uuidv4(),
-    name: safeName,
-    file,
-    createdAt: new Date().toISOString(),
-    kind: 'manual'
-  };
+  // bind push & delete
+  body.querySelectorAll('.push').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const file = btn.dataset.file;
+      if (!confirm(`Push snapshot "${file}" to system?`)) return;
+      try {
+        const res = await fetch('/api/snapshots/restore', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Snapshot restored successfully.');
+          location.reload();
+        } else {
+          alert('Restore failed: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Restore failed.');
+        console.error(err);
+      }
+    });
+  });
+
+  body.querySelectorAll('.del').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      if (!confirm('Delete this snapshot?')) return;
+      try {
+        const res = await fetch(`/api/snapshots/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Snapshot deleted.');
+          getSnapshots();
+        } else {
+          alert('Delete failed: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Delete failed.');
+        console.error(err);
+      }
+    });
+  });
 }
 
-// Restore snapshot
-async function restoreSnapshot(file) {
-  ensureSnapshotDir();
-  const safe = path.join(SNAPSHOT_DIR, path.basename(file));
-  if (!fs.existsSync(safe)) throw new Error('Snapshot not found');
-  await fs.copy(safe, DATA_FILE);
-  return { ok: true, restoredFrom: safe };
+// Add snapshot
+async function saveSnapshot() {
+  const name = document.getElementById('snapName').value.trim();
+  if (!name) return alert('Enter a name for the snapshot.');
+  try {
+    const res = await fetch('/api/snapshots', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      alert('Snapshot saved successfully.');
+      document.getElementById('snapName').value = '';
+      getSnapshots();
+    } else {
+      alert('Save failed: ' + (data.error || 'Unknown error'));
+    }
+  } catch (err) {
+    alert('Save failed.');
+    console.error(err);
+  }
 }
 
-// Delete snapshot
-async function deleteSnapshot(file) {
-  const safe = path.join(SNAPSHOT_DIR, path.basename(file));
-  if (fs.existsSync(safe)) await fs.remove(safe);
-  return { ok: true };
-}
-
-// List all snapshots
-function listSnapshots() {
-  ensureSnapshotDir();
-  const files = fs.readdirSync(SNAPSHOT_DIR).filter(f => f.endsWith('.json'));
-  return files.map(f => ({
-    name: f,
-    path: path.join(SNAPSHOT_DIR, f),
-    createdAt: fs.statSync(path.join(SNAPSHOT_DIR, f)).mtime
-  }));
-}
-
-module.exports = {
-  createSnapshot,
-  restoreSnapshot,
-  deleteSnapshot,
-  listSnapshots
-};
+/* ================================================================
+   INIT
+   ================================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  const saveBtn = document.getElementById('snapSave');
+  if (saveBtn) saveBtn.addEventListener('click', saveSnapshot);
+  getSnapshots();
+});
