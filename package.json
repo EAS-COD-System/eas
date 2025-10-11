@@ -1,36 +1,24 @@
 {
   "name": "eas-tracker",
-  "version": "3.0.0",
-  "description": "EastAfricaShop Business Tracker — dashboard for products, shipments, remittances, influencers, and finance management.",
+  "version": "1.0.0",
+  "description": "EAS Tracker – Business management and performance tracking system for EastAfricaShop.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "snapshot": "node snapshot.js"
+    "build": "echo 'No build step needed for EAS Tracker (static + Express)'"
   },
   "dependencies": {
     "body-parser": "^1.20.3",
     "cookie-parser": "^1.4.7",
-    "cors": "^2.8.5",
-    "express": "^4.21.1",
+    "express": "^4.19.2",
     "fs-extra": "^11.2.0",
     "morgan": "^1.10.0",
     "path": "^0.12.7",
     "uuid": "^9.0.1"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.x"
   },
-  "keywords": [
-    "eastafricashop",
-    "dashboard",
-    "ecommerce",
-    "cod",
-    "finance",
-    "business-tracker",
-    "render",
-    "nodejs",
-    "express"
-  ],
-  "author": "EAS Systems",
+  "author": "EastAfricaShop",
   "license": "MIT"
 }
