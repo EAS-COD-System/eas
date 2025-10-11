@@ -58,7 +58,7 @@ app.use('/public', express.static(path.join(ROOT, 'public')));
 /* ------------------------------ Auth -------------------------------- */
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
-  const db = loadDB();
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'eastafricashop';
 
   // logout
   if (password === 'logout') {
@@ -67,13 +67,13 @@ app.post('/api/auth', (req, res) => {
   }
 
   // login
-  if (password && password === db.password) {
+  if (password === ADMIN_PASSWORD) {
     res.cookie('auth', '1', {
       httpOnly: true,
       sameSite: 'Lax',
       secure: process.env.NODE_ENV === 'production',
       path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
     return res.json({ ok: true });
   }
