@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
   <title>EAS Tracker – Product</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="/style.css" rel="stylesheet" />
+  <!-- correct paths -->
+  <link href="/public/style.css" rel="stylesheet" />
 </head>
 <body>
 <div id="app">
@@ -13,7 +14,7 @@
   <section id="login" class="auth">
     <h1 class="brand">EAS Tracker</h1>
     <p>Enter your password to continue.</p>
-    <form id="loginForm" class="row wrap" action="#">
+    <form id="loginForm" class="row wrap" action="#" novalidate>
       <input id="pw" class="input" type="password" placeholder="Password" autocomplete="current-password" />
       <button id="loginBtn" type="button" class="btn">Login</button>
     </form>
@@ -64,7 +65,7 @@
             <div class="h">Manual Budget per Country</div>
             <div class="row wrap">
               <select id="pdPBCountry" class="input"></select>
-              <input id="pdPBValue" class="input" type="number" placeholder="Budget (USD)" />
+              <input id="pdPBValue" class="input" type="number" placeholder="Budget (USD)" step="0.01" />
               <button id="pdPBSave" class="btn">Save Budget</button>
             </div>
           </div>
@@ -89,12 +90,11 @@
             <select id="pdAdCountry" class="input"></select>
             <select id="pdAdPlatform" class="input">
               <option value="" disabled selected>Platform</option>
-              <option>Facebook</option>
-              <option>TikTok</option>
-              <option>Google</option>
-              <option>Snapchat</option>
+              <option value="facebook">Facebook</option>
+              <option value="tiktok">TikTok</option>
+              <option value="google">Google</option>
             </select>
-            <input id="pdAdAmount" class="input" type="number" placeholder="Amount (USD)" />
+            <input id="pdAdAmount" class="input" type="number" placeholder="Amount (USD)" step="0.01" />
             <button id="pdAdSave" class="btn">Save / Replace</button>
           </div>
 
@@ -115,7 +115,7 @@
             <select id="pdMvFrom" class="input"></select>
             <select id="pdMvTo" class="input"></select>
             <input id="pdMvQty" class="input" type="number" placeholder="Qty" />
-            <input id="pdMvShip" class="input" type="number" placeholder="Ship Cost" />
+            <input id="pdMvShip" class="input" type="number" placeholder="Ship Cost (USD)" step="0.01" />
             <button id="pdMvAdd" class="btn">Add Shipment</button>
           </div>
         </div>
@@ -184,6 +184,7 @@
             <div class="row wrap">
               <input id="pdInfName" class="input" placeholder="Name" />
               <input id="pdInfSocial" class="input" placeholder="Social handle / link" />
+              <!-- single country selector reused by both actions (matches app.js) -->
               <select id="pdInfCountry" class="input"></select>
               <button id="pdInfAdd" class="btn">Add</button>
             </div>
@@ -194,8 +195,8 @@
             <div class="row wrap">
               <select id="pdInfSelect" class="input"></select>
               <input id="pdInfDate" class="input" type="date" />
-              <select id="pdInfCountry" class="input"></select>
-              <input id="pdInfAmount" class="input" type="number" placeholder="Amount (USD)" />
+              <!-- no duplicate ID; spend action uses the same #pdInfCountry above -->
+              <input id="pdInfAmount" class="input" type="number" placeholder="Amount (USD)" step="0.01" />
               <button id="pdInfSpendAdd" class="btn">Add Spend</button>
             </div>
           </div>
@@ -207,7 +208,7 @@
             <div class="row wrap">
               <input id="pdInfStart" class="input" type="date" />
               <input id="pdInfEnd" class="input" type="date" />
-              <select id="pdInfFilterCountry" class="input"></select>
+              <select id="pdInfFilterCountry" class="input"><option value="">All countries</option></select>
               <button id="pdInfRun" class="btn">Run</button>
             </div>
           </div>
@@ -228,6 +229,7 @@
   </section>
 </div>
 
-<script src="/app.js" defer></script>
+<!-- correct script path -->
+<script src="/public/app.js" defer></script>
 </body>
 </html>
