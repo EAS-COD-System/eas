@@ -13,10 +13,11 @@
     <div id="login" class="auth">
       <h1 class="brand">EAS Tracker</h1>
       <p>Enter password to access</p>
-      <form id="loginForm" novalidate>
-  <input id="pw" type="password" class="input" placeholder="Password" />
-  <button id="loginBtn" type="button" class="btn">Log in</button>
-</form>
+      <!-- form prevents mobile auto-submit issues; app.js handles it -->
+      <form id="loginForm" novalidate class="row">
+        <input id="pw" type="password" class="input" placeholder="Password"/>
+        <button id="loginBtn" type="button" class="btn">Login</button>
+      </form>
     </div>
 
     <!-- ================= MAIN APP ================= -->
@@ -88,7 +89,7 @@
             </div>
           </div>
 
-          <!-- Daily Advertising Spend -->
+          <!-- Daily Advertising Spend (replace mode) -->
           <div class="section">
             <h2>Daily Advertising Spend</h2>
             <div class="card">
@@ -245,6 +246,7 @@
               </select>
               <input id="pfStart" type="date" class="input"/>
               <input id="pfEnd" type="date" class="input"/>
+              <!-- “All countries” first, then app.js injects all countries -->
               <select id="pfCountry" class="input"><option value="">All countries</option></select>
               <button id="pfRun" class="btn">Run</button>
             </div>
@@ -262,6 +264,7 @@
             <div class="row wrap">
               <input id="rStart" type="date" class="input"/>
               <input id="rEnd" type="date" class="input"/>
+              <!-- app.js excludes China here -->
               <select id="rCountry" class="input"></select>
               <select id="rProduct" class="input"></select>
               <input id="rOrders" type="number" class="input" placeholder="Orders" min="0"/>
@@ -348,7 +351,7 @@
               <input id="cty" class="input" placeholder="Add country"/>
               <button id="ctyAdd" class="btn">Add</button>
             </div>
-            <div id="ctyList" class="chips deletable"><!-- chips with delete buttons --></div>
+            <div id="ctyList" class="chips deletable"><!-- chips with delete buttons (China protected) --></div>
           </div>
 
           <!-- Edit Product Info -->
@@ -383,42 +386,6 @@
     </div><!-- /main -->
   </div><!-- /app -->
 
-  <!-- load main app script (cache-busted) -->
-  <script defer src="/public/app.js?v=5"></script>
-
-  <!-- tiny inline fallback for login so the button always works -->
-  <script>
-  (function () {
-    var form = document.getElementById('loginForm');
-    var btn  = document.getElementById('loginBtn');
-    var pw   = document.getElementById('pw');
-    if (!form || !btn || !pw) return;
-
-    form.addEventListener('submit', async function (e) {
-      e.preventDefault();
-      const val = (pw.value || '').trim();
-      if (!val) { alert('Please enter the password'); return; }
-      try {
-        const r = await fetch('/api/auth', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          credentials: 'include',
-          body: JSON.stringify({ password: val })
-        });
-        if (!r.ok) {
-          const ct = r.headers.get('content-type') || '';
-          const data = ct.includes('application/json') ? await r.json() : await r.text();
-          throw new Error((data && data.error) ? data.error : 'Login failed');
-        }
-        // verify cookie & boot
-        const m = await fetch('/api/meta', { credentials:'include' });
-        if (!m.ok) throw new Error('Auth cookie not set');
-        location.reload();
-      } catch (err) {
-        alert(err.message || 'Wrong password');
-      }
-    }, { once: true });
-  })();
-  </script>
+  <script src="/public/app.js"></script>
 </body>
 </html>
