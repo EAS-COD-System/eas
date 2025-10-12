@@ -7,8 +7,8 @@ const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const { v4: uuidv4 } = require('uuid');
-app.use('/public', express.static(path.join(__dirname, 'public')));
-const app = express();
+
+const app = express(); // ✅ create the app first
 const PORT = process.env.PORT || 3000;
 
 const ROOT = __dirname;
@@ -19,7 +19,7 @@ const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
 app.use(morgan('dev'));
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(cookieParser());
-app.use('/public', express.static(path.join(ROOT, 'public')));
+app.use('/public', express.static(path.join(ROOT, 'public'))); // ✅ static file serving
 
 // ---------- helpers ----------
 function initDBIfMissing() {
