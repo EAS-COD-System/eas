@@ -64,20 +64,23 @@ async function gate() {
     Q('#main')?.classList.add('hide');
   }
 }
-
-/* login / logout */
 Q('#loginBtn')?.addEventListener('click', async () => {
   const pw = Q('#pw')?.value?.trim();
   if (!pw) return alert('Enter password');
 
-  try {
-    await api('/api/auth', { method:'POST', body: JSON.stringify({ password: pw }) });
-    // success -> flip views + boot
+  const res = await api('/api/auth', {
+    method: 'POST',
+    body: JSON.stringify({ password: pw })
+  });
+
+  if (res.ok) {
     Q('#login')?.classList.add('hide');
-    const m = Q('#main'); if (m){ m.classList.remove('hide'); m.style.display=''; }
+    Q('#login') && (Q('#login').style.display = 'none');
+    Q('#main')?.classList.remove('hide');
+    Q('#main') && (Q('#main').style.display = '');
     gate();
-  } catch (err) {
-    alert('Incorrect password');
+  } else {
+    alert('Wrong password');
   }
 });
 
