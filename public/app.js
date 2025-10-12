@@ -456,11 +456,19 @@ function initPerformance(){
       byP[id].prodCost += base*(+x.pieces||0);
       byP[id].profit   += profit;
     });
-    const tb = Q('#pfTable tbody');
-    tb.innerHTML = Object.values(byP).sort((a,b)=>b.pieces-a.pieces).map(it =>
-      `<tr><td>${it.name}</td><td>${it.country||'-'}</td><td>${fmt(it.pieces)}</td><td>${fmt(it.ad)}</td><td>${fmt(it.prodCost)}</td><td>${fmt(it.profit)}</td><td>${it.pieces?fmt(it.profit/it.pieces):'0'}</td></tr>`
-    ).join('') || `<tr><td colspan="7" class="muted">No data</td></tr>`;
-  });
+   tb.innerHTML = Object.values(byP).sort((a,b)=>b.pieces-a.pieces).map(it =>
+  `<tr>
+    <td>${it.name}</td>
+    <td>${it.country || '-'}</td>
+    <td>${it.pieces}</td>
+    <td>$${fmt(it.ad)}</td>
+    <td>$${fmt(it.prodCost)}</td>
+    <td>$${fmt(it.profit)}</td>
+    <td>${it.pieces ? fmt(it.profit / it.pieces) : '0'}</td>
+    <td><button class="btn outline" data-del-remit="${it.id}">Delete</button></td>
+  </tr>`
+).join('') || '<tr><td colspan="8" class="muted">No data</td></tr>';
+    });     
 }
 /* --- PERFORMANCE: delete a remittance row (event delegation) --- */
 Q('#rTable')?.addEventListener('click', async (ev) => {
