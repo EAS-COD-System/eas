@@ -2,13 +2,10 @@
   "password": "eastafricashop",
   "countries": ["china", "kenya", "tanzania", "uganda", "zambia", "zimbabwe"],
   "products": [],
-  "stock": {},
   "adspend": [],
   "deliveries": [],
   "shipments": [],
-  "todo": [],
-  "weeklyTodo": {},
-  "weeklyDelivered": {},
+  "remittances": [],
   "finance": {
     "categories": {
       "debit": [],
@@ -16,7 +13,6 @@
     },
     "entries": []
   },
-  "remittances": [],
   "influencers": [],
   "influencerSpends": [],
   "snapshots": []
