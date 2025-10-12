@@ -283,3 +283,7 @@ small.muted { color: #888; }
   .btn, .input { font-size: 0.9em; }
   .kpi div:last-child { font-size: 1.3em; }
 }
+/* Utility class to hide elements */
+.hide {
+  display: none !important;
+}
