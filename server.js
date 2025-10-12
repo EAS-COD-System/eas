@@ -58,28 +58,36 @@ app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
 
+  // logout
   if (password === 'logout') {
     res.clearCookie('auth', {
       httpOnly: true,
       sameSite: 'Lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: req.secure,         // <— use the actual connection’s security
       path: '/'
     });
     return res.json({ ok: true });
   }
+
+  // login
   if (password && password === db.password) {
     res.cookie('auth', '1', {
       httpOnly: true,
       sameSite: 'Lax',
-      secure: process.env.NODE_ENV === 'production', // will work since trust proxy = 1
+      secure: req.secure,         // <— robust behind Render’s proxy
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
     return res.json({ ok: true });
   }
+
   res.status(403).json({ error: 'Wrong password' });
 });
-function requireAuth(req,res,next){ if (req.cookies.auth==='1') return next(); res.status(403).json({ error:'Unauthorized' }); }
+
+function requireAuth(req, res, next){ 
+  if (req.cookies.auth === '1') return next();
+  res.status(403).json({ error:'Unauthorized' });
+}
 
 // ---------- meta ----------
 app.get('/api/meta', requireAuth, (req, res) => {
