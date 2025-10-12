@@ -462,7 +462,17 @@ function initPerformance(){
     ).join('') || `<tr><td colspan="7" class="muted">No data</td></tr>`;
   });
 }
-
+/* --- PERFORMANCE: delete a remittance row (event delegation) --- */
+Q('#rTable')?.addEventListener('click', async (ev) => {
+  const btn = ev.target.closest('[data-del-remit]');
+  if (!btn) return;
+  const id = btn.dataset.delRemit;
+  if (!id) return;
+  if (!confirm('Delete this remittance?')) return;
+  await api('/api/remittances/' + id, { method: 'DELETE' });
+  // refresh the performance section (re-run with current filters)
+  Q('#pfRun')?.click();
+});
 /* ==============================================================
    FINANCE
    ============================================================== */
