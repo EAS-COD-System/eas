@@ -25,11 +25,19 @@ const sum = arr => arr.reduce((a,b)=>a+(+b||0),0);
 const dayms = 24*3600*1000;
 
 /* robust fetch */
-async function api(url, opt={}) {
-  const o = {headers:{'Content-Type':'application/json'}, credentials:'same-origin', ...opt};
+async function api(url, opt = {}) {
+  const o = {
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',          // <— force cookie on ALL requests
+    ...opt
+  };
   const res = await fetch(url, o);
-  if (!res.ok) throw new Error(await res.text().catch(()=>res.statusText));
-  return res.json().catch(()=> ({}));
+  if (!res.ok) {
+    // bubble up the status so gate() can decide
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(text || ('HTTP ' + res.status));
+  }
+  return res.json().catch(() => ({}));
 }
 
 /* ---------------- gate (auth + boot) ---------------- */
