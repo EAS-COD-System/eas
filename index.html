@@ -20,7 +20,7 @@
     </div>
 
     <!-- ================= MAIN APP ================= -->
-    <div id="main" class="hide" style="display:none">
+    <div id="main" style="display:none">
       <nav class="nav">
         <a data-view="home" class="active">Dashboard</a>
         <a data-view="products">Products</a>
@@ -46,10 +46,10 @@
             </div>
           </div>
 
-          <!-- Total Stock & Ad Spend by Country (China excluded) -->
+          <!-- Total Stock & Ad Spend by Country -->
           <div class="section">
             <h2>Total Stock &amp; Ad Spend by Country</h2>
-            <table id="stockByCountryTable" class="table">
+            <table class="table">
               <thead>
                 <tr><th>Country</th><th>Approx. Stock</th><th>Total Ad Spend (USD)</th></tr>
               </thead>
@@ -60,7 +60,7 @@
             </table>
           </div>
 
-          <!-- Weekly Delivered: editable grid Monday–Sunday by country (China excluded) -->
+          <!-- Weekly Delivered: editable grid Monday–Sunday by country -->
           <div class="section">
             <h2>Weekly Delivered (Mon → Sun)</h2>
             <div class="card">
@@ -71,10 +71,10 @@
                 <button id="weeklySave" class="btn">Save</button>
                 <button id="weeklyReset" class="btn danger outline">Reset</button>
               </div>
-              <small>All countries except China are shown. Click a cell to edit delivered pieces for that day/country.</small>
+              <small>Tip: the grid shows <b>all countries</b> in the system. Click a cell to edit delivered pieces for that day/country.</small>
             </div>
             <div class="table-scroll">
-              <table id="weeklyTable" class="table compact">
+              <table class="table compact">
                 <thead id="weeklyHead"><!-- Mon..Sun headers injected --></thead>
                 <tbody id="weeklyBody"><!-- one row per country injected --></tbody>
                 <tfoot>
@@ -88,7 +88,7 @@
             </div>
           </div>
 
-          <!-- Daily Advertising Spend (replace current) -->
+          <!-- Daily Advertising Spend (replace/upsert) -->
           <div class="section">
             <h2>Daily Advertising Spend</h2>
             <div class="card">
@@ -103,11 +103,11 @@
                 <input id="adAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
                 <button id="adSave" class="btn">Save/Replace</button>
               </div>
-              <small>Saving again for the same <b>product + platform + country</b> replaces the previous value.</small>
+              <small>Same <b>product + platform + country</b> replaces the previous value.</small>
             </div>
           </div>
 
-          <!-- Stock Movement (Create Shipment; China allowed here) -->
+          <!-- Stock Movement (Create Shipment) -->
           <div class="section">
             <h2>Stock Movement</h2>
             <div class="card">
@@ -120,7 +120,7 @@
                 <input id="mvShip" type="number" class="input" placeholder="Shipping Cost (USD)" min="0" step="0.01"/>
                 <button id="mvAdd" class="btn">Add Movement</button>
               </div>
-              <small>When marked as arrived, the system deducts from origin and adds to destination.</small>
+              <small>When marked as arrived, stock will <b>add to destination</b> and <b>deduct from origin</b>.</small>
             </div>
           </div>
 
@@ -183,7 +183,7 @@
             <div id="weeklyWrap" class="weeks"><!-- 7 cards injected --></div>
           </div>
 
-          <!-- Lifetime Product Performance (global) -->
+          <!-- Lifetime Product Performance (global table) -->
           <div class="section">
             <h2>Lifetime Product Performance</h2>
             <div class="row wrap">
@@ -206,14 +206,28 @@
           </div>
         </section>
 
-        <!-- ============ PRODUCTS (list + actions) ============ -->
+        <!-- ============ PRODUCTS ============ -->
         <section id="products" style="display:none">
           <h2>Products</h2>
+
+          <div class="card">
+            <div class="h">Add Product</div>
+            <div class="row wrap">
+              <input id="pName" class="input" placeholder="Name"/>
+              <input id="pSku" class="input" placeholder="SKU"/>
+              <input id="pCost" type="number" class="input" placeholder="Cost from China (USD)" min="0" step="0.01"/>
+              <input id="pShip" type="number" class="input" placeholder="Ship China→Kenya (USD)" min="0" step="0.01"/>
+              <input id="pMB" type="number" class="input" placeholder="Profit + Ads Budget (USD)" min="0" step="0.01"/>
+              <button id="pAdd" class="btn">Add</button>
+            </div>
+          </div>
+
           <table id="productsTable" class="table">
             <thead><tr><th>Name</th><th>SKU</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody><!-- rows injected by Settings init --></tbody>
+            <tbody><!-- rows injected --></tbody>
           </table>
-          <small>Open product page: <code>product.html?id=&lt;PRODUCT_ID&gt;</code></small>
+
+          <small>Open goes to <code>product.html?id=&lt;PRODUCT_ID&gt;</code></small>
         </section>
 
         <!-- ============ PERFORMANCE ============ -->
@@ -257,14 +271,7 @@
               <input id="rExtra" type="number" class="input" placeholder="Extra cost / piece (USD)" min="0" step="0.01"/>
               <button id="rAdd" class="btn">Add</button>
             </div>
-            <div class="muted">Entries appear in the table below. You can delete them.</div>
-            <table class="table" id="rTable">
-              <thead><tr>
-                <th>Product</th><th>Country</th><th>Start</th><th>End</th>
-                <th>Orders</th><th>Pieces</th><th>Revenue</th><th>Ad Spend</th><th>Extra/pc</th><th>Actions</th>
-              </tr></thead>
-              <tbody><!-- rows via JS (with Delete button) --></tbody>
-            </table>
+            <div id="rMsg" class="muted"></div>
           </div>
         </section>
 
@@ -317,15 +324,15 @@
             </div>
 
             <div class="row wrap">
-              <input id="fes" type="date" class="input" placeholder="From"/>
-              <input id="fee" type="date" class="input" placeholder="To"/>
+              <input id="fes" type="date" class="input"/>
+              <input id="fee" type="date" class="input"/>
               <button id="feRun" class="btn outline">Run</button>
               <div id="feBalance" class="badge">Period Balance: —</div>
             </div>
 
             <table id="feTable" class="table">
               <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th>Note</th><th></th></tr></thead>
-              <tbody><!-- rows injected; include delete buttons --></tbody>
+              <tbody><!-- rows injected --></tbody>
             </table>
           </div>
         </section>
@@ -341,7 +348,7 @@
               <input id="cty" class="input" placeholder="Add country"/>
               <button id="ctyAdd" class="btn">Add</button>
             </div>
-            <div id="ctyList" class="chips deletable"><!-- chips with delete buttons / locked for China --></div>
+            <div id="ctyList" class="chips deletable"><!-- chips with delete buttons --></div>
           </div>
 
           <!-- Edit Product Info -->
@@ -356,15 +363,6 @@
               <input id="epMB" type="number" class="input" placeholder="Profit + Ads Budget (USD)" step="0.01"/>
               <button id="epSave" class="btn">Save Changes</button>
             </div>
-          </div>
-
-          <!-- Product list (also shown under Products tab) -->
-          <div class="card">
-            <div class="h">All Products</div>
-            <table id="productsTable" class="table">
-              <thead><tr><th>Name</th><th>SKU</th><th>Status</th><th>Actions</th></tr></thead>
-              <tbody><!-- injected --></tbody>
-            </table>
           </div>
 
           <!-- Manual Save / Restore -->
@@ -385,6 +383,7 @@
     </div><!-- /main -->
   </div><!-- /app -->
 
+  <!-- App script at very end to ensure DOM is ready -->
   <script src="/public/app.js"></script>
   <script src="/public/snapshot.js"></script>
 </body>
