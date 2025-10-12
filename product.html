@@ -9,189 +9,167 @@
 <body>
   <div class="container">
 
-    <nav class="nav">
-      <a href="/" class="active">← Dashboard</a>
-      <span class="nav-right"><a id="logoutLink" href="#" title="Logout">Logout</a></span>
-    </nav>
+    <div class="row wrap" style="margin:10px 0">
+      <a href="/" class="btn outline">← Back to Dashboard</a>
+      <div class="badge" id="pBreadcrumb">Product</div>
+    </div>
 
-    <!-- Header -->
-    <header class="section">
-      <h1 id="pdTitle">Product</h1>
-      <div id="pdSku" class="muted"></div>
-      <div class="badge" id="pdTransitBadge">Transit total: 0</div>
-    </header>
-
-    <!-- 1) Stock & Ad Spend by Country (this product only; China excluded from spend by JS) -->
+    <!-- HEADER -->
     <section class="section">
-      <h2>Stock &amp; Ad Spend by Country</h2>
-      <table class="table">
-        <thead>
-          <tr><th>Country</th><th>Approx. Stock</th><th>Total Ad Spend (USD)</th></tr>
-        </thead>
-        <tbody id="pdStockBody"><!-- rows injected --></tbody>
-        <tfoot>
-          <tr class="totals"><th>Totals</th><th id="pdStockTotal">0</th><th id="pdAdTotal">0</th></tr>
-        </tfoot>
-      </table>
-    </section>
-
-    <!-- 2) Profit + Advertising Budget (manual, per country) -->
-    <section class="section">
-      <h2>Profit + Advertising Budget (manual, per country)</h2>
+      <h2 id="pTitle">Product</h2>
       <div class="card">
         <div class="row wrap">
-          <select id="pdPBCountry" class="input"></select>
-          <input id="pdPBValue" type="number" class="input" placeholder="Budget (USD)" step="0.01" min="0"/>
-          <button id="pdPBSave" class="btn">Save Budget</button>
+          <div><b>Name:</b> <span id="pName">—</span></div>
+          <div><b>SKU:</b> <span id="pSku">—</span></div>
+          <div><b>Status:</b> <span id="pStatus">—</span></div>
+          <div><b>Cost (China):</b> $<span id="pCost">0</span></div>
+          <div><b>Ship China→Kenya:</b> $<span id="pShip">0</span></div>
+          <div><b>Profit + Ads Budget:</b> $<span id="pMB">0</span></div>
+        </div>
+        <div class="row wrap">
+          <button id="pActivate" class="btn outline">Set Active</button>
+          <button id="pArchive" class="btn danger outline">Archive</button>
+          <button id="pDelete" class="btn danger">Delete Product</button>
         </div>
       </div>
-      <table class="table">
-        <thead><tr><th>Country</th><th>Budget (USD)</th><th></th></tr></thead>
-        <tbody id="pdPBBBody"><!-- rows w/ Clear buttons --></tbody>
-      </table>
-      <small class="muted">Note: These values are manual references only; they don’t auto-calc from spends.</small>
     </section>
 
-    <!-- 3) Daily Advertising Spend (replace: product+platform+country) -->
+    <!-- STOCK & AD SPEND BY COUNTRY (this product only; China excluded) -->
     <section class="section">
-      <h2>Daily Advertising Spend</h2>
+      <h2>Stock &amp; Ad Spend by Country</h2>
       <div class="card">
         <div class="row wrap">
-          <select id="pdAdPlatform" class="input">
+          <select id="pAdCountry" class="input"></select>
+          <select id="pAdPlatform" class="input">
             <option value="facebook">Facebook</option>
             <option value="tiktok">TikTok</option>
             <option value="google">Google</option>
           </select>
-          <select id="pdAdCountry" class="input"></select>
-          <input id="pdAdAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
-          <button id="pdAdSave" class="btn">Save/Replace</button>
+          <input id="pAdAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
+          <button id="pAdSave" class="btn">Save/Replace</button>
         </div>
-        <small class="muted">Saving again for the same platform + country replaces the previous value for this product.</small>
+        <small>Ad spend here only affects this product. Saving again for the same platform &amp; country replaces today’s value.</small>
       </div>
 
-      <table class="table">
-        <thead><tr><th>Country</th><th>Platform</th><th>Amount (USD)</th></tr></thead>
-        <tbody id="pdAdBody"><!-- rows injected --></tbody>
-      </table>
-    </section>
-
-    <!-- 4) (Remittance add/edit lives on Performance screen as requested) -->
-
-    <!-- 5) Stock Movement for this Product (China allowed here) -->
-    <section class="section">
-      <h2>Stock Movement (This Product)</h2>
-      <div class="card">
-        <div class="row wrap">
-          <select id="pdMvFrom" class="input"></select>
-          <span>→</span>
-          <select id="pdMvTo" class="input"></select>
-          <input id="pdMvQty" type="number" class="input" placeholder="Qty" min="0"/>
-          <input id="pdMvShip" type="number" class="input" placeholder="Shipping Cost (USD)" min="0" step="0.01"/>
-          <button id="pdMvAdd" class="btn">Add Movement</button>
-        </div>
-        <small>When you later mark a shipment as arrived, stock is added at destination and deducted from origin.</small>
-      </div>
-    </section>
-
-    <!-- 6) Transit: China → Kenya (this product) -->
-    <section class="section">
-      <h2>Transit (China → Kenya)</h2>
-      <table class="table">
-        <thead><tr>
-          <th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
-        </tr></thead>
-        <tbody id="pdShipCKBody"><!-- rows injected --></tbody>
-      </table>
-    </section>
-
-    <!-- 7) Transit: Inter-country (this product) -->
-    <section class="section">
-      <h2>Transit (Inter-country)</h2>
-      <table class="table">
-        <thead><tr>
-          <th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
-        </tr></thead>
-        <tbody id="pdShipICBody"><!-- rows injected --></tbody>
-      </table>
-    </section>
-
-    <!-- 8) Lifetime (This Product) by Country + totals -->
-    <section class="section">
-      <h2>Lifetime (This Product)</h2>
-      <div class="row wrap">
-        <input id="pdLPStart" type="date" class="input"/>
-        <input id="pdLPEnd" type="date" class="input"/>
-        <button id="pdLPRun" class="btn">Run</button>
-      </div>
-      <table class="table">
-        <thead><tr>
-          <th>Country</th><th>Revenue</th><th>Ad Spend</th><th>Shipping</th><th>Base Cost</th><th>Pieces</th><th>Profit</th>
-        </tr></thead>
-        <tbody id="pdLPBody"><!-- rows injected --></tbody>
+      <table class="table" id="pStockTable">
+        <thead>
+          <tr>
+            <th>Country</th>
+            <th>Approx. Stock</th>
+            <th>Total Ad Spend (USD)</th>
+          </tr>
+        </thead>
+        <tbody id="pStockBody"><!-- rows injected --></tbody>
         <tfoot>
           <tr class="totals">
             <th>Totals</th>
-            <th id="pdLPRevT">0</th><th id="pdLPAdT">0</th><th id="pdLPShipT">0</th><th id="pdLPBaseT">0</th><th id="pdLPPcsT">0</th><th id="pdLPProfitT">0</th>
+            <th id="pStockTotal">0</th>
+            <th id="pAdTotal">0.00</th>
           </tr>
         </tfoot>
       </table>
     </section>
 
-    <!-- 9) Influencers (add, delete influencer, add spend, filter; China hidden by JS) -->
+    <!-- STOCK MOVEMENT (create shipment for this product; China allowed here) -->
+    <section class="section">
+      <h2>Create Shipment (This Product)</h2>
+      <div class="card">
+        <div class="row wrap">
+          <select id="ppFrom" class="input"></select>
+          <span>→</span>
+          <select id="ppTo" class="input"></select>
+          <input id="ppQty" type="number" class="input" placeholder="Qty" min="0"/>
+          <input id="ppShipCost" type="number" class="input" placeholder="Ship Cost (USD)" min="0" step="0.01"/>
+          <input id="ppDepart" type="date" class="input"/>
+          <button id="ppAdd" class="btn">Add Shipment</button>
+        </div>
+        <small>When marked as arrived, stock is deducted from origin and added to destination.</small>
+      </div>
+    </section>
+
+    <!-- TRANSIT (FILTERED TO THIS PRODUCT). On arrive, stays on this page. -->
+    <section class="section">
+      <h2>Transit — China → Kenya (This Product)</h2>
+      <table class="table">
+        <thead><tr>
+          <th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="pShipCKBody"><!-- rows injected --></tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Transit — Inter-country (This Product)</h2>
+      <table class="table">
+        <thead><tr>
+          <th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="pShipICBody"><!-- rows injected --></tbody>
+      </table>
+    </section>
+
+    <!-- LIFETIME (THIS PRODUCT) -->
+    <section class="section">
+      <h2>Lifetime — This Product</h2>
+      <div class="row wrap">
+        <input id="plStart" type="date" class="input"/>
+        <input id="plEnd" type="date" class="input"/>
+        <button id="plRun" class="btn">Run</button>
+      </div>
+      <table class="table" id="pLifeTable">
+        <thead><tr>
+          <th>Country</th><th>Revenue</th><th>Ad Spend</th><th>Shipping</th><th>Base Cost</th><th>Pieces</th><th>Profit</th>
+        </tr></thead>
+        <tbody id="pLifeBody"><!-- rows injected --></tbody>
+        <tfoot>
+          <tr class="totals">
+            <th>Totals</th>
+            <th id="plRevT">0</th><th id="plAdT">0</th><th id="plShipT">0</th><th id="plBaseT">0</th><th id="plPiecesT">0</th><th id="plProfitT">0</th>
+          </tr>
+        </tfoot>
+      </table>
+    </section>
+
+    <!-- INFLUENCERS (ADD / DELETE + SPEND) -->
     <section class="section">
       <h2>Influencers</h2>
 
-      <!-- Add an influencer -->
       <div class="card">
         <div class="h">Add Influencer</div>
         <div class="row wrap">
-          <input id="pdInfName" class="input" placeholder="Name"/>
-          <input id="pdInfSocial" class="input" placeholder="Social handle"/>
-          <select id="pdInfCountry" class="input"></select>
-          <button id="pdInfAdd" class="btn">Add</button>
+          <input id="pInfName" class="input" placeholder="Name"/>
+          <input id="pInfSocial" class="input" placeholder="Social handle"/>
+          <select id="pInfCountry" class="input"><!-- countries (no China) --></select>
+          <button id="pInfAdd" class="btn">Add</button>
         </div>
       </div>
 
-      <!-- Current influencers list with delete -->
-      <div class="card">
-        <div class="h">Manage Influencers</div>
-        <div id="pdInfList" class="chips deletable"><!-- chips with delete buttons injected by app.js (we'll fill from /api/influencers) --></div>
-        <small class="muted">Deleting an influencer removes all their spends from the system.</small>
-      </div>
+      <table class="table" id="pInfTable">
+        <thead><tr><th>Name</th><th>Social</th><th>Country</th><th>Actions</th></tr></thead>
+        <tbody><!-- rows injected, include delete buttons --></tbody>
+      </table>
 
-      <!-- Add spend for influencer -->
       <div class="card">
-        <div class="h">Add Influencer Spend</div>
+        <div class="h">Add Influencer Spend (This Product)</div>
         <div class="row wrap">
-          <input id="pdInfDate" type="date" class="input"/>
-          <select id="pdInfSelect" class="input"><!-- influencers injected --></select>
-          <select id="pdInfCountry" class="input"></select>
-          <input id="pdInfAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
-          <button id="pdInfSpendAdd" class="btn">Add Spend</button>
+          <input id="pInfDate" type="date" class="input"/>
+          <select id="pInfPick" class="input"><!-- influencers list --></select>
+          <select id="pInfSpendCountry" class="input"><!-- countries (no China) --></select>
+          <input id="pInfAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
+          <button id="pInfSpendAdd" class="btn">Add Spend</button>
         </div>
       </div>
 
-      <!-- Filter & table -->
-      <div class="card">
-        <div class="h">Spends (Filter)</div>
-        <div class="row wrap">
-          <input id="pdInfStart" type="date" class="input"/>
-          <input id="pdInfEnd" type="date" class="input"/>
-          <select id="pdInfFilterCountry" class="input"><option value="">All countries</option></select>
-          <button id="pdInfRun" class="btn outline">Run</button>
-          <div class="badge">Total: <span id="pdInfTotal">0</span> USD</div>
-        </div>
-
-        <table class="table">
-          <thead><tr><th>Date</th><th>Country</th><th>Influencer</th><th>Social</th><th>Amount</th><th></th></tr></thead>
-          <tbody id="pdInfBody"><!-- rows with delete spend buttons --></tbody>
-        </table>
-      </div>
+      <table class="table" id="pInfSpendTable">
+        <thead><tr>
+          <th>Date</th><th>Influencer</th><th>Country</th><th>Amount</th><th></th>
+        </tr></thead>
+        <tbody><!-- rows injected; include delete spend buttons --></tbody>
+      </table>
     </section>
 
   </div>
 
-  <!-- scripts -->
   <script src="/public/app.js"></script>
   <script src="/public/snapshot.js"></script>
 </body>
