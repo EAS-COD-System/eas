@@ -1,26 +1,23 @@
 {
   "name": "eas-tracker",
-  "version": "1.0.0",
-  "description": "EAS Tracker System for EastAfricaShop (Dashboard, Finance, Shipments, Ads, Remittance, Influencers)",
+  "version": "2.1.0",
+  "description": "EAS Tracker – dashboards for performance, shipments, remittances, influencers and finance.",
   "main": "server.js",
-  "type": "commonjs",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "snapshot": "node snapshot.js"
   },
   "dependencies": {
     "body-parser": "^1.20.3",
     "cookie-parser": "^1.4.7",
-    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
     "fs-extra": "^11.2.0",
     "morgan": "^1.10.0",
+    "path": "^0.12.7",
     "uuid": "^9.0.1"
   },
-  "devDependencies": {
-    "nodemon": "^3.1.4"
-  },
   "engines": {
-    "node": ">=18.0.0"
-  },
-  "license": "MIT"
+    "node": ">=18"
+  }
 }
