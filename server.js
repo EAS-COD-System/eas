@@ -64,30 +64,32 @@ function computePeriodBalance(list) {
   return list.reduce((acc, e) => acc + (e.type === 'credit' ? +e.amount || 0 : -(+e.amount || 0)), 0);
 }
 
-// ------------------- auth -------------------
+// ---------- auth ----------
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
+
+  const isProd = process.env.NODE_ENV === 'production';
 
   // logout
   if (password === 'logout') {
     res.clearCookie('auth', {
       httpOnly: true,
       sameSite: 'Lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProd,   // secure only in production
       path: '/'
     });
     return res.json({ ok: true });
   }
 
-  // login (persist ~10 years; effectively "until logout")
+  // login
   if (password && password === db.password) {
     res.cookie('auth', '1', {
       httpOnly: true,
       sameSite: 'Lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProd,   // IMPORTANT: works locally and on Render
       path: '/',
-      maxAge: 10 * 365 * 24 * 60 * 60 * 1000 // 10 years
+      maxAge: 30 * 24 * 60 * 60 * 1000  // 30 days: "stay logged in"
     });
     return res.json({ ok: true });
   }
