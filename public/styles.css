@@ -79,6 +79,11 @@ a{ color:var(--primary); text-decoration:none; }
 .brand{ color:var(--primary); font-size:40px; text-align:center; }
 .hide{ display:none !important; }
 
+/* Center the login inputs/button */
+.auth .row{ justify-content:center; }           /* <-- added */
+.auth .row .input{ width:260px; max-width:80vw; } /* <-- added for mobile comfort */
+.auth .row .btn{ white-space:nowrap; }            /* <-- keeps the button tidy */
+
 /* Weekly To-Do */
 .weeks{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
 .week-card{ background:var(--card); border-radius:10px; padding:12px; box-shadow:var(--shadow); }
