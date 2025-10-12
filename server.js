@@ -7,7 +7,7 @@ const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const { v4: uuidv4 } = require('uuid');
-
+app.use('/public', express.static(path.join(__dirname, 'public')));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
