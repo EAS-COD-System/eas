@@ -58,28 +58,28 @@ app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
 
-  // logout
-  if (password === 'logout') {
-    res.clearCookie('auth', {
-      httpOnly: true,
-      sameSite: 'Lax',
-      secure: req.secure,         // <— use the actual connection’s security
-      path: '/'
-    });
-    return res.json({ ok: true });
-  }
+// logout
+if (password === 'logout') {
+  res.clearCookie('auth', {
+    httpOnly: true,
+    sameSite: 'None',
+    secure: true,
+    path: '/'
+  });
+  return res.json({ ok: true });
+}
 
-  // login
-  if (password && password === db.password) {
-    res.cookie('auth', '1', {
-      httpOnly: true,
-      sameSite: 'Lax',
-      secure: req.secure,         // <— robust behind Render’s proxy
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
-    return res.json({ ok: true });
-  }
+// login
+if (password && password === db.password) {
+  res.cookie('auth', '1', {
+    httpOnly: true,
+    sameSite: 'None',   // <- iOS/Safari friendly
+    secure: true,       // <- required with SameSite=None
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  });
+  return res.json({ ok: true });
+}
 
   res.status(403).json({ error: 'Wrong password' });
 });
