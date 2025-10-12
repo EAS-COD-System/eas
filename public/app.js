@@ -64,30 +64,44 @@ async function gate() {
     Q('#main')?.classList.add('hide');
   }
 }
+/* login / logout */
 Q('#loginBtn')?.addEventListener('click', async () => {
   const pw = Q('#pw')?.value?.trim();
   if (!pw) return alert('Enter password');
 
-  const res = await api('/api/auth', {
-    method: 'POST',
-    body: JSON.stringify({ password: pw })
-  });
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',          // ensure auth cookie is set
+      body: JSON.stringify({ password: pw })
+    });
 
-  if (res.ok) {
-    Q('#login')?.classList.add('hide');
-    Q('#login') && (Q('#login').style.display = 'none');
-    Q('#main')?.classList.remove('hide');
-    Q('#main') && (Q('#main').style.display = '');
-    gate();
-  } else {
-    alert('Wrong password');
+    if (res.ok) {
+      // flip views
+      const login = Q('#login');
+      const main  = Q('#main');
+      if (login) { login.classList.add('hide'); login.style.display = 'none'; }
+      if (main)  { main.classList.remove('hide'); main.style.display = ''; }
+      await gate();                     // boot the app after successful auth
+    } else {
+      alert('Wrong password');
+    }
+  } catch (err) {
+    alert('Network error while logging in. Please try again.');
+    console.error(err);
   }
 });
 
-Q('#logoutLink')?.addEventListener('click', async e => {
+Q('#logoutLink')?.addEventListener('click', async (e) => {
   e.preventDefault();
   try {
-    await api('/api/auth', { method:'POST', body: JSON.stringify({ password:'logout' }) });
+    await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ password: 'logout' })
+    });
   } finally {
     location.reload();
   }
