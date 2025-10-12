@@ -65,31 +65,20 @@ Q('#loginBtn')?.addEventListener('click', async () => {
   if (!pw) return alert('Enter password');
 
   try {
-    const res = await api('/api/auth', {
+    await api('/api/auth', {
       method: 'POST',
       body: JSON.stringify({ password: pw })
     });
 
-    if (res.ok || res.status === 200) {
-      const login = Q('#login');
-      const main = Q('#main');
-      if (login) login.style.display = 'none';
-      if (main) main.style.display = '';
-      await gate();
-    } else {
-      alert('Incorrect password');
-    }
-  } catch (err) {
-    alert('Login error');
-  }
-});
+    // Hide login, show main app
     const login = Q('#login');
     const main = Q('#main');
-    if (login) { login.classList.add('hide'); login.style.display = 'none'; }
+    if (login) { login.style.display = 'none'; login.classList.add('hide'); }
     if (main) { main.classList.remove('hide'); main.style.display = ''; }
-    gate();
-  } else {
-    alert('Incorrect password');
+
+    await gate(); // load dashboard
+  } catch (err) {
+    alert('Wrong password');
   }
 });
 Q('#logoutLink')?.addEventListener('click', async e => {
