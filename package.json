@@ -1,18 +1,23 @@
 {
   "name": "eas-tracker",
   "version": "1.0.0",
-  "private": true,
+  "description": "East Africa Shop business tracker",
+  "main": "server.js",
   "type": "commonjs",
-  "engines": { "node": ">=18" },
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "body-parser": "^1.20.2",
-    "cookie-parser": "^1.4.6",
-    "express": "^4.19.2",
+    "body-parser": "^1.20.3",
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.1",
     "fs-extra": "^11.2.0",
     "morgan": "^1.10.0",
     "uuid": "^9.0.1"
-  }
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "East Africa Shop",
+  "license": "MIT"
 }
