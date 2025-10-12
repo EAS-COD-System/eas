@@ -1,9 +1,9 @@
 {
   "name": "eas-tracker",
-  "version": "1.0.0",
-  "private": true,
+  "version": "2.2.0",
+  "description": "East Africa Shop Business Tracking System",
+  "main": "server.js",
   "type": "commonjs",
-  "engines": { "node": ">=18.x" },
   "scripts": {
     "start": "node server.js"
   },
@@ -14,5 +14,17 @@
     "fs-extra": "^11.2.0",
     "morgan": "^1.10.0",
     "uuid": "^9.0.1"
-  }
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT",
+  "keywords": [
+    "express",
+    "tracker",
+    "eas",
+    "eastafricashop",
+    "dashboard",
+    "cod"
+  ]
 }
