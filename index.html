@@ -14,7 +14,7 @@
       <h1 class="brand">EAS Tracker</h1>
       <p>Enter password to access</p>
       <div class="row">
-        <input id="pw" type="password" class="input" placeholder="Password"/>
+        <input id="pw" type="password" class="input" placeholder="Password" autocomplete="current-password"/>
         <button id="loginBtn" class="btn">Login</button>
       </div>
     </div>
@@ -46,7 +46,7 @@
             </div>
           </div>
 
-          <!-- Total Stock & Ad Spend by Country (totals row included) -->
+          <!-- Total Stock & Ad Spend by Country -->
           <div class="section">
             <h2>Total Stock &amp; Ad Spend by Country</h2>
             <table id="stockByCountryTable" class="table">
@@ -60,7 +60,7 @@
             </table>
           </div>
 
-          <!-- Weekly Delivered: editable grid Monday–Sunday by country -->
+          <!-- Weekly Delivered -->
           <div class="section">
             <h2>Weekly Delivered (Mon → Sun)</h2>
             <div class="card">
@@ -88,7 +88,7 @@
             </div>
           </div>
 
-          <!-- Daily Advertising Spend (no date; replace if exists) -->
+          <!-- Daily Advertising Spend -->
           <div class="section">
             <h2>Daily Advertising Spend</h2>
             <div class="card">
@@ -167,7 +167,7 @@
             <div id="weeklyWrap" class="weeks"><!-- 7 cards injected --></div>
           </div>
 
-          <!-- Lifetime Product Performance (global) -->
+          <!-- Lifetime Product Performance -->
           <div class="section">
             <h2>Lifetime Product Performance</h2>
             <div class="row wrap">
@@ -233,14 +233,17 @@
               <button id="pfRun" class="btn">Run</button>
             </div>
             <table id="pfTable" class="table">
-              <thead><tr>
-                <th>Product</th><th>Pieces</th><th>Ad Spend</th><th>Product Cost</th><th>Total Profit</th><th>Profit / pc</th>
-              </tr></thead>
+              <thead>
+                <tr>
+                  <th>Product</th><th>Country</th><th>Pieces</th>
+                  <th>Ad Spend</th><th>Product Cost</th><th>Total Profit</th><th>Profit / pc</th>
+                </tr>
+              </thead>
               <tbody><!-- rows injected --></tbody>
             </table>
           </div>
 
-          <!-- Remittance Report (add entries + delete) -->
+          <!-- Remittance Report -->
           <div class="card">
             <div class="h">Remittance Report</div>
             <div class="row wrap">
@@ -256,11 +259,15 @@
               <button id="rAdd" class="btn">Add</button>
             </div>
             <div class="muted" id="rMsg"></div>
-            <table class="table">
-              <thead><tr>
-                <th>Period</th><th>Country</th><th>Product</th><th>Orders</th><th>Pieces</th><th>Revenue</th><th>Ad Spend</th><th>Extra/pc</th><th></th>
-              </tr></thead>
-              <tbody id="rList"><!-- rows with delete buttons injected by app.js --></tbody>
+            <table class="table" id="rTable">
+              <thead>
+                <tr>
+                  <th>Period</th><th>Country</th><th>Product</th>
+                  <th>Orders</th><th>Pieces</th><th>Revenue</th>
+                  <th>Ad Spend</th><th>Extra/pc</th><th></th>
+                </tr>
+              </thead>
+              <tbody><!-- rows injected by app.js --></tbody>
             </table>
           </div>
         </section>
@@ -269,13 +276,12 @@
         <section id="finance" style="display:none">
           <h2>Finance</h2>
 
-          <!-- Running Balance (all time) -->
           <div class="card big-balance">
             <div class="h">Running Balance (All-time)</div>
             <div id="runBalance" class="balance">0.00 USD</div>
           </div>
 
-          <!-- Manage Categories (add + delete) -->
+          <!-- Manage Categories -->
           <div class="card">
             <div class="h">Categories</div>
             <div class="row wrap">
@@ -289,11 +295,11 @@
             <div class="row cats">
               <div>
                 <h4>Debits</h4>
-                <div id="fcDebits" class="chips"><!-- chips w/ delete --></div>
+                <div id="fcDebits" class="chips"></div>
               </div>
               <div>
                 <h4>Credits</h4>
-                <div id="fcCredits" class="chips"><!-- chips w/ delete --></div>
+                <div id="fcCredits" class="chips"></div>
               </div>
             </div>
           </div>
@@ -322,7 +328,7 @@
 
             <table id="feTable" class="table">
               <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th>Note</th><th></th></tr></thead>
-              <tbody><!-- rows injected; include delete buttons --></tbody>
+              <tbody><!-- rows injected --></tbody>
             </table>
           </div>
         </section>
@@ -338,7 +344,7 @@
               <input id="cty" class="input" placeholder="Add country"/>
               <button id="ctyAdd" class="btn">Add</button>
             </div>
-            <div id="ctyList" class="chips deletable"><!-- chips with delete buttons --></div>
+            <div id="ctyList" class="chips deletable"></div>
             <small class="muted">China cannot be deleted.</small>
           </div>
 
@@ -374,7 +380,7 @@
     </div><!-- /main -->
   </div><!-- /app -->
 
-  <!-- Load scripts LAST so login button and all IDs exist -->
+  <!-- Scripts LAST -->
   <script src="/public/app.js"></script>
   <script src="/public/snapshot.js"></script>
 </body>
