@@ -12,12 +12,10 @@
     <!-- ================= LOGIN ================= -->
     <div id="login" class="auth">
       <h1 class="brand">EAS Tracker</h1>
-      <p style="text-align:center">Enter password to access</p>
-      <div class="card">
-        <div class="row wrap" style="justify-content:center">
-          <input id="pw" type="password" class="input" placeholder="Password" style="min-width:260px"/>
-          <button id="loginBtn" class="btn">Login</button>
-        </div>
+      <p>Enter password to access</p>
+      <div class="row">
+        <input id="pw" type="password" class="input" placeholder="Password"/>
+        <button id="loginBtn" class="btn">Login</button>
       </div>
     </div>
 
@@ -29,7 +27,7 @@
         <a data-view="performance">Performance</a>
         <a data-view="finance">Finance</a>
         <a data-view="settings">Settings</a>
-        <a id="logoutLink" class="nav-right">Logout</a>
+        <a id="logoutLink" class="nav-right" href="#">Logout</a>
       </nav>
 
       <div class="container">
@@ -48,7 +46,7 @@
             </div>
           </div>
 
-          <!-- Total Stock & Ad Spend by Country (China excluded by JS) -->
+          <!-- Total Stock & Ad Spend by Country (totals row included) -->
           <div class="section">
             <h2>Total Stock &amp; Ad Spend by Country</h2>
             <table id="stockByCountryTable" class="table">
@@ -62,7 +60,7 @@
             </table>
           </div>
 
-          <!-- Weekly Delivered: editable grid Monday–Sunday by country (China excluded by JS) -->
+          <!-- Weekly Delivered: editable grid Monday–Sunday by country -->
           <div class="section">
             <h2>Weekly Delivered (Mon → Sun)</h2>
             <div class="card">
@@ -73,7 +71,7 @@
                 <button id="weeklySave" class="btn">Save</button>
                 <button id="weeklyReset" class="btn danger outline">Reset</button>
               </div>
-              <small>The grid shows all sales countries (China hidden). Tap a cell to edit delivered pieces for that day/country.</small>
+              <small>Tip: the grid shows <b>all countries</b> in the system (except China). Click a cell to edit delivered pieces for that day/country.</small>
             </div>
             <div class="table-scroll">
               <table id="weeklyTable" class="table compact">
@@ -90,7 +88,7 @@
             </div>
           </div>
 
-          <!-- Daily Advertising Spend (replace per product+platform+country; China hidden by JS) -->
+          <!-- Daily Advertising Spend (no date; replace if exists) -->
           <div class="section">
             <h2>Daily Advertising Spend</h2>
             <div class="card">
@@ -105,28 +103,11 @@
                 <input id="adAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
                 <button id="adSave" class="btn">Save/Replace</button>
               </div>
-              <small>Saving again for the same <b>product + platform + country</b> replaces the previous value for today.</small>
+              <small>Saving again for the same <b>product + platform + country</b> will replace the previous value.</small>
             </div>
           </div>
 
-          <!-- Stock Movement (Create Shipment). China allowed here -->
-          <div class="section">
-            <h2>Stock Movement</h2>
-            <div class="card">
-              <div class="row wrap">
-                <select id="mvFrom" class="input"></select>
-                <span>→</span>
-                <select id="mvTo" class="input"></select>
-                <select id="mvProduct" class="input"></select>
-                <input id="mvQty" type="number" class="input" placeholder="Qty" min="0"/>
-                <input id="mvShip" type="number" class="input" placeholder="Shipping Cost (USD)" min="0" step="0.01"/>
-                <button id="mvAdd" class="btn">Add Movement</button>
-              </div>
-              <small>When marked as arrived, the system <b>adds to destination</b> and <b>deducts from origin</b>.</small>
-            </div>
-          </div>
-
-          <!-- Transit China → Kenya (China allowed) -->
+          <!-- Transit China → Kenya -->
           <div class="section">
             <h2>Transit (China → Kenya)</h2>
             <table class="table" id="shipCK">
@@ -148,7 +129,7 @@
             </table>
           </div>
 
-          <!-- Profit by Country (China hidden by JS) -->
+          <!-- Profit by Country -->
           <div class="section">
             <h2>Profit by Country</h2>
             <div class="row wrap">
@@ -170,22 +151,23 @@
             </table>
           </div>
 
-          <!-- To-Do + Weekly To-Do -->
+          <!-- To-Do -->
           <div class="section">
             <h2>To-Do</h2>
             <div class="row">
               <input id="todoText" class="input" placeholder="Task"/>
               <button id="todoAdd" class="btn">Add</button>
             </div>
-            <div id="todoList" class="todo-list"></div>
+            <div id="todoList" class="todo-list"><!-- items injected --></div>
           </div>
 
+          <!-- Weekly To-Do -->
           <div class="section">
             <h2>Weekly To-Do</h2>
             <div id="weeklyWrap" class="weeks"><!-- 7 cards injected --></div>
           </div>
 
-          <!-- Lifetime Product Performance (global; China hidden in JS) -->
+          <!-- Lifetime Product Performance (global) -->
           <div class="section">
             <h2>Lifetime Product Performance</h2>
             <div class="row wrap">
@@ -229,7 +211,7 @@
             <tbody><!-- rows injected --></tbody>
           </table>
 
-          <small>Click <b>Open</b> to go to that product’s own page: <code>product.html?id=&lt;PRODUCT_ID&gt;</code></small>
+          <small>Click <b>Open</b> to go to that product’s page: <code>product.html?id=&lt;PRODUCT_ID&gt;</code></small>
         </section>
 
         <!-- ============ PERFORMANCE ============ -->
@@ -252,13 +234,13 @@
             </div>
             <table id="pfTable" class="table">
               <thead><tr>
-                <th>Product</th><th>Country</th><th>Pieces</th><th>Ad Spend</th><th>Product Cost</th><th>Total Profit</th><th>Profit / pc</th>
+                <th>Product</th><th>Pieces</th><th>Ad Spend</th><th>Product Cost</th><th>Total Profit</th><th>Profit / pc</th>
               </tr></thead>
               <tbody><!-- rows injected --></tbody>
             </table>
           </div>
 
-          <!-- Remittance Report -->
+          <!-- Remittance Report (add entries + delete) -->
           <div class="card">
             <div class="h">Remittance Report</div>
             <div class="row wrap">
@@ -273,13 +255,12 @@
               <input id="rExtra" type="number" class="input" placeholder="Extra cost / piece (USD)" min="0" step="0.01"/>
               <button id="rAdd" class="btn">Add</button>
             </div>
-            <div id="rMsg" class="muted"></div>
-
+            <div class="muted" id="rMsg"></div>
             <table class="table">
               <thead><tr>
                 <th>Period</th><th>Country</th><th>Product</th><th>Orders</th><th>Pieces</th><th>Revenue</th><th>Ad Spend</th><th>Extra/pc</th><th></th>
               </tr></thead>
-              <tbody id="rList"><!-- rows with delete buttons --></tbody>
+              <tbody id="rList"><!-- rows with delete buttons injected by app.js --></tbody>
             </table>
           </div>
         </section>
@@ -308,11 +289,11 @@
             <div class="row cats">
               <div>
                 <h4>Debits</h4>
-                <div id="fcDebits" class="chips"><!-- chips with delete buttons --></div>
+                <div id="fcDebits" class="chips"><!-- chips w/ delete --></div>
               </div>
               <div>
                 <h4>Credits</h4>
-                <div id="fcCredits" class="chips"><!-- chips with delete buttons --></div>
+                <div id="fcCredits" class="chips"><!-- chips w/ delete --></div>
               </div>
             </div>
           </div>
@@ -350,7 +331,7 @@
         <section id="settings" style="display:none">
           <h2>Settings</h2>
 
-          <!-- Countries add/delete (China undeletable via JS/server) -->
+          <!-- Countries add/delete -->
           <div class="card">
             <div class="h">Countries</div>
             <div class="row">
@@ -358,6 +339,7 @@
               <button id="ctyAdd" class="btn">Add</button>
             </div>
             <div id="ctyList" class="chips deletable"><!-- chips with delete buttons --></div>
+            <small class="muted">China cannot be deleted.</small>
           </div>
 
           <!-- Edit Product Info -->
@@ -392,6 +374,7 @@
     </div><!-- /main -->
   </div><!-- /app -->
 
+  <!-- Load scripts LAST so login button and all IDs exist -->
   <script src="/public/app.js"></script>
   <script src="/public/snapshot.js"></script>
 </body>
