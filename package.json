@@ -1,16 +1,18 @@
 {
-  "name": "eastafricashop-tracker",
+  "name": "eas-tracker",
   "version": "1.0.0",
-  "description": "EAS business tracking system for stock, profit, shipments, and finance",
-  "main": "server.js",
+  "private": true,
+  "type": "commonjs",
+  "engines": { "node": ">=18" },
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "body-parser": "^1.20.2",
-    "cors": "^2.8.5",
+    "cookie-parser": "^1.4.6",
     "express": "^4.19.2",
     "fs-extra": "^11.2.0",
-    "path": "^0.12.7"
+    "morgan": "^1.10.0",
+    "uuid": "^9.0.1"
   }
 }
