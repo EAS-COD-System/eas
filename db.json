@@ -1,18 +1,19 @@
 {
-  "auth": {
-    "password": "eastafricashop"
-  },
-  "countries": ["China", "Kenya", "Tanzania", "Uganda", "Zambia", "Zimbabwe"],
+  "password": "eastafricashop",
+  "countries": ["china", "kenya", "tanzania", "uganda", "zambia", "zimbabwe"],
   "products": [],
   "stock": {},
-  "adSpend": {},
-  "transit": [],
+  "adspend": [],
+  "deliveries": [],
+  "shipments": [],
   "todo": [],
   "weeklyTodo": {},
   "weeklyDelivered": {},
   "finance": {
-    "debitCats": [],
-    "creditCats": [],
+    "categories": {
+      "debit": [],
+      "credit": []
+    },
     "entries": []
   },
   "remittances": [],
