@@ -12,10 +12,12 @@
     <!-- ================= LOGIN ================= -->
     <div id="login" class="auth">
       <h1 class="brand">EAS Tracker</h1>
-      <p>Enter password to access</p>
-      <div class="row">
-        <input id="pw" type="password" class="input" placeholder="Password"/>
-        <button id="loginBtn" class="btn">Login</button>
+      <p style="text-align:center">Enter password to access</p>
+      <div class="card">
+        <div class="row wrap" style="justify-content:center">
+          <input id="pw" type="password" class="input" placeholder="Password" style="min-width:260px"/>
+          <button id="loginBtn" class="btn">Login</button>
+        </div>
       </div>
     </div>
 
@@ -32,7 +34,7 @@
 
       <div class="container">
 
-        <!-- ===================== DASHBOARD ===================== -->
+        <!-- ============ DASHBOARD / HOME ============ -->
         <section id="home">
           <!-- KPIs -->
           <div class="section">
@@ -46,50 +48,49 @@
             </div>
           </div>
 
-          <!-- Stock & Ad Spend by Country (global) -->
+          <!-- Total Stock & Ad Spend by Country (China excluded by JS) -->
           <div class="section">
             <h2>Total Stock &amp; Ad Spend by Country</h2>
-            <table id="stockByCountryTbl" class="table">
+            <table id="stockByCountryTable" class="table">
               <thead>
                 <tr><th>Country</th><th>Approx. Stock</th><th>Total Ad Spend (USD)</th></tr>
               </thead>
-              <tbody><!-- rows injected by app.js: renderStockAndSpendByCountry() --></tbody>
+              <tbody id="stockByCountryBody"><!-- rows injected --></tbody>
               <tfoot>
-                <tr class="totals"><th>Totals</th><th id="stockTotal">0</th><th id="adTotal">0</th></tr>
+                <tr class="totals"><th>Totals</th><th id="stockTotal">0</th><th id="adTotal">0.00</th></tr>
               </tfoot>
             </table>
           </div>
 
-          <!-- Weekly Delivered grid -->
+          <!-- Weekly Delivered: editable grid Monday–Sunday by country (China excluded by JS) -->
           <div class="section">
             <h2>Weekly Delivered (Mon → Sun)</h2>
             <div class="card">
               <div class="row wrap">
                 <button id="weeklyPrev" class="btn outline">◀ Prev week</button>
-                <div class="badge" id="weeklyRange">Week:</div>
+                <div class="badge" id="weeklyRange">Week: </div>
                 <button id="weeklyNext" class="btn outline">Next week ▶</button>
-                <button id="wdSave" class="btn">Save</button>
-                <button id="wdReset" class="btn danger">Reset</button>
+                <button id="weeklySave" class="btn">Save</button>
+                <button id="weeklyReset" class="btn danger outline">Reset</button>
               </div>
-              <small>Grid lists <b>all countries</b> in Settings. Type counts per day/country; totals auto-calc.</small>
+              <small>The grid shows all sales countries (China hidden). Tap a cell to edit delivered pieces for that day/country.</small>
             </div>
             <div class="table-scroll">
-              <table id="weeklyGrid" class="table compact">
+              <table id="weeklyTable" class="table compact">
                 <thead id="weeklyHead"><!-- Mon..Sun headers injected --></thead>
                 <tbody id="weeklyBody"><!-- one row per country injected --></tbody>
                 <tfoot>
-                  <tr class="totals">
-                    <th>All Countries</th>
-                    <th class="col-total">0</th><th class="col-total">0</th><th class="col-total">0</th>
-                    <th class="col-total">0</th><th class="col-total">0</th><th class="col-total">0</th><th class="col-total">0</th>
-                    <th id="wdGrand">0</th>
+                  <tr class="totals"><th>Totals</th>
+                    <th id="wMonT">0</th><th id="wTueT">0</th><th id="wWedT">0</th>
+                    <th id="wThuT">0</th><th id="wFriT">0</th><th id="wSatT">0</th><th id="wSunT">0</th>
+                    <th id="wAllT">0</th>
                   </tr>
                 </tfoot>
               </table>
             </div>
           </div>
 
-          <!-- Daily Advertising Spend (replace) -->
+          <!-- Daily Advertising Spend (replace per product+platform+country; China hidden by JS) -->
           <div class="section">
             <h2>Daily Advertising Spend</h2>
             <div class="card">
@@ -102,13 +103,13 @@
                 <select id="adProduct" class="input"></select>
                 <select id="adCountry" class="input"></select>
                 <input id="adAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
-                <button id="adAdd" class="btn">Save / Replace</button>
+                <button id="adSave" class="btn">Save/Replace</button>
               </div>
-              <small>Same product+platform+country is <b>replaced</b> (no duplicates).</small>
+              <small>Saving again for the same <b>product + platform + country</b> replaces the previous value for today.</small>
             </div>
           </div>
 
-          <!-- Stock Movement -->
+          <!-- Stock Movement (Create Shipment). China allowed here -->
           <div class="section">
             <h2>Stock Movement</h2>
             <div class="card">
@@ -121,33 +122,33 @@
                 <input id="mvShip" type="number" class="input" placeholder="Shipping Cost (USD)" min="0" step="0.01"/>
                 <button id="mvAdd" class="btn">Add Movement</button>
               </div>
-              <small>On arrival: <b>add to destination</b> and <b>deduct from origin</b>.</small>
+              <small>When marked as arrived, the system <b>adds to destination</b> and <b>deducts from origin</b>.</small>
             </div>
           </div>
 
-          <!-- Transit China → Kenya -->
+          <!-- Transit China → Kenya (China allowed) -->
           <div class="section">
             <h2>Transit (China → Kenya)</h2>
-            <table class="table">
+            <table class="table" id="shipCK">
               <thead><tr>
                 <th>ID</th><th>Product</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
               </tr></thead>
-              <tbody id="shipCKBody"><!-- rows injected --></tbody>
+              <tbody id="shipCKBody"><!-- rows --></tbody>
             </table>
           </div>
 
           <!-- Transit Inter-country -->
           <div class="section">
             <h2>Transit (Inter-country)</h2>
-            <table class="table">
+            <table class="table" id="shipIC">
               <thead><tr>
                 <th>ID</th><th>Product</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
               </tr></thead>
-              <tbody id="shipICBody"><!-- rows injected --></tbody>
+              <tbody id="shipICBody"><!-- rows --></tbody>
             </table>
           </div>
 
-          <!-- Profit by Country -->
+          <!-- Profit by Country (China hidden by JS) -->
           <div class="section">
             <h2>Profit by Country</h2>
             <div class="row wrap">
@@ -156,31 +157,35 @@
               <input id="pcEnd" type="date" class="input"/>
               <button id="pcRun" class="btn">Run</button>
             </div>
-            <table class="table" id="profitCountryTable">
+            <table class="table" id="profitCountry">
               <thead><tr>
                 <th>Country</th><th>Revenue</th><th>Ad Spend</th><th>Delivery Cost</th><th>Pieces</th><th>Profit</th>
               </tr></thead>
-              <tbody><!-- rows injected --></tbody>
+              <tbody id="profitCountryBody"><!-- rows --></tbody>
+              <tfoot>
+                <tr class="totals">
+                  <th>Totals</th><th id="pcRevT">0</th><th id="pcAdT">0</th><th id="pcDelT">0</th><th id="pcPiecesT">0</th><th id="pcProfitT">0</th>
+                </tr>
+              </tfoot>
             </table>
           </div>
 
-          <!-- To-Do -->
+          <!-- To-Do + Weekly To-Do -->
           <div class="section">
             <h2>To-Do</h2>
             <div class="row">
               <input id="todoText" class="input" placeholder="Task"/>
               <button id="todoAdd" class="btn">Add</button>
             </div>
-            <div id="todoList" class="todo-list"><!-- tasks injected --></div>
+            <div id="todoList" class="todo-list"></div>
           </div>
 
-          <!-- Weekly To-Do -->
           <div class="section">
             <h2>Weekly To-Do</h2>
             <div id="weeklyWrap" class="weeks"><!-- 7 cards injected --></div>
           </div>
 
-          <!-- Lifetime Product Performance (global) -->
+          <!-- Lifetime Product Performance (global; China hidden in JS) -->
           <div class="section">
             <h2>Lifetime Product Performance</h2>
             <div class="row wrap">
@@ -193,7 +198,7 @@
               <thead><tr>
                 <th>Product</th><th>Country</th><th>Revenue</th><th>Ad Spend</th><th>Shipping</th><th>Base Cost</th><th>Pieces</th><th>Profit</th>
               </tr></thead>
-              <tbody id="lifetimeBody"><!-- rows injected --></tbody>
+              <tbody id="lifetimeBody"><!-- rows --></tbody>
               <tfoot>
                 <tr class="totals"><th colspan="2">Totals</th>
                   <th id="ltRevT">0</th><th id="ltAdT">0</th><th id="ltShipT">0</th><th id="ltBaseT">0</th><th id="ltPiecesT">0</th><th id="ltProfitT">0</th>
@@ -203,7 +208,7 @@
           </div>
         </section>
 
-        <!-- ===================== PRODUCTS ===================== -->
+        <!-- ============ PRODUCTS ============ -->
         <section id="products" style="display:none">
           <h2>Products</h2>
 
@@ -224,10 +229,10 @@
             <tbody><!-- rows injected --></tbody>
           </table>
 
-          <small>Open page: <code>product.html?id=&lt;PRODUCT_ID&gt;</code></small>
+          <small>Click <b>Open</b> to go to that product’s own page: <code>product.html?id=&lt;PRODUCT_ID&gt;</code></small>
         </section>
 
-        <!-- ===================== PERFORMANCE ===================== -->
+        <!-- ============ PERFORMANCE ============ -->
         <section id="performance" style="display:none">
           <h2>Performance</h2>
 
@@ -242,20 +247,18 @@
               </select>
               <input id="pfStart" type="date" class="input"/>
               <input id="pfEnd" type="date" class="input"/>
-              <select id="pfCountry" class="input">
-                <option value="">All countries</option>
-              </select>
+              <select id="pfCountry" class="input"><option value="">All countries</option></select>
               <button id="pfRun" class="btn">Run</button>
             </div>
             <table id="pfTable" class="table">
               <thead><tr>
-                <th>Product</th><th>Pieces</th><th>Ad Spend</th><th>Product Cost</th><th>Total Profit</th><th>Profit / pc</th>
+                <th>Product</th><th>Country</th><th>Pieces</th><th>Ad Spend</th><th>Product Cost</th><th>Total Profit</th><th>Profit / pc</th>
               </tr></thead>
               <tbody><!-- rows injected --></tbody>
             </table>
           </div>
 
-          <!-- Remittance Report (add entries here; view/delete per product page) -->
+          <!-- Remittance Report -->
           <div class="card">
             <div class="h">Remittance Report</div>
             <div class="row wrap">
@@ -270,21 +273,28 @@
               <input id="rExtra" type="number" class="input" placeholder="Extra cost / piece (USD)" min="0" step="0.01"/>
               <button id="rAdd" class="btn">Add</button>
             </div>
-            <div id="rMsg" class="muted">Entries appear in each product page and can be deleted there.</div>
+            <div id="rMsg" class="muted"></div>
+
+            <table class="table">
+              <thead><tr>
+                <th>Period</th><th>Country</th><th>Product</th><th>Orders</th><th>Pieces</th><th>Revenue</th><th>Ad Spend</th><th>Extra/pc</th><th></th>
+              </tr></thead>
+              <tbody id="rList"><!-- rows with delete buttons --></tbody>
+            </table>
           </div>
         </section>
 
-        <!-- ===================== FINANCE ===================== -->
+        <!-- ============ FINANCE ============ -->
         <section id="finance" style="display:none">
           <h2>Finance</h2>
 
-          <!-- Running Balance -->
+          <!-- Running Balance (all time) -->
           <div class="card big-balance">
             <div class="h">Running Balance (All-time)</div>
-            <div id="feRunning" class="balance">0.00 USD</div>
+            <div id="runBalance" class="balance">0.00 USD</div>
           </div>
 
-          <!-- Categories (add + delete) -->
+          <!-- Manage Categories (add + delete) -->
           <div class="card">
             <div class="h">Categories</div>
             <div class="row wrap">
@@ -298,20 +308,24 @@
             <div class="row cats">
               <div>
                 <h4>Debits</h4>
-                <div id="fcDebitList" class="chips deletable"><!-- chips with delete buttons --></div>
+                <div id="fcDebits" class="chips"><!-- chips with delete buttons --></div>
               </div>
               <div>
                 <h4>Credits</h4>
-                <div id="fcCreditList" class="chips deletable"><!-- chips with delete buttons --></div>
+                <div id="fcCredits" class="chips"><!-- chips with delete buttons --></div>
               </div>
             </div>
           </div>
 
-          <!-- Entries + period filter -->
+          <!-- Entries -->
           <div class="card">
             <div class="h">Entries</div>
             <div class="row wrap">
               <input id="feDate" type="date" class="input"/>
+              <select id="feType" class="input">
+                <option value="debit">Debit</option>
+                <option value="credit">Credit</option>
+              </select>
               <select id="feCat" class="input"></select>
               <input id="feAmt" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
               <input id="feNote" class="input" placeholder="Note"/>
@@ -327,16 +341,16 @@
 
             <table id="feTable" class="table">
               <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th>Note</th><th></th></tr></thead>
-              <tbody><!-- rows injected --></tbody>
+              <tbody><!-- rows injected; include delete buttons --></tbody>
             </table>
           </div>
         </section>
 
-        <!-- ===================== SETTINGS ===================== -->
+        <!-- ============ SETTINGS ============ -->
         <section id="settings" style="display:none">
           <h2>Settings</h2>
 
-          <!-- Countries add/delete -->
+          <!-- Countries add/delete (China undeletable via JS/server) -->
           <div class="card">
             <div class="h">Countries</div>
             <div class="row">
@@ -350,7 +364,7 @@
           <div class="card">
             <div class="h">Edit Product Info</div>
             <div class="row wrap">
-              <select id="editProdSel" class="input"><option value="">Select product…</option></select>
+              <select id="epSelect" class="input"><option value="">Select product…</option></select>
               <input id="epName" class="input" placeholder="Product name"/>
               <input id="epSku" class="input" placeholder="SKU"/>
               <input id="epCost" type="number" class="input" placeholder="Cost from China (USD)" step="0.01"/>
@@ -360,25 +374,25 @@
             </div>
           </div>
 
-          <!-- Manual Save / Restore (keeps saves after push) -->
+          <!-- Manual Save / Restore -->
           <div class="card">
             <div class="h">Manual Save &amp; Restore</div>
             <div class="row">
               <input id="snapName" class="input" placeholder="Name this snapshot"/>
-              <button id="ssSave" class="btn">Save current system data</button>
+              <button id="snapSave" class="btn">Save current system data</button>
             </div>
             <table class="table">
               <thead><tr><th>Name</th><th>File</th><th>Actions</th></tr></thead>
-              <tbody id="ssList"><!-- rows with Push / Delete buttons --></tbody>
+              <tbody id="snapList"><!-- rows with Push / Delete buttons --></tbody>
             </table>
           </div>
         </section>
 
-      </div><!-- /.container -->
-    </div><!-- /#main -->
-  </div><!-- /#app -->
+      </div><!-- /container -->
+    </div><!-- /main -->
+  </div><!-- /app -->
 
-  <!-- JS -->
   <script src="/public/app.js"></script>
+  <script src="/public/snapshot.js"></script>
 </body>
 </html>
