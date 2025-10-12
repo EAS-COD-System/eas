@@ -77,17 +77,13 @@ Q('#loginBtn')?.addEventListener('click', async () => {
     const res = await fetch('/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',          // ensure auth cookie is set
+      credentials: 'include', // ensure auth cookie is set
       body: JSON.stringify({ password: pw })
     });
 
     if (res.ok) {
-      // flip views
-      const login = Q('#login');
-      const main  = Q('#main');
-      if (login) { login.classList.add('hide'); login.style.display = 'none'; }
-      if (main)  { main.classList.remove('hide'); main.style.display = ''; }
-      await gate();                     // boot the app after successful auth
+      // Force a fresh load so all subsequent /api/* requests include the new cookie
+      location.reload();
     } else {
       alert('Wrong password');
     }
@@ -96,7 +92,6 @@ Q('#loginBtn')?.addEventListener('click', async () => {
     console.error(err);
   }
 });
-
 Q('#logoutLink')?.addEventListener('click', async (e) => {
   e.preventDefault();
   try {
