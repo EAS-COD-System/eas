@@ -9,6 +9,7 @@ const morgan = require('morgan');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
+app.set('trust proxy', 1); // <-- IMPORTANT on Render for secure cookies
 const PORT = process.env.PORT || 3000;
 
 const ROOT = __dirname;
@@ -24,19 +25,23 @@ app.use('/public', express.static(path.join(ROOT, 'public')));
 // ---------- helpers ----------
 function initDBIfMissing() {
   if (!fs.existsSync(DATA_FILE)) {
-    fs.writeJsonSync(DATA_FILE, {
-      password: 'eastafricashop',
-      countries: ['china', 'kenya', 'tanzania', 'uganda', 'zambia', 'zimbabwe'],
-      products: [],
-      adspend: [],
-      deliveries: [],
-      shipments: [],
-      remittances: [],
-      finance: { categories: { debit: [], credit: [] }, entries: [] },
-      influencers: [],
-      influencerSpends: [],
-      snapshots: []
-    }, { spaces: 2 });
+    fs.writeJsonSync(
+      DATA_FILE,
+      {
+        password: 'eastafricashop',
+        countries: ['china', 'kenya', 'tanzania', 'uganda', 'zambia', 'zimbabwe'],
+        products: [],
+        adspend: [],
+        deliveries: [],
+        shipments: [],
+        remittances: [],
+        finance: { categories: { debit: [], credit: [] }, entries: [] },
+        influencers: [],
+        influencerSpends: [],
+        snapshots: []
+      },
+      { spaces: 2 }
+    );
   }
 }
 function loadDB() { initDBIfMissing(); return fs.readJsonSync(DATA_FILE); }
@@ -45,17 +50,31 @@ function ensureSnapshotDir() { fs.ensureDirSync(SNAPSHOT_DIR); }
 const runBal = db => (db.finance?.entries||[]).reduce((a,e)=>a+(e.type==='credit'?+e.amount||0:-(+e.amount||0)),0);
 const perBal = list => list.reduce((a,e)=>a+(e.type==='credit'?+e.amount||0:-(+e.amount||0)),0);
 
+// ---------- health ----------
+app.get('/health', (req, res) => res.type('text').send('ok'));
+
 // ---------- auth ----------
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
 
   if (password === 'logout') {
-    res.clearCookie('auth', { httpOnly: true, sameSite: 'Lax', secure: process.env.NODE_ENV === 'production', path: '/' });
+    res.clearCookie('auth', {
+      httpOnly: true,
+      sameSite: 'Lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/'
+    });
     return res.json({ ok: true });
   }
   if (password && password === db.password) {
-    res.cookie('auth', '1', { httpOnly: true, sameSite: 'Lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 7*24*60*60*1000 });
+    res.cookie('auth', '1', {
+      httpOnly: true,
+      sameSite: 'Lax',
+      secure: process.env.NODE_ENV === 'production', // will work since trust proxy = 1
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
     return res.json({ ok: true });
   }
   res.status(403).json({ error: 'Wrong password' });
@@ -202,7 +221,7 @@ app.get('/api/remittances', requireAuth, (req,res)=>{
   res.json({ remittances:list });
 });
 app.post('/api/remittances', requireAuth, (req,res)=>{
-  const db=loadDB(); db.remittances=db.remittances||[];
+  const db=loadDB(); db.remittances=db.remittances||=[];
   const r={
     id:uuidv4(),
     start:req.body.start,
@@ -219,7 +238,6 @@ app.post('/api/remittances', requireAuth, (req,res)=>{
   if ((r.country||'').toLowerCase()==='china') return res.status(400).json({ error:'China cannot be used for remittances' });
   db.remittances.push(r); saveDB(db); res.json({ ok:true, remittance:r });
 });
-// delete remittance
 app.delete('/api/remittances/:id', requireAuth, (req,res)=>{
   const db=loadDB(); const id=(req.params.id||'').trim();
   db.remittances=(db.remittances||[]).filter(r=>r.id!==id);
@@ -325,6 +343,12 @@ app.delete('/api/snapshots/:id', requireAuth, async (req,res)=>{
 // ---------- pages ----------
 app.get('/product.html', (req,res)=> res.sendFile(path.join(ROOT,'product.html')));
 app.get('/', (req,res)=> res.sendFile(path.join(ROOT,'index.html')));
+
+// ---------- error handler (keep last) ----------
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 // ---------- start ----------
 app.listen(PORT, ()=> {
