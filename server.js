@@ -8,7 +8,7 @@ const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const { v4: uuidv4 } = require('uuid');
 
-const app = express(); // ✅ create the app first
+const app = express();
 const PORT = process.env.PORT || 3000;
 
 const ROOT = __dirname;
@@ -19,7 +19,7 @@ const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
 app.use(morgan('dev'));
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(cookieParser());
-app.use('/public', express.static(path.join(ROOT, 'public'))); // ✅ static file serving
+app.use('/public', express.static(path.join(ROOT, 'public'))); // serve /public assets
 
 // ---------- helpers ----------
 function initDBIfMissing() {
@@ -68,6 +68,9 @@ function periodBalance(list) {
     0
   );
 }
+
+// ---------- health ----------
+app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 // ---------- auth ----------
 app.post('/api/auth', (req, res) => {
@@ -186,18 +189,15 @@ app.post('/api/products/:id/status', requireAuth, (req, res) => {
   res.json({ ok: true, product: p });
 });
 
-// Cascade delete: remove product + all related data
+// Delete product (CASCADE: adspend, shipments, remittances, influencerSpends)
 app.delete('/api/products/:id', requireAuth, (req, res) => {
   const db = loadDB();
-  const id = req.params.id;
+  const id = (req.params.id || '').trim();
 
-  // remove the product
-  db.products = (db.products || []).filter(p => p.id !== id);
-
-  // cascade: remove related artifacts everywhere
-  db.adspend = (db.adspend || []).filter(a => a.productId !== id);
-  db.shipments = (db.shipments || []).filter(s => s.productId !== id);
-  db.remittances = (db.remittances || []).filter(r => r.productId !== id);
+  db.products         = (db.products || []).filter(p => p.id !== id);
+  db.adspend          = (db.adspend || []).filter(a => a.productId !== id);
+  db.shipments        = (db.shipments || []).filter(s => s.productId !== id);
+  db.remittances      = (db.remittances || []).filter(r => r.productId !== id);
   db.influencerSpends = (db.influencerSpends || []).filter(s => s.productId !== id);
 
   saveDB(db);
@@ -334,6 +334,15 @@ app.post('/api/remittances', requireAuth, (req, res) => {
   res.json({ ok: true, remittance: r });
 });
 
+// NEW: delete a remittance
+app.delete('/api/remittances/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  const rid = (req.params.id || '').trim();
+  db.remittances = (db.remittances || []).filter(r => r.id !== rid);
+  saveDB(db);
+  res.json({ ok: true });
+});
+
 // ---------- finance ----------
 app.get('/api/finance/categories', requireAuth, (req, res) => {
   const db = loadDB();
@@ -352,6 +361,7 @@ app.post('/api/finance/categories', requireAuth, (req, res) => {
   res.json({ ok: true, categories: db.finance.categories });
 });
 
+// delete a finance category (by type & name)
 app.delete('/api/finance/categories', requireAuth, (req, res) => {
   const db = loadDB();
   const { type, name } = req.query || {};
@@ -413,9 +423,12 @@ app.post('/api/influencers', requireAuth, (req, res) => {
   res.json({ ok: true, influencer: inf });
 });
 
+// delete influencer AND all spends for that influencer (cascade)
 app.delete('/api/influencers/:id', requireAuth, (req, res) => {
   const db = loadDB();
-  db.influencers = (db.influencers || []).filter(i => i.id !== req.params.id);
+  const iid = (req.params.id || '').trim();
+  db.influencers      = (db.influencers || []).filter(i => i.id !== iid);
+  db.influencerSpends = (db.influencerSpends || []).filter(s => s.influencerId !== iid);
   saveDB(db);
   res.json({ ok: true });
 });
@@ -479,7 +492,7 @@ app.post('/api/snapshots/restore', requireAuth, async (req, res) => {
   const safe = path.join(SNAPSHOT_DIR, path.basename(file));
   if (!fs.existsSync(safe)) return res.status(404).json({ error: 'Snapshot not found' });
   await fs.copy(safe, DATA_FILE);
-  // IMPORTANT: do NOT delete the snapshot here — keep it until user deletes
+  // DO NOT delete the snapshot after restore — keep it until user deletes
   res.json({ ok: true, restoredFrom: safe });
 });
 
@@ -503,6 +516,7 @@ app.get('/', (req, res) => {
 });
 
 // ---------- start ----------
+initDBIfMissing(); // ensure db.json exists before first request
 app.listen(PORT, () => {
   console.log(`✅ EAS Tracker running on port ${PORT}`);
   console.log(`ℹ️  Data file: ${DATA_FILE}`);
