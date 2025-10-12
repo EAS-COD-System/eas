@@ -59,18 +59,36 @@ async function gate() {
   }
 }
 
-Q('#loginBtn')?.addEventListener('click', async () => {
-  try {
-    await api('/api/auth',{method:'POST', body: JSON.stringify({password: Q('#pw').value})});
-    await gate();
-  } catch { alert('Wrong password'); }
-});
-
-Q('#logoutLink')?.addEventListener('click', async e => {
-  e.preventDefault();
-  try { await api('/api/auth',{method:'POST', body: JSON.stringify({password:'logout'})}); } catch {}
-  location.reload();
-});
+const loginBtn = document.getElementById('loginBtn');
+if (loginBtn) {
+  loginBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const pw = (document.getElementById('pw')?.value || '').trim();
+    if (!pw) { alert('Enter password'); return; }
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(()=>({error:'Login failed'}));
+        alert(err.error || 'Login failed');
+        return;
+      }
+      // Re-run boot to flip UI, plus hard fallback to reload:
+      await gate();
+      // If the UI didn't flip for any reason, hard reload:
+      setTimeout(() => {
+        const isMainVisible = document.getElementById('main') && getComputedStyle(document.getElementById('main')).display !== 'none';
+        if (!isMainVisible) location.reload();
+      }, 200);
+    } catch (err) {
+      alert('Network error: ' + err.message);
+    }
+  });
+}
 
 /* ---------- common data ---------- */
 async function preloadProducts() {
