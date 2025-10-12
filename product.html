@@ -7,29 +7,33 @@
   <link rel="stylesheet" href="/public/styles.css"/>
 </head>
 <body>
-  <nav class="nav">
-    <a href="/" class="active">← Dashboard</a>
-    <span class="nav-right muted">Product View</span>
-  </nav>
-
   <div class="container">
 
-    <!-- ===== Product Header ===== -->
-    <section class="section">
-      <h1 id="pdTitle">Product</h1>
-      <div class="muted" id="pdSku"></div>
-      <div class="badge" id="pdTransitBadge">Transit total: 0</div>
-    </section>
+    <!-- ===== Header ===== -->
+    <nav class="nav">
+      <a href="/" class="nav-right">← Back to Dashboard</a>
+      <div class="brand">EAS Tracker</div>
+    </nav>
 
-    <!-- ===== Stock & Ad Spend by Country (this product only) ===== -->
+    <header class="section">
+      <h1 id="pdTitle">Product</h1>
+      <div id="pdSku" class="muted"></div>
+      <div class="badge" id="pdTransitBadge">Transit total: 0</div>
+    </header>
+
+    <!-- ===== Stock & Ad Spend by Country (THIS PRODUCT ONLY, no China) ===== -->
     <section class="section">
-      <h2>Stock &amp; Ad Spend by Country (This Product)</h2>
-      <small class="muted">China is hidden here (it’s a source country only). Stock changes when shipments arrive and when pieces are remitted (sold).</small>
+      <h2>Stock &amp; Ad Spend by Country (this product)</h2>
+      <p class="muted">China is hidden here (source only). Totals reflect arrived shipments minus delivered pieces.</p>
       <table class="table">
         <thead>
-          <tr><th>Country</th><th>Approx. Stock</th><th>Total Ad Spend (USD)</th></tr>
+          <tr>
+            <th>Country</th>
+            <th>Approx. Stock</th>
+            <th>Total Ad Spend (USD)</th>
+          </tr>
         </thead>
-        <tbody id="pdStockBody"><!-- rows by app.js --></tbody>
+        <tbody id="pdStockBody"><!-- rows injected by app.js --></tbody>
         <tfoot>
           <tr class="totals">
             <th>Totals</th>
@@ -40,52 +44,55 @@
       </table>
     </section>
 
-    <!-- ===== Profit + Advertising Budget (manual, per country) ===== -->
+    <!-- ===== Profit + Advertising Budget (manual, per country – THIS PRODUCT) ===== -->
     <section class="section">
-      <h2>Profit + Advertising Budget (Manual, per Country)</h2>
+      <h2>Profit + Advertising Budget (per country)</h2>
       <div class="card">
         <div class="row wrap">
-          <!-- NOTE: app.js writes all countries; you can ignore China here by simply not saving it -->
+          <!-- app.js will fill countries; it should exclude China for this selector -->
           <select id="pdPBCountry" class="input"></select>
           <input id="pdPBValue" type="number" class="input" placeholder="Budget (USD)" min="0" step="0.01"/>
-          <button id="pdPBSave" class="btn">Save Budget</button>
+          <button id="pdPBSave" class="btn">Save / Update</button>
         </div>
-        <small class="muted">This is a manual reference field. It does <b>not</b> auto-calc from ad spend. Use it for targets/notes.</small>
+        <small class="muted">This is <b>manual</b> reference data for this product only (not auto-calculated and not taken from daily ad spend).</small>
       </div>
-      <table class="table">
+
+      <table class="table compact">
         <thead><tr><th>Country</th><th>Budget (USD)</th><th></th></tr></thead>
-        <tbody id="pdPBBBody"><!-- rows by app.js --></tbody>
+        <tbody id="pdPBBBody"><!-- rows injected: one per country with Clear buttons --></tbody>
       </table>
     </section>
 
-    <!-- ===== Daily Ad Spend (Replace Existing) ===== -->
+    <!-- ===== Daily Ad Spend (Replace existing value for this product) ===== -->
     <section class="section">
-      <h2>Daily Ad Spend (Replace Existing)</h2>
+      <h2>Daily Ad Spend (Replace current)</h2>
       <div class="card">
         <div class="row wrap">
+          <!-- app.js fills these; country list should exclude China here -->
           <select id="pdAdCountry" class="input"></select>
           <select id="pdAdPlatform" class="input">
             <option value="facebook">Facebook</option>
             <option value="tiktok">TikTok</option>
             <option value="google">Google</option>
           </select>
-        <input id="pdAdAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
+          <input id="pdAdAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
           <button id="pdAdSave" class="btn">Save / Replace</button>
         </div>
-        <small class="muted">Saving again for the same <b>country + platform</b> overwrites the previous value.</small>
+        <small class="muted">Saving again for the same country + platform on this product will replace the number.</small>
       </div>
-      <table class="table">
+
+      <table class="table compact">
         <thead><tr><th>Country</th><th>Platform</th><th>Amount (USD)</th></tr></thead>
-        <tbody id="pdAdBody"><!-- rows by app.js --></tbody>
+        <tbody id="pdAdBody"><!-- injected by app.js --></tbody>
       </table>
     </section>
 
-    <!-- ===== Stock Movement (Create Shipment for this product) ===== -->
+    <!-- ===== Stock Movement (Shipments) – China allowed here ===== -->
     <section class="section">
-      <h2>Stock Movement (Create Shipment)</h2>
+      <h2>Stock Movement</h2>
       <div class="card">
         <div class="row wrap">
-          <!-- Stock movement can include China (source) -->
+          <!-- Movement is the only place where China is allowed and must show up -->
           <select id="pdMvFrom" class="input"></select>
           <span>→</span>
           <select id="pdMvTo" class="input"></select>
@@ -93,29 +100,35 @@
           <input id="pdMvShip" type="number" class="input" placeholder="Shipping Cost (USD)" min="0" step="0.01"/>
           <button id="pdMvAdd" class="btn">Add Movement</button>
         </div>
-        <small class="muted">When you mark a shipment as arrived, stock is added to the destination and (if applicable) removed from the origin.</small>
+        <small class="muted">When you mark a shipment as arrived, stock will be <b>added to destination</b> and <b>deducted from origin</b>.</small>
       </div>
     </section>
 
-    <!-- ===== Transit (China → Kenya) for this product ===== -->
+    <!-- ===== Transit Shipments (China → Kenya) – THIS PRODUCT ONLY ===== -->
     <section class="section">
       <h2>Transit (China → Kenya)</h2>
       <table class="table">
-        <thead><tr>
-          <th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
-        </tr></thead>
-        <tbody id="pdShipCKBody"><!-- rows by app.js --></tbody>
+        <thead>
+          <tr>
+            <th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th>
+            <th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="pdShipCKBody"><!-- rows injected by app.js --></tbody>
       </table>
     </section>
 
-    <!-- ===== Transit (Inter-country) for this product ===== -->
+    <!-- ===== Transit Shipments (Inter-country) – THIS PRODUCT ONLY ===== -->
     <section class="section">
       <h2>Transit (Inter-country)</h2>
       <table class="table">
-        <thead><tr>
-          <th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
-        </tr></thead>
-        <tbody id="pdShipICBody"><!-- rows by app.js --></tbody>
+        <thead>
+          <tr>
+            <th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th>
+            <th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="pdShipICBody"><!-- rows injected by app.js --></tbody>
       </table>
     </section>
 
@@ -130,10 +143,13 @@
         </div>
       </div>
       <table class="table">
-        <thead><tr>
-          <th>Country</th><th>Revenue</th><th>Ad Spend</th><th>Delivery/Extra</th><th>Base Cost</th><th>Pieces</th><th>Profit</th>
-        </tr></thead>
-        <tbody id="pdLPBody"><!-- rows by app.js --></tbody>
+        <thead>
+          <tr>
+            <th>Country</th><th>Revenue</th><th>Ad Spend</th><th>Shipping</th>
+            <th>Base Cost</th><th>Pieces</th><th>Profit</th>
+          </tr>
+        </thead>
+        <tbody id="pdLPBody"><!-- rows injected --></tbody>
         <tfoot>
           <tr class="totals">
             <th>Totals</th>
@@ -146,59 +162,51 @@
           </tr>
         </tfoot>
       </table>
-      <small class="muted">Lifetime is computed from your Remittance entries (Performance → Remittance Report) + product’s cost settings.</small>
+      <small class="muted">Filters above limit totals to the selected range.</small>
     </section>
 
-    <!-- ===== Influencer Spend (by product) ===== -->
+    <!-- ===== Influencer Spend (THIS PRODUCT) ===== -->
     <section class="section">
       <h2>Influencer Spend</h2>
 
-      <!-- Add influencer -->
       <div class="card">
         <div class="h">Add Influencer</div>
         <div class="row wrap">
-          <input id="pdInfName" class="input" placeholder="Influencer Name"/>
-          <input id="pdInfSocial" class="input" placeholder="Social @handle"/>
+          <input id="pdInfName" class="input" placeholder="Influencer name"/>
+          <input id="pdInfSocial" class="input" placeholder="@handle"/>
+          <!-- Countries selector should EXCLUDE China for influencer marketing -->
           <select id="pdInfCountry" class="input"></select>
           <button id="pdInfAdd" class="btn">Add Influencer</button>
         </div>
       </div>
 
-      <!-- Add spend -->
       <div class="card">
         <div class="h">Add Spend</div>
         <div class="row wrap">
           <input id="pdInfDate" type="date" class="input"/>
-          <select id="pdInfSelect" class="input"><!-- influencers list --></select>
-          <select id="pdInfCountry" class="input"></select>
+          <select id="pdInfSelect" class="input"><!-- influencers injected --></select>
+          <!-- Countries selector should EXCLUDE China for spends -->
+          <select id="pdInfFilterCountry" class="input"></select>
           <input id="pdInfAmount" type="number" class="input" placeholder="Spend (USD)" min="0" step="0.01"/>
           <button id="pdInfSpendAdd" class="btn">Add Spend</button>
         </div>
-      </div>
-
-      <!-- Filter & table -->
-      <div class="card">
-        <div class="h">Filter</div>
         <div class="row wrap">
           <input id="pdInfStart" type="date" class="input"/>
           <input id="pdInfEnd" type="date" class="input"/>
-          <select id="pdInfFilterCountry" class="input"><option value="">All countries</option></select>
-          <button id="pdInfRun" class="btn outline">Run</button>
-          <div class="badge">Total: <span id="pdInfTotal">0</span> USD</div>
+          <button id="pdInfRun" class="btn outline">Filter</button>
+          <div class="badge">Total in range: <span id="pdInfTotal">0</span> USD</div>
         </div>
       </div>
 
       <table class="table">
-        <thead><tr>
-          <th>Date</th><th>Country</th><th>Influencer</th><th>Social</th><th>Amount (USD)</th><th></th>
-        </tr></thead>
-        <tbody id="pdInfBody"><!-- rows by app.js --></tbody>
+        <thead><tr><th>Date</th><th>Country</th><th>Influencer</th><th>Social</th><th>Amount</th><th></th></tr></thead>
+        <tbody id="pdInfBody"><!-- rows injected --></tbody>
       </table>
     </section>
 
-  </div><!-- /container -->
+  </div>
 
-  <!-- Main app logic (shared) -->
+  <!-- App JS (same file powers index + product pages) -->
   <script src="/public/app.js"></script>
 </body>
 </html>
