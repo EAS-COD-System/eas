@@ -41,12 +41,11 @@ function ensureDB() {
 function loadDB(){ ensureDB(); return fs.readJsonSync(DATA_FILE); }
 function saveDB(db){ fs.writeJsonSync(DATA_FILE, db, { spaces:2 }); }
 function ensureSnapDir(){ fs.ensureDirSync(SNAPSHOT_DIR); }
-
 function runningBalance(db) {
   return (db.finance?.entries||[]).reduce((acc,e)=> acc + (e.type==='credit' ? +e.amount||0 : -(+e.amount||0)), 0);
 }
 
-/* ---------------- auth (kept same, long-lived cookie) ---------------- */
+/* ---------------- auth (unchanged) ---------------- */
 app.post('/api/auth', (req,res)=>{
   const { password } = req.body || {};
   const db = loadDB();
@@ -61,7 +60,6 @@ app.post('/api/auth', (req,res)=>{
   }
   return res.status(403).json({ error:'Wrong password' });
 });
-
 function requireAuth(req,res,next){
   if (req.cookies.auth === '1') return next();
   return res.status(403).json({ error:'Unauthorized' });
@@ -224,8 +222,7 @@ app.post('/api/remittances', requireAuth, (req,res)=>{
   };
   if (!r.start||!r.end||!r.country||!r.productId) return res.status(400).json({ error:'Missing fields' });
   if (r.country.toLowerCase()==='china') return res.status(400).json({ error:'China not allowed in remittance entries' });
-  saveDB(Object.assign(db, { remittances: db.remittances.concat(r) }));
-  res.json({ ok:true, remittance:r });
+  db.remittances.push(r); saveDB(db); res.json({ ok:true, remittance:r });
 });
 
 /* ---------------- finance ---------------- */
@@ -302,7 +299,7 @@ app.get('/api/snapshots', requireAuth, (req,res)=>{
 });
 app.post('/api/snapshots', requireAuth, async (req,res)=>{
   ensureSnapDir();
-  const name = (req.body?.name||('Manual '+new Date().toLocaleString())).trim();
+  const name = (req.body?.name||'Manual '+new Date().toLocaleString()).trim();
   const stamp = new Date().toISOString().replace(/[:.]/g,'-');
   const file = path.join(SNAPSHOT_DIR, `${stamp}-${name.replace(/\s+/g,'_')}.json`);
   await fs.copy(DATA_FILE, file);
