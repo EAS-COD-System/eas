@@ -41,11 +41,12 @@ function ensureDB() {
 function loadDB(){ ensureDB(); return fs.readJsonSync(DATA_FILE); }
 function saveDB(db){ fs.writeJsonSync(DATA_FILE, db, { spaces:2 }); }
 function ensureSnapDir(){ fs.ensureDirSync(SNAPSHOT_DIR); }
+
 function runningBalance(db) {
   return (db.finance?.entries||[]).reduce((acc,e)=> acc + (e.type==='credit' ? +e.amount||0 : -(+e.amount||0)), 0);
 }
 
-/* ---------------- auth (unchanged) ---------------- */
+/* ---------------- auth ---------------- */
 app.post('/api/auth', (req,res)=>{
   const { password } = req.body || {};
   const db = loadDB();
@@ -54,12 +55,13 @@ app.post('/api/auth', (req,res)=>{
     return res.json({ ok:true });
   }
   if (password && password === db.password) {
-    // long-lived cookie
+    // VERY long lived cookie (1 year)
     res.cookie('auth','1', { httpOnly:true, sameSite:'Lax', secure:process.env.NODE_ENV==='production', path:'/', maxAge: 365*24*60*60*1000 });
     return res.json({ ok:true });
   }
   return res.status(403).json({ error:'Wrong password' });
 });
+
 function requireAuth(req,res,next){
   if (req.cookies.auth === '1') return next();
   return res.status(403).json({ error:'Unauthorized' });
@@ -299,7 +301,7 @@ app.get('/api/snapshots', requireAuth, (req,res)=>{
 });
 app.post('/api/snapshots', requireAuth, async (req,res)=>{
   ensureSnapDir();
-  const name = (req.body?.name||'Manual '+new Date().toLocaleString()).trim();
+  const name = (req.body?.name||('Manual '+new Date().toLocaleString())).trim();
   const stamp = new Date().toISOString().replace(/[:.]/g,'-');
   const file = path.join(SNAPSHOT_DIR, `${stamp}-${name.replace(/\s+/g,'_')}.json`);
   await fs.copy(DATA_FILE, file);
