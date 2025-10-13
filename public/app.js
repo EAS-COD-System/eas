@@ -26,14 +26,13 @@ async function api(path, opts={}) {
 const state = {
   productId: getQuery('id'),
   countries: [],
-  countriesNoCN: [],
   products: [],
   productsActive: [],
   categories: { debit:[], credit:[] }
 };
 
 /* ================================================================
-   AUTH + BOOT   (login code kept unchanged)
+   AUTH + BOOT
    ================================================================ */
 async function boot() {
   try {
@@ -82,7 +81,6 @@ Q('#logoutLink')?.addEventListener('click', async (e) => {
 async function preload() {
   const meta = await api('/api/meta');                 // {countries}
   state.countries = meta.countries || [];
-  state.countriesNoCN = state.countries.filter(c => (c||'').toLowerCase() !== 'china');
 
   const pr = await api('/api/products');               // {products}
   state.products = pr.products || [];
@@ -95,41 +93,30 @@ async function preload() {
 }
 
 function fillCommonSelects() {
-  const noCN = state.countriesNoCN;
-
-  // Filters (exclude China, still allow "All")
+  // Countries for filters (include "All")
   QA('#pcCountry').forEach(el => {
     el.innerHTML = `<option value="">All countries</option>` +
-      noCN.map(c=>`<option value="${c}">${c}</option>`).join('');
+      state.countries.map(c=>`<option value="${c}">${c}</option>`).join('');
   });
   QA('#pfCountry').forEach(el => {
     el.innerHTML = `<option value="">All countries</option>` +
-      noCN.map(c=>`<option value="${c}">${c}</option>`).join('');
+      state.countries.map(c=>`<option value="${c}">${c}</option>`).join('');
   });
 
-  // Inputs that must NOT include China
-  const noChinaInputs = [
-    '#adCountry','#rCountry',
-    '#pdAdCountry','#pdRCountry',
-    '#pdInfCountry','#pdInfFilterCountry',
-    '#pdPBCountry'
-  ];
-  noChinaInputs.forEach(sel => QA(sel).forEach(el => {
-    el.innerHTML = noCN.map(c=>`<option value="${c}">${c}</option>`).join('');
-  }));
-
-  // Movement selects MUST include China
-  ['#mvFrom','#mvTo','#pdMvFrom','#pdMvTo'].forEach(sel => QA(sel).forEach(el => {
+  // Countries for inputs (NO "All" in add forms)
+  const countryInputs = ['#adCountry','#mvFrom','#mvTo','#rCountry',
+    '#pdAdCountry','#pdRCountry','#pdMvFrom','#pdMvTo','#pdInfCountry','#pdInfFilterCountry','#pdPBCountry'];
+  countryInputs.forEach(sel => QA(sel).forEach(el => {
     el.innerHTML = state.countries.map(c=>`<option value="${c}">${c}</option>`).join('');
   }));
 
-  // Products (only available/active in add forms)
+  // Products (only active for add forms)
   const productInputs = ['#mvProduct','#adProduct','#rProduct','#lpProductFilter','#pdProductForSpend'];
   productInputs.forEach(sel => QA(sel).forEach(el => {
     el.innerHTML = state.productsActive.map(p=>`<option value="${p.id}">${p.name}${p.sku?` (${p.sku})`:''}</option>`).join('');
   }));
 
-  // Products (filters can include "All")
+  // Products (filters include "All")
   QA('#lpProduct').forEach(el => {
     el.innerHTML = `<option value="">All products</option>` +
       state.products.map(p=>`<option value="${p.id}">${p.name}${p.sku?` (${p.sku})`:''}</option>`).join('');
@@ -167,14 +154,14 @@ async function renderKpis() {
     Q('#kpiTransit') && (Q('#kpiTransit').textContent = live);
   } catch { Q('#kpiTransit') && (Q('#kpiTransit').textContent = '—'); }
 
-  // KPI Ad spend
+  // KPI Ad spend = sum of /api/adspend
   try {
     const a = await api('/api/adspend');
     const total = (a.adSpends||[]).reduce((t,x)=>t+(+x.amount||0),0);
     Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = `${fmt(total)} USD`);
   } catch { Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = '—'); }
 
-  // KPI Delivered (Mon–Sun) mirrors weekly grid total
+  // KPI Delivered (Mon–Sun) mirrors weekly grid grand total
   const t = Q('#wAllT')?.textContent || '0';
   Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = t);
 }
@@ -205,7 +192,7 @@ async function renderCountryStockSpend() {
     });
   } catch {}
 
-  // Ad spend from /api/adspend
+  // Ad spend from /api/adspend (replace current handled server side)
   try {
     const a = await api('/api/adspend');
     (a.adSpends||[]).forEach(x=>{
@@ -214,22 +201,17 @@ async function renderCountryStockSpend() {
     });
   } catch {}
 
-  // Remove China from the display
-  delete per['china']; delete per['China'];
-
   let st=0, ad=0;
-  const rows = Object.entries(per)
-    .filter(([c]) => (c||'').toLowerCase() !== 'china')
-    .map(([c,v])=>{
-      st += v.stock; ad += v.ad;
-      return `<tr><td>${c}</td><td>${fmt(v.stock)}</td><td>${fmt(v.ad)}</td></tr>`;
-    }).join('');
+  const rows = Object.entries(per).map(([c,v])=>{
+    st += v.stock; ad += v.ad;
+    return `<tr><td>${c}</td><td>${fmt(v.stock)}</td><td>${fmt(v.ad)}</td></tr>`;
+  }).join('');
   body.innerHTML = rows || `<tr><td colspan="3" class="muted">No data</td></tr>`;
   Q('#stockTotal') && (Q('#stockTotal').textContent = fmt(st));
   Q('#adTotal')    && (Q('#adTotal').textContent    = fmt(ad));
 }
 
-/* ---------- Weekly Delivered grid (China removed) ---------- */
+/* ---------- Weekly Delivered grid ---------- */
 function mondayOf(dateISO) {
   const d = new Date(dateISO);
   const k = (d.getDay()+6)%7; d.setDate(d.getDate()-k);
@@ -257,7 +239,7 @@ function renderWeeklyDelivered() {
       return `<th>${lab}<br>${d}</th>`;
     }).join('')}<th>Total</th></tr>`;
 
-    body.innerHTML = state.countriesNoCN.map(c=>{
+    body.innerHTML = state.countries.map(c=>{
       const cells = days.map(d=>`<td><input type="number" min="0" class="wd-cell" data-country="${c}" data-date="${d}" placeholder="0"/></td>`).join('');
       return `<tr data-row="${c}"><td>${c}</td>${cells}<td class="row-total">0</td></tr>`;
     }).join('');
@@ -285,18 +267,16 @@ function renderWeeklyDelivered() {
     // columns + grand
     const cols = QA('thead th', Q('#weeklyTable')).length - 2;
     let grand = 0;
-    const lbls = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
     for (let i=0;i<cols;i++) {
       let colSum = 0;
       QA('tr[data-row]').forEach(tr=>{
         const inp = QA('.wd-cell', tr)[i];
         colSum += (+inp.value||0);
       });
-      const headCell = Q(`#w${lbls[i]}T`);
-      if (headCell) headCell.textContent = fmt(colSum);
+      Q(`#w${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i]}T`).textContent = fmt(colSum);
       grand += colSum;
     }
-    Q('#wAllT') && (Q('#wAllT').textContent = fmt(grand));
+    Q('#wAllT').textContent = fmt(grand);
     // mirror to KPI
     Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = fmt(grand));
   }
@@ -385,7 +365,7 @@ async function renderTransitTables() {
       <td>
         <button class="btn outline act-arr" data-id="${sp.id}">Arrived</button>
         <button class="btn outline act-edit" data-id="${sp.id}">Edit</button>
-        <button class="btn outline act-del" data-id="${sp.id}">Delete</button>
+        <button class="btn outline act-del"  data-id="${sp.id}">Delete</button>
       </td>
     </tr>`;
   };
@@ -395,46 +375,44 @@ async function renderTransitTables() {
 
   if (tbl1) tbl1.innerHTML = ck.map(row).join('') || `<tr><td colspan="9" class="muted">No transit</td></tr>`;
   if (tbl2) tbl2.innerHTML = ic.map(row).join('') || `<tr><td colspan="9" class="muted">No transit</td></tr>`;
-
-  const host = Q('#home') || document;
-  host.addEventListener('click', async (e)=>{
-    const raw = e.target?.dataset?.id;
-    if (!raw) return;
-    const id = (raw || '').trim(); // guard against stray whitespace/newlines
-
-    if (e.target.classList.contains('act-arr')) {
-      const date = prompt('Arrival date (YYYY-MM-DD)', isoToday());
-      if (!date) return;
-      try { await api(`/api/shipments/${id}`, { method:'PUT', body: JSON.stringify({ arrivedAt: date })}); }
-      catch(err){ return alert(err.message); }
-      await renderTransitTables();
-      await renderCountryStockSpend();
-    }
-
-    if (e.target.classList.contains('act-edit')) {
-      const qty = +prompt('New qty?', '0') || 0;
-      const shipCost = +prompt('New shipping cost?', '0') || 0;
-      try { await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({ qty, shipCost })}); }
-      catch(err){ return alert(err.message); }
-      await renderTransitTables();
-    }
-
-    if (e.target.classList.contains('act-del')) {
-      if (!confirm('Delete shipment?')) return;
-      try { await api(`/api/shipments/${id}`,{method:'DELETE'}); }
-      catch(err){ return alert(err.message); }
-      await renderTransitTables();
-    }
-  }, { once:true });
 }
 
-/* ---------- Profit by Country (filter works, China excluded) ---------- */
+/* Global delegation for dashboard transit actions (works every time) */
+document.addEventListener('click', async (e)=>{
+  const id = e.target?.dataset?.id;
+  if (!id) return;
+
+  if (e.target.classList.contains('act-arr')) {
+    const date = prompt('Arrival date (YYYY-MM-DD)', isoToday());
+    if (!date) return;
+    try { await api(`/api/shipments/${id}`, { method:'PUT', body: JSON.stringify({ arrivedAt: date })}); }
+    catch(err){ return alert(err.message); }
+    await renderTransitTables();
+    await renderCountryStockSpend();
+  }
+
+  if (e.target.classList.contains('act-edit')) {
+    const qty = +prompt('New qty?', '0') || 0;
+    const shipCost = +prompt('New shipping cost?', '0') || 0;
+    try { await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({ qty, shipCost })}); }
+    catch(err){ return alert(err.message); }
+    await renderTransitTables();
+  }
+
+  if (e.target.classList.contains('act-del')) {
+    if (!confirm('Delete shipment?')) return;
+    try { await api(`/api/shipments/${id}`,{method:'DELETE'}); }
+    catch(err){ return alert(err.message); }
+    await renderTransitTables();
+  }
+});
+
+/* ---------- Profit by Country (filter works) ---------- */
 function bindProfitByCountry() {
   const btn = Q('#pcRun'); if (!btn) return;
   btn.onclick = async ()=>{
     const s = Q('#pcStart')?.value, e = Q('#pcEnd')?.value, c = Q('#pcCountry')?.value || '';
     let list = (await api('/api/remittances')).remittances || [];
-    list = list.filter(r => (r.country||'').toLowerCase() !== 'china');
     if (s) list = list.filter(r=>r.start >= s);
     if (e) list = list.filter(r=>r.end <= e);
     if (c) list = list.filter(r=>r.country === c);
@@ -448,17 +426,17 @@ function bindProfitByCountry() {
       byC[r.country].pcs += (+r.pieces||0);
     });
 
-    const tb = Q('#profitCountryBody'); let R=0,A=0,E=0,P=0,PCS=0;
+    const tb = Q('#profitCountryBody'); let R=0,A=0,E=0,P=0;
     const rows = Object.entries(byC).map(([cc,v])=>{
       const profit = v.rev - v.ad - v.extra;
-      R+=v.rev; A+=v.ad; E+=v.extra; P+=profit; PCS+=v.pcs;
-      return `<tr><td>${cc}</td><td>${fmt(v.rev)}</td><td>${fmt(v.ad)}</td><td>${fmt(v.extra)}</td><td>${fmt(v.pcs)}</td><td>${fmt(profit)}</td></tr>`;
+      R+=v.rev; A+=v.ad; E+=v.extra; P+=profit;
+      return `<tr><td>${cc}</td><td>${fmt(v.revenue||v.rev)}</td><td>${fmt(v.ad)}</td><td>${fmt(v.extra)}</td><td>${fmt(v.pcs)}</td><td>${fmt(profit)}</td></tr>`;
     }).join('');
     tb.innerHTML = rows || `<tr><td colspan="6" class="muted">No data</td></tr>`;
     Q('#pcRevT').textContent = fmt(R);
     Q('#pcAdT').textContent = fmt(A);
     Q('#pcDelT').textContent = fmt(E);
-    Q('#pcPiecesT').textContent = fmt(PCS);
+    Q('#pcPiecesT').textContent = fmt(Object.values(byC).reduce((t,v)=>t+v.pcs,0));
     Q('#pcProfitT').textContent = fmt(P);
   };
 }
@@ -626,7 +604,6 @@ function renderPerformancePage() {
     if (quick && quick!=='custom') { const d=new Date(); d.setDate(d.getDate()-(+quick)); start=d.toISOString().slice(0,10); end=isoToday(); }
     const c = Q('#pfCountry')?.value || '';
     let rem = (await api('/api/remittances')).remittances || [];
-    rem = rem.filter(r => (r.country||'').toLowerCase() !== 'china');
     if (start) rem = rem.filter(r=>r.start>=start);
     if (end)   rem = rem.filter(r=>r.end<=end);
     if (c)     rem = rem.filter(r=>r.country===c);
@@ -777,7 +754,7 @@ function renderSettingsPage() {
     });
   }
 
-  // manual save/restore (snapshot kept after push)
+  // manual save/restore (keep snapshot after push)
   const listBox = Q('#snapList');
   async function refreshSnaps() {
     const r = await api('/api/snapshots');
@@ -828,14 +805,13 @@ async function renderProductPage() {
   Q('#pdTitle').textContent = product.name;
   Q('#pdSku').textContent = product.sku ? `SKU: ${product.sku}` : '';
 
-  // fills are already done; ensure selects honor no-China rules
   // Stock & Ad Spend by Country (this product only)
   await renderProductStockAd(product);
-  // Profit + Budget per country (manual budgets)
+  // Profit + Budget per country
   renderProductBudgets(product);
   // Daily Ad Spend (replace current) – product selection restored
   bindProductDailyAdSpend(product);
-  // Transit tables
+  // Transit + Arrived sections
   await renderProductTransit(product);
   // Lifetime (this product) with filter
   bindProductLifetime(product);
@@ -867,12 +843,10 @@ async function renderProductStockAd(product) {
   });
 
   let st=0, ad=0;
-  tb.innerHTML = Object.entries(per)
-    .filter(([c]) => (c||'').toLowerCase() !== 'china')   // hide China here
-    .map(([c,v])=>{
-      st+=v.stock; ad+=v.ad;
-      return `<tr><td>${c}</td><td>${fmt(v.stock)}</td><td>${fmt(v.ad)}</td></tr>`;
-    }).join('') || `<tr><td colspan="3" class="muted">No data</td></tr>`;
+  tb.innerHTML = Object.entries(per).map(([c,v])=>{
+    st+=v.stock; ad+=v.ad;
+    return `<tr><td>${c}</td><td>${fmt(v.stock)}</td><td>${fmt(v.ad)}</td></tr>`;
+  }).join('') || `<tr><td colspan="3" class="muted">No data</td></tr>`;
   Q('#pdStockTotal').textContent = fmt(st);
   Q('#pdAdTotal').textContent = fmt(ad);
 }
@@ -880,8 +854,7 @@ async function renderProductStockAd(product) {
 function renderProductBudgets(product) {
   const sel = Q('#pdPBCountry'), inp = Q('#pdPBValue'), btn = Q('#pdPBSave'), tb=Q('#pdPBBBody');
   const map = product.budgets||{};
-  const list = state.countriesNoCN; // hide China here
-  tb.innerHTML = list.map(c=>`
+  tb.innerHTML = state.countries.map(c=>`
     <tr><td>${c}</td><td>${fmt(map[c]||0)}</td>
     <td><button class="btn outline pb-clear" data-c="${c}">Clear</button></td></tr>
   `).join('') || `<tr><td colspan="3" class="muted">No budgets yet</td></tr>`;
@@ -905,7 +878,9 @@ function renderProductBudgets(product) {
 function bindProductDailyAdSpend(product) {
   const selProd = Q('#pdProductForSpend');
   const btn = Q('#pdAdSave');
-  if (selProd) selProd.value = product.id; // lock default to this product but allow change
+  if (selProd) selProd.innerHTML = state.productsActive.map(p=>`<option value="${p.id}">${p.name}${p.sku?` (${p.sku})`:''}</option>`).join('');
+  if (selProd) selProd.value = product.id; // default to this product
+
   btn.onclick = async ()=>{
     const pid = Q('#pdProductForSpend')?.value || product.id;
     const payload = {
@@ -923,57 +898,66 @@ function bindProductDailyAdSpend(product) {
 
 async function renderProductTransit(product) {
   const s = await api('/api/shipments');
-  const list = (s.shipments||[]).filter(x=>x.productId===product.id && !x.arrivedAt);
-  const ck = list.filter(sp => (sp.fromCountry||sp.from||'').toLowerCase()==='china' && (sp.toCountry||sp.to||'').toLowerCase()==='kenya');
-  const ic = list.filter(sp => !ck.includes(sp));
-  const row = sp => `<tr>
-    <td>${sp.id}</td><td>${sp.fromCountry||sp.from} → ${sp.toCountry||sp.to}</td>
-    <td>${fmt(sp.qty)}</td><td>${fmt(sp.shipCost)}</td>
-    <td>${sp.departedAt||''}</td><td>${sp.arrivedAt||''}</td><td>
-      <button class="btn outline p-act-arr" data-id="${sp.id}">Arrived</button>
-      <button class="btn outline p-act-edit" data-id="${sp.id}">Edit</button>
-      <button class="btn outline p-act-del" data-id="${sp.id}">Delete</button>
-    </td></tr>`;
-  Q('#pdShipCKBody').innerHTML = ck.map(row).join('') || `<tr><td colspan="7" class="muted">No shipments</td></tr>`;
-  Q('#pdShipICBody').innerHTML = ic.map(row).join('') || `<tr><td colspan="7" class="muted">No shipments</td></tr>`;
+  const all = (s.shipments||[]).filter(x=>x.productId===product.id);
+  const live = all.filter(x=>!x.arrivedAt);
+  const arrived = all.filter(x=>!!x.arrivedAt);
 
-  const host = Q('#product');
-  host.addEventListener('click', async (e)=>{
-    const raw = e.target?.dataset?.id; if (!raw) return;
-    const id = (raw || '').trim();
+  const ck = live.filter(sp => (sp.fromCountry||sp.from||'').toLowerCase()==='china' && (sp.toCountry||sp.to||'').toLowerCase()==='kenya');
+  const ic = live.filter(sp => !ck.includes(sp));
 
-    if (e.target.classList.contains('p-act-arr')) {
-      const date = prompt('Arrival date (YYYY-MM-DD)', isoToday()); if (!date) return;
-      await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({arrivedAt:date})});
-      await renderProductTransit(product); await renderProductStockAd(product);
-    }
-    if (e.target.classList.contains('p-act-edit')) {
-      const qty = +prompt('New qty?', '0')||0;
-      const shipCost = +prompt('New shipping cost?', '0')||0;
-      await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({qty,shipCost})});
-      await renderProductTransit(product);
-    }
-    if (e.target.classList.contains('p-act-del')) {
-      if (!confirm('Delete shipment?')) return;
-      await api(`/api/shipments/${id}`,{method:'DELETE'});
-      await renderProductTransit(product);
-    }
-  }, { once:true });
+  const row = sp => {
+    const days = sp.arrivedAt ? Math.round((+new Date(sp.arrivedAt)-(+new Date(sp.departedAt)))/86400000) : '';
+    return `<tr>
+      <td>${sp.id}</td><td>${sp.fromCountry||sp.from} → ${sp.toCountry||sp.to}</td>
+      <td>${fmt(sp.qty)}</td><td>${fmt(sp.shipCost)}</td>
+      <td>${sp.departedAt||''}</td><td>${sp.arrivedAt||''}</td><td>${days}</td>
+      <td>
+        <button class="btn outline p-act-arr" data-id="${sp.id}">Arrived</button>
+        <button class="btn outline p-act-edit" data-id="${sp.id}">Edit</button>
+        <button class="btn outline p-act-del"  data-id="${sp.id}">Delete</button>
+      </td>
+    </tr>`;
+  };
 
-  // create new shipment (product page)
-  Q('#pdMvAdd')?.addEventListener('click', async ()=>{
-    const payload = {
-      productId: product.id,
-      fromCountry: Q('#pdMvFrom').value,
-      toCountry: Q('#pdMvTo').value,
-      qty: +Q('#pdMvQty').value||0,
-      shipCost: +Q('#pdMvShip').value||0,
-      departedAt: isoToday(), arrivedAt: null
-    };
-    await api('/api/shipments',{method:'POST', body: JSON.stringify(payload)});
-    await renderProductTransit(product);
-  }, { once:true });
+  // live tables
+  Q('#pdShipCKBody').innerHTML = ck.map(row).join('') || `<tr><td colspan="8" class="muted">No shipments</td></tr>`;
+  Q('#pdShipICBody').innerHTML = ic.map(row).join('') || `<tr><td colspan="8" class="muted">No shipments</td></tr>`;
+
+  // NEW: Arrived shipments table
+  const rowArr = sp => {
+    const days = Math.round((+new Date(sp.arrivedAt)-(+new Date(sp.departedAt)))/86400000);
+    return `<tr>
+      <td>${sp.id}</td><td>${sp.fromCountry||sp.from} → ${sp.toCountry||sp.to}</td>
+      <td>${fmt(sp.qty)}</td><td>${fmt(sp.shipCost)}</td>
+      <td>${sp.departedAt||''}</td><td>${sp.arrivedAt||''}</td><td>${days}</td>
+    </tr>`;
+  };
+  Q('#pdShipArrBody').innerHTML = arrived.map(rowArr).join('') || `<tr><td colspan="7" class="muted">No arrived shipments yet</td></tr>`;
 }
+
+/* Delegation for PRODUCT page transit actions (works every time) */
+document.addEventListener('click', async (e)=>{
+  const id = e.target?.dataset?.id;
+  if (!id) return;
+
+  // Only act on product-page buttons
+  if (e.target.classList.contains('p-act-arr')) {
+    const date = prompt('Arrival date (YYYY-MM-DD)', isoToday()); if (!date) return;
+    await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({arrivedAt:date})});
+    await renderProductPage();
+  }
+  if (e.target.classList.contains('p-act-edit')) {
+    const qty = +prompt('New qty?','0')||0;
+    const shipCost = +prompt('New shipping cost?','0')||0;
+    await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({qty,shipCost})});
+    await renderProductPage();
+  }
+  if (e.target.classList.contains('p-act-del')) {
+    if (!confirm('Delete shipment?')) return;
+    await api(`/api/shipments/${id}`,{method:'DELETE'});
+    await renderProductPage();
+  }
+});
 
 function bindProductLifetime(product) {
   const run = async ()=>{
