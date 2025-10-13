@@ -8,12 +8,23 @@ const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const { v4: uuidv4 } = require('uuid');
 
+// ✅ Add this line
+const cors = require('cors');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 const ROOT = __dirname;
 const DATA_FILE = path.join(ROOT, 'db.json');
 const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
+
+// ✅ Add this block BEFORE any middleware
+app.set('trust proxy', 1); // required for secure cookies behind Render/Heroku
+
+app.use(cors({
+  origin: (origin, cb) => cb(null, origin || true), // reflect the caller origin
+  credentials: true // allow cookies to be sent cross-domain
+}));
 
 // ---------- middleware ----------
 app.use(morgan('dev'));
