@@ -46,7 +46,7 @@ function runningBalance(db) {
   return (db.finance?.entries||[]).reduce((acc,e)=> acc + (e.type==='credit' ? +e.amount||0 : -(+e.amount||0)), 0);
 }
 
-/* ---------------- auth ---------------- */
+/* ---------------- auth (kept same, long-lived cookie) ---------------- */
 app.post('/api/auth', (req,res)=>{
   const { password } = req.body || {};
   const db = loadDB();
@@ -55,7 +55,7 @@ app.post('/api/auth', (req,res)=>{
     return res.json({ ok:true });
   }
   if (password && password === db.password) {
-    // long-lived cookie (1 year)
+    // long-lived cookie
     res.cookie('auth','1', { httpOnly:true, sameSite:'Lax', secure:process.env.NODE_ENV==='production', path:'/', maxAge: 365*24*60*60*1000 });
     return res.json({ ok:true });
   }
@@ -80,14 +80,14 @@ app.get('/api/countries', requireAuth, (req,res)=>{
 app.post('/api/countries', requireAuth, (req,res)=>{
   const { name } = req.body||{};
   if (!name) return res.status(400).json({ error:'Missing name' });
-  if (String(name).toLowerCase()==='china') return res.status(400).json({ error:'China is system-reserved' });
+  if (name.toLowerCase()==='china') return res.status(400).json({ error:'China is system-reserved' });
   const db = loadDB(); db.countries = db.countries||[];
   if (!db.countries.includes(name)) db.countries.push(name);
   saveDB(db); res.json({ ok:true, countries: db.countries });
 });
 app.delete('/api/countries/:name', requireAuth, (req,res)=>{
   const n = req.params.name;
-  if (String(n).toLowerCase()==='china') return res.status(400).json({ error:'Cannot delete China' });
+  if (n.toLowerCase()==='china') return res.status(400).json({ error:'Cannot delete China' });
   const db = loadDB(); db.countries = (db.countries||[]).filter(c=>c!==n);
   saveDB(db); res.json({ ok:true, countries: db.countries });
 });
@@ -223,8 +223,9 @@ app.post('/api/remittances', requireAuth, (req,res)=>{
     extraPerPiece:+req.body.extraPerPiece||0
   };
   if (!r.start||!r.end||!r.country||!r.productId) return res.status(400).json({ error:'Missing fields' });
-  if (String(r.country).toLowerCase()==='china') return res.status(400).json({ error:'China not allowed in remittance entries' });
-  db.remittances.push(r); saveDB(db); res.json({ ok:true, remittance:r });
+  if (r.country.toLowerCase()==='china') return res.status(400).json({ error:'China not allowed in remittance entries' });
+  saveDB(Object.assign(db, { remittances: db.remittances.concat(r) }));
+  res.json({ ok:true, remittance:r });
 });
 
 /* ---------------- finance ---------------- */
@@ -301,7 +302,7 @@ app.get('/api/snapshots', requireAuth, (req,res)=>{
 });
 app.post('/api/snapshots', requireAuth, async (req,res)=>{
   ensureSnapDir();
-  const name = (req.body?.name||'Manual '+new Date().toLocaleString()).trim();
+  const name = (req.body?.name||('Manual '+new Date().toLocaleString())).trim();
   const stamp = new Date().toISOString().replace(/[:.]/g,'-');
   const file = path.join(SNAPSHOT_DIR, `${stamp}-${name.replace(/\s+/g,'_')}.json`);
   await fs.copy(DATA_FILE, file);
