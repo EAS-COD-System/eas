@@ -1,4 +1,4 @@
-// Simple CLI snapshot tool (optional)
+// Simple CLI snapshot creator (optional)
 const fs = require('fs-extra');
 const path = require('path');
 
