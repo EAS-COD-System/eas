@@ -68,24 +68,32 @@ function computePeriodBalance(list){
 }
 
 // ---------- auth ----------
-app.post('/api/auth', (req,res)=>{
+app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
 
+  const isProd = process.env.NODE_ENV === 'production';
+  const cookieOpts = {
+    httpOnly: true,
+    path: '/',
+    sameSite: isProd ? 'None' : 'Lax', // cross-domain safe in prod
+    secure: isProd ? true : false,
+    maxAge: 365 * 24 * 60 * 60 * 1000 // 1 year
+  };
+
+  // logout
   if (password === 'logout') {
-    res.clearCookie('auth', {
-      httpOnly: true, sameSite: 'Lax', secure: process.env.NODE_ENV==='production', path:'/'
-    });
-    return res.json({ ok:true });
+    res.clearCookie('auth', cookieOpts);
+    return res.json({ ok: true });
   }
+
+  // login
   if (password && password === db.password) {
-    res.cookie('auth','1',{
-      httpOnly:true, sameSite:'Lax', secure:process.env.NODE_ENV==='production',
-      path:'/', maxAge: 365*24*60*60*1000 // stay logged in ~1 year
-    });
-    return res.json({ ok:true });
+    res.cookie('auth', '1', cookieOpts);
+    return res.json({ ok: true });
   }
-  return res.status(403).json({ error:'Wrong password' });
+
+  return res.status(403).json({ error: 'Wrong password' });
 });
 function requireAuth(req,res,next){
   if (req.cookies.auth === '1') return next();
