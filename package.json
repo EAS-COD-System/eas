@@ -1,11 +1,11 @@
 {
-  "name": "eas-tracker",
-  "version": "3.0.0",
-  "description": "EastAfricaShop Tracker — dashboard for performance, shipments, remittances, influencers, and finance.",
+  "name": "eastafricashop-tracker",
+  "version": "1.0.0",
+  "description": "EastAfricaShop Business Tracking System",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "snapshot": "node snapshot.js"
+    "dev": "nodemon server.js"
   },
   "dependencies": {
     "body-parser": "^1.20.3",
@@ -14,8 +14,10 @@
     "express": "^4.21.1",
     "fs-extra": "^11.2.0",
     "morgan": "^1.10.0",
-    "path": "^0.12.7",
     "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
   },
   "engines": {
     "node": ">=18.0.0"
