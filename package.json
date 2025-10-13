@@ -1,7 +1,7 @@
 {
   "name": "eas-tracker",
-  "version": "3.1.0",
-  "description": "EastAfricaShop Business Tracker — dashboard for daily performance, shipments, finance, remittances, and inventory tracking.",
+  "version": "3.0.0",
+  "description": "EastAfricaShop Tracker — dashboard for performance, shipments, remittances, influencers, and finance.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -19,7 +19,5 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-  "author": "EAS Systems",
-  "license": "MIT"
+  }
 }
