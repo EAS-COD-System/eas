@@ -1,3 +1,4 @@
+<script>
 /* ================================================================
    EAS Tracker – Front-end (index.html + product.html)
    ================================================================ */
@@ -26,14 +27,14 @@ async function api(path, opts={}) {
 const state = {
   productId: getQuery('id'),
   countries: [],
-  countriesNoChina: [],
+  countriesNoCN: [],
   products: [],
   productsActive: [],
   categories: { debit:[], credit:[] }
 };
 
 /* ================================================================
-   AUTH + BOOT (unchanged login flow)
+   AUTH + BOOT   (login code kept unchanged)
    ================================================================ */
 async function boot() {
   try {
@@ -65,7 +66,7 @@ Q('#loginBtn')?.addEventListener('click', async () => {
   try {
     await api('/api/auth', { method:'POST', body: JSON.stringify({ password }) });
     await boot();
-  } catch {
+  } catch (e) {
     alert('Wrong password');
   }
 });
@@ -82,7 +83,7 @@ Q('#logoutLink')?.addEventListener('click', async (e) => {
 async function preload() {
   const meta = await api('/api/meta');                 // {countries}
   state.countries = meta.countries || [];
-  state.countriesNoChina = state.countries.filter(c => c.toLowerCase() !== 'china');
+  state.countriesNoCN = state.countries.filter(c => (c||'').toLowerCase() !== 'china');
 
   const pr = await api('/api/products');               // {products}
   state.products = pr.products || [];
@@ -95,39 +96,41 @@ async function preload() {
 }
 
 function fillCommonSelects() {
-  // Filters that CAN include "All countries" (dash Profit + Performance top delivered)
+  const noCN = state.countriesNoCN;
+
+  // Filters (exclude China, still allow "All")
   QA('#pcCountry').forEach(el => {
     el.innerHTML = `<option value="">All countries</option>` +
-      state.countriesNoChina.map(c=>`<option value="${c}">${c}</option>`).join('');
+      noCN.map(c=>`<option value="${c}">${c}</option>`).join('');
   });
   QA('#pfCountry').forEach(el => {
     el.innerHTML = `<option value="">All countries</option>` +
-      state.countriesNoChina.map(c=>`<option value="${c}">${c}</option>`).join('');
+      noCN.map(c=>`<option value="${c}">${c}</option>`).join('');
   });
 
-  // Inputs that MUST EXCLUDE China
-  const countryInputsNoChina = [
+  // Inputs that must NOT include China
+  const noChinaInputs = [
     '#adCountry','#rCountry',
     '#pdAdCountry','#pdRCountry',
-    '#pdInfCountry','#pdInfFilterCountry','#pdPBCountry'
+    '#pdInfCountry','#pdInfFilterCountry',
+    '#pdPBCountry'
   ];
-  countryInputsNoChina.forEach(sel => QA(sel).forEach(el => {
-    el.innerHTML = state.countriesNoChina.map(c=>`<option value="${c}">${c}</option>`).join('');
+  noChinaInputs.forEach(sel => QA(sel).forEach(el => {
+    el.innerHTML = noCN.map(c=>`<option value="${c}">${c}</option>`).join('');
   }));
 
-  // Stock movement (ONLY place China is allowed) + transit creation on product page
-  const countryInputsAllowChina = ['#mvFrom','#mvTo','#pdMvFrom','#pdMvTo'];
-  countryInputsAllowChina.forEach(sel => QA(sel).forEach(el => {
+  // Movement selects MUST include China
+  ['#mvFrom','#mvTo','#pdMvFrom','#pdMvTo'].forEach(sel => QA(sel).forEach(el => {
     el.innerHTML = state.countries.map(c=>`<option value="${c}">${c}</option>`).join('');
   }));
 
-  // Products (only active/available in add forms – no "All")
+  // Products (only available/active in add forms)
   const productInputs = ['#mvProduct','#adProduct','#rProduct','#lpProductFilter','#pdProductForSpend'];
   productInputs.forEach(sel => QA(sel).forEach(el => {
     el.innerHTML = state.productsActive.map(p=>`<option value="${p.id}">${p.name}${p.sku?` (${p.sku})`:''}</option>`).join('');
   }));
 
-  // Filters can include "All products"
+  // Products (filters can include "All")
   QA('#lpProduct').forEach(el => {
     el.innerHTML = `<option value="">All products</option>` +
       state.products.map(p=>`<option value="${p.id}">${p.name}${p.sku?` (${p.sku})`:''}</option>`).join('');
@@ -165,42 +168,40 @@ async function renderKpis() {
     Q('#kpiTransit') && (Q('#kpiTransit').textContent = live);
   } catch { Q('#kpiTransit') && (Q('#kpiTransit').textContent = '—'); }
 
-  // KPI Ad spend = sum of /api/adspend
+  // KPI Ad spend
   try {
     const a = await api('/api/adspend');
     const total = (a.adSpends||[]).reduce((t,x)=>t+(+x.amount||0),0);
     Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = `${fmt(total)} USD`);
   } catch { Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = '—'); }
 
-  // KPI Delivered (Mon–Sun) mirrors weekly grid grand total
+  // KPI Delivered (Mon–Sun) mirrors weekly grid total
   const t = Q('#wAllT')?.textContent || '0';
   Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = t);
 }
 
-/* ---------- Stock & Ad Spend by Country (global, excludes China) ---------- */
+/* ---------- Stock & Ad Spend by Country (global) ---------- */
 async function renderCountryStockSpend() {
   const body = Q('#stockByCountryBody'); if (!body) return;
   body.innerHTML = '<tr><td colspan="3">Loading…</td></tr>';
 
-  const per = {}; state.countriesNoChina.forEach(c=> per[c]={ stock:0, ad:0 });
+  const per = {}; state.countries.forEach(c=> per[c]={ stock:0, ad:0 });
 
-  // Arrived shipments add to dest, deduct from origin (skip subtract if origin is China)
+  // Arrived shipments add to dest, deduct from origin
   try {
     const s = await api('/api/shipments');
     (s.shipments||[]).filter(x=>x.arrivedAt).forEach(sp=>{
-      const to = (sp.toCountry || sp.to);
-      const from = (sp.fromCountry || sp.from);
-      const qty = (+sp.qty||0);
-      if (per[to] != null) { per[to].stock += qty; }
-      if (from && from.toLowerCase() !== 'china' && per[from] != null) { per[from].stock -= qty; }
+      const to = sp.toCountry || sp.to, from = sp.fromCountry || sp.from, qty = (+sp.qty||0);
+      per[to] = per[to] || {stock:0,ad:0}; per[to].stock += qty;
+      if (from) { per[from] = per[from]||{stock:0,ad:0}; per[from].stock -= qty; }
     });
   } catch {}
 
-  // Remittances pieces deduct from that country (China never allowed server-side)
+  // Remittances pieces deduct from that country
   try {
     const r = await api('/api/remittances');
     (r.remittances||[]).forEach(x=>{
-      if (per[x.country] == null) return;
+      per[x.country] = per[x.country]||{stock:0,ad:0};
       per[x.country].stock -= (+x.pieces||0);
     });
   } catch {}
@@ -209,22 +210,27 @@ async function renderCountryStockSpend() {
   try {
     const a = await api('/api/adspend');
     (a.adSpends||[]).forEach(x=>{
-      if (per[x.country] == null) return;
+      per[x.country] = per[x.country]||{stock:0,ad:0};
       per[x.country].ad += (+x.amount||0);
     });
   } catch {}
 
+  // Remove China from the display
+  delete per['china']; delete per['China'];
+
   let st=0, ad=0;
-  const rows = Object.entries(per).map(([c,v])=>{
-    st += v.stock; ad += v.ad;
-    return `<tr><td>${c}</td><td>${fmt(v.stock)}</td><td>${fmt(v.ad)}</td></tr>`;
-  }).join('');
+  const rows = Object.entries(per)
+    .filter(([c]) => (c||'').toLowerCase() !== 'china')
+    .map(([c,v])=>{
+      st += v.stock; ad += v.ad;
+      return `<tr><td>${c}</td><td>${fmt(v.stock)}</td><td>${fmt(v.ad)}</td></tr>`;
+    }).join('');
   body.innerHTML = rows || `<tr><td colspan="3" class="muted">No data</td></tr>`;
   Q('#stockTotal') && (Q('#stockTotal').textContent = fmt(st));
   Q('#adTotal')    && (Q('#adTotal').textContent    = fmt(ad));
 }
 
-/* ---------- Weekly Delivered grid (excludes China) ---------- */
+/* ---------- Weekly Delivered grid (China removed) ---------- */
 function mondayOf(dateISO) {
   const d = new Date(dateISO);
   const k = (d.getDay()+6)%7; d.setDate(d.getDate()-k);
@@ -252,7 +258,7 @@ function renderWeeklyDelivered() {
       return `<th>${lab}<br>${d}</th>`;
     }).join('')}<th>Total</th></tr>`;
 
-    body.innerHTML = state.countriesNoChina.map(c=>{
+    body.innerHTML = state.countriesNoCN.map(c=>{
       const cells = days.map(d=>`<td><input type="number" min="0" class="wd-cell" data-country="${c}" data-date="${d}" placeholder="0"/></td>`).join('');
       return `<tr data-row="${c}"><td>${c}</td>${cells}<td class="row-total">0</td></tr>`;
     }).join('');
@@ -280,14 +286,15 @@ function renderWeeklyDelivered() {
     // columns + grand
     const cols = QA('thead th', Q('#weeklyTable')).length - 2;
     let grand = 0;
-    const names = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const lbls = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
     for (let i=0;i<cols;i++) {
       let colSum = 0;
       QA('tr[data-row]').forEach(tr=>{
         const inp = QA('.wd-cell', tr)[i];
         colSum += (+inp.value||0);
       });
-      const cell = Q(`#w${names[i]}T`); if (cell) cell.textContent = fmt(colSum);
+      const headCell = Q(`#w${lbls[i]}T`);
+      if (headCell) headCell.textContent = fmt(colSum);
       grand += colSum;
     }
     Q('#wAllT') && (Q('#wAllT').textContent = fmt(grand));
@@ -390,9 +397,11 @@ async function renderTransitTables() {
   if (tbl1) tbl1.innerHTML = ck.map(row).join('') || `<tr><td colspan="9" class="muted">No transit</td></tr>`;
   if (tbl2) tbl2.innerHTML = ic.map(row).join('') || `<tr><td colspan="9" class="muted">No transit</td></tr>`;
 
-  const handler = async (e) => {
-    const id = e.target.dataset?.id;
-    if (!id) return;
+  const host = Q('#home') || document;
+  host.addEventListener('click', async (e)=>{
+    const raw = e.target?.dataset?.id;
+    if (!raw) return;
+    const id = (raw || '').trim(); // guard against stray whitespace/newlines
 
     if (e.target.classList.contains('act-arr')) {
       const date = prompt('Arrival date (YYYY-MM-DD)', isoToday());
@@ -417,19 +426,16 @@ async function renderTransitTables() {
       catch(err){ return alert(err.message); }
       await renderTransitTables();
     }
-  };
-
-  // one persistent handler per tbody (overwrites each render)
-  if (tbl1) tbl1.onclick = handler;
-  if (tbl2) tbl2.onclick = handler;
+  }, { once:true });
 }
 
-/* ---------- Profit by Country (filter works) ---------- */
+/* ---------- Profit by Country (filter works, China excluded) ---------- */
 function bindProfitByCountry() {
   const btn = Q('#pcRun'); if (!btn) return;
   btn.onclick = async ()=>{
     const s = Q('#pcStart')?.value, e = Q('#pcEnd')?.value, c = Q('#pcCountry')?.value || '';
     let list = (await api('/api/remittances')).remittances || [];
+    list = list.filter(r => (r.country||'').toLowerCase() !== 'china');
     if (s) list = list.filter(r=>r.start >= s);
     if (e) list = list.filter(r=>r.end <= e);
     if (c) list = list.filter(r=>r.country === c);
@@ -446,7 +452,7 @@ function bindProfitByCountry() {
     const tb = Q('#profitCountryBody'); let R=0,A=0,E=0,P=0,PCS=0;
     const rows = Object.entries(byC).map(([cc,v])=>{
       const profit = v.rev - v.ad - v.extra;
-      R+=v.rev; A+=v.ad; E+=v.extra; PCS+=v.pcs; P+=profit;
+      R+=v.rev; A+=v.ad; E+=v.extra; P+=profit; PCS+=v.pcs;
       return `<tr><td>${cc}</td><td>${fmt(v.rev)}</td><td>${fmt(v.ad)}</td><td>${fmt(v.extra)}</td><td>${fmt(v.pcs)}</td><td>${fmt(profit)}</td></tr>`;
     }).join('');
     tb.innerHTML = rows || `<tr><td colspan="6" class="muted">No data</td></tr>`;
@@ -604,7 +610,7 @@ function renderProductsTable() {
     }
     if (e.target.classList.contains('act-del')) {
       if (!confirm('Delete product and ALL its data?')) return;
-      await api(`/api/products/${id}`,{method:'DELETE'}); // server will cascade
+      await api(`/api/products/${id}`,{method:'DELETE'}); // server cascades
       await preload(); renderProductsTable(); renderCountryStockSpend(); renderKpis();
     }
   };
@@ -621,6 +627,7 @@ function renderPerformancePage() {
     if (quick && quick!=='custom') { const d=new Date(); d.setDate(d.getDate()-(+quick)); start=d.toISOString().slice(0,10); end=isoToday(); }
     const c = Q('#pfCountry')?.value || '';
     let rem = (await api('/api/remittances')).remittances || [];
+    rem = rem.filter(r => (r.country||'').toLowerCase() !== 'china');
     if (start) rem = rem.filter(r=>r.start>=start);
     if (end)   rem = rem.filter(r=>r.end<=end);
     if (c)     rem = rem.filter(r=>r.country===c);
@@ -719,12 +726,12 @@ async function runFinancePeriod() {
     <tr><td>${x.date}</td><td>${x.type}</td><td>${x.category}</td><td>${fmt(x.amount)}</td><td>${x.note||''}</td>
     <td><button class="btn outline fe-del" data-id="${x.id}">Delete</button></td></tr>
   `).join('') || `<tr><td colspan="6" class="muted">No entries</td></tr>`);
-  tb && (tb.onclick = async (e)=>{
+  tb?.addEventListener('click', async (e)=>{
     if (e.target.classList.contains('fe-del')) {
       await api(`/api/finance/entries/${e.target.dataset.id}`,{method:'DELETE'});
       await runFinancePeriod();
     }
-  });
+  }, { once:true });
 }
 
 /* ================================================================
@@ -771,7 +778,7 @@ function renderSettingsPage() {
     });
   }
 
-  // manual save/restore (kept after push)
+  // manual save/restore (snapshot kept after push)
   const listBox = Q('#snapList');
   async function refreshSnaps() {
     const r = await api('/api/snapshots');
@@ -822,40 +829,51 @@ async function renderProductPage() {
   Q('#pdTitle').textContent = product.name;
   Q('#pdSku').textContent = product.sku ? `SKU: ${product.sku}` : '';
 
-  await renderProductStockAd(product);   // Stock & Ad by country (excludes China)
-  renderProductBudgets(product);         // manual budgets per country (excludes China)
-  bindProductDailyAdSpend(product);      // daily ad spend (replace)
-  await renderProductTransit(product);   // transit for this product
-  bindProductLifetime(product);          // lifetime (this product)
-  await bindInfluencers(product);        // influencers & spend
+  // fills are already done; ensure selects honor no-China rules
+  // Stock & Ad Spend by Country (this product only)
+  await renderProductStockAd(product);
+  // Profit + Budget per country (manual budgets)
+  renderProductBudgets(product);
+  // Daily Ad Spend (replace current) – product selection restored
+  bindProductDailyAdSpend(product);
+  // Transit tables
+  await renderProductTransit(product);
+  // Lifetime (this product) with filter
+  bindProductLifetime(product);
+  // Influencers
+  await bindInfluencers(product);
 }
 
 async function renderProductStockAd(product) {
   const tb = Q('#pdStockBody'); if (!tb) return;
-  const per = {}; state.countriesNoChina.forEach(c=> per[c]={stock:0,ad:0});
+  const per = {}; state.countries.forEach(c=> per[c]={stock:0,ad:0});
 
   const s = await api('/api/shipments');
   (s.shipments||[]).filter(x=>x.productId===product.id && x.arrivedAt).forEach(sp=>{
     const to = sp.toCountry||sp.to, from = sp.fromCountry||sp.from, q=(+sp.qty||0);
-    if (per[to] != null) per[to].stock += q;
-    if (from && from.toLowerCase() !== 'china' && per[from] != null) per[from].stock -= q;
+    per[to]=per[to]||{stock:0,ad:0}; per[to].stock += q;
+    if (from) { per[from]=per[from]||{stock:0,ad:0}; per[from].stock -= q; }
   });
 
   const r = await api('/api/remittances');
   (r.remittances||[]).filter(x=>x.productId===product.id).forEach(rr=>{
-    if (per[rr.country] != null) per[rr.country].stock -= (+rr.pieces||0);
+    per[rr.country]=per[rr.country]||{stock:0,ad:0};
+    per[rr.country].stock -= (+rr.pieces||0);
   });
 
   const a = await api('/api/adspend');
   (a.adSpends||[]).filter(x=>x.productId===product.id).forEach(sp=>{
-    if (per[sp.country] != null) per[sp.country].ad += (+sp.amount||0);
+    per[sp.country]=per[sp.country]||{stock:0,ad:0};
+    per[sp.country].ad += (+sp.amount||0);
   });
 
   let st=0, ad=0;
-  tb.innerHTML = Object.entries(per).map(([c,v])=>{
-    st+=v.stock; ad+=v.ad;
-    return `<tr><td>${c}</td><td>${fmt(v.stock)}</td><td>${fmt(v.ad)}</td></tr>`;
-  }).join('') || `<tr><td colspan="3" class="muted">No data</td></tr>`;
+  tb.innerHTML = Object.entries(per)
+    .filter(([c]) => (c||'').toLowerCase() !== 'china')   // hide China here
+    .map(([c,v])=>{
+      st+=v.stock; ad+=v.ad;
+      return `<tr><td>${c}</td><td>${fmt(v.stock)}</td><td>${fmt(v.ad)}</td></tr>`;
+    }).join('') || `<tr><td colspan="3" class="muted">No data</td></tr>`;
   Q('#pdStockTotal').textContent = fmt(st);
   Q('#pdAdTotal').textContent = fmt(ad);
 }
@@ -863,7 +881,8 @@ async function renderProductStockAd(product) {
 function renderProductBudgets(product) {
   const sel = Q('#pdPBCountry'), inp = Q('#pdPBValue'), btn = Q('#pdPBSave'), tb=Q('#pdPBBBody');
   const map = product.budgets||{};
-  tb.innerHTML = state.countriesNoChina.map(c=>`
+  const list = state.countriesNoCN; // hide China here
+  tb.innerHTML = list.map(c=>`
     <tr><td>${c}</td><td>${fmt(map[c]||0)}</td>
     <td><button class="btn outline pb-clear" data-c="${c}">Clear</button></td></tr>
   `).join('') || `<tr><td colspan="3" class="muted">No budgets yet</td></tr>`;
@@ -887,10 +906,7 @@ function renderProductBudgets(product) {
 function bindProductDailyAdSpend(product) {
   const selProd = Q('#pdProductForSpend');
   const btn = Q('#pdAdSave');
-  if (selProd) {
-    selProd.innerHTML = state.productsActive.map(p=>`<option value="${p.id}">${p.name}${p.sku?` (${p.sku})`:''}</option>`).join('');
-    selProd.value = product.id; // default to current product
-  }
+  if (selProd) selProd.value = product.id; // lock default to this product but allow change
   btn.onclick = async ()=>{
     const pid = Q('#pdProductForSpend')?.value || product.id;
     const payload = {
@@ -922,8 +938,11 @@ async function renderProductTransit(product) {
   Q('#pdShipCKBody').innerHTML = ck.map(row).join('') || `<tr><td colspan="7" class="muted">No shipments</td></tr>`;
   Q('#pdShipICBody').innerHTML = ic.map(row).join('') || `<tr><td colspan="7" class="muted">No shipments</td></tr>`;
 
-  const handler = async (e)=>{
-    const id = e.target.dataset?.id; if (!id) return;
+  const host = Q('#product');
+  host.addEventListener('click', async (e)=>{
+    const raw = e.target?.dataset?.id; if (!raw) return;
+    const id = (raw || '').trim();
+
     if (e.target.classList.contains('p-act-arr')) {
       const date = prompt('Arrival date (YYYY-MM-DD)', isoToday()); if (!date) return;
       await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({arrivedAt:date})});
@@ -940,9 +959,7 @@ async function renderProductTransit(product) {
       await api(`/api/shipments/${id}`,{method:'DELETE'});
       await renderProductTransit(product);
     }
-  };
-  Q('#pdShipCKBody').onclick = handler;
-  Q('#pdShipICBody').onclick = handler;
+  }, { once:true });
 
   // create new shipment (product page)
   Q('#pdMvAdd')?.addEventListener('click', async ()=>{
