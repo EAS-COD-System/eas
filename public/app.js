@@ -431,7 +431,7 @@ function initProfitByCountry() {
     try {
       const r = await api('/api/remittances' + (qs.length ? '?' + qs.join('&') : ''));
       const rows = (r.remittances || [])
-        .filter(x => !x || (x.country && x.country.toLowerCase() !== 'china'))
+        .filter(x => (x.country && x.country.toLowerCase() !== 'china'))
         .filter(x => !c || x.country === c);
       const by = {};
       rows.forEach(x=>{
@@ -817,7 +817,7 @@ function bindProductHandlers() {
     const c = Q('#pdPBCountry').value; const v = +Q('#pdPBValue').value || 0;
     const p = { budgets: state.product.budgets || {} }; p.budgets[c] = v;
     await api('/api/products/'+state.product.id, { method:'PUT', body: JSON.stringify(p) });
-    await loadProduct(state.product.id); renderPBTable();
+    await refreshProductSections(); // <-- ensure UI reloads fresh
   });
 
   // product ad spend replace
@@ -830,7 +830,7 @@ function bindProductHandlers() {
     };
     if ((payload.country||'').toLowerCase()==='china') return alert('China not allowed here');
     await api('/api/adspend', { method:'POST', body: JSON.stringify(payload) });
-    refreshProductSections();
+    await refreshProductSections(); // <-- refresh
   });
 
   // shipments create (include China options here)
@@ -845,7 +845,7 @@ function bindProductHandlers() {
       arrivedAt: null
     };
     await api('/api/shipments', { method:'POST', body: JSON.stringify(payload) });
-    refreshProductSections();
+    await refreshProductSections(); // <-- refresh
   });
 
   // lifetime filter
@@ -858,7 +858,7 @@ function bindProductHandlers() {
     if ((payload.country||'').toLowerCase()==='china') return alert('China not allowed here');
     await api('/api/influencers', { method:'POST', body: JSON.stringify(payload) });
     Q('#pdInfName').value=''; Q('#pdInfSocial').value='';
-    renderInfluencers();
+    await refreshProductSections(); // <-- refresh to repopulate select
   });
   Q('#pdInfSpendAdd')?.addEventListener('click', async ()=>{
     const payload = {
@@ -871,18 +871,19 @@ function bindProductHandlers() {
     if (!payload.influencerId) return alert('Select influencer');
     if ((payload.country||'').toLowerCase()==='china') return alert('China not allowed here');
     await api('/api/influencers/spend', { method:'POST', body: JSON.stringify(payload) });
-    renderInfluencers();
+    await refreshProductSections(); // <-- refresh to see spend
   });
   Q('#pdInfRun')?.addEventListener('click', renderInfluencers);
 }
 
 async function refreshProductSections() {
   await loadProduct(state.product.id);
+  fillGlobalSelects();             // <-- repopulate selects after any change
   renderProductStockAd();
   renderPBTable();
   renderProductAdList();
   renderProductTransit();       // in-transit only
-  renderProductArrived();       // NEW: arrived shipments section
+  renderProductArrived();       // arrived shipments list
   renderProductLifetime();
   renderInfluencers();
 }
@@ -996,6 +997,44 @@ async function renderProductArrived() {
   };
 }
 
+/* -- product: influencers (list, totals, delete, repopulate selects) -- */
+async function renderInfluencers() {
+  const infs = await api('/api/influencers');
+  const spends = await api('/api/influencers/spend');
+
+  // fill influencer select
+  const sel = Q('#pdInfSelect');
+  if (sel) sel.innerHTML = (infs.influencers||[])
+    .map(i=>`<option value="${i.id}">${i.name}</option>`).join('');
+
+  // filter & table
+  const s = Q('#pdInfStart')?.value, e = Q('#pdInfEnd')?.value;
+  const c = Q('#pdInfFilterCountry')?.value || '';
+  const list = (spends.spends || [])
+    .filter(x => x.productId === state.product.id)
+    .filter(x => (!c || x.country === c))
+    .filter(x => (!s || x.date >= s) && (!e || x.date <= e));
+
+  const byId = Object.fromEntries((infs.influencers||[]).map(i=>[i.id,i]));
+  const tb = Q('#pdInfBody'); if (!tb) return;
+  let total = 0;
+  tb.innerHTML = list.map(x=>{
+    total += (+x.amount||0);
+    const i = byId[x.influencerId] || {};
+    return `<tr>
+      <td>${x.date}</td><td>${x.country}</td><td>${i.name||'-'}</td><td>${i.social||'-'}</td><td>${fmt(x.amount)}</td>
+      <td><button class="btn outline" data-del-infsp="${x.id}">Delete</button></td></tr>`;
+  }).join('') || `<tr><td colspan="6" class="muted">No spends</td></tr>`;
+  Q('#pdInfTotal') && (Q('#pdInfTotal').textContent = fmt(total));
+
+  tb.onclick = async e => {
+    if (e.target.dataset.delInfsp) {
+      await api('/api/influencers/spend/' + e.target.dataset.delInfsp, { method:'DELETE' });
+      renderInfluencers();
+    }
+  };
+}
+
 /* ---------- NAV ---------- */
 function initNav() {
   QA('.nav a[data-view]')?.forEach(a => a.addEventListener('click', e => {
@@ -1006,7 +1045,7 @@ function initNav() {
       if (el) el.style.display = (id===v) ? '' : 'none';
     });
     QA('.nav a').forEach(x => x.classList.toggle('active', x === a));
-    if (v === 'home') { renderKpis(); renderStockAndSpendByCountry(); renderTransitTables(); }
+    if (v === 'home') { renderKpis(); renderStockAndSpendByCountry(); renderTransitTables(); } // keep fresh
   }));
 }
 
