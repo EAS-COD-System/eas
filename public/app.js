@@ -1,4 +1,4 @@
-<script>
+
 // ===============================
 // EAS Tracker — Front-end logic
 // Works for index.html + product.html
@@ -1128,4 +1128,3 @@ function initNav() {
    BOOT
    ====================================================================== */
 gate();
-</script>
