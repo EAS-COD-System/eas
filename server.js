@@ -1,11 +1,12 @@
+// server.js
 const express = require('express');
 const fs = require('fs-extra');
 const path = require('path');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
-const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
+const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,7 +20,6 @@ app.use(cors({
   origin: (origin, cb) => cb(null, origin || true),
   credentials: true
 }));
-
 app.use(morgan('dev'));
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(cookieParser());
@@ -27,35 +27,30 @@ app.use('/public', express.static(path.join(ROOT, 'public')));
 
 function initDBIfMissing() {
   if (!fs.existsSync(DATA_FILE)) {
-    fs.writeJsonSync(
-      DATA_FILE,
-      {
-        password: 'eastafricashop',
-        countries: ['china', 'kenya', 'tanzania', 'uganda', 'zambia', 'zimbabwe'],
-        products: [],
-        adspend: [],
-        deliveries: [],
-        shipments: [],
-        remittances: [],
-        finance: { categories: { debit: [], credit: [] }, entries: [] },
-        influencers: [],
-        influencerSpends: [],
-        snapshots: []
-      },
-      { spaces: 2 }
-    );
+    fs.writeJsonSync(DATA_FILE, {
+      password: 'eastafricashop',
+      countries: ['china', 'kenya', 'tanzania', 'uganda', 'zambia', 'zimbabwe'],
+      products: [],
+      adspend: [],
+      deliveries: [],
+      shipments: [],
+      remittances: [],
+      finance: { categories: { debit: [], credit: [] }, entries: [] },
+      influencers: [],
+      influencerSpends: [],
+      snapshots: []
+    }, { spaces: 2 });
   }
 }
 function loadDB() { initDBIfMissing(); return fs.readJsonSync(DATA_FILE); }
 function saveDB(db) { fs.writeJsonSync(DATA_FILE, db, { spaces: 2 }); }
 function ensureSnapshotDir() { fs.ensureDirSync(SNAPSHOT_DIR); }
 
-function computeRunningBalance(db) {
-  const entries = db.finance?.entries || [];
-  return entries.reduce((acc, e) => acc + (e.type === 'credit' ? +e.amount || 0 : -(+e.amount || 0)), 0);
+function runningBalance(db) {
+  return (db.finance?.entries || []).reduce((t, e) => t + (e.type === 'credit' ? +e.amount || 0 : -(+e.amount || 0)), 0);
 }
-function computePeriodBalance(list) {
-  return list.reduce((acc, e) => acc + (e.type === 'credit' ? +e.amount || 0 : -(+e.amount || 0)), 0);
+function periodBalance(list) {
+  return (list || []).reduce((t, e) => t + (e.type === 'credit' ? +e.amount || 0 : -(+e.amount || 0)), 0);
 }
 
 app.post('/api/auth', (req, res) => {
@@ -106,7 +101,7 @@ app.post('/api/countries', requireAuth, (req, res) => {
 app.delete('/api/countries/:name', requireAuth, (req, res) => {
   const db = loadDB();
   const n = (req.params.name || '').toLowerCase();
-  if (n === 'china') return res.status(400).json({ error: 'China cannot be deleted' });
+  if (n === 'china') return res.status(400).json({ error: 'china cannot be deleted' });
   db.countries = (db.countries || []).filter(c => c.toLowerCase() !== n);
   saveDB(db);
   res.json({ ok: true, countries: db.countries });
@@ -176,15 +171,10 @@ app.post('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB();
   db.adspend = db.adspend || [];
   const { productId, country, platform, amount } = req.body || {};
-  if (!productId || !country || !platform) {
-    return res.status(400).json({ error: 'Missing productId/country/platform' });
-  }
-  const found = db.adspend.find(a => a.productId === productId && a.country === country && a.platform === platform);
-  if (found) {
-    found.amount = +amount || 0;
-  } else {
-    db.adspend.push({ id: uuidv4(), productId, country, platform, amount: +amount || 0 });
-  }
+  if (!productId || !country || !platform) return res.status(400).json({ error: 'Missing fields' });
+  const f = db.adspend.find(a => a.productId === productId && a.country === country && a.platform === platform);
+  if (f) f.amount = +amount || 0;
+  else db.adspend.push({ id: uuidv4(), productId, country, platform, amount: +amount || 0 });
   saveDB(db);
   res.json({ ok: true });
 });
@@ -220,9 +210,7 @@ app.post('/api/shipments', requireAuth, (req, res) => {
     departedAt: req.body.departedAt || new Date().toISOString().slice(0, 10),
     arrivedAt: req.body.arrivedAt || null
   };
-  if (!s.productId || !s.fromCountry || !s.toCountry) {
-    return res.status(400).json({ error: 'Missing productId/fromCountry/toCountry' });
-  }
+  if (!s.productId || !s.fromCountry || !s.toCountry) return res.status(400).json({ error: 'Missing fields' });
   db.shipments.push(s);
   saveDB(db);
   res.json({ ok: true, shipment: s });
@@ -249,10 +237,11 @@ app.delete('/api/shipments/:id', requireAuth, (req, res) => {
 app.get('/api/remittances', requireAuth, (req, res) => {
   const db = loadDB();
   let list = db.remittances || [];
-  const { start, end, country } = req.query || {};
+  const { start, end, country, productId } = req.query || {};
   if (start) list = list.filter(r => r.start >= start);
-  if (end)   list = list.filter(r => r.end   <= end);
+  if (end) list = list.filter(r => r.end <= end);
   if (country) list = list.filter(r => r.country === country);
+  if (productId) list = list.filter(r => r.productId === productId);
   res.json({ remittances: list });
 });
 app.post('/api/remittances', requireAuth, (req, res) => {
@@ -270,12 +259,17 @@ app.post('/api/remittances', requireAuth, (req, res) => {
     adSpend: +req.body.adSpend || 0,
     extraPerPiece: +req.body.extraPerPiece || 0
   };
-  if (!r.start || !r.end || !r.country || !r.productId) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
+  if (!r.start || !r.end || !r.country || !r.productId) return res.status(400).json({ error: 'Missing required fields' });
+  if ((r.country || '').toLowerCase() === 'china') return res.status(400).json({ error: 'china not allowed for remittances' });
   db.remittances.push(r);
   saveDB(db);
   res.json({ ok: true, remittance: r });
+});
+app.delete('/api/remittances/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  db.remittances = (db.remittances || []).filter(x => x.id !== req.params.id);
+  saveDB(db);
+  res.json({ ok: true });
 });
 
 app.get('/api/finance/categories', requireAuth, (req, res) => {
@@ -297,7 +291,7 @@ app.delete('/api/finance/categories', requireAuth, (req, res) => {
   const db = loadDB();
   const { type, name } = req.query || {};
   if (!type || !name) return res.status(400).json({ error: 'Missing type/name' });
-  if (db.finance?.categories?.[type]) {
+  if ((db.finance?.categories?.[type] || []).includes(name)) {
     db.finance.categories[type] = db.finance.categories[type].filter(c => c !== name);
     saveDB(db);
   }
@@ -307,12 +301,10 @@ app.get('/api/finance/entries', requireAuth, (req, res) => {
   const db = loadDB();
   let list = db.finance?.entries || [];
   const { start, end } = req.query || {};
-  let periodList = list;
-  if (start) periodList = periodList.filter(e => e.date >= start);
-  if (end)   periodList = periodList.filter(e => e.date <= end);
-  const running = computeRunningBalance(db);
-  const balance = computePeriodBalance(periodList);
-  res.json({ entries: periodList, running, balance });
+  let period = list;
+  if (start) period = period.filter(e => e.date >= start);
+  if (end) period = period.filter(e => e.date <= end);
+  res.json({ entries: period, running: runningBalance(db), balance: periodBalance(period) });
 });
 app.post('/api/finance/entries', requireAuth, (req, res) => {
   const db = loadDB();
@@ -349,6 +341,7 @@ app.post('/api/influencers', requireAuth, (req, res) => {
 app.delete('/api/influencers/:id', requireAuth, (req, res) => {
   const db = loadDB();
   db.influencers = (db.influencers || []).filter(i => i.id !== req.params.id);
+  db.influencerSpends = (db.influencerSpends || []).filter(s => s.influencerId !== req.params.id);
   saveDB(db);
   res.json({ ok: true });
 });
@@ -386,8 +379,7 @@ app.post('/api/snapshots', requireAuth, async (req, res) => {
   await fs.copy(DATA_FILE, file);
   const entry = { id: uuidv4(), name, file, createdAt: new Date().toISOString(), kind: 'manual' };
   db.snapshots = db.snapshots || [];
-  db.snapshots.push(entry);
-  db.snapshots.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  db.snapshots.unshift(entry);
   saveDB(db);
   res.json({ ok: true, file, snapshot: entry });
 });
@@ -402,9 +394,7 @@ app.post('/api/snapshots/restore', requireAuth, async (req, res) => {
 app.delete('/api/snapshots/:id', requireAuth, async (req, res) => {
   const db = loadDB();
   const snap = (db.snapshots || []).find(s => s.id === req.params.id);
-  if (snap && snap.file && fs.existsSync(snap.file)) {
-    try { await fs.remove(snap.file); } catch {}
-  }
+  if (snap && snap.file && fs.existsSync(snap.file)) { try { await fs.remove(snap.file); } catch {} }
   db.snapshots = (db.snapshots || []).filter(s => s.id !== req.params.id);
   saveDB(db);
   res.json({ ok: true });
@@ -415,5 +405,4 @@ app.get('/', (req, res) => { res.sendFile(path.join(ROOT, 'index.html')); });
 
 app.listen(PORT, () => {
   console.log(`EAS Tracker running on port ${PORT}`);
-  console.log(`Data file: ${DATA_FILE}`);
 });
