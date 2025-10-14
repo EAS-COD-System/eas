@@ -73,7 +73,7 @@ async function gate() {
 // FIXED LOGIN HANDLER
 Q('#loginBtn')?.addEventListener('click', async () => {
   const password = Q('#pw').value;
-  console.log('🔄 Attempting login...');
+  console.log('🔄 Login button clicked, password length:', password.length);
   
   if (!password) {
     alert('Please enter password');
@@ -81,20 +81,33 @@ Q('#loginBtn')?.addEventListener('click', async () => {
   }
 
   try {
-    const result = await api('/api/auth', { 
-      method: 'POST', 
-      body: JSON.stringify({ password }) 
+    console.log('📡 Sending login request...');
+    const response = await fetch('/api/auth', {
+      method: 'POST',
+      credentials: 'include', // IMPORTANT: Include cookies
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ password })
     });
+
+    console.log('📨 Response status:', response.status);
     
-    if (result.ok) {
-      console.log('✅ Login successful, reloading...');
-      await gate();
+    const data = await response.json();
+    console.log('📨 Response data:', data);
+
+    if (response.ok) {
+      console.log('✅ Login successful, checking auth...');
+      // Wait a moment for cookie to be set
+      setTimeout(async () => {
+        await gate();
+      }, 100);
     } else {
-      alert('Login failed');
+      alert('Login failed: ' + (data.error || 'Unknown error'));
     }
   } catch (error) {
     console.error('❌ Login error:', error);
-    alert('Wrong password or server error');
+    alert('Network error: ' + error.message);
   }
 });
 
