@@ -10,5 +10,5 @@ const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const out = path.join(SNAPSHOT_DIR, `${stamp}-manual.json`);
   await fs.copy(DATA_FILE, out);
-  console.log('Snapshot created:', out);
+  console.log(out);
 })();
