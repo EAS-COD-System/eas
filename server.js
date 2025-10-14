@@ -57,14 +57,14 @@ app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
 
-  // works behind Render/Heroku proxies
+  // Proper HTTPS detection for Render
   const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
 
   const cookieOpts = {
     httpOnly: true,
     path: '/',
-    sameSite: 'Lax',     // keep Lax since FE and API are same-site
-    secure: isSecure,    // <-- IMPORTANT: use HTTPS when available
+    sameSite: 'Lax',
+    secure: isSecure,  // Dynamic based on environment
     maxAge: 365 * 24 * 60 * 60 * 1000
   };
 
@@ -80,7 +80,6 @@ app.post('/api/auth', (req, res) => {
 
   return res.status(403).json({ error: 'Wrong password' });
 });
-
 function requireAuth(req, res, next) {
   if (req.cookies.auth === '1') return next();
   return res.status(403).json({ error: 'Unauthorized' });
