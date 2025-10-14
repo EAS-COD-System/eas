@@ -80,21 +80,6 @@
                 <button id="weeklyNext" class="btn outline">Next ▶</button>
                 <button id="weeklySave" class="btn">Save</button>
                 <button id="weeklyReset" class="btn danger outline">Reset</button>
-              </div>
-            </div>
-            <table id="weeklyTable" class="table compact">
-              <thead id="weeklyHead"></thead>
-              <tbody id="weeklyBody"></tbody>
-              <tfoot>
-                <tr class="totals"><th>Totals</th>
-                  <th id="wMonT">0</th><th id="wTueT">0</th><th id="wWedT">0</th>
-                  <th id="wThuT">0</th><th id="wFriT">0</th><th id="wSatT">0</th><th id="wSunT">0</th>
-                  <th id="wAllT">0</th>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
           <div class="section">
             <h2>Daily Advertising Spend</h2>
             <div class="card">
@@ -112,10 +97,12 @@
             </div>
           </div>
 
-          <div class="section">
+                    <div class="section">
             <h2>Stock Movement</h2>
             <div class="card">
               <div class="row wrap">
+                <select id="mvFrom" class="input"></select>
+                <span>→</span>
                 <select id="mvTo" class="input"></select>
                 <select id="mvProduct" class="input"></select>
                 <input id="mvQty" type="number" class="input" placeholder="Qty" min="0"/>
@@ -123,9 +110,23 @@
                 <input id="mvNote" class="input" placeholder="Note (optional)"/>
                 <button id="mvAdd" class="btn">Add Movement</button>
               </div>
-              <small>All movements are from China to selected country.</small>
             </div>
           </div>
+              </div>
+            </div>
+            <table id="weeklyTable" class="table compact">
+              <thead id="weeklyHead"></thead>
+              <tbody id="weeklyBody"></tbody>
+              <tfoot>
+                <tr class="totals"><th>Totals</th>
+                  <th id="wMonT">0</th><th id="wTueT">0</th><th id="wWedT">0</th>
+                  <th id="wThuT">0</th><th id="wFriT">0</th><th id="wSatT">0</th><th id="wSunT">0</th>
+                  <th id="wAllT">0</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
 
           <div class="section">
             <h2>Transit (China → Kenya)</h2>
@@ -169,74 +170,7 @@
             </table>
           </div>
 
-          <div class="section">
-            <h2>Profit by Country</h2>
-            <div class="row wrap">
-              <select id="pcCountry" class="input"><option value="">All countries</option></select>
-              <input id="pcStart" type="date" class="input"/>
-              <input id="pcEnd" type="date" class="input"/>
-              <button id="pcRun" class="btn">Run</button>
-            </div>
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Country</th>
-                  <th>Revenue</th>
-                  <th>Ad Spend</th>
-                  <th>Delivery Cost</th>
-                  <th>Pieces</th>
-                  <th>Profit</th>
-                </tr>
-              </thead>
-              <tbody id="profitCountryBody"></tbody>
-              <tfoot>
-                <tr class="totals">
-                  <th>Totals</th>
-                  <th id="pcRevT">0</th>
-                  <th id="pcAdT">0</th>
-                  <th id="pcDelT">0</th>
-                  <th id="pcPiecesT">0</th>
-                  <th id="pcProfitT">0</th>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          <div class="section">
-            <h2>Lifetime Product Performance</h2>
-            <div class="row wrap">
-              <select id="lpProduct" class="input"><option value="">All products</option></select>
-              <input id="lpStart" type="date" class="input"/>
-              <input id="lpEnd" type="date" class="input"/>
-              <button id="lpRun" class="btn">Run</button>
-            </div>
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Country</th>
-                  <th>Revenue</th>
-                  <th>Ad Spend</th>
-                  <th>Shipping</th>
-                  <th>Base Cost</th>
-                  <th>Pieces</th>
-                  <th>Profit</th>
-                </tr>
-              </thead>
-              <tbody id="lifetimeBody"></tbody>
-              <tfoot>
-                <tr class="totals">
-                  <th colspan="2">Totals</th>
-                  <th id="ltRevT">0</th>
-                  <th id="ltAdT">0</th>
-                  <th id="ltShipT">0</th>
-                  <th id="ltBaseT">0</th>
-                  <th id="ltPiecesT">0</th>
-                  <th id="ltProfitT">0</th>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+          
 
           <div class="section">
             <h2>To-Do</h2>
@@ -318,7 +252,74 @@
               <tbody></tbody>
             </table>
           </div>
+<div class="section">
+            >Profit by Country</h2>
+            <div class="row wrap">
+              <select id="pcCountry" class="input"><option value="">All countries</option></select>
+              <input id="pcStart" type="date" class="input"/>
+              <input id="pcEnd" type="date" class="input"/>
+              <button id="pcRun" class="btn">Run</button>
+            </div><h2
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Country</th>
+                  <th>Revenue</th>
+                  <th>Ad Spend</th>
+                  <th>Delivery Cost</th>
+                  <th>Pieces</th>
+                  <th>Profit</th>
+                </tr>
+              </thead>
+              <tbody id="profitCountryBody"></tbody>
+              <tfoot>
+                <tr class="totals">
+                  <th>Totals</th>
+                  <th id="pcRevT">0</th>
+                  <th id="pcAdT">0</th>
+                  <th id="pcDelT">0</th>
+                  <th id="pcPiecesT">0</th>
+                  <th id="pcProfitT">0</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
 
+          <div class="section">
+            <h2>Lifetime Product Performance</h2>
+            <div class="row wrap">
+              <select id="lpProduct" class="input"><option value="">All products</option></select>
+              <input id="lpStart" type="date" class="input"/>
+              <input id="lpEnd" type="date" class="input"/>
+              <button id="lpRun" class="btn">Run</button>
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Country</th>
+                  <th>Revenue</th>
+                  <th>Ad Spend</th>
+                  <th>Shipping</th>
+                  <th>Base Cost</th>
+                  <th>Pieces</th>
+                  <th>Profit</th>
+                </tr>
+              </thead>
+              <tbody id="lifetimeBody"></tbody>
+              <tfoot>
+                <tr class="totals">
+                  <th colspan="2">Totals</th>
+                  <th id="ltRevT">0</th>
+                  <th id="ltAdT">0</th>
+                  <th id="ltShipT">0</th>
+                  <th id="ltBaseT">0</th>
+                  <th id="ltPiecesT">0</th>
+                  <th id="ltProfitT">0</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
           <div class="card">
             <div class="h">Remittance Report</div>
             <div class="row wrap">
@@ -333,23 +334,6 @@
               <input id="rExtra" type="number" class="input" placeholder="Extra cost / piece (USD)" min="0" step="0.01"/>
               <button id="rAdd" class="btn">Add</button>
             </div>
-
-            <!-- Remittance Entries Table -->
-            <table id="remittancesTable" class="table">
-              <thead>
-                <tr>
-                  <th>Period</th>
-                  <th>Product</th>
-                  <th>Country</th>
-                  <th>Pieces</th>
-                  <th>Revenue</th>
-                  <th>Ad Spend</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
         </section>
 
         <!-- FINANCE -->
