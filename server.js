@@ -63,8 +63,8 @@ app.post('/api/auth', (req, res) => {
 const cookieOpts = {
   httpOnly: true,
   path: '/',
-  sameSite: isProd ? 'None' : 'Lax',
-  secure: isProd ? true : false,
+  sameSite: 'Lax',
+  secure: false,
   maxAge: 365 * 24 * 60 * 60 * 1000
 };
 
