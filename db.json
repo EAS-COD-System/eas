@@ -1,6 +1,6 @@
 {
   "password": "eastafricashop",
-  "countries": ["china","kenya","tanzania","uganda","zambia","zimbabwe"],
+  "countries": ["kenya","tanzania","uganda","zambia","zimbabwe"],
 
   "products": [
     {
@@ -24,8 +24,8 @@
   ],
 
   "shipments": [
-    { "id": "ship-001", "productId": "prod-001", "fromCountry": "china", "toCountry": "kenya", "qty": 100, "shipCost": 120, "departedAt": "2025-09-28", "arrivedAt": "2025-10-05" },
-    { "id": "ship-002", "productId": "prod-001", "fromCountry": "kenya", "toCountry": "zambia", "qty": 30, "shipCost": 45, "departedAt": "2025-10-08", "arrivedAt": null }
+    { "id": "ship-001", "productId": "prod-001", "fromCountry": "china", "toCountry": "kenya", "qty": 100, "shipCost": 120, "note": "Initial shipment", "departedAt": "2025-09-28", "arrivedAt": "2025-10-05" },
+    { "id": "ship-002", "productId": "prod-001", "fromCountry": "kenya", "toCountry": "zambia", "qty": 30, "shipCost": 45, "note": "Regional distribution", "departedAt": "2025-10-08", "arrivedAt": null }
   ],
 
   "remittances": [
