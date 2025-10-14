@@ -406,12 +406,6 @@ app.delete('/api/snapshots/:id', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/product.html', requireAuth, (req, res) => {
-  res.sendFile(path.join(ROOT, 'product.html'));
-});
-app.get('/', requireAuth, (req, res) => {
-  res.sendFile(path.join(ROOT, 'index.html'));
-});
 const PUBLIC_DIR = path.join(ROOT, 'public');
 
 app.use(express.static(PUBLIC_DIR));
