@@ -1,52 +1,39 @@
-// snapshot.js - Manual database snapshot tool
 const fs = require('fs-extra');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
-const ROOT = __dirname;
+const ROOT = path.dirname(__dirname);
 const DATA_FILE = path.join(ROOT, 'db.json');
 const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
 
-async function createSnapshot() {
+async function createSnapshot(name = '') {
   try {
-    // Ensure snapshot directory exists
     await fs.ensureDir(SNAPSHOT_DIR);
     
-    // Load current database to include in snapshots list
     const db = await fs.readJson(DATA_FILE);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const snapshotName = name || `Manual-${timestamp}`;
+    const snapshotFile = path.join(SNAPSHOT_DIR, `${timestamp}-${snapshotName.replace(/\s+/g, '_')}.json`);
     
-    // Create snapshot filename with timestamp
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const name = process.argv[2] || `Manual-${stamp}`;
-    const snapshotFile = path.join(SNAPSHOT_DIR, `${stamp}-${name.replace(/\s+/g, '_')}.json`);
-    
-    // Copy the database file to snapshot
     await fs.copy(DATA_FILE, snapshotFile);
     
-    // Create snapshot entry
-    const snapshotEntry = {
+    const snapshot = {
       id: uuidv4(),
-      name: name,
+      name: snapshotName,
       file: snapshotFile,
       createdAt: new Date().toISOString(),
       kind: 'manual'
     };
     
-    // Update the snapshots list in the database
     db.snapshots = db.snapshots || [];
-    db.snapshots.unshift(snapshotEntry);
-    
-    // Save the updated database
+    db.snapshots.unshift(snapshot);
     await fs.writeJson(DATA_FILE, db, { spaces: 2 });
     
-    console.log('✅ Snapshot created successfully!');
-    console.log(`📁 File: ${path.basename(snapshotFile)}`);
-    console.log(`📛 Name: ${name}`);
-    console.log(`🕐 Created: ${new Date().toLocaleString()}`);
-    
+    console.log('✅ Snapshot created:', snapshotFile);
+    return snapshot;
   } catch (error) {
-    console.error('❌ Error creating snapshot:', error.message);
-    process.exit(1);
+    console.error('❌ Snapshot error:', error.message);
+    throw error;
   }
 }
 
@@ -55,80 +42,65 @@ async function listSnapshots() {
     const db = await fs.readJson(DATA_FILE);
     const snapshots = db.snapshots || [];
     
-    console.log('📸 Available Snapshots:');
+    console.log('\n📸 Snapshots:');
     console.log('=' .repeat(50));
     
-    if (snapshots.length === 0) {
-      console.log('No snapshots found.');
-      return;
-    }
-    
-    snapshots.forEach((snap, index) => {
-      console.log(`${index + 1}. ${snap.name}`);
+    snapshots.forEach((snap, i) => {
+      console.log(`${i + 1}. ${snap.name}`);
       console.log(`   File: ${path.basename(snap.file)}`);
       console.log(`   Date: ${new Date(snap.createdAt).toLocaleString()}`);
-      console.log(`   ID: ${snap.id}`);
-      console.log('');
+      console.log(`   ID: ${snap.id}\n`);
     });
     
+    return snapshots;
   } catch (error) {
-    console.error('❌ Error listing snapshots:', error.message);
+    console.error('❌ List error:', error.message);
+    throw error;
   }
 }
 
-async function restoreSnapshot(snapshotIdOrName) {
+async function restoreSnapshot(snapshotId) {
   try {
     const db = await fs.readJson(DATA_FILE);
-    const snapshots = db.snapshots || [];
-    
-    // Find snapshot by ID or name
-    const snapshot = snapshots.find(snap => 
-      snap.id === snapshotIdOrName || 
-      snap.name.toLowerCase().includes(snapshotIdOrName.toLowerCase())
-    );
+    const snapshot = (db.snapshots || []).find(s => s.id === snapshotId);
     
     if (!snapshot) {
-      console.error('❌ Snapshot not found:', snapshotIdOrName);
-      return;
+      throw new Error('Snapshot not found: ' + snapshotId);
     }
     
     if (!await fs.pathExists(snapshot.file)) {
-      console.error('❌ Snapshot file not found:', snapshot.file);
-      return;
+      throw new Error('Snapshot file missing: ' + snapshot.file);
     }
     
-    // Create backup of current database before restore
-    const backupFile = path.join(SNAPSHOT_DIR, `pre-restore-backup-${Date.now()}.json`);
+    // Create backup before restore
+    const backupFile = path.join(SNAPSHOT_DIR, `pre-restore-${Date.now()}.json`);
     await fs.copy(DATA_FILE, backupFile);
     
-    // Restore from snapshot
     await fs.copy(snapshot.file, DATA_FILE);
     
-    console.log('✅ Database restored successfully!');
-    console.log(`📁 From: ${path.basename(snapshot.file)}`);
-    console.log(`📛 Snapshot: ${snapshot.name}`);
-    console.log(`💾 Backup: ${path.basename(backupFile)}`);
-    console.log('🔄 Please restart your application.');
+    console.log('✅ Database restored from:', path.basename(snapshot.file));
+    console.log('💾 Backup saved as:', path.basename(backupFile));
     
+    return { restored: snapshot, backup: backupFile };
   } catch (error) {
-    console.error('❌ Error restoring snapshot:', error.message);
+    console.error('❌ Restore error:', error.message);
+    throw error;
   }
 }
 
-// Command line interface
+// CLI interface
 async function main() {
   const command = process.argv[2];
   
   switch (command) {
     case 'create':
     case 'c':
-      const name = process.argv[3];
+      const name = process.argv.slice(3).join(' ') || '';
       await createSnapshot(name);
       break;
       
     case 'list':
     case 'ls':
-    case 'l':
       await listSnapshots();
       break;
       
@@ -136,50 +108,35 @@ async function main() {
     case 'r':
       const snapshotId = process.argv[3];
       if (!snapshotId) {
-        console.error('❌ Please provide snapshot ID or name');
-        console.log('Usage: node snapshot.js restore <snapshot-id-or-name>');
-        return;
+        console.error('❌ Provide snapshot ID');
+        process.exit(1);
       }
       await restoreSnapshot(snapshotId);
       break;
       
-    case 'help':
-    case 'h':
-    case undefined:
+    default:
       console.log(`
 📸 EAS Tracker Snapshot Manager
 
 Usage:
-  node snapshot.js <command> [options]
+  node scripts/snapshot.js <command> [options]
 
 Commands:
-  create [name]    Create a new snapshot (optional: provide a name)
-  list             List all available snapshots
-  restore <id>     Restore database from snapshot (by ID or name)
-  help             Show this help message
+  create [name]    Create snapshot
+  list             List snapshots  
+  restore <id>     Restore snapshot
 
 Examples:
-  node snapshot.js create
-  node snapshot.js create "Before major changes"
-  node snapshot.js list
-  node snapshot.js restore "Before major changes"
-  node snapshot.js restore c1a2b3d4-e5f6-7890-abcd-ef1234567890
+  node scripts/snapshot.js create
+  node scripts/snapshot.js create "Before changes"
+  node scripts/snapshot.js list
+  node scripts/snapshot.js restore c1a2b3d4-e5f6-7890-abcd-ef1234567890
       `);
-      break;
-      
-    default:
-      console.error('❌ Unknown command:', command);
-      console.log('Use "node snapshot.js help" for usage information.');
   }
 }
 
-// Run if this file is executed directly
 if (require.main === module) {
-  main().catch(console.error);
+  main().catch(() => process.exit(1));
 }
 
-module.exports = {
-  createSnapshot,
-  listSnapshots,
-  restoreSnapshot
-};
+module.exports = { createSnapshot, listSnapshots, restoreSnapshot };
