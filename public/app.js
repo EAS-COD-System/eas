@@ -1450,7 +1450,39 @@ function bindGlobalNav() {
     if (v==='stockMovement') { renderStockMovementPage(); }
   }));
 }
+/* ================================================================
+   HIDE NAVIGATION ON SCROLL
+   ================================================================ */
+let lastScrollY = window.scrollY;
+const nav = document.querySelector('.nav');
 
+window.addEventListener('scroll', () => {
+  if (!nav) return;
+  
+  if (window.scrollY > lastScrollY && window.scrollY > 100) {
+    // Scrolling down & past 100px - hide nav
+    nav.classList.add('nav-hidden');
+  } else {
+    // Scrolling up - show nav
+    nav.classList.remove('nav-hidden');
+  }
+  
+  lastScrollY = window.scrollY;
+});
+
+// Also hide nav when clicking outside (optional)
+document.addEventListener('click', (e) => {
+  if (!nav.contains(e.target)) {
+    nav.classList.add('nav-hidden');
+  }
+});
+
+// Show nav when hovering near top of page
+document.addEventListener('mousemove', (e) => {
+  if (e.clientY < 100) {
+    nav.classList.remove('nav-hidden');
+  }
+});
 /* ================================================================
    BOOT
    ================================================================ */
