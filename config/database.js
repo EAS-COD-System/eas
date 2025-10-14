@@ -6,6 +6,7 @@ const DATA_DIR = path.dirname(DATA_FILE);
 
 class Database {
   constructor() {
+    this.DATA_FILE = DATA_FILE;
     this.init();
   }
 
@@ -15,6 +16,7 @@ class Database {
     
     // Initialize database if missing
     if (!fs.existsSync(DATA_FILE)) {
+      console.log('🆕 Creating new database file...');
       const initialData = {
         system: {
           password: 'eastafricashop',
@@ -62,16 +64,30 @@ class Database {
       };
       
       this.save(initialData);
-      console.log('🆕 Created new database with initial data');
+      console.log('✅ Database created successfully');
+    } else {
+      console.log('📁 Database file exists');
     }
   }
 
   load() {
     try {
+      if (!fs.existsSync(DATA_FILE)) {
+        this.init();
+      }
       return fs.readJsonSync(DATA_FILE);
     } catch (error) {
       console.error('❌ Database load error:', error);
-      return null;
+      // Return empty structure if file is corrupted
+      return {
+        products: [],
+        business: { countries: [] },
+        marketing: { adSpend: [] },
+        inventory: { shipments: [] },
+        sales: { remittances: [] },
+        finance: { entries: [], categories: { debit: [], credit: [] } },
+        systemData: { snapshots: [] }
+      };
     }
   }
 
@@ -87,19 +103,23 @@ class Database {
 
   // Helper methods
   getProducts() {
-    return this.load().products || [];
+    const data = this.load();
+    return data.products || [];
   }
 
   getShipments() {
-    return this.load().inventory.shipments || [];
+    const data = this.load();
+    return data.inventory?.shipments || [];
   }
 
   getRemittances() {
-    return this.load().sales.remittances || [];
+    const data = this.load();
+    return data.sales?.remittances || [];
   }
 
   getAdSpend() {
-    return this.load().marketing.adSpend || [];
+    const data = this.load();
+    return data.marketing?.adSpend || [];
   }
 
   update(updates) {
