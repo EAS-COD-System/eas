@@ -4,7 +4,11 @@
   "description": "East Africa Shop business tracking system",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "snapshot": "node snapshot.js",
+    "snapshot:create": "node snapshot.js create",
+    "snapshot:list": "node snapshot.js list",
+    "snapshot:restore": "node snapshot.js restore"
   },
   "dependencies": {
     "body-parser": "^1.20.2",
