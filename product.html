@@ -3,116 +3,207 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Product Details - EAS Tracker</title>
+  <title>EAS Tracker – Product</title>
   <link rel="stylesheet" href="/public/styles.css"/>
 </head>
 <body>
-  <nav class="nav">
-    <a href="/">← Back to Dashboard</a>
-  </nav>
-
   <div class="container">
-    <h1 id="productName">Product</h1>
 
-    <div class="section">
+    <nav class="nav">
+      <a href="/" class="active">← Dashboard</a>
+      <span class="nav-right" id="pdTransitBadge">Transit total: 0</span>
+    </nav>
+
+    <header style="margin:12px 0 20px">
+      <h1 id="pdTitle">Product</h1>
+      <div id="pdSku" class="muted"></div>
+    </header>
+
+    <!-- Stock & Ad Spend by Country (this product only) -->
+    <section class="section">
       <h2>Stock &amp; Ad Spend by Country</h2>
       <table class="table">
-        <thead><tr><th>Country</th><th>Stock</th><th>Total Ad Spend (USD)</th></tr></thead>
-        <tbody id="stockCountryBody"></tbody>
-        <tfoot><tr class="totals"><th>Totals</th><th id="scStockT">0</th><th id="scAdT">0</th></tr></tfoot>
+        <thead>
+          <tr><th>Country</th><th>Approx. Stock</th><th>Total Ad Spend (USD)</th></tr>
+        </thead>
+        <tbody id="pdStockBody"></tbody>
+        <tfoot>
+          <tr class="totals"><th>Totals</th><th id="pdStockTotal">0</th><th id="pdAdTotal">0</th></tr>
+        </tfoot>
       </table>
-    </div>
+    </section>
 
-    <div class="section">
+    <!-- Profit + Advertising Budget (per country) – manual -->
+    <section class="section">
+      <h2>Profit + Advertising Budget (per country)</h2>
+      <div class="card">
+        <div class="row wrap">
+          <select id="pdPBCountry" class="input"></select>
+          <input id="pdPBValue" type="number" class="input" placeholder="Budget (USD)" min="0" step="0.01"/>
+          <button id="pdPBSave" class="btn">Save</button>
+        </div>
+      </div>
+      <table class="table">
+        <thead><tr><th>Country</th><th>Budget (USD)</th><th></th></tr></thead>
+        <tbody id="pdPBBBody"></tbody>
+      </table>
+    </section>
+
+    <!-- Daily Ad Spend (Replace current) -->
+    <section class="section">
       <h2>Daily Ad Spend (Replace current)</h2>
       <div class="card">
         <div class="row wrap">
-          <select id="adPlatform" class="input">
+          <select id="pdAdCountry" class="input"></select>
+          <select id="pdAdPlatform" class="input">
             <option value="facebook">Facebook</option>
             <option value="tiktok">TikTok</option>
             <option value="google">Google</option>
           </select>
-          <select id="adCountry" class="input"></select>
-          <input id="adAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
-          <button id="adSave" class="btn">Save/Replace</button>
+          <input id="pdAdAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
+          <button id="pdAdSave" class="btn">Save/Replace</button>
         </div>
       </div>
-    </div>
-
-    <div class="section">
-      <h2>Profit + Advertising Budget (per country)</h2>
       <table class="table">
-        <thead><tr><th>Country</th><th>Profit + Budget (USD)</th></tr></thead>
-        <tbody id="budgetBody"></tbody>
-        <tfoot><tr class="totals"><th>Total</th><th id="budgetTotal">0</th></tr></tfoot>
+        <thead><tr><th>Country</th><th>Platform</th><th>Amount (USD)</th></tr></thead>
+        <tbody id="pdAdBody"></tbody>
       </table>
-      <button id="budgetSave" class="btn">Save</button>
-    </div>
+    </section>
 
-    <div class="section">
+    <!-- Stock Movement -->
+    <section class="section">
+      <h2>Stock Movement</h2>
+      <div class="card">
+        <div class="row wrap">
+          <select id="pdMvFrom" class="input"></select>
+          <span>→</span>
+          <select id="pdMvTo" class="input"></select>
+          <input id="pdMvQty" type="number" class="input" placeholder="Qty" min="0"/>
+          <input id="pdMvShip" type="number" class="input" placeholder="Shipping Cost (USD)" min="0" step="0.01"/>
+          <button id="pdMvAdd" class="btn">Add Movement</button>
+        </div>
+        <small>China is only available for movements &amp; transit.</small>
+      </div>
+    </section>
+
+    <!-- Transit: China → Kenya -->
+    <section class="section">
       <h2>Transit (China → Kenya)</h2>
-      <table class="table" id="shipCK">
-        <thead><tr><th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th></tr></thead>
-        <tbody id="shipCKBody"></tbody>
+      <table class="table">
+        <thead><tr>
+          <th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="pdShipCKBody"></tbody>
       </table>
-    </div>
+    </section>
 
-    <div class="section">
+    <!-- Transit: Inter-country -->
+    <section class="section">
       <h2>Transit (Inter-country)</h2>
-      <table class="table" id="shipIC">
-        <thead><tr><th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th></tr></thead>
-        <tbody id="shipICBody"></tbody>
+      <table class="table">
+        <thead><tr>
+          <th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="pdShipICBody"></tbody>
       </table>
-    </div>
+    </section>
 
-    <div class="section">
+    <!-- Arrived Shipments (history for this product) -->
+    <section class="section">
       <h2>Arrived Shipments</h2>
-      <table class="table" id="shipArrived">
-        <thead><tr><th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th></tr></thead>
-        <tbody id="shipArrivedBody"></tbody>
+      <table class="table">
+        <thead><tr>
+          <th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th>
+        </tr></thead>
+        <tbody id="pdShipArrivedBody"></tbody>
       </table>
-    </div>
+    </section>
 
-    <div class="section">
+    <!-- Remittance Entries (pulled from Performance → Remittance Report) -->
+    <section class="section">
+      <h2>Remittance Entries</h2>
+      <table class="table">
+        <thead><tr>
+          <th>Period</th><th>Country</th><th>Orders</th><th>Pieces</th><th>Revenue</th><th>Ad Spend</th><th>Extra/pc</th><th>Profit</th><th></th>
+        </tr></thead>
+        <tbody id="pdRBody"></tbody>
+        <tfoot>
+          <tr class="totals">
+            <th colspan="4">Totals</th>
+            <th id="pdRRevT">0</th>
+            <th id="pdRAdT">0</th>
+            <th id="pdRExtraT">0</th>
+            <th id="pdRProfitT">0</th>
+            <th></th>
+          </tr>
+        </tfoot>
+      </table>
+    </section>
+
+    <!-- Lifetime (This Product) -->
+    <section class="section">
       <h2>Lifetime (This Product)</h2>
-      <div class="row wrap">
-        <input id="lpStart" type="date" class="input"/>
-        <input id="lpEnd" type="date" class="input"/>
-        <button id="lpRun" class="btn">Run</button>
+      <div class="card">
+        <div class="row wrap">
+          <input id="pdLPStart" type="date" class="input"/>
+          <input id="pdLPEnd" type="date" class="input"/>
+          <button id="pdLPRun" class="btn">Run</button>
+        </div>
       </div>
-      <table class="table" id="lifetimeTable">
-        <thead><tr><th>Country</th><th>Revenue</th><th>Ad Spend</th><th>Shipping</th><th>Base Cost</th><th>Pieces</th><th>Profit</th></tr></thead>
-        <tbody id="lifetimeBody"></tbody>
-        <tfoot><tr class="totals"><th>Totals</th><th id="ltRevT">0</th><th id="ltAdT">0</th><th id="ltShipT">0</th><th id="ltBaseT">0</th><th id="ltPiecesT">0</th><th id="ltProfitT">0</th></tr></tfoot>
+      <table class="table">
+        <thead><tr>
+          <th>Country</th><th>Revenue</th><th>Ad Spend</th><th>Shipping</th><th>Base Cost</th><th>Pieces</th><th>Profit</th>
+        </tr></thead>
+        <tbody id="pdLPBody"></tbody>
+        <tfoot>
+          <tr class="totals">
+            <th>Totals</th>
+            <th id="pdLPRevT">0</th><th id="pdLPAdT">0</th><th id="pdLPShipT">0</th>
+            <th id="pdLPBaseT">0</th><th id="pdLPPcsT">0</th><th id="pdLPProfitT">0</th>
+          </tr>
+        </tfoot>
       </table>
-    </div>
+    </section>
 
-    <div class="section">
+    <!-- Influencer Spend -->
+    <section class="section">
       <h2>Influencer Spend</h2>
+
       <div class="card">
+        <div class="h">Add Influencer</div>
         <div class="row wrap">
-          <input id="infName" class="input" placeholder="Influencer name"/>
-          <input id="infSocial" class="input" placeholder="Social handle"/>
-          <select id="infCountry" class="input"></select>
-          <button id="infAdd" class="btn">Add Influencer</button>
+          <input id="pdInfName" class="input" placeholder="Influencer Name"/>
+          <input id="pdInfSocial" class="input" placeholder="Social @handle"/>
+          <select id="pdInfCountry" class="input"></select>
+          <button id="pdInfAdd" class="btn">Add Influencer</button>
         </div>
       </div>
 
       <div class="card">
+        <div class="h">Add Spend</div>
         <div class="row wrap">
-          <select id="spInfluencer" class="input"></select>
-          <select id="spCountry" class="input"></select>
-          <input id="spAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
-          <button id="spAdd" class="btn">Add Spend</button>
+          <input id="pdInfDate" type="date" class="input"/>
+          <select id="pdInfSelect" class="input"></select>
+          <select id="pdInfFilterCountry" class="input"><option value="">All countries</option></select>
+          <input id="pdInfAmount" type="number" class="input" min="0" step="0.01" placeholder="Spend (USD)"/>
+          <button id="pdInfSpendAdd" class="btn">Add Spend</button>
+        </div>
+        <div class="row wrap" style="margin-top:8px">
+          <input id="pdInfStart" type="date" class="input"/>
+          <input id="pdInfEnd" type="date" class="input"/>
+          <button id="pdInfRun" class="btn outline">Filter</button>
+          <div class="badge">Total: <span id="pdInfTotal">0</span> USD</div>
         </div>
       </div>
 
-      <table class="table" id="spendTable">
-        <thead><tr><th>Influencer</th><th>Country</th><th>Amount</th><th>Date</th><th></th></tr></thead>
-        <tbody id="spendBody"></tbody>
+      <table class="table">
+        <thead><tr><th>Date</th><th>Country</th><th>Influencer</th><th>Social</th><th>Spend (USD)</th><th></th></tr></thead>
+        <tbody id="pdInfBody"></tbody>
       </table>
-    </div>
+    </section>
+
   </div>
+
   <script src="/public/app.js"></script>
 </body>
 </html>
