@@ -1,3 +1,4 @@
+// server.js
 const express = require('express');
 const fs = require('fs-extra');
 const path = require('path');
@@ -10,20 +11,21 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Paths
 const ROOT = __dirname;
 const DATA_FILE = path.join(ROOT, 'db.json');
-const PUBLIC_DIR = path.join(ROOT, 'public');
+const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
 
-// Middleware
-app.use(morgan('combined'));
-app.use(cors({ origin: true, credentials: true }));
-app.use(bodyParser.json({ limit: '10mb' }));
+app.set('trust proxy', 1);
+app.use(cors({
+  origin: (origin, cb) => cb(null, origin || true),
+  credentials: true
+}));
+app.use(morgan('dev'));
+app.use(bodyParser.json({ limit: '1mb' }));
 app.use(cookieParser());
-app.use(express.static(PUBLIC_DIR));
+app.use('/public', express.static(path.join(ROOT, 'public')));
 
-// Database functions
-function initDB() {
+function initDBIfMissing() {
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeJsonSync(DATA_FILE, {
       password: 'eastafricashop',
@@ -38,35 +40,30 @@ function initDB() {
       influencerSpends: [],
       snapshots: []
     }, { spaces: 2 });
-    console.log('✅ New database created');
   }
 }
+function loadDB() { initDBIfMissing(); return fs.readJsonSync(DATA_FILE); }
+function saveDB(db) { fs.writeJsonSync(DATA_FILE, db, { spaces: 2 }); }
+function ensureSnapshotDir() { fs.ensureDirSync(SNAPSHOT_DIR); }
 
-function loadDB() {
-  initDB();
-  return fs.readJsonSync(DATA_FILE);
+function runningBalance(db) {
+  return (db.finance?.entries || []).reduce((t, e) => t + (e.type === 'credit' ? +e.amount || 0 : -(+e.amount || 0)), 0);
+}
+function periodBalance(list) {
+  return (list || []).reduce((t, e) => t + (e.type === 'credit' ? +e.amount || 0 : -(+e.amount || 0)), 0);
 }
 
-function saveDB(db) {
-  fs.writeJsonSync(DATA_FILE, db, { spaces: 2 });
-}
-
-// Authentication middleware
-function requireAuth(req, res, next) {
-  if (req.cookies.auth === '1') return next();
-  res.status(401).json({ error: 'Authentication required' });
-}
-
-// ==================== AUTHENTICATION ====================
+// FIXED AUTH ENDPOINT
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
 
+  // ULTRA SIMPLE COOKIE SETTINGS THAT WORK EVERYWHERE
   const cookieOpts = {
     httpOnly: true,
     path: '/',
     sameSite: 'lax',
-    secure: false,
+    secure: false, // Force to false for Render compatibility
     maxAge: 365 * 24 * 60 * 60 * 1000
   };
 
@@ -80,19 +77,23 @@ app.post('/api/auth', (req, res) => {
     return res.json({ ok: true });
   }
 
-  res.status(401).json({ error: 'Wrong password' });
+  return res.status(403).json({ error: 'Wrong password' });
 });
 
-app.get('/api/auth/check', (req, res) => {
-  res.json({ authenticated: req.cookies.auth === '1' });
-});
+function requireAuth(req, res, next) {
+  if (req.cookies.auth === '1') return next();
+  return res.status(403).json({ error: 'Unauthorized' });
+}
 
-// ==================== COUNTRIES ====================
-app.get('/api/countries', requireAuth, (req, res) => {
+app.get('/api/meta', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ countries: db.countries || [] });
 });
 
+app.get('/api/countries', requireAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ countries: db.countries || [] });
+});
 app.post('/api/countries', requireAuth, (req, res) => {
   const { name } = req.body || {};
   if (!name) return res.status(400).json({ error: 'Missing name' });
@@ -102,70 +103,59 @@ app.post('/api/countries', requireAuth, (req, res) => {
   saveDB(db);
   res.json({ ok: true, countries: db.countries });
 });
-
 app.delete('/api/countries/:name', requireAuth, (req, res) => {
   const db = loadDB();
-  const name = (req.params.name || '').toLowerCase();
-  if (name === 'china') return res.status(400).json({ error: 'Cannot delete china' });
-  db.countries = (db.countries || []).filter(c => c.toLowerCase() !== name);
+  const n = (req.params.name || '').toLowerCase();
+  if (n === 'china') return res.status(400).json({ error: 'china cannot be deleted' });
+  db.countries = (db.countries || []).filter(c => c.toLowerCase() !== n);
   saveDB(db);
   res.json({ ok: true, countries: db.countries });
 });
 
-// ==================== PRODUCTS ====================
 app.get('/api/products', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ products: db.products || [] });
 });
-
 app.post('/api/products', requireAuth, (req, res) => {
   const db = loadDB();
-  const { name, sku, cost_china, ship_china_to_kenya, margin_budget } = req.body || {};
-  if (!name) return res.status(400).json({ error: 'Name required' });
-  
-  const product = {
+  db.products = db.products || [];
+  const p = {
     id: uuidv4(),
     status: 'active',
-    name: name.trim(),
-    sku: (sku || '').trim(),
-    cost_china: +cost_china || 0,
-    ship_china_to_kenya: +ship_china_to_kenya || 0,
-    margin_budget: +margin_budget || 0,
-    budgets: {}
+    name: req.body.name || '',
+    sku: req.body.sku || '',
+    cost_china: +req.body.cost_china || 0,
+    ship_china_to_kenya: +req.body.ship_china_to_kenya || 0,
+    margin_budget: +req.body.margin_budget || 0,
+    budgets: req.body.budgets || {}
   };
-  
-  db.products = db.products || [];
-  db.products.push(product);
+  if (!p.name) return res.status(400).json({ error: 'Name required' });
+  db.products.push(p);
   saveDB(db);
-  res.json({ ok: true, product });
+  res.json({ ok: true, product: p });
 });
-
 app.put('/api/products/:id', requireAuth, (req, res) => {
   const db = loadDB();
-  const product = (db.products || []).find(p => p.id === req.params.id);
-  if (!product) return res.status(404).json({ error: 'Product not found' });
-  
-  const { name, sku, cost_china, ship_china_to_kenya, margin_budget, budgets } = req.body || {};
-  if (name !== undefined) product.name = name;
-  if (sku !== undefined) product.sku = sku;
-  if (cost_china !== undefined) product.cost_china = +cost_china || 0;
-  if (ship_china_to_kenya !== undefined) product.ship_china_to_kenya = +ship_china_to_kenya || 0;
-  if (margin_budget !== undefined) product.margin_budget = +margin_budget || 0;
-  if (budgets !== undefined) product.budgets = budgets || {};
-  
+  const p = (db.products || []).find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: 'Not found' });
+  const up = req.body || {};
+  if (up.name !== undefined) p.name = up.name;
+  if (up.sku !== undefined) p.sku = up.sku;
+  if (up.cost_china !== undefined) p.cost_china = +up.cost_china || 0;
+  if (up.ship_china_to_kenya !== undefined) p.ship_china_to_kenya = +up.ship_china_to_kenya || 0;
+  if (up.margin_budget !== undefined) p.margin_budget = +up.margin_budget || 0;
+  if (up.budgets !== undefined) p.budgets = up.budgets || {};
   saveDB(db);
-  res.json({ ok: true, product });
+  res.json({ ok: true, product: p });
 });
-
 app.post('/api/products/:id/status', requireAuth, (req, res) => {
   const db = loadDB();
-  const product = (db.products || []).find(p => p.id === req.params.id);
-  if (!product) return res.status(404).json({ error: 'Product not found' });
-  product.status = req.body.status || 'active';
+  const p = (db.products || []).find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: 'Not found' });
+  p.status = req.body.status || 'active';
   saveDB(db);
-  res.json({ ok: true, product });
+  res.json({ ok: true, product: p });
 });
-
 app.delete('/api/products/:id', requireAuth, (req, res) => {
   const db = loadDB();
   const id = req.params.id;
@@ -178,237 +168,160 @@ app.delete('/api/products/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// ==================== AD SPEND ====================
 app.get('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ adSpends: db.adspend || [] });
 });
-
 app.post('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB();
+  db.adspend = db.adspend || [];
   const { productId, country, platform, amount } = req.body || {};
   if (!productId || !country || !platform) return res.status(400).json({ error: 'Missing fields' });
-  
-  db.adspend = db.adspend || [];
-  const existing = db.adspend.find(a => a.productId === productId && a.country === country && a.platform === platform);
-  
-  if (existing) {
-    existing.amount = +amount || 0;
-  } else {
-    db.adspend.push({
-      id: uuidv4(),
-      productId,
-      country,
-      platform,
-      amount: +amount || 0
-    });
-  }
-  
+  const f = db.adspend.find(a => a.productId === productId && a.country === country && a.platform === platform);
+  if (f) f.amount = +amount || 0;
+  else db.adspend.push({ id: uuidv4(), productId, country, platform, amount: +amount || 0 });
   saveDB(db);
   res.json({ ok: true });
 });
 
-// ==================== DELIVERIES ====================
 app.get('/api/deliveries', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ deliveries: db.deliveries || [] });
 });
-
 app.post('/api/deliveries', requireAuth, (req, res) => {
   const db = loadDB();
+  db.deliveries = db.deliveries || [];
   const { date, country, delivered } = req.body || {};
   if (!date || !country) return res.status(400).json({ error: 'Missing date/country' });
-  
-  db.deliveries = db.deliveries || [];
-  db.deliveries.push({
-    id: uuidv4(),
-    date,
-    country,
-    delivered: +delivered || 0
-  });
-  
+  db.deliveries.push({ id: uuidv4(), date, country, delivered: +delivered || 0 });
   saveDB(db);
   res.json({ ok: true });
 });
 
-// ==================== SHIPMENTS ====================
 app.get('/api/shipments', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ shipments: db.shipments || [] });
 });
-
 app.post('/api/shipments', requireAuth, (req, res) => {
   const db = loadDB();
-  const { productId, fromCountry, toCountry, qty, shipCost, departedAt, arrivedAt } = req.body || {};
-  if (!productId || !fromCountry || !toCountry) return res.status(400).json({ error: 'Missing fields' });
-  
-  const shipment = {
-    id: uuidv4(),
-    productId,
-    fromCountry,
-    toCountry,
-    qty: +qty || 0,
-    shipCost: +shipCost || 0,
-    departedAt: departedAt || new Date().toISOString().slice(0, 10),
-    arrivedAt: arrivedAt || null
-  };
-  
   db.shipments = db.shipments || [];
-  db.shipments.push(shipment);
+  const s = {
+    id: uuidv4(),
+    productId: req.body.productId,
+    fromCountry: req.body.fromCountry || req.body.from,
+    toCountry: req.body.toCountry || req.body.to,
+    qty: +req.body.qty || 0,
+    shipCost: +req.body.shipCost || 0,
+    departedAt: req.body.departedAt || new Date().toISOString().slice(0, 10),
+    arrivedAt: req.body.arrivedAt || null
+  };
+  if (!s.productId || !s.fromCountry || !s.toCountry) return res.status(400).json({ error: 'Missing fields' });
+  db.shipments.push(s);
   saveDB(db);
-  res.json({ ok: true, shipment });
+  res.json({ ok: true, shipment: s });
 });
-
 app.put('/api/shipments/:id', requireAuth, (req, res) => {
   const db = loadDB();
-  const shipment = (db.shipments || []).find(s => s.id === req.params.id);
-  if (!shipment) return res.status(404).json({ error: 'Shipment not found' });
-  
-  const { qty, shipCost, departedAt, arrivedAt } = req.body || {};
-  if (qty !== undefined) shipment.qty = +qty || 0;
-  if (shipCost !== undefined) shipment.shipCost = +shipCost || 0;
-  if (departedAt !== undefined) shipment.departedAt = departedAt;
-  if (arrivedAt !== undefined) shipment.arrivedAt = arrivedAt;
-  
+  const s = (db.shipments || []).find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ error: 'Not found' });
+  const up = req.body || {};
+  if (up.qty !== undefined) s.qty = +up.qty || 0;
+  if (up.shipCost !== undefined) s.shipCost = +up.shipCost || 0;
+  if (up.departedAt !== undefined) s.departedAt = up.departedAt;
+  if (up.arrivedAt !== undefined) s.arrivedAt = up.arrivedAt;
   saveDB(db);
-  res.json({ ok: true, shipment });
+  res.json({ ok: true, shipment: s });
 });
-
 app.delete('/api/shipments/:id', requireAuth, (req, res) => {
   const db = loadDB();
-  db.shipments = (db.shipments || []).filter(s => s.id !== req.params.id);
+  db.shipments = (db.shipments || []).filter(x => x.id !== req.params.id);
   saveDB(db);
   res.json({ ok: true });
 });
 
-// ==================== REMITTANCES ====================
 app.get('/api/remittances', requireAuth, (req, res) => {
   const db = loadDB();
-  let remittances = db.remittances || [];
+  let list = db.remittances || [];
   const { start, end, country, productId } = req.query || {};
-  
-  if (start) remittances = remittances.filter(r => r.start >= start);
-  if (end) remittances = remittances.filter(r => r.end <= end);
-  if (country) remittances = remittances.filter(r => r.country === country);
-  if (productId) remittances = remittances.filter(r => r.productId === productId);
-  
-  res.json({ remittances });
+  if (start) list = list.filter(r => r.start >= start);
+  if (end) list = list.filter(r => r.end <= end);
+  if (country) list = list.filter(r => r.country === country);
+  if (productId) list = list.filter(r => r.productId === productId);
+  res.json({ remittances: list });
 });
-
 app.post('/api/remittances', requireAuth, (req, res) => {
   const db = loadDB();
-  const { start, end, country, productId, orders, pieces, revenue, adSpend, extraPerPiece } = req.body || {};
-  
-  if (!start || !end || !country || !productId) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-  
-  if (country.toLowerCase() === 'china') {
-    return res.status(400).json({ error: 'China not allowed for remittances' });
-  }
-  
-  const remittance = {
-    id: uuidv4(),
-    start,
-    end,
-    country,
-    productId,
-    orders: +orders || 0,
-    pieces: +pieces || 0,
-    revenue: +revenue || 0,
-    adSpend: +adSpend || 0,
-    extraPerPiece: +extraPerPiece || 0
-  };
-  
   db.remittances = db.remittances || [];
-  db.remittances.push(remittance);
+  const r = {
+    id: uuidv4(),
+    start: req.body.start,
+    end: req.body.end,
+    country: req.body.country,
+    productId: req.body.productId,
+    orders: +req.body.orders || 0,
+    pieces: +req.body.pieces || 0,
+    revenue: +req.body.revenue || 0,
+    adSpend: +req.body.adSpend || 0,
+    extraPerPiece: +req.body.extraPerPiece || 0
+  };
+  if (!r.start || !r.end || !r.country || !r.productId) return res.status(400).json({ error: 'Missing required fields' });
+  if ((r.country || '').toLowerCase() === 'china') return res.status(400).json({ error: 'china not allowed for remittances' });
+  db.remittances.push(r);
   saveDB(db);
-  res.json({ ok: true, remittance });
+  res.json({ ok: true, remittance: r });
 });
-
 app.delete('/api/remittances/:id', requireAuth, (req, res) => {
   const db = loadDB();
-  db.remittances = (db.remittances || []).filter(r => r.id !== req.params.id);
+  db.remittances = (db.remittances || []).filter(x => x.id !== req.params.id);
   saveDB(db);
   res.json({ ok: true });
 });
 
-// ==================== FINANCE ====================
 app.get('/api/finance/categories', requireAuth, (req, res) => {
   const db = loadDB();
   res.json(db.finance?.categories || { debit: [], credit: [] });
 });
-
 app.post('/api/finance/categories', requireAuth, (req, res) => {
   const db = loadDB();
-  const { type, name } = req.body || {};
-  if (!type || !name) return res.status(400).json({ error: 'Missing type/name' });
-  
   db.finance = db.finance || { categories: { debit: [], credit: [] }, entries: [] };
   db.finance.categories = db.finance.categories || { debit: [], credit: [] };
-  
-  if (!db.finance.categories[type].includes(name)) {
-    db.finance.categories[type].push(name);
-  }
-  
+  const { type, name } = req.body || {};
+  if (!type || !name) return res.status(400).json({ error: 'Missing type/name' });
+  if (!Array.isArray(db.finance.categories[type])) db.finance.categories[type] = [];
+  if (!db.finance.categories[type].includes(name)) db.finance.categories[type].push(name);
   saveDB(db);
   res.json({ ok: true, categories: db.finance.categories });
 });
-
 app.delete('/api/finance/categories', requireAuth, (req, res) => {
   const db = loadDB();
   const { type, name } = req.query || {};
   if (!type || !name) return res.status(400).json({ error: 'Missing type/name' });
-  
-  if (db.finance?.categories?.[type]?.includes(name)) {
+  if ((db.finance?.categories?.[type] || []).includes(name)) {
     db.finance.categories[type] = db.finance.categories[type].filter(c => c !== name);
     saveDB(db);
   }
-  
   res.json({ ok: true, categories: db.finance.categories });
 });
-
 app.get('/api/finance/entries', requireAuth, (req, res) => {
   const db = loadDB();
-  let entries = db.finance?.entries || [];
+  let list = db.finance?.entries || [];
   const { start, end } = req.query || {};
-  
-  if (start) entries = entries.filter(e => e.date >= start);
-  if (end) entries = entries.filter(e => e.date <= end);
-  
-  const running = (db.finance?.entries || []).reduce((total, entry) => {
-    return total + (entry.type === 'credit' ? +entry.amount : -(+entry.amount));
-  }, 0);
-  
-  const balance = entries.reduce((total, entry) => {
-    return total + (entry.type === 'credit' ? +entry.amount : -(+entry.amount));
-  }, 0);
-  
-  res.json({ entries, running, balance });
+  let period = list;
+  if (start) period = period.filter(e => e.date >= start);
+  if (end) period = period.filter(e => e.date <= end);
+  res.json({ entries: period, running: runningBalance(db), balance: periodBalance(period) });
 });
-
 app.post('/api/finance/entries', requireAuth, (req, res) => {
   const db = loadDB();
-  const { date, type, category, amount, note } = req.body || {};
-  if (!date || !type || !category) return res.status(400).json({ error: 'Missing date/type/category' });
-  
-  const entry = {
-    id: uuidv4(),
-    date,
-    type,
-    category,
-    amount: +amount || 0,
-    note: note || ''
-  };
-  
   db.finance = db.finance || { categories: { debit: [], credit: [] }, entries: [] };
   db.finance.entries = db.finance.entries || [];
+  const { date, type, category, amount, note } = req.body || {};
+  if (!date || !category || !type) return res.status(400).json({ error: 'Missing date/type/category' });
+  const entry = { id: uuidv4(), date, type, category, amount: +amount || 0, note: note || '' };
   db.finance.entries.push(entry);
-  
   saveDB(db);
   res.json({ ok: true, entry });
 });
-
 app.delete('/api/finance/entries/:id', requireAuth, (req, res) => {
   const db = loadDB();
   db.finance.entries = (db.finance.entries || []).filter(e => e.id !== req.params.id);
@@ -416,64 +329,41 @@ app.delete('/api/finance/entries/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// ==================== INFLUENCERS ====================
 app.get('/api/influencers', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ influencers: db.influencers || [] });
 });
-
 app.post('/api/influencers', requireAuth, (req, res) => {
   const db = loadDB();
+  db.influencers = db.influencers || [];
   const { name, social, country } = req.body || {};
   if (!name) return res.status(400).json({ error: 'Missing name' });
-  
-  const influencer = {
-    id: uuidv4(),
-    name: name.trim(),
-    social: (social || '').trim(),
-    country: country || ''
-  };
-  
-  db.influencers = db.influencers || [];
-  db.influencers.push(influencer);
+  const inf = { id: uuidv4(), name, social: social || '', country: country || '' };
+  db.influencers.push(inf);
   saveDB(db);
-  res.json({ ok: true, influencer });
+  res.json({ ok: true, influencer: inf });
 });
-
 app.delete('/api/influencers/:id', requireAuth, (req, res) => {
   const db = loadDB();
-  const id = req.params.id;
-  db.influencers = (db.influencers || []).filter(i => i.id !== id);
-  db.influencerSpends = (db.influencerSpends || []).filter(s => s.influencerId !== id);
+  db.influencers = (db.influencers || []).filter(i => i.id !== req.params.id);
+  db.influencerSpends = (db.influencerSpends || []).filter(s => s.influencerId !== req.params.id);
   saveDB(db);
   res.json({ ok: true });
 });
-
 app.get('/api/influencers/spend', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ spends: db.influencerSpends || [] });
 });
-
 app.post('/api/influencers/spend', requireAuth, (req, res) => {
   const db = loadDB();
+  db.influencerSpends = db.influencerSpends || [];
   const { date, influencerId, country, productId, amount } = req.body || {};
   if (!influencerId) return res.status(400).json({ error: 'Missing influencerId' });
-  
-  const spend = {
-    id: uuidv4(),
-    date: date || new Date().toISOString().slice(0, 10),
-    influencerId,
-    country: country || '',
-    productId: productId || '',
-    amount: +amount || 0
-  };
-  
-  db.influencerSpends = db.influencerSpends || [];
-  db.influencerSpends.push(spend);
+  const sp = { id: uuidv4(), date: date || new Date().toISOString().slice(0, 10), influencerId, country: country || '', productId: productId || '', amount: +amount || 0 };
+  db.influencerSpends.push(sp);
   saveDB(db);
-  res.json({ ok: true, spend });
+  res.json({ ok: true, spend: sp });
 });
-
 app.delete('/api/influencers/spend/:id', requireAuth, (req, res) => {
   const db = loadDB();
   db.influencerSpends = (db.influencerSpends || []).filter(s => s.id !== req.params.id);
@@ -481,78 +371,51 @@ app.delete('/api/influencers/spend/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// ==================== SNAPSHOTS ====================
 app.get('/api/snapshots', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ snapshots: db.snapshots || [] });
 });
-
 app.post('/api/snapshots', requireAuth, async (req, res) => {
+  ensureSnapshotDir();
   const db = loadDB();
   const name = (req.body?.name || '').trim() || `Manual ${new Date().toLocaleString()}`;
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const snapshotDir = path.join(ROOT, 'data', 'snapshots');
-  
-  await fs.ensureDir(snapshotDir);
-  const snapshotFile = path.join(snapshotDir, `${stamp}-${name.replace(/\s+/g, '_')}.json`);
-  
-  await fs.copy(DATA_FILE, snapshotFile);
-  
-  const snapshot = {
-    id: uuidv4(),
-    name,
-    file: snapshotFile,
-    createdAt: new Date().toISOString(),
-    kind: 'manual'
-  };
-  
+  const file = path.join(SNAPSHOT_DIR, `${stamp}-${name.replace(/\s+/g, '_')}.json`);
+  await fs.copy(DATA_FILE, file);
+  const entry = { id: uuidv4(), name, file, createdAt: new Date().toISOString(), kind: 'manual' };
   db.snapshots = db.snapshots || [];
-  db.snapshots.unshift(snapshot);
+  db.snapshots.unshift(entry);
   saveDB(db);
-  
-  res.json({ ok: true, snapshot });
+  res.json({ ok: true, file, snapshot: entry });
 });
-
 app.post('/api/snapshots/restore', requireAuth, async (req, res) => {
   const { file } = req.body || {};
   if (!file) return res.status(400).json({ error: 'Missing file' });
-  
-  const snapshotDir = path.join(ROOT, 'data', 'snapshots');
-  const safeFile = path.join(snapshotDir, path.basename(file));
-  
-  if (!fs.existsSync(safeFile)) {
-    return res.status(404).json({ error: 'Snapshot file not found' });
-  }
-  
-  await fs.copy(safeFile, DATA_FILE);
-  res.json({ ok: true, restoredFrom: safeFile });
+  const safe = path.join(SNAPSHOT_DIR, path.basename(file));
+  if (!fs.existsSync(safe)) return res.status(404).json({ error: 'Snapshot not found' });
+  await fs.copy(safe, DATA_FILE);
+  res.json({ ok: true, restoredFrom: safe });
 });
-
 app.delete('/api/snapshots/:id', requireAuth, async (req, res) => {
   const db = loadDB();
-  const snapshot = (db.snapshots || []).find(s => s.id === req.params.id);
-  
-  if (snapshot?.file && fs.existsSync(snapshot.file)) {
-    try { await fs.remove(snapshot.file); } catch (e) {}
-  }
-  
+  const snap = (db.snapshots || []).find(s => s.id === req.params.id);
+  if (snap && snap.file && fs.existsSync(snap.file)) { try { await fs.remove(snap.file); } catch {} }
   db.snapshots = (db.snapshots || []).filter(s => s.id !== req.params.id);
   saveDB(db);
   res.json({ ok: true });
 });
 
-// ==================== FRONTEND ROUTES ====================
-app.get('/', (req, res) => {
+const PUBLIC_DIR = path.join(ROOT, 'public');
+
+app.use(express.static(PUBLIC_DIR));
+
+app.get('/', requireAuth, (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });
 
-app.get('/product.html', (req, res) => {
+app.get('/product.html', requireAuth, (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'product.html'));
 });
-
-// Start server
 app.listen(PORT, () => {
-  console.log(`🚀 EAS Tracker running on port ${PORT}`);
-  console.log(`🔐 Default password: eastafricashop`);
-  initDB(); // Ensure database exists
+  console.log(`EAS Tracker running on port ${PORT}`);
 });
