@@ -25,7 +25,7 @@ function ensureDB() {
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeJsonSync(DATA_FILE, {
       password: 'eastafricashop',
-      countries: ['kenya','tanzania','uganda','zambia','zimbabwe'],
+      countries: ['china','kenya','tanzania','uganda','zambia','zimbabwe'],
       products: [],
       adspend: [],
       deliveries: [],
@@ -251,10 +251,20 @@ app.delete('/api/finance/categories', requireAuth, (req,res)=>{
 });
 app.get('/api/finance/entries', requireAuth, (req,res)=>{
   const db = loadDB(); let list = db.finance?.entries||[];
-  const { start, end } = req.query||{};
+  const { start, end, category, type } = req.query||{};
   if (start) list = list.filter(e=>e.date>=start);
   if (end)   list = list.filter(e=>e.date<=end);
-  res.json({ entries:list, running: runningBalance(db), balance: list.reduce((a,e)=>a+(e.type==='credit'?+e.amount||0:-(+e.amount||0)),0) });
+  if (category) list = list.filter(e=>e.category===category);
+  if (type) list = list.filter(e=>e.type===type);
+  
+  const total = list.reduce((sum, e) => sum + (e.type === 'credit' ? +e.amount : -(+e.amount)), 0);
+  
+  res.json({ 
+    entries: list, 
+    running: runningBalance(db), 
+    balance: list.reduce((a,e)=>a+(e.type==='credit'?+e.amount||0:-(+e.amount||0)),0),
+    categoryTotal: total
+  });
 });
 app.post('/api/finance/entries', requireAuth, (req,res)=>{
   const db = loadDB(); db.finance = db.finance||{ categories:{debit:[],credit:[]}, entries:[] };
