@@ -14,17 +14,19 @@ const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 const DATA_FILE = path.join(ROOT, 'db.json');
 const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
+const PUBLIC_DIR = path.join(ROOT, 'public');
 
-app.set('trust proxy', 1);
+// Middleware - ORDER MATTERS!
+app.use(morgan('dev'));
 app.use(cors({
-  origin: (origin, cb) => cb(null, origin || true),
+  origin: true,
   credentials: true
 }));
-app.use(morgan('dev'));
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(cookieParser());
-app.use('/public', express.static(path.join(ROOT, 'public')));
+app.use(express.static(PUBLIC_DIR));
 
+// Database functions
 function initDBIfMissing() {
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeJsonSync(DATA_FILE, {
@@ -42,29 +44,41 @@ function initDBIfMissing() {
     }, { spaces: 2 });
   }
 }
-function loadDB() { initDBIfMissing(); return fs.readJsonSync(DATA_FILE); }
-function saveDB(db) { fs.writeJsonSync(DATA_FILE, db, { spaces: 2 }); }
-function ensureSnapshotDir() { fs.ensureDirSync(SNAPSHOT_DIR); }
 
-function runningBalance(db) {
-  return (db.finance?.entries || []).reduce((t, e) => t + (e.type === 'credit' ? +e.amount || 0 : -(+e.amount || 0)), 0);
-}
-function periodBalance(list) {
-  return (list || []).reduce((t, e) => t + (e.type === 'credit' ? +e.amount || 0 : -(+e.amount || 0)), 0);
+function loadDB() { 
+  initDBIfMissing(); 
+  return fs.readJsonSync(DATA_FILE); 
 }
 
+function saveDB(db) { 
+  fs.writeJsonSync(DATA_FILE, db, { spaces: 2 }); 
+}
+
+function ensureSnapshotDir() { 
+  fs.ensureDirSync(SNAPSHOT_DIR); 
+}
+
+// Authentication middleware
+function requireAuth(req, res, next) {
+  if (req.cookies.auth === '1') {
+    return next();
+  }
+  return res.status(401).json({ error: 'Authentication required' });
+}
+
+// FIXED AUTH ENDPOINT
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
 
-  // Proper HTTPS detection for Render
-  const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+  console.log('🔐 Auth attempt received');
 
+  // SIMPLIFIED COOKIE SETTINGS - This should work everywhere
   const cookieOpts = {
     httpOnly: true,
     path: '/',
-    sameSite: 'Lax',
-    secure: isSecure,  // Dynamic based on environment
+    sameSite: 'lax',
+    secure: false, // Set to false to work on both HTTP and HTTPS
     maxAge: 365 * 24 * 60 * 60 * 1000
   };
 
@@ -74,26 +88,37 @@ app.post('/api/auth', (req, res) => {
   }
 
   if (password && password === db.password) {
+    console.log('✅ Login successful');
     res.cookie('auth', '1', cookieOpts);
     return res.json({ ok: true });
   }
 
-  return res.status(403).json({ error: 'Wrong password' });
+  console.log('❌ Login failed - wrong password');
+  return res.status(401).json({ error: 'Wrong password' });
 });
-function requireAuth(req, res, next) {
-  if (req.cookies.auth === '1') return next();
-  return res.status(403).json({ error: 'Unauthorized' });
-}
 
+// Check auth status
+app.get('/api/auth/check', (req, res) => {
+  if (req.cookies.auth === '1') {
+    return res.json({ authenticated: true });
+  }
+  return res.json({ authenticated: false });
+});
+
+// Meta data
 app.get('/api/meta', requireAuth, (req, res) => {
   const db = loadDB();
-  res.json({ countries: db.countries || [] });
+  res.json({ 
+    countries: (db.countries || []).filter(c => c !== 'china')
+  });
 });
 
+// Countries endpoints
 app.get('/api/countries', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ countries: db.countries || [] });
 });
+
 app.post('/api/countries', requireAuth, (req, res) => {
   const { name } = req.body || {};
   if (!name) return res.status(400).json({ error: 'Missing name' });
@@ -103,6 +128,7 @@ app.post('/api/countries', requireAuth, (req, res) => {
   saveDB(db);
   res.json({ ok: true, countries: db.countries });
 });
+
 app.delete('/api/countries/:name', requireAuth, (req, res) => {
   const db = loadDB();
   const n = (req.params.name || '').toLowerCase();
@@ -112,10 +138,12 @@ app.delete('/api/countries/:name', requireAuth, (req, res) => {
   res.json({ ok: true, countries: db.countries });
 });
 
+// Products endpoints
 app.get('/api/products', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ products: db.products || [] });
 });
+
 app.post('/api/products', requireAuth, (req, res) => {
   const db = loadDB();
   db.products = db.products || [];
@@ -134,6 +162,7 @@ app.post('/api/products', requireAuth, (req, res) => {
   saveDB(db);
   res.json({ ok: true, product: p });
 });
+
 app.put('/api/products/:id', requireAuth, (req, res) => {
   const db = loadDB();
   const p = (db.products || []).find(x => x.id === req.params.id);
@@ -148,6 +177,7 @@ app.put('/api/products/:id', requireAuth, (req, res) => {
   saveDB(db);
   res.json({ ok: true, product: p });
 });
+
 app.post('/api/products/:id/status', requireAuth, (req, res) => {
   const db = loadDB();
   const p = (db.products || []).find(x => x.id === req.params.id);
@@ -156,6 +186,7 @@ app.post('/api/products/:id/status', requireAuth, (req, res) => {
   saveDB(db);
   res.json({ ok: true, product: p });
 });
+
 app.delete('/api/products/:id', requireAuth, (req, res) => {
   const db = loadDB();
   const id = req.params.id;
@@ -168,10 +199,12 @@ app.delete('/api/products/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// Adspend endpoints
 app.get('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ adSpends: db.adspend || [] });
 });
+
 app.post('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB();
   db.adspend = db.adspend || [];
@@ -184,10 +217,12 @@ app.post('/api/adspend', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// Deliveries endpoints
 app.get('/api/deliveries', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ deliveries: db.deliveries || [] });
 });
+
 app.post('/api/deliveries', requireAuth, (req, res) => {
   const db = loadDB();
   db.deliveries = db.deliveries || [];
@@ -198,10 +233,12 @@ app.post('/api/deliveries', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// Shipments endpoints
 app.get('/api/shipments', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ shipments: db.shipments || [] });
 });
+
 app.post('/api/shipments', requireAuth, (req, res) => {
   const db = loadDB();
   db.shipments = db.shipments || [];
@@ -220,6 +257,7 @@ app.post('/api/shipments', requireAuth, (req, res) => {
   saveDB(db);
   res.json({ ok: true, shipment: s });
 });
+
 app.put('/api/shipments/:id', requireAuth, (req, res) => {
   const db = loadDB();
   const s = (db.shipments || []).find(x => x.id === req.params.id);
@@ -232,6 +270,7 @@ app.put('/api/shipments/:id', requireAuth, (req, res) => {
   saveDB(db);
   res.json({ ok: true, shipment: s });
 });
+
 app.delete('/api/shipments/:id', requireAuth, (req, res) => {
   const db = loadDB();
   db.shipments = (db.shipments || []).filter(x => x.id !== req.params.id);
@@ -239,6 +278,7 @@ app.delete('/api/shipments/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// Remittances endpoints
 app.get('/api/remittances', requireAuth, (req, res) => {
   const db = loadDB();
   let list = db.remittances || [];
@@ -249,6 +289,7 @@ app.get('/api/remittances', requireAuth, (req, res) => {
   if (productId) list = list.filter(r => r.productId === productId);
   res.json({ remittances: list });
 });
+
 app.post('/api/remittances', requireAuth, (req, res) => {
   const db = loadDB();
   db.remittances = db.remittances || [];
@@ -270,6 +311,7 @@ app.post('/api/remittances', requireAuth, (req, res) => {
   saveDB(db);
   res.json({ ok: true, remittance: r });
 });
+
 app.delete('/api/remittances/:id', requireAuth, (req, res) => {
   const db = loadDB();
   db.remittances = (db.remittances || []).filter(x => x.id !== req.params.id);
@@ -277,10 +319,12 @@ app.delete('/api/remittances/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// Finance endpoints
 app.get('/api/finance/categories', requireAuth, (req, res) => {
   const db = loadDB();
   res.json(db.finance?.categories || { debit: [], credit: [] });
 });
+
 app.post('/api/finance/categories', requireAuth, (req, res) => {
   const db = loadDB();
   db.finance = db.finance || { categories: { debit: [], credit: [] }, entries: [] };
@@ -292,6 +336,7 @@ app.post('/api/finance/categories', requireAuth, (req, res) => {
   saveDB(db);
   res.json({ ok: true, categories: db.finance.categories });
 });
+
 app.delete('/api/finance/categories', requireAuth, (req, res) => {
   const db = loadDB();
   const { type, name } = req.query || {};
@@ -302,15 +347,20 @@ app.delete('/api/finance/categories', requireAuth, (req, res) => {
   }
   res.json({ ok: true, categories: db.finance.categories });
 });
+
 app.get('/api/finance/entries', requireAuth, (req, res) => {
   const db = loadDB();
   let list = db.finance?.entries || [];
   const { start, end } = req.query || {};
-  let period = list;
-  if (start) period = period.filter(e => e.date >= start);
-  if (end) period = period.filter(e => e.date <= end);
-  res.json({ entries: period, running: runningBalance(db), balance: periodBalance(period) });
+  if (start) list = list.filter(e => e.date >= start);
+  if (end) list = list.filter(e => e.date <= end);
+  
+  const running = (db.finance?.entries || []).reduce((t, e) => t + (e.type === 'credit' ? +e.amount || 0 : -(+e.amount || 0)), 0);
+  const balance = list.reduce((t, e) => t + (e.type === 'credit' ? +e.amount || 0 : -(+e.amount || 0)), 0);
+  
+  res.json({ entries: list, running, balance });
 });
+
 app.post('/api/finance/entries', requireAuth, (req, res) => {
   const db = loadDB();
   db.finance = db.finance || { categories: { debit: [], credit: [] }, entries: [] };
@@ -322,6 +372,7 @@ app.post('/api/finance/entries', requireAuth, (req, res) => {
   saveDB(db);
   res.json({ ok: true, entry });
 });
+
 app.delete('/api/finance/entries/:id', requireAuth, (req, res) => {
   const db = loadDB();
   db.finance.entries = (db.finance.entries || []).filter(e => e.id !== req.params.id);
@@ -329,10 +380,12 @@ app.delete('/api/finance/entries/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// Influencers endpoints
 app.get('/api/influencers', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ influencers: db.influencers || [] });
 });
+
 app.post('/api/influencers', requireAuth, (req, res) => {
   const db = loadDB();
   db.influencers = db.influencers || [];
@@ -343,6 +396,7 @@ app.post('/api/influencers', requireAuth, (req, res) => {
   saveDB(db);
   res.json({ ok: true, influencer: inf });
 });
+
 app.delete('/api/influencers/:id', requireAuth, (req, res) => {
   const db = loadDB();
   db.influencers = (db.influencers || []).filter(i => i.id !== req.params.id);
@@ -350,10 +404,12 @@ app.delete('/api/influencers/:id', requireAuth, (req, res) => {
   saveDB(db);
   res.json({ ok: true });
 });
+
 app.get('/api/influencers/spend', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ spends: db.influencerSpends || [] });
 });
+
 app.post('/api/influencers/spend', requireAuth, (req, res) => {
   const db = loadDB();
   db.influencerSpends = db.influencerSpends || [];
@@ -364,6 +420,7 @@ app.post('/api/influencers/spend', requireAuth, (req, res) => {
   saveDB(db);
   res.json({ ok: true, spend: sp });
 });
+
 app.delete('/api/influencers/spend/:id', requireAuth, (req, res) => {
   const db = loadDB();
   db.influencerSpends = (db.influencerSpends || []).filter(s => s.id !== req.params.id);
@@ -371,10 +428,12 @@ app.delete('/api/influencers/spend/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// Snapshots endpoints
 app.get('/api/snapshots', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ snapshots: db.snapshots || [] });
 });
+
 app.post('/api/snapshots', requireAuth, async (req, res) => {
   ensureSnapshotDir();
   const db = loadDB();
@@ -388,6 +447,7 @@ app.post('/api/snapshots', requireAuth, async (req, res) => {
   saveDB(db);
   res.json({ ok: true, file, snapshot: entry });
 });
+
 app.post('/api/snapshots/restore', requireAuth, async (req, res) => {
   const { file } = req.body || {};
   if (!file) return res.status(400).json({ error: 'Missing file' });
@@ -396,26 +456,29 @@ app.post('/api/snapshots/restore', requireAuth, async (req, res) => {
   await fs.copy(safe, DATA_FILE);
   res.json({ ok: true, restoredFrom: safe });
 });
+
 app.delete('/api/snapshots/:id', requireAuth, async (req, res) => {
   const db = loadDB();
   const snap = (db.snapshots || []).find(s => s.id === req.params.id);
-  if (snap && snap.file && fs.existsSync(snap.file)) { try { await fs.remove(snap.file); } catch {} }
+  if (snap && snap.file && fs.existsSync(snap.file)) { 
+    try { await fs.remove(snap.file); } catch {} 
+  }
   db.snapshots = (db.snapshots || []).filter(s => s.id !== req.params.id);
   saveDB(db);
   res.json({ ok: true });
 });
 
-const PUBLIC_DIR = path.join(ROOT, 'public');
-
-app.use(express.static(PUBLIC_DIR));
-
-app.get('/', requireAuth, (req, res) => {
+// Serve frontend
+app.get('/', (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });
 
-app.get('/product.html', requireAuth, (req, res) => {
+app.get('/product.html', (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'product.html'));
 });
+
+// Start server
 app.listen(PORT, () => {
-  console.log(`EAS Tracker running on port ${PORT}`);
+  console.log(`🚀 EAS Tracker running on port ${PORT}`);
+  console.log(`🔐 Default password: eastafricashop`);
 });
