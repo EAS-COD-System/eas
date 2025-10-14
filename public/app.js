@@ -169,9 +169,18 @@ async function renderKpis() {
 /* ---------- Stock & Ad Spend by Country (global) ---------- */
 async function renderCountryStockSpend() {
   const body = Q('#stockByCountryBody'); if (!body) return;
-  body.innerHTML = '<tr><td colspan="3">Loading…</td></tr>';
+  body.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
 
-  const per = {}; state.countries.forEach(c=> per[c]={ stock:0, ad:0 });
+  const per = {}; 
+  state.countries.forEach(c=> {
+    per[c] = { 
+      stock: 0, 
+      facebook: 0, 
+      tiktok: 0, 
+      google: 0, 
+      totalAd: 0 
+    };
+  });
 
   // Arrived shipments add to dest, deduct from origin
   try {
@@ -179,10 +188,12 @@ async function renderCountryStockSpend() {
     (s.shipments||[]).filter(x=>x.arrivedAt).forEach(sp=>{
       const to = sp.toCountry || sp.to, from = sp.fromCountry || sp.from, qty = (+sp.qty||0);
       if (to && state.countries.includes(to)) {
-        per[to] = per[to] || {stock:0,ad:0}; per[to].stock += qty;
+        per[to] = per[to] || {stock:0, facebook:0, tiktok:0, google:0, totalAd:0}; 
+        per[to].stock += qty;
       }
       if (from && state.countries.includes(from)) {
-        per[from] = per[from]||{stock:0,ad:0}; per[from].stock -= qty;
+        per[from] = per[from]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0}; 
+        per[from].stock -= qty;
       }
     });
   } catch {}
@@ -192,7 +203,7 @@ async function renderCountryStockSpend() {
     const r = await api('/api/remittances');
     (r.remittances||[]).forEach(x=>{
       if (state.countries.includes(x.country)) {
-        per[x.country] = per[x.country]||{stock:0,ad:0};
+        per[x.country] = per[x.country]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0};
         per[x.country].stock -= (+x.pieces||0);
       }
     });
@@ -203,20 +214,40 @@ async function renderCountryStockSpend() {
     const a = await api('/api/adspend');
     (a.adSpends||[]).forEach(x=>{
       if (state.countries.includes(x.country)) {
-        per[x.country] = per[x.country]||{stock:0,ad:0};
-        per[x.country].ad += (+x.amount||0);
+        per[x.country] = per[x.country]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0};
+        const amount = +x.amount||0;
+        if (x.platform === 'facebook') per[x.country].facebook += amount;
+        else if (x.platform === 'tiktok') per[x.country].tiktok += amount;
+        else if (x.platform === 'google') per[x.country].google += amount;
+        per[x.country].totalAd += amount;
       }
     });
   } catch {}
 
-  let st=0, ad=0;
+  let st=0, fb=0, tt=0, gg=0, totalAd=0;
   const rows = Object.entries(per).map(([c,v])=>{
-    st += v.stock; ad += v.ad;
-    return `<tr><td>${c}</td><td>${fmt(v.stock)}</td><td>${fmt(v.ad)}</td></tr>`;
+    st += v.stock; 
+    fb += v.facebook; 
+    tt += v.tiktok; 
+    gg += v.google; 
+    totalAd += v.totalAd;
+    
+    return `<tr>
+      <td>${c}</td>
+      <td>${fmt(v.stock)}</td>
+      <td>${fmt(v.facebook)}</td>
+      <td>${fmt(v.tiktok)}</td>
+      <td>${fmt(v.google)}</td>
+      <td>${fmt(v.totalAd)}</td>
+    </tr>`;
   }).join('');
-  body.innerHTML = rows || `<tr><td colspan="3" class="muted">No data</td></tr>`;
+  
+  body.innerHTML = rows || `<tr><td colspan="6" class="muted">No data</td></tr>`;
   Q('#stockTotal') && (Q('#stockTotal').textContent = fmt(st));
-  Q('#adTotal')    && (Q('#adTotal').textContent    = fmt(ad));
+  Q('#fbTotal') && (Q('#fbTotal').textContent = fmt(fb));
+  Q('#ttTotal') && (Q('#ttTotal').textContent = fmt(tt));
+  Q('#ggTotal') && (Q('#ggTotal').textContent = fmt(gg));
+  Q('#adTotal') && (Q('#adTotal').textContent = fmt(totalAd));
 }
 
 /* ---------- Weekly Delivered grid (restore) ---------- */
@@ -562,7 +593,10 @@ function initTodos() {
    PRODUCTS PAGE (list)
    ================================================================ */
 function renderProductsPage() {
-  // add
+  // Add Advertising Overview section
+  renderAdvertisingOverview();
+
+  // add product
   Q('#pAdd')?.addEventListener('click', async ()=>{
     const p = {
       name: Q('#pName')?.value.trim(),
@@ -575,9 +609,84 @@ function renderProductsPage() {
     await api('/api/products',{method:'POST', body: JSON.stringify(p)});
     await preload();
     renderProductsTable();
+    renderAdvertisingOverview();
     alert('Product added');
   });
   renderProductsTable();
+}
+
+function renderAdvertisingOverview() {
+  const container = Q('#advertisingOverview');
+  if (!container) return;
+
+  // Get ad spend data
+  api('/api/adspend').then(adData => {
+    const adSpends = adData.adSpends || [];
+    
+    // Group by country and product
+    const byCountry = {};
+    
+    adSpends.forEach(spend => {
+      const country = spend.country;
+      const productId = spend.productId;
+      const platform = spend.platform;
+      const amount = +spend.amount || 0;
+      
+      if (!byCountry[country]) {
+        byCountry[country] = {};
+      }
+      
+      if (!byCountry[country][productId]) {
+        byCountry[country][productId] = {
+          facebook: 0,
+          tiktok: 0,
+          google: 0,
+          total: 0
+        };
+      }
+      
+      if (platform === 'facebook') byCountry[country][productId].facebook += amount;
+      else if (platform === 'tiktok') byCountry[country][productId].tiktok += amount;
+      else if (platform === 'google') byCountry[country][productId].google += amount;
+      
+      byCountry[country][productId].total += amount;
+    });
+    
+    // Create HTML
+    let html = '';
+    
+    Object.keys(byCountry).sort().forEach(country => {
+      const products = byCountry[country];
+      
+      // Sort products by total spend (descending)
+      const sortedProducts = Object.entries(products)
+        .filter(([_, data]) => data.total > 0) // Only show products with spend
+        .sort((a, b) => b[1].total - a[1].total);
+      
+      if (sortedProducts.length === 0) return;
+      
+      html += `<div class="card country-section">
+        <div class="h" style="color: var(--primary); margin-bottom: 15px;">${country}</div>`;
+      
+      sortedProducts.forEach(([productId, data]) => {
+        const product = state.products.find(p => p.id === productId) || { name: productId };
+        html += `
+        <div class="product-row">
+          <div class="product-name">${product.name}</div>
+          <div class="platform-spends">
+            <span class="platform-badge ${data.facebook > 0 ? 'active' : ''}">Facebook: ${fmt(data.facebook)}</span>
+            <span class="platform-badge ${data.tiktok > 0 ? 'active' : ''}">TikTok: ${fmt(data.tiktok)}</span>
+            <span class="platform-badge ${data.google > 0 ? 'active' : ''}">Google: ${fmt(data.google)}</span>
+            <span class="total-badge">Total: ${fmt(data.total)}</span>
+          </div>
+        </div>`;
+      });
+      
+      html += `</div>`;
+    });
+    
+    container.innerHTML = html || '<div class="card"><div class="muted">No advertising data yet</div></div>';
+  }).catch(console.error);
 }
 
 function renderProductsTable() {
@@ -600,12 +709,12 @@ function renderProductsTable() {
     if (e.target.classList.contains('act-toggle')) {
       const p = state.products.find(x=>x.id===id); const ns = p.status==='active'?'paused':'active';
       await api(`/api/products/${id}/status`,{method:'POST', body: JSON.stringify({status:ns})});
-      await preload(); renderProductsTable();
+      await preload(); renderProductsTable(); renderAdvertisingOverview();
     }
     if (e.target.classList.contains('act-del')) {
       if (!confirm('Delete product and ALL its data?')) return;
       await api(`/api/products/${id}`,{method:'DELETE'}); // server will cascade
-      await preload(); renderProductsTable(); renderCountryStockSpend(); renderKpis();
+      await preload(); renderProductsTable(); renderAdvertisingOverview(); renderCountryStockSpend(); renderKpis();
     }
   };
 }
@@ -658,6 +767,7 @@ function renderPerformancePage() {
     if (!p.start||!p.end||!p.productId||!p.country) return alert('Fill dates, product, country');
     await api('/api/remittances',{method:'POST', body: JSON.stringify(p)});
     alert('Remittance saved');
+    loadRemittancesTable();
   });
 
   // Load and display remittances with delete buttons
@@ -720,12 +830,19 @@ function renderFinancePage() {
     }
   });
 
-  // entries add
+  // entries add with date range
   Q('#feAdd')?.addEventListener('click', async ()=>{
-    const date = Q('#feDate')?.value, cat = Q('#feCat')?.value, amt = +Q('#feAmt')?.value||0, note = Q('#feNote')?.value||'';
-    if (!date||!cat) return alert('Pick date & category');
+    const startDate = Q('#feStartDate')?.value, 
+          endDate = Q('#feEndDate')?.value, 
+          cat = Q('#feCat')?.value, 
+          amt = +Q('#feAmt')?.value||0, 
+          note = Q('#feNote')?.value||'';
+    
+    if (!startDate||!endDate||!cat) return alert('Pick date range & category');
+    if (new Date(startDate) > new Date(endDate)) return alert('Start date must be before end date');
+    
     const type = state.categories.credit.includes(cat) ? 'credit':'debit';
-    await api('/api/finance/entries',{method:'POST', body: JSON.stringify({date,type,category:cat,amount:amt,note})});
+    await api('/api/finance/entries',{method:'POST', body: JSON.stringify({startDate, endDate, type, category:cat, amount:amt, note})});
     Q('#feAmt').value=''; Q('#feNote').value='';
     await runFinancePeriod();
   });
@@ -753,9 +870,16 @@ async function runFinancePeriod() {
   Q('#feBalance') && (Q('#feBalance').textContent = 'Period Balance: ' + fmt(r.balance||0) + ' USD');
   const tb = Q('#feTable tbody');
   tb && (tb.innerHTML = (r.entries||[]).map(x=>`
-    <tr><td>${x.date}</td><td>${x.type}</td><td>${x.category}</td><td>${fmt(x.amount)}</td><td>${x.note||''}</td>
-    <td><button class="btn outline fe-del" data-id="${x.id}">Delete</button></td></tr>
-  `).join('') || `<tr><td colspan="6" class="muted">No entries</td></tr>`);
+    <tr>
+      <td>${x.date}</td>
+      <td>${x.type}</td>
+      <td>${x.category}</td>
+      <td>${fmt(x.amount)}</td>
+      <td>${x.note||''}</td>
+      <td>${x.periodStart && x.periodEnd ? `${x.periodStart} - ${x.periodEnd}` : 'Single day'}</td>
+      <td><button class="btn outline fe-del" data-id="${x.id}">Delete</button></td>
+    </tr>
+  `).join('') || `<tr><td colspan="7" class="muted">No entries</td></tr>`);
   tb?.addEventListener('click', async (e)=>{
     if (e.target.classList.contains('fe-del')) {
       await api(`/api/finance/entries/${e.target.dataset.id}`,{method:'DELETE'});
@@ -871,29 +995,40 @@ async function renderProductPage() {
   await renderProductArrivedShipments(product);
   // Lifetime (this product) with filter
   bindProductLifetime(product);
+  // Remittances for this product
+  await renderProductRemittances(product);
   // Influencers
   await bindInfluencers(product);
 }
 
 async function renderProductStockAd(product) {
   const tb = Q('#pdStockBody'); if (!tb) return;
-  const per = {}; state.countries.forEach(c=> per[c]={stock:0,ad:0});
+  const per = {}; 
+  state.countries.forEach(c=> {
+    per[c] = { 
+      stock: 0, 
+      facebook: 0, 
+      tiktok: 0, 
+      google: 0, 
+      totalAd: 0 
+    };
+  });
 
   const s = await api('/api/shipments');
   (s.shipments||[]).filter(x=>x.productId===product.id && x.arrivedAt).forEach(sp=>{
     const to = sp.toCountry||sp.to, from = sp.fromCountry||sp.from, q=(+sp.qty||0);
     if (to && state.countries.includes(to)) {
-      per[to]=per[to]||{stock:0,ad:0}; per[to].stock += q;
+      per[to]=per[to]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0}; per[to].stock += q;
     }
     if (from && state.countries.includes(from)) {
-      per[from]=per[from]||{stock:0,ad:0}; per[from].stock -= q;
+      per[from]=per[from]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0}; per[from].stock -= q;
     }
   });
 
   const r = await api('/api/remittances');
   (r.remittances||[]).filter(x=>x.productId===product.id).forEach(rr=>{
     if (state.countries.includes(rr.country)) {
-      per[rr.country]=per[rr.country]||{stock:0,ad:0};
+      per[rr.country]=per[rr.country]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0};
       per[rr.country].stock -= (+rr.pieces||0);
     }
   });
@@ -901,18 +1036,34 @@ async function renderProductStockAd(product) {
   const a = await api('/api/adspend');
   (a.adSpends||[]).filter(x=>x.productId===product.id).forEach(sp=>{
     if (state.countries.includes(sp.country)) {
-      per[sp.country]=per[sp.country]||{stock:0,ad:0};
-      per[sp.country].ad += (+sp.amount||0);
+      per[sp.country]=per[sp.country]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0};
+      const amount = +sp.amount||0;
+      if (sp.platform === 'facebook') per[sp.country].facebook += amount;
+      else if (sp.platform === 'tiktok') per[sp.country].tiktok += amount;
+      else if (sp.platform === 'google') per[sp.country].google += amount;
+      per[sp.country].totalAd += amount;
     }
   });
 
-  let st=0, ad=0;
+  let st=0, fb=0, tt=0, gg=0, totalAd=0;
   tb.innerHTML = Object.entries(per).map(([c,v])=>{
-    st+=v.stock; ad+=v.ad;
-    return `<tr><td>${c}</td><td>${fmt(v.stock)}</td><td>${fmt(v.ad)}</td></tr>`;
-  }).join('') || `<tr><td colspan="3" class="muted">No data</td></tr>`;
+    st+=v.stock; fb+=v.facebook; tt+=v.tiktok; gg+=v.google; totalAd+=v.totalAd;
+    
+    return `<tr>
+      <td>${c}</td>
+      <td>${fmt(v.stock)}</td>
+      <td>${fmt(v.facebook)}</td>
+      <td>${fmt(v.tiktok)}</td>
+      <td>${fmt(v.google)}</td>
+      <td>${fmt(v.totalAd)}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="6" class="muted">No data</td></tr>`;
+  
   Q('#pdStockTotal').textContent = fmt(st);
-  Q('#pdAdTotal').textContent = fmt(ad);
+  Q('#pdFbTotal').textContent = fmt(fb);
+  Q('#pdTtTotal').textContent = fmt(tt);
+  Q('#pdGgTotal').textContent = fmt(gg);
+  Q('#pdAdTotal').textContent = fmt(totalAd);
 }
 
 function renderProductBudgets(product) {
@@ -1061,6 +1212,41 @@ async function renderProductArrivedShipments(product) {
   }, { once:true });
 }
 
+async function renderProductRemittances(product) {
+  try {
+    const remittances = await api('/api/remittances?productId=' + product.id);
+    const tb = Q('#pdRemittancesBody');
+    if (!tb) return;
+    
+    tb.innerHTML = (remittances.remittances||[]).map(r => `
+      <tr>
+        <td>${r.start} - ${r.end}</td>
+        <td>${r.country}</td>
+        <td>${fmt(r.orders)}</td>
+        <td>${fmt(r.pieces)}</td>
+        <td>${fmt(r.revenue)}</td>
+        <td>${fmt(r.adSpend)}</td>
+        <td>${fmt(r.extraPerPiece)}</td>
+        <td>
+          <button class="btn outline pd-rem-del" data-id="${r.id}">Delete</button>
+        </td>
+      </tr>
+    `).join('') || `<tr><td colspan="8" class="muted">No remittances for this product</td></tr>`;
+
+    // Add delete functionality
+    tb.addEventListener('click', async (e)=>{
+      if (e.target.classList.contains('pd-rem-del')) {
+        if (!confirm('Delete this remittance entry?')) return;
+        await api(`/api/remittances/${e.target.dataset.id}`,{method:'DELETE'});
+        await renderProductRemittances(product);
+        bindProductLifetime(product); // Refresh lifetime data
+      }
+    });
+  } catch (e) {
+    console.error('Failed to load product remittances:', e);
+  }
+}
+
 function bindProductLifetime(product) {
   const run = async ()=>{
     const s = Q('#pdLPStart')?.value, e = Q('#pdLPEnd')?.value;
@@ -1168,6 +1354,7 @@ function bindGlobalNav() {
     });
     QA('.nav a').forEach(x=>x.classList.toggle('active', x===a));
     if (v==='home') { renderKpis(); renderCountryStockSpend(); renderTransitTables(); }
+    if (v==='products') { renderAdvertisingOverview(); }
   }));
 }
 
