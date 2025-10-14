@@ -638,8 +638,8 @@ async function renderFinancePeriod() {
     const s = Q('#fes')?.value, e = Q('#fee')?.value;
     const r = await api('/api/finance/entries' + ((s||e)?(`?start=${s||''}&end=${e||''}`):''));
     const entries = r.entries || [];
-    Q('#runBalance') && (Q('#runBalance').textContent = fmt(r.running || 0) + ' USD');
-    Q('#feBalance') && (Q('#feBalance').textContent = 'Period Balance: ' + fmt(r.balance || 0) + ' USD');
+Q('#feRunning') && (Q('#feRunning').textContent = fmt(r.running || 0) + ' USD');
+Q('#feBalance') && (Q('#feBalance').textContent = 'Period Balance: ' + fmt(r.balance || 0) + ' USD');
     const tb = Q('#feTable tbody');
     if (tb) tb.innerHTML = entries.map(x =>
       `<tr><td>${x.date}</td><td>${x.type}</td><td>${x.category}</td><td>${fmt(x.amount)}</td><td>${x.note||''}</td>
