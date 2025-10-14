@@ -25,7 +25,7 @@ function ensureDB() {
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeJsonSync(DATA_FILE, {
       password: 'eastafricashop',
-      countries: ['china','kenya','tanzania','uganda','zambia','zimbabwe'],
+      countries: ['kenya','tanzania','uganda','zambia','zimbabwe'],
       products: [],
       adspend: [],
       deliveries: [],
@@ -80,14 +80,12 @@ app.get('/api/countries', requireAuth, (req,res)=>{
 app.post('/api/countries', requireAuth, (req,res)=>{
   const { name } = req.body||{};
   if (!name) return res.status(400).json({ error:'Missing name' });
-  if (name.toLowerCase()==='china') return res.status(400).json({ error:'China is system-reserved' });
   const db = loadDB(); db.countries = db.countries||[];
   if (!db.countries.includes(name)) db.countries.push(name);
   saveDB(db); res.json({ ok:true, countries: db.countries });
 });
 app.delete('/api/countries/:name', requireAuth, (req,res)=>{
   const n = req.params.name;
-  if (n.toLowerCase()==='china') return res.status(400).json({ error:'Cannot delete China' });
   const db = loadDB(); db.countries = (db.countries||[]).filter(c=>c!==n);
   saveDB(db); res.json({ ok:true, countries: db.countries });
 });
@@ -181,6 +179,7 @@ app.post('/api/shipments', requireAuth, (req,res)=>{
     toCountry: req.body.toCountry || req.body.to,
     qty: +req.body.qty||0,
     shipCost: +req.body.shipCost||0,
+    note: req.body.note || '',
     departedAt: req.body.departedAt || new Date().toISOString().slice(0,10),
     arrivedAt: req.body.arrivedAt || null
   };
@@ -193,6 +192,7 @@ app.put('/api/shipments/:id', requireAuth, (req,res)=>{
   const up = req.body||{};
   if (up.qty!==undefined) s.qty=+up.qty||0;
   if (up.shipCost!==undefined) s.shipCost=+up.shipCost||0;
+  if (up.note!==undefined) s.note=up.note;
   if (up.departedAt!==undefined) s.departedAt=up.departedAt;
   if (up.arrivedAt!==undefined) s.arrivedAt=up.arrivedAt;
   saveDB(db); res.json({ ok:true, shipment:s });
@@ -223,8 +223,11 @@ app.post('/api/remittances', requireAuth, (req,res)=>{
     extraPerPiece:+req.body.extraPerPiece||0
   };
   if (!r.start||!r.end||!r.country||!r.productId) return res.status(400).json({ error:'Missing fields' });
-  if (r.country.toLowerCase()==='china') return res.status(400).json({ error:'China not allowed in remittance entries' });
   db.remittances.push(r); saveDB(db); res.json({ ok:true, remittance:r });
+});
+app.delete('/api/remittances/:id', requireAuth, (req,res)=>{
+  const db = loadDB(); db.remittances = (db.remittances||[]).filter(r=>r.id!==req.params.id);
+  saveDB(db); res.json({ ok:true });
 });
 
 /* ---------------- finance ---------------- */
