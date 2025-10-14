@@ -406,8 +406,12 @@ app.delete('/api/snapshots/:id', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/product.html', (req, res) => { res.sendFile(path.join(ROOT, 'product.html')); });
-app.get('/', (req, res) => { res.sendFile(path.join(ROOT, 'index.html')); });
+app.get('/product.html', requireAuth, (req, res) => {
+  res.sendFile(path.join(ROOT, 'product.html'));
+});
+app.get('/', requireAuth, (req, res) => {
+  res.sendFile(path.join(ROOT, 'index.html'));
+});
 
 app.listen(PORT, () => {
   console.log(`EAS Tracker running on port ${PORT}`);
