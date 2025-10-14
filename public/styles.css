@@ -92,6 +92,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   padding-top: 60px; /* Space for fixed navbar */
 }
+
 .container {
   max-width: 1400px;
   margin: 0 auto;
@@ -100,56 +101,57 @@ body {
 
 /* ---------- Professional Navigation ---------- */
 .nav {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 1000 !important;
   backdrop-filter: blur(20px);
-  background: rgba(15, 23, 42, 0.95);
-  border-bottom: 1px solid var(--border);
-  padding: 0 20px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 60px;
-  box-shadow: var(--shadow-nav);
+  background: rgba(15, 23, 42, 0.95) !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding: 0 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  height: 60px !important;
+  box-shadow: var(--shadow-nav) !important;
+  width: 100% !important;
 }
 
 .nav a {
-  padding: 8px 16px;
-  border-radius: 8px;
-  color: var(--text-secondary);
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 0.9rem;
-  transition: all var(--transition-fast);
-  border: 1px solid transparent;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  padding: 8px 16px !important;
+  border-radius: 8px !important;
+  color: var(--text-secondary) !important;
+  text-decoration: none !important;
+  font-weight: 500 !important;
+  font-size: 0.9rem !important;
+  transition: all var(--transition-fast) !important;
+  border: 1px solid transparent !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
 }
 
 .nav a:hover {
-  background: rgba(37, 99, 235, 0.1);
-  color: var(--text-primary);
-  border-color: var(--primary);
-  transform: translateY(-1px);
+  background: rgba(37, 99, 235, 0.1) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--primary) !important;
+  transform: translateY(-1px) !important;
 }
 
 .nav a.active {
-  background: var(--gradient-primary);
-  color: white;
-  border-color: var(--primary);
-  box-shadow: var(--shadow-sm);
-  font-weight: 600;
+  background: var(--gradient-primary) !important;
+  color: white !important;
+  border-color: var(--primary) !important;
+  box-shadow: var(--shadow-sm) !important;
+  font-weight: 600 !important;
 }
 
 .nav .nav-right {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  margin-left: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
 }
 
 /* ---------- Typography ---------- */
