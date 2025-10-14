@@ -18,14 +18,32 @@
       <div id="pdSku" class="muted"></div>
     </div>
 
-    <div class="section">
-      <h3>Stock &amp; Ad Spend by Country (this product)</h3>
-      <table class="table">
-        <thead><tr><th>Country</th><th>Approx. Stock</th><th>Total Ad Spend</th></tr></thead>
-        <tbody id="pdStockBody"></tbody>
-        <tfoot><tr class="totals"><th>Totals</th><th id="pdStockTotal">0</th><th id="pdAdTotal">0</th></tr></tfoot>
-      </table>
-    </div>
+<div class="section">
+  <h3>Stock &amp; Ad Spend by Country (this product)</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Country</th>
+        <th>Stock</th>
+        <th>Facebook</th>
+        <th>TikTok</th>
+        <th>Google</th>
+        <th>Total Ad Spend</th>
+      </tr>
+    </thead>
+    <tbody id="pdStockBody"></tbody>
+    <tfoot>
+      <tr class="totals">
+        <th>Totals</th>
+        <th id="pdStockTotal">0</th>
+        <th id="pdFbTotal">0</th>
+        <th id="pdTtTotal">0</th>
+        <th id="pdGgTotal">0</th>
+        <th id="pdAdTotal">0</th>
+      </tr>
+    </tfoot>
+  </table>
+</div>
 
     <div class="section">
       <h3>Profit + Advertising Budget (per country)</h3>
@@ -145,7 +163,24 @@
       </table>
     </div>
   </div>
-
+<div class="section">
+  <h3>Remittances for This Product</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Period</th>
+        <th>Country</th>
+        <th>Orders</th>
+        <th>Pieces</th>
+        <th>Revenue</th>
+        <th>Ad Spend</th>
+        <th>Extra/Piece</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="pdRemittancesBody"></tbody>
+  </table>
+</div>
   <script src="/public/app.js"></script>
 </body>
 </html>
