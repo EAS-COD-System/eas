@@ -57,16 +57,16 @@ app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
 
-  // detect if the request is effectively HTTPS (works behind Render/Heroku proxies)
+  // works behind Render/Heroku proxies
   const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
 
-const cookieOpts = {
-  httpOnly: true,
-  path: '/',
-  sameSite: 'Lax',
-  secure: false,
-  maxAge: 365 * 24 * 60 * 60 * 1000
-};
+  const cookieOpts = {
+    httpOnly: true,
+    path: '/',
+    sameSite: 'Lax',     // keep Lax since FE and API are same-site
+    secure: isSecure,    // <-- IMPORTANT: use HTTPS when available
+    maxAge: 365 * 24 * 60 * 60 * 1000
+  };
 
   if (password === 'logout') {
     res.clearCookie('auth', cookieOpts);
