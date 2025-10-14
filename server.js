@@ -412,7 +412,17 @@ app.get('/product.html', requireAuth, (req, res) => {
 app.get('/', requireAuth, (req, res) => {
   res.sendFile(path.join(ROOT, 'index.html'));
 });
+const PUBLIC_DIR = path.join(ROOT, 'public');
 
+app.use(express.static(PUBLIC_DIR));
+
+app.get('/', requireAuth, (req, res) => {
+  res.sendFile(path.join(ROOT, 'index.html'));
+});
+
+app.get('/product.html', requireAuth, (req, res) => {
+  res.sendFile(path.join(ROOT, 'product.html'));
+});
 app.listen(PORT, () => {
   console.log(`EAS Tracker running on port ${PORT}`);
 });
