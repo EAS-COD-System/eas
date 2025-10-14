@@ -56,22 +56,28 @@ function periodBalance(list) {
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
-  const isProd = process.env.NODE_ENV === 'production';
+
+  // detect if the request is effectively HTTPS (works behind Render/Heroku proxies)
+  const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+
   const cookieOpts = {
     httpOnly: true,
     path: '/',
-    sameSite: isProd ? 'None' : 'Lax',
-    secure: isProd ? true : false,
+    sameSite: isSecure ? 'None' : 'Lax',
+    secure: !!isSecure,
     maxAge: 365 * 24 * 60 * 60 * 1000
   };
+
   if (password === 'logout') {
     res.clearCookie('auth', cookieOpts);
     return res.json({ ok: true });
   }
+
   if (password && password === db.password) {
     res.cookie('auth', '1', cookieOpts);
     return res.json({ ok: true });
   }
+
   return res.status(403).json({ error: 'Wrong password' });
 });
 
