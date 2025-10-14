@@ -20,20 +20,19 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
-// Middleware
+// Middleware - FIXED ORDER
 app.use(morgan('dev'));
 app.use(cors({
   origin: true,
   credentials: true
 }));
 app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true })); // ADDED THIS
 app.use(cookieParser());
+app.use(express.static(PUBLIC_DIR)); // STATIC FILES BEFORE AUTH
 app.use(checkAuth);
 
-// Serve static files
-app.use(express.static(PUBLIC_DIR));
-
-// API Routes
+// API Routes - FIXED PATHS
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/inventory', inventoryRoutes);
@@ -46,7 +45,8 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
-    version: '2.0.0'
+    version: '2.0.0',
+    authenticated: res.locals.authenticated
   });
 });
 
@@ -74,7 +74,7 @@ app.use((error, req, res, next) => {
   console.error('🚨 Server Error:', error);
   res.status(500).json({ 
     error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+    message: process.env.NODE_ENV === 'production' ? 'Something went wrong' : error.message
   });
 });
 
