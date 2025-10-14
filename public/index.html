@@ -3,376 +3,829 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>EAS Tracker</title>
+  <title>EAS Tracker - Business Management</title>
   <link rel="stylesheet" href="/styles.css"/>
 </head>
 <body>
   <div id="app">
-
-    <!-- LOGIN -->
-    <div id="login" class="auth">
-      <h1 class="brand">EAS Tracker</h1>
-      <p>Enter password to access</p>
-      <div class="row">
-        <input id="pw" type="password" class="input" placeholder="Password"/>
-        <button id="loginBtn" class="btn">Login</button>
+    <!-- Login Screen -->
+    <div id="login" class="auth-screen">
+      <div class="auth-container">
+        <div class="brand-header">
+          <h1 class="brand">EAS Tracker</h1>
+          <p class="tagline">East Africa Business Management System</p>
+        </div>
+        <div class="login-form">
+          <p>Enter password to access your business dashboard</p>
+          <div class="input-group">
+            <input id="passwordInput" type="password" class="input" placeholder="Enter your password" autofocus/>
+            <button id="loginBtn" class="btn btn-primary">Login</button>
+          </div>
+          <div class="login-info">
+            <small>Default password: eastafricashop</small>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- MAIN -->
-    <div id="main" style="display:none">
-      <nav class="nav">
-        <a data-view="home" class="active">Dashboard</a>
-        <a data-view="products">Products</a>
-        <a data-view="performance">Performance</a>
-        <a data-view="finance">Finance</a>
-        <a data-view="settings">Settings</a>
-        <a id="logoutLink" class="nav-right">Logout</a>
+    <!-- Main Application -->
+    <div id="main" class="main-app hide">
+      <!-- Navigation -->
+      <nav class="main-nav">
+        <div class="nav-brand">
+          <span class="brand-icon">📊</span>
+          <span class="brand-text">EAS Tracker</span>
+        </div>
+        <div class="nav-links">
+          <a href="#" data-view="dashboard" class="nav-link active">
+            <span class="nav-icon">🏠</span>
+            <span class="nav-text">Dashboard</span>
+          </a>
+          <a href="#" data-view="products" class="nav-link">
+            <span class="nav-icon">📦</span>
+            <span class="nav-text">Products</span>
+          </a>
+          <a href="#" data-view="inventory" class="nav-link">
+            <span class="nav-icon">🚚</span>
+            <span class="nav-text">Inventory</span>
+          </a>
+          <a href="#" data-view="sales" class="nav-link">
+            <span class="nav-icon">💰</span>
+            <span class="nav-text">Sales</span>
+          </a>
+          <a href="#" data-view="finance" class="nav-link">
+            <span class="nav-icon">📈</span>
+            <span class="nav-text">Finance</span>
+          </a>
+          <a href="#" data-view="settings" class="nav-link">
+            <span class="nav-icon">⚙️</span>
+            <span class="nav-text">Settings</span>
+          </a>
+        </div>
+        <div class="nav-actions">
+          <button id="logoutBtn" class="btn btn-outline">
+            <span class="btn-icon">🚪</span>
+            <span class="btn-text">Logout</span>
+          </button>
+        </div>
       </nav>
 
-      <div class="container">
-
-        <!-- DASHBOARD -->
-        <section id="home">
-          <!-- KPIs -->
-          <div class="section">
-            <h2>Overview</h2>
-            <div class="kpis">
-              <div class="card kpi"><div class="h">Products</div><div id="kpiProducts">0</div></div>
-              <div class="card kpi"><div class="h">Warehouses (Countries)</div><div id="kpiCountries">0</div></div>
-              <div class="card kpi"><div class="h">Transit Shipments</div><div id="kpiTransit">0</div></div>
-              <div class="card kpi"><div class="h">Total Ad Spend</div><div id="kpiAdSpend">0 USD</div></div>
-              <div class="card kpi"><div class="h">Delivered (Mon–Sun)</div><div id="kpiDelivered">0</div></div>
-            </div>
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Dashboard View -->
+        <section id="dashboard" class="view-section">
+          <div class="section-header">
+            <h1>Business Dashboard</h1>
+            <p>Overview of your East Africa e-commerce operations</p>
           </div>
 
-          <!-- Lifetime Product Performance (GLOBAL) -->
-          <div class="section">
-            <h2>Lifetime Product Performance</h2>
-            <div class="row wrap">
-              <select id="lpProduct" class="input"><option value="">All products</option></select>
-              <input id="lpStart" type="date" class="input"/>
-              <input id="lpEnd" type="date" class="input"/>
-              <button id="lpRun" class="btn">Run</button>
-            </div>
-            <table class="table" id="lifetimeTable">
-              <thead><tr>
-                <th>Product</th><th>Country</th><th>Revenue</th><th>Ad Spend</th><th>Shipping</th><th>Base Cost</th><th>Pieces</th><th>Profit</th>
-              </tr></thead>
-              <tbody id="lifetimeBody"></tbody>
-              <tfoot>
-                <tr class="totals"><th colspan="2">Totals</th>
-                  <th id="ltRevT">0</th><th id="ltAdT">0</th><th id="ltShipT">0</th><th id="ltBaseT">0</th><th id="ltPiecesT">0</th><th id="ltProfitT">0</th>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          <!-- Total Stock & Ad Spend by Country -->
-          <div class="section">
-            <h2>Total Stock &amp; Ad Spend by Country</h2>
-            <table id="stockByCountryTable" class="table">
-              <thead>
-                <tr><th>Country</th><th>Approx. Stock</th><th>Total Ad Spend (USD)</th></tr>
-              </thead>
-              <tbody id="stockByCountryBody"></tbody>
-              <tfoot>
-                <tr class="totals"><th>Totals</th><th id="stockTotal">0</th><th id="adTotal">0.00</th></tr>
-              </tfoot>
-            </table>
-          </div>
-
-          <!-- Weekly Delivered -->
-          <div class="section">
-            <h2>Weekly Delivered (Mon → Sun)</h2>
-            <div class="card">
-              <div class="row wrap">
-                <button id="weeklyPrev" class="btn outline">◀ Prev week</button>
-                <div class="badge" id="weeklyRange">Week: </div>
-                <button id="weeklyNext" class="btn outline">Next week ▶</button>
-                <button id="weeklySave" class="btn">Save</button>
-                <button id="weeklyReset" class="btn danger outline">Reset</button>
+          <!-- KPI Cards -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-icon">📦</div>
+              <div class="kpi-content">
+                <div class="kpi-value" id="kpiProducts">0</div>
+                <div class="kpi-label">Active Products</div>
               </div>
-              <small>The grid lists every country in your system (excluding China). Enter delivered pieces per day and Save.</small>
             </div>
-            <div class="table-scroll">
-              <table id="weeklyTable" class="table compact">
-                <thead id="weeklyHead"></thead>
-                <tbody id="weeklyBody"></tbody>
-                <tfoot>
-                  <tr class="totals"><th>Totals</th>
-                    <th id="wMonT">0</th><th id="wTueT">0</th><th id="wWedT">0</th>
-                    <th id="wThuT">0</th><th id="wFriT">0</th><th id="wSatT">0</th><th id="wSunT">0</th>
-                    <th id="wAllT">0</th>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-
-          <!-- Daily Advertising Spend -->
-          <div class="section">
-            <h2>Daily Advertising Spend</h2>
-            <div class="card">
-              <div class="row wrap">
-                <select id="adPlatform" class="input">
-                  <option value="facebook">Facebook</option>
-                  <option value="tiktok">TikTok</option>
-                  <option value="google">Google</option>
-                </select>
-                <select id="adProduct" class="input"></select>
-                <select id="adCountry" class="input"></select>
-                <input id="adAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
-                <button id="adSave" class="btn">Save/Replace</button>
+            <div class="kpi-card">
+              <div class="kpi-icon">🌍</div>
+              <div class="kpi-content">
+                <div class="kpi-value" id="kpiCountries">0</div>
+                <div class="kpi-label">Countries</div>
               </div>
-              <small>Saving again for the same product + platform + country replaces the previous value.</small>
             </div>
-          </div>
-
-          <!-- Stock Movement -->
-          <div class="section">
-            <h2>Stock Movement</h2>
-            <div class="card">
-              <div class="row wrap">
-                <select id="mvFrom" class="input"></select>
-                <span>→</span>
-                <select id="mvTo" class="input"></select>
-                <select id="mvProduct" class="input"></select>
-                <input id="mvQty" type="number" class="input" placeholder="Qty" min="0"/>
-                <input id="mvShip" type="number" class="input" placeholder="Shipping Cost (USD)" min="0" step="0.01"/>
-                <button id="mvAdd" class="btn">Add Movement</button>
+            <div class="kpi-card">
+              <div class="kpi-icon">✈️</div>
+              <div class="kpi-content">
+                <div class="kpi-value" id="kpiTransit">0</div>
+                <div class="kpi-label">In Transit</div>
               </div>
-              <small>Only China is the purchasing source; on arrival, stock is added to destination and deducted from origin.</small>
             </div>
-          </div>
-
-          <!-- Transit China → Kenya -->
-          <div class="section">
-            <h2>Transit (China → Kenya)</h2>
-            <table class="table" id="shipCK">
-              <thead><tr>
-                <th>ID</th><th>Product</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
-              </tr></thead>
-              <tbody id="shipCKBody"></tbody>
-            </table>
-          </div>
-
-          <!-- Transit Inter-country -->
-          <div class="section">
-            <h2>Transit (Inter-country)</h2>
-            <table class="table" id="shipIC">
-              <thead><tr>
-                <th>ID</th><th>Product</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
-              </tr></thead>
-              <tbody id="shipICBody"></tbody>
-            </table>
-          </div>
-
-          <!-- Profit by Country -->
-          <div class="section">
-            <h2>Profit by Country</h2>
-            <div class="row wrap">
-              <select id="pcCountry" class="input"><option value="">All countries</option></select>
-              <input id="pcStart" type="date" class="input"/>
-              <input id="pcEnd" type="date" class="input"/>
-              <button id="pcRun" class="btn">Run</button>
-            </div>
-            <table class="table" id="profitCountry">
-              <thead><tr>
-                <th>Country</th><th>Revenue</th><th>Ad Spend</th><th>Delivery Cost</th><th>Pieces</th><th>Profit</th>
-              </tr></thead>
-              <tbody id="profitCountryBody"></tbody>
-              <tfoot>
-                <tr class="totals">
-                  <th>Totals</th><th id="pcRevT">0</th><th id="pcAdT">0</th><th id="pcDelT">0</th><th id="pcPiecesT">0</th><th id="pcProfitT">0</th>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          <!-- To-Do -->
-          <div class="section">
-            <h2>To-Do</h2>
-            <div class="row">
-              <input id="todoText" class="input" placeholder="Task"/>
-              <button id="todoAdd" class="btn">Add</button>
-            </div>
-            <div id="todoList" class="todo-list"></div>
-          </div>
-
-          <!-- Weekly To-Do -->
-          <div class="section">
-            <h2>Weekly To-Do</h2>
-            <div id="weeklyWrap" class="weeks"></div>
-          </div>
-        </section>
-
-        <!-- PRODUCTS -->
-        <section id="products" style="display:none">
-          <h2>Products</h2>
-          <div class="card">
-            <div class="h">Add Product</div>
-            <div class="row wrap">
-              <input id="pName" class="input" placeholder="Name"/>
-              <input id="pSku" class="input" placeholder="SKU"/>
-              <input id="pCost" type="number" class="input" placeholder="Cost from China (USD)" min="0" step="0.01"/>
-              <input id="pShip" type="number" class="input" placeholder="Ship China→Kenya (USD)" min="0" step="0.01"/>
-              <input id="pMB" type="number" class="input" placeholder="Profit + Ads Budget (USD)" min="0" step="0.01"/>
-              <button id="pAdd" class="btn">Add</button>
-            </div>
-          </div>
-          <table id="productsTable" class="table">
-            <thead><tr><th>Name</th><th>SKU</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody></tbody>
-          </table>
-          <small>Use <b>Open</b> to view product page: <code>product.html?id=&lt;PRODUCT_ID&gt;</code></small>
-        </section>
-
-        <!-- PERFORMANCE -->
-        <section id="performance" style="display:none">
-          <h2>Performance</h2>
-
-          <div class="card">
-            <div class="h">Top Delivered Products</div>
-            <div class="row wrap">
-              <select id="pfQuick" class="input">
-                <option value="8">Last 8 days</option>
-                <option value="28">Last 28 days</option>
-                <option value="custom">Custom</option>
-              </select>
-              <input id="pfStart" type="date" class="input"/>
-              <input id="pfEnd" type="date" class="input"/>
-              <select id="pfCountry" class="input"><option value="">All countries</option></select>
-              <button id="pfRun" class="btn">Run</button>
-            </div>
-            <table id="pfTable" class="table">
-              <thead><tr>
-                <th>Product</th><th>Country</th><th>Pieces</th><th>Ad Spend</th><th>Product Cost</th><th>Total Profit</th><th>Profit / pc</th>
-              </tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-
-          <div class="card">
-            <div class="h">Remittance Report</div>
-            <div class="row wrap">
-              <input id="rStart" type="date" class="input"/>
-              <input id="rEnd" type="date" class="input"/>
-              <select id="rCountry" class="input"></select>
-              <select id="rProduct" class="input"></select>
-              <input id="rOrders" type="number" class="input" placeholder="Orders" min="0"/>
-              <input id="rPieces" type="number" class="input" placeholder="Pieces" min="0"/>
-              <input id="rRev" type="number" class="input" placeholder="Revenue (USD)" min="0" step="0.01"/>
-              <input id="rAds" type="number" class="input" placeholder="Ad Spend (USD)" min="0" step="0.01"/>
-              <input id="rExtra" type="number" class="input" placeholder="Extra cost / piece (USD)" min="0" step="0.01"/>
-              <button id="rAdd" class="btn">Add</button>
-            </div>
-            <div id="rMsg" class="muted"></div>
-          </div>
-        </section>
-
-        <!-- FINANCE -->
-        <section id="finance" style="display:none">
-          <h2>Finance</h2>
-
-          <div class="card big-balance">
-            <div class="h">Running Balance (All-time)</div>
-            <div id="feRunning" class="balance">0.00 USD</div>
-          </div>
-
-          <div class="card">
-            <div class="h">Categories</div>
-            <div class="row wrap">
-              <select id="fcType" class="input">
-                <option value="debit">Debit</option>
-                <option value="credit">Credit</option>
-              </select>
-              <input id="fcName" class="input" placeholder="Category name"/>
-              <button id="fcAdd" class="btn">Add Category</button>
-            </div>
-            <div class="row cats">
-              <div>
-                <h4>Debits</h4>
-                <div id="fcDebits" class="chips"></div>
+            <div class="kpi-card">
+              <div class="kpi-icon">📢</div>
+              <div class="kpi-content">
+                <div class="kpi-value" id="kpiAdSpend">0 USD</div>
+                <div class="kpi-label">Ad Spend</div>
               </div>
-              <div>
-                <h4>Credits</h4>
-                <div id="fcCredits" class="chips"></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-icon">📦</div>
+              <div class="kpi-content">
+                <div class="kpi-value" id="kpiDelivered">0</div>
+                <div class="kpi-label">Weekly Delivered</div>
+              </div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-icon">💰</div>
+              <div class="kpi-content">
+                <div class="kpi-value" id="kpiBalance">0 USD</div>
+                <div class="kpi-label">Cash Balance</div>
               </div>
             </div>
           </div>
 
-          <div class="card">
-            <div class="h">Entries</div>
-            <div class="row wrap">
-              <input id="feDate" type="date" class="input"/>
-              <select id="feType" class="input">
-                <option value="debit">Debit</option>
-                <option value="credit">Credit</option>
-              </select>
-              <select id="feCat" class="input"></select>
-              <input id="feAmt" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
-              <input id="feNote" class="input" placeholder="Note"/>
-              <button id="feAdd" class="btn">Add Entry</button>
+          <!-- Dashboard Sections -->
+          <div class="dashboard-grid">
+            <!-- Stock & Ad Spend -->
+            <div class="dashboard-card">
+              <div class="card-header">
+                <h3>Stock Levels & Ad Spend by Country</h3>
+              </div>
+              <div class="card-content">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Country</th>
+                      <th>Stock</th>
+                      <th>Ad Spend (USD)</th>
+                      <th>In Transit</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stockLevelsBody">
+                    <tr><td colspan="4" class="no-data">Loading...</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            <div class="row wrap">
-              <input id="fes" type="date" class="input"/>
-              <input id="fee" type="date" class="input"/>
-              <button id="feRun" class="btn outline">Run</button>
-              <div id="feBalance" class="badge">Period Balance: —</div>
+            <!-- Quick Actions -->
+            <div class="dashboard-card">
+              <div class="card-header">
+                <h3>Quick Actions</h3>
+              </div>
+              <div class="card-content">
+                <div class="action-grid">
+                  <button class="action-btn" data-action="add-product">
+                    <span class="action-icon">➕</span>
+                    <span class="action-text">Add Product</span>
+                  </button>
+                  <button class="action-btn" data-action="record-shipment">
+                    <span class="action-icon">🚚</span>
+                    <span class="action-text">Record Shipment</span>
+                  </button>
+                  <button class="action-btn" data-action="add-adspend">
+                    <span class="action-icon">📢</span>
+                    <span class="action-text">Add Ad Spend</span>
+                  </button>
+                  <button class="action-btn" data-action="record-sale">
+                    <span class="action-icon">💰</span>
+                    <span class="action-text">Record Sale</span>
+                  </button>
+                  <button class="action-btn" data-action="add-expense">
+                    <span class="action-icon">📊</span>
+                    <span class="action-text">Add Expense</span>
+                  </button>
+                  <button class="action-btn" data-action="view-reports">
+                    <span class="action-icon">📈</span>
+                    <span class="action-text">View Reports</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <table id="feTable" class="table">
-              <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th>Note</th><th></th></tr></thead>
-              <tbody></tbody>
-            </table>
+            <!-- Recent Activity -->
+            <div class="dashboard-card">
+              <div class="card-header">
+                <h3>Recent Activity</h3>
+              </div>
+              <div class="card-content">
+                <div id="recentActivity" class="activity-list">
+                  <div class="activity-item">Loading recent activity...</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Weekly Deliveries -->
+            <div class="dashboard-card full-width">
+              <div class="card-header">
+                <h3>Weekly Deliveries Tracking</h3>
+                <div class="card-actions">
+                  <button id="weeklyPrev" class="btn btn-outline btn-sm">◀ Previous Week</button>
+                  <span id="weeklyRange" class="date-range">Current Week</span>
+                  <button id="weeklyNext" class="btn btn-outline btn-sm">Next Week ▶</button>
+                  <button id="weeklySave" class="btn btn-primary btn-sm">Save All</button>
+                  <button id="weeklyReset" class="btn btn-danger btn-sm">Reset</button>
+                </div>
+              </div>
+              <div class="card-content">
+                <div class="table-container">
+                  <table id="weeklyDeliveriesTable" class="data-table compact">
+                    <thead id="weeklyDeliveriesHead">
+                      <tr><th>Country</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th><th>Total</th></tr>
+                    </thead>
+                    <tbody id="weeklyDeliveriesBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
-        <!-- SETTINGS -->
-        <section id="settings" style="display:none">
-          <h2>Settings</h2>
-
-          <div class="card">
-            <div class="h">Countries</div>
-            <div class="row">
-              <input id="cty" class="input" placeholder="Add country"/>
-              <button id="ctyAdd" class="btn">Add</button>
-            </div>
-            <div id="ctyList" class="chips deletable"></div>
+        <!-- Products View -->
+        <section id="products" class="view-section hide">
+          <div class="section-header">
+            <h1>Product Management</h1>
+            <p>Manage your product catalog and pricing</p>
           </div>
 
-          <div class="card">
-            <div class="h">Edit Product Info</div>
-            <div class="row wrap">
-              <select id="epSelect" class="input"><option value="">Select product…</option></select>
-              <input id="epName" class="input" placeholder="Product name"/>
-              <input id="epSku" class="input" placeholder="SKU"/>
-              <input id="epCost" type="number" class="input" placeholder="Cost from China (USD)" step="0.01"/>
-              <input id="epShip" type="number" class="input" placeholder="Ship China→Kenya (USD)" step="0.01"/>
-              <input id="epMB" type="number" class="input" placeholder="Profit + Ads Budget (USD)" step="0.01"/>
-              <button id="epSave" class="btn">Save Changes</button>
+          <div class="content-grid">
+            <!-- Add Product Form -->
+            <div class="content-card">
+              <div class="card-header">
+                <h3>Add New Product</h3>
+              </div>
+              <div class="card-content">
+                <form id="addProductForm" class="form-grid">
+                  <div class="form-group">
+                    <label for="productName">Product Name *</label>
+                    <input type="text" id="productName" class="input" required placeholder="e.g., Cotton T-Shirt">
+                  </div>
+                  <div class="form-group">
+                    <label for="productSku">SKU Code</label>
+                    <input type="text" id="productSku" class="input" placeholder="e.g., TSH-001">
+                  </div>
+                  <div class="form-group">
+                    <label for="productCost">Cost in China (USD) *</label>
+                    <input type="number" id="productCost" class="input" step="0.01" min="0" required placeholder="0.00">
+                  </div>
+                  <div class="form-group">
+                    <label for="productShipping">Shipping China→Kenya (USD) *</label>
+                    <input type="number" id="productShipping" class="input" step="0.01" min="0" required placeholder="0.00">
+                  </div>
+                  <div class="form-group">
+                    <label for="productMargin">Profit + Ads Budget (USD)</label>
+                    <input type="number" id="productMargin" class="input" step="0.01" min="0" placeholder="0.00">
+                  </div>
+                  <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Add Product</button>
+                  </div>
+                </form>
+              </div>
             </div>
-          </div>
 
-          <div class="card">
-            <div class="h">Manual Save &amp; Restore</div>
-            <div class="row">
-              <input id="snapName" class="input" placeholder="Name this snapshot"/>
-              <button id="snapSave" class="btn">Save current system data</button>
+            <!-- Products List -->
+            <div class="content-card">
+              <div class="card-header">
+                <h3>Your Products</h3>
+                <div class="card-actions">
+                  <input type="text" id="productSearch" class="input input-sm" placeholder="Search products...">
+                </div>
+              </div>
+              <div class="card-content">
+                <div class="table-container">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>SKU</th>
+                        <th>Cost</th>
+                        <th>Shipping</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="productsTableBody">
+                      <tr><td colspan="6" class="no-data">No products yet</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-            <table class="table">
-              <thead><tr><th>Name</th><th>File</th><th>Actions</th></tr></thead>
-              <tbody id="snapList"></tbody>
-            </table>
           </div>
         </section>
 
-      </div>
+        <!-- Inventory View -->
+        <section id="inventory" class="view-section hide">
+          <div class="section-header">
+            <h1>Inventory & Shipping</h1>
+            <p>Manage stock levels and shipments</p>
+          </div>
+
+          <div class="content-grid">
+            <!-- Stock Movement -->
+            <div class="content-card">
+              <div class="card-header">
+                <h3>Record Stock Movement</h3>
+              </div>
+              <div class="card-content">
+                <form id="movementForm" class="form-grid">
+                  <div class="form-group">
+                    <label for="movementProduct">Product *</label>
+                    <select id="movementProduct" class="input" required>
+                      <option value="">Select Product</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="movementFrom">From Country *</label>
+                    <select id="movementFrom" class="input" required>
+                      <option value="">Select Source</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="movementTo">To Country *</label>
+                    <select id="movementTo" class="input" required>
+                      <option value="">Select Destination</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="movementQty">Quantity *</label>
+                    <input type="number" id="movementQty" class="input" min="1" required placeholder="0">
+                  </div>
+                  <div class="form-group">
+                    <label for="movementCost">Shipping Cost (USD)</label>
+                    <input type="number" id="movementCost" class="input" step="0.01" min="0" placeholder="0.00">
+                  </div>
+                  <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Record Movement</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- Current Transit -->
+            <div class="content-card">
+              <div class="card-header">
+                <h3>Shipments in Transit</h3>
+              </div>
+              <div class="card-content">
+                <div class="table-container">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Route</th>
+                        <th>Qty</th>
+                        <th>Cost</th>
+                        <th>Departed</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="transitTableBody">
+                      <tr><td colspan="7" class="no-data">No shipments in transit</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ad Spend Tracking -->
+            <div class="content-card">
+              <div class="card-header">
+                <h3>Daily Advertising Spend</h3>
+              </div>
+              <div class="card-content">
+                <form id="adSpendForm" class="form-grid">
+                  <div class="form-group">
+                    <label for="adProduct">Product *</label>
+                    <select id="adProduct" class="input" required>
+                      <option value="">Select Product</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="adCountry">Country *</label>
+                    <select id="adCountry" class="input" required>
+                      <option value="">Select Country</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="adPlatform">Platform *</label>
+                    <select id="adPlatform" class="input" required>
+                      <option value="facebook">Facebook</option>
+                      <option value="tiktok">TikTok</option>
+                      <option value="google">Google</option>
+                      <option value="instagram">Instagram</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="adAmount">Amount (USD) *</label>
+                    <input type="number" id="adAmount" class="input" step="0.01" min="0" required placeholder="0.00">
+                  </div>
+                  <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save Ad Spend</button>
+                  </div>
+                </form>
+                <div class="form-note">
+                  <small>Note: Saving for the same product+country+platform will update the existing amount</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Sales View -->
+        <section id="sales" class="view-section hide">
+          <div class="section-header">
+            <h1>Sales & Performance</h1>
+            <p>Track sales, revenue, and business performance</p>
+          </div>
+
+          <div class="content-grid">
+            <!-- Record Sale -->
+            <div class="content-card">
+              <div class="card-header">
+                <h3>Record Sales (Remittance)</h3>
+              </div>
+              <div class="card-content">
+                <form id="saleForm" class="form-grid">
+                  <div class="form-group">
+                    <label for="salePeriodStart">Period Start *</label>
+                    <input type="date" id="salePeriodStart" class="input" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="salePeriodEnd">Period End *</label>
+                    <input type="date" id="salePeriodEnd" class="input" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="saleCountry">Country *</label>
+                    <select id="saleCountry" class="input" required>
+                      <option value="">Select Country</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="saleProduct">Product *</label>
+                    <select id="saleProduct" class="input" required>
+                      <option value="">Select Product</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="saleOrders">Number of Orders</label>
+                    <input type="number" id="saleOrders" class="input" min="0" placeholder="0">
+                  </div>
+                  <div class="form-group">
+                    <label for="salePieces">Pieces Sold</label>
+                    <input type="number" id="salePieces" class="input" min="0" placeholder="0">
+                  </div>
+                  <div class="form-group">
+                    <label for="saleRevenue">Revenue (USD)</label>
+                    <input type="number" id="saleRevenue" class="input" step="0.01" min="0" placeholder="0.00">
+                  </div>
+                  <div class="form-group">
+                    <label for="saleAdSpend">Ad Spend (USD)</label>
+                    <input type="number" id="saleAdSpend" class="input" step="0.01" min="0" placeholder="0.00">
+                  </div>
+                  <div class="form-group">
+                    <label for="saleExtraCost">Extra Cost per Piece (USD)</label>
+                    <input type="number" id="saleExtraCost" class="input" step="0.01" min="0" placeholder="0.00">
+                  </div>
+                  <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Record Sale</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- Performance Analytics -->
+            <div class="content-card">
+              <div class="card-header">
+                <h3>Performance Analytics</h3>
+                <div class="card-actions">
+                  <select id="analyticsPeriod" class="input input-sm">
+                    <option value="7">Last 7 Days</option>
+                    <option value="30">Last 30 Days</option>
+                    <option value="90">Last 90 Days</option>
+                    <option value="custom">Custom Range</option>
+                  </select>
+                  <button id="runAnalytics" class="btn btn-primary btn-sm">Run Report</button>
+                </div>
+              </div>
+              <div class="card-content">
+                <div class="table-container">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Country</th>
+                        <th>Pieces</th>
+                        <th>Revenue</th>
+                        <th>Ad Spend</th>
+                        <th>Profit</th>
+                        <th>Profit/Piece</th>
+                      </tr>
+                    </thead>
+                    <tbody id="analyticsTableBody">
+                      <tr><td colspan="7" class="no-data">Run report to see data</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Lifetime Performance -->
+            <div class="content-card full-width">
+              <div class="card-header">
+                <h3>Lifetime Product Performance</h3>
+                <div class="card-actions">
+                  <select id="lifetimeProduct" class="input input-sm">
+                    <option value="">All Products</option>
+                  </select>
+                  <input type="date" id="lifetimeStart" class="input input-sm">
+                  <input type="date" id="lifetimeEnd" class="input input-sm">
+                  <button id="runLifetime" class="btn btn-primary btn-sm">Calculate</button>
+                </div>
+              </div>
+              <div class="card-content">
+                <div class="table-container">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Country</th>
+                        <th>Revenue</th>
+                        <th>Ad Spend</th>
+                        <th>Shipping</th>
+                        <th>Base Cost</th>
+                        <th>Pieces</th>
+                        <th>Profit</th>
+                      </tr>
+                    </thead>
+                    <tbody id="lifetimeTableBody">
+                      <tr><td colspan="8" class="no-data">Calculate to see lifetime performance</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Finance View -->
+        <section id="finance" class="view-section hide">
+          <div class="section-header">
+            <h1>Financial Management</h1>
+            <p>Track income, expenses, and cash flow</p>
+          </div>
+
+          <div class="content-grid">
+            <!-- Financial Overview -->
+            <div class="content-card">
+              <div class="card-header">
+                <h3>Financial Overview</h3>
+              </div>
+              <div class="card-content">
+                <div class="finance-overview">
+                  <div class="finance-metric">
+                    <div class="metric-label">Running Balance</div>
+                    <div class="metric-value" id="runningBalance">0.00 USD</div>
+                  </div>
+                  <div class="finance-metric">
+                    <div class="metric-label">Period Balance</div>
+                    <div class="metric-value" id="periodBalance">0.00 USD</div>
+                  </div>
+                </div>
+                <div class="date-filters">
+                  <input type="date" id="financeStart" class="input input-sm">
+                  <input type="date" id="financeEnd" class="input input-sm">
+                  <button id="applyFinanceFilter" class="btn btn-primary btn-sm">Apply</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Add Financial Entry -->
+            <div class="content-card">
+              <div class="card-header">
+                <h3>Add Financial Entry</h3>
+              </div>
+              <div class="card-content">
+                <form id="financeEntryForm" class="form-grid">
+                  <div class="form-group">
+                    <label for="entryDate">Date *</label>
+                    <input type="date" id="entryDate" class="input" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="entryType">Type *</label>
+                    <select id="entryType" class="input" required>
+                      <option value="">Select Type</option>
+                      <option value="debit">Expense (Debit)</option>
+                      <option value="credit">Income (Credit)</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="entryCategory">Category *</label>
+                    <select id="entryCategory" class="input" required>
+                      <option value="">Select Category</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="entryAmount">Amount (USD) *</label>
+                    <input type="number" id="entryAmount" class="input" step="0.01" min="0" required placeholder="0.00">
+                  </div>
+                  <div class="form-group full-width">
+                    <label for="entryNote">Notes</label>
+                    <input type="text" id="entryNote" class="input" placeholder="Optional description">
+                  </div>
+                  <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Add Entry</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- Finance Categories -->
+            <div class="content-card">
+              <div class="card-header">
+                <h3>Finance Categories</h3>
+              </div>
+              <div class="card-content">
+                <div class="category-management">
+                  <div class="category-section">
+                    <h4>Expense Categories (Debit)</h4>
+                    <div id="debitCategories" class="category-list">
+                      <!-- Dynamically populated -->
+                    </div>
+                  </div>
+                  <div class="category-section">
+                    <h4>Income Categories (Credit)</h4>
+                    <div id="creditCategories" class="category-list">
+                      <!-- Dynamically populated -->
+                    </div>
+                  </div>
+                  <div class="add-category-form">
+                    <h4>Add New Category</h4>
+                    <div class="form-row">
+                      <select id="newCategoryType" class="input">
+                        <option value="debit">Expense Category</option>
+                        <option value="credit">Income Category</option>
+                      </select>
+                      <input type="text" id="newCategoryName" class="input" placeholder="Category name">
+                      <button id="addCategoryBtn" class="btn btn-primary">Add</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Financial Entries -->
+            <div class="content-card full-width">
+              <div class="card-header">
+                <h3>Financial Entries</h3>
+              </div>
+              <div class="card-content">
+                <div class="table-container">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Category</th>
+                        <th>Amount</th>
+                        <th>Notes</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="financeEntriesBody">
+                      <tr><td colspan="6" class="no-data">No financial entries yet</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Settings View -->
+        <section id="settings" class="view-section hide">
+          <div class="section-header">
+            <h1>System Settings</h1>
+            <p>Manage your business configuration</p>
+          </div>
+
+          <div class="content-grid">
+            <!-- Countries Management -->
+            <div class="content-card">
+              <div class="card-header">
+                <h3>Countries Management</h3>
+              </div>
+              <div class="card-content">
+                <div class="form-group">
+                  <label for="newCountry">Add New Country</label>
+                  <div class="form-row">
+                    <input type="text" id="newCountry" class="input" placeholder="Country name">
+                    <button id="addCountryBtn" class="btn btn-primary">Add</button>
+                  </div>
+                </div>
+                <div class="countries-list">
+                  <h4>Available Countries</h4>
+                  <div id="countriesList" class="chips-container">
+                    <!-- Dynamically populated -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Product Management -->
+            <div class="content-card">
+              <div class="card-header">
+                <h3>Edit Product Information</h3>
+              </div>
+              <div class="card-content">
+                <form id="editProductForm" class="form-grid">
+                  <div class="form-group">
+                    <label for="editProductSelect">Select Product *</label>
+                    <select id="editProductSelect" class="input" required>
+                      <option value="">Choose a product...</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="editProductName">Product Name *</label>
+                    <input type="text" id="editProductName" class="input" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="editProductSku">SKU Code</label>
+                    <input type="text" id="editProductSku" class="input">
+                  </div>
+                  <div class="form-group">
+                    <label for="editProductCost">Cost in China (USD)</label>
+                    <input type="number" id="editProductCost" class="input" step="0.01" min="0">
+                  </div>
+                  <div class="form-group">
+                    <label for="editProductShipping">Shipping China→Kenya (USD)</label>
+                    <input type="number" id="editProductShipping" class="input" step="0.01" min="0">
+                  </div>
+                  <div class="form-group">
+                    <label for="editProductMargin">Profit + Ads Budget (USD)</label>
+                    <input type="number" id="editProductMargin" class="input" step="0.01" min="0">
+                  </div>
+                  <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- Data Management -->
+            <div class="content-card">
+              <div class="card-header">
+                <h3>Data Management</h3>
+              </div>
+              <div class="card-content">
+                <div class="data-actions">
+                  <div class="form-group">
+                    <label for="snapshotName">Create System Snapshot</label>
+                    <div class="form-row">
+                      <input type="text" id="snapshotName" class="input" placeholder="Snapshot description">
+                      <button id="createSnapshotBtn" class="btn btn-primary">Create Snapshot</button>
+                    </div>
+                  </div>
+                  
+                  <div class="snapshots-list">
+                    <h4>Available Snapshots</h4>
+                    <div class="table-container">
+                      <table class="data-table compact">
+                        <thead>
+                          <tr>
+                            <th>Name</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody id="snapshotsListBody">
+                          <tr><td colspan="3" class="no-data">No snapshots yet</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- System Information -->
+            <div class="content-card">
+              <div class="card-header">
+                <h3>System Information</h3>
+              </div>
+              <div class="card-content">
+                <div class="system-info">
+                  <div class="info-item">
+                    <span class="info-label">System Version:</span>
+                    <span class="info-value" id="systemVersion">2.0.0</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Database Size:</span>
+                    <span class="info-value" id="databaseSize">Calculating...</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Total Products:</span>
+                    <span class="info-value" id="totalProducts">0</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Total Countries:</span>
+                    <span class="info-value" id="totalCountries">0</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Last Backup:</span>
+                    <span class="info-value" id="lastBackup">Never</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
   </div>
 
-<script src="/app.js" defer></script>
+  <script src="/app.js"></script>
 </body>
 </html>
