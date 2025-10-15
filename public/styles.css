@@ -37,7 +37,7 @@ img { max-width: 100%; display: block; }
   --gray-900: #111827;
   
   /* Background Colors - WHITE THEME */
-  --bg-dark: #ffffff;
+  --bg-body: #ffffff;
   --bg-card: #ffffff;
   --bg-card-light: #f8fafc;
   --bg-hover: #f1f5f9;
@@ -84,12 +84,12 @@ img { max-width: 100%; display: block; }
 
 /* ---------- Base Styles - WHITE BACKGROUND ---------- */
 body {
-  background: #ffffff !important;
+  background: var(--bg-body) !important;
   color: var(--text-primary);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  padding-top: 0; /* No padding since nav hides on scroll */
+  padding-top: 70px; /* Space for fixed navbar */
 }
 
 .container {
@@ -98,7 +98,7 @@ body {
   padding: 20px;
 }
 
-/* ---------- Professional Navigation - HIDES ON SCROLL ---------- */
+/* ---------- Professional Navigation - HIDES ON SCROLL BUT DOESN'T HIDE CONTENT ---------- */
 .nav {
   position: fixed;
   top: 0;
@@ -114,14 +114,12 @@ body {
   height: 60px;
   box-shadow: var(--shadow-nav);
   width: 100%;
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition: transform 0.3s ease;
   transform: translateY(0);
-  opacity: 1;
 }
 
 .nav.nav-hidden {
   transform: translateY(-100%);
-  opacity: 0;
 }
 
 .nav a {
@@ -473,6 +471,84 @@ select.input {
   font-style: italic;
 }
 
+/* ---------- PRODUCT PAGE SPECIFIC FIXES - SCROLLABLE TABLES ---------- */
+#product .container {
+  max-width: 100%;
+  overflow-x: hidden;
+  padding: 20px;
+}
+
+#product .section {
+  max-width: 100%;
+  overflow: hidden;
+  margin-bottom: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Ensure ALL tables in product page are scrollable */
+#product .table-scroll {
+  max-width: 100%;
+  margin: 12px 0;
+  min-width: 1000px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+/* Make sure all tables in product page don't break layout */
+#product table {
+  min-width: 1000px;
+  width: 100%;
+}
+
+/* Specific table containers in product page */
+#pdStockBody, #pdPBBBody, #pdShipCKBody, #pdShipICBody, 
+#pdArrivedBody, #pdLPBody, #pdInfBody, #pdRemittancesBody {
+  min-width: 1000px;
+}
+
+/* Compact product page sections */
+#product .section {
+  margin-bottom: 24px;
+}
+
+#product .card {
+  margin-bottom: 16px;
+}
+
+#product h2 {
+  font-size: 1.4rem;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--primary);
+  padding-bottom: 8px;
+}
+
+#product h3 {
+  font-size: 1.2rem;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+/* Product page specific table styling */
+#product .table {
+  min-width: 1000px;
+}
+
+#product .table thead th {
+  background: var(--primary);
+  color: white;
+  border-bottom: none;
+}
+
+#product .table tbody tr:nth-child(even) {
+  background: var(--bg-card-light);
+}
+
 /* ---------- Number Formatting for Financial Data ---------- */
 .number-positive {
   color: var(--success);
@@ -759,59 +835,6 @@ select.input {
   border-radius: 8px;
   border: 1px solid var(--border);
   margin: 16px 0;
-}
-
-/* ---------- PRODUCT PAGE SPECIFIC FIXES - SCROLLABLE TABLES ---------- */
-#product .container {
-  max-width: 100%;
-  overflow-x: hidden;
-  padding: 20px;
-}
-
-#product .section {
-  max-width: 100%;
-  overflow: hidden;
-  margin-bottom: 20px;
-}
-
-/* Ensure ALL tables in product page are scrollable */
-#product .table-scroll {
-  max-width: 100%;
-  margin: 12px 0;
-  min-width: 1000px;
-  overflow-x: auto;
-}
-
-/* Make sure all tables in product page don't break layout */
-#product table {
-  min-width: 1000px;
-  width: 100%;
-}
-
-/* Specific table containers in product page */
-#pdStockBody, #pdPBBBody, #pdShipCKBody, #pdShipICBody, 
-#pdArrivedBody, #pdLPBody, #pdInfBody, #pdRemittancesBody {
-  min-width: 1000px;
-}
-
-/* Compact product page sections */
-#product .section {
-  margin-bottom: 20px;
-  padding: 0;
-}
-
-#product .card {
-  margin-bottom: 12px;
-}
-
-#product h2 {
-  font-size: 1.4rem;
-  margin-bottom: 12px;
-}
-
-#product h3 {
-  font-size: 1.2rem;
-  margin-bottom: 10px;
 }
 
 /* ---------- Financial Numbers Styling ---------- */
