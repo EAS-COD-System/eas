@@ -46,7 +46,7 @@ async function boot() {
   }
 
   await preload();
-  initSmartNavigation(); // Initialize smart navigation with scroll behavior
+  initSimpleNavigation(); // Initialize simple navigation with scroll behavior
   bindGlobalNav();
 
   if (state.productId) {
@@ -78,55 +78,44 @@ Q('#logoutLink')?.addEventListener('click', async (e) => {
 });
 
 /* ================================================================
-   SMART NAVIGATION WITH SCROLL BEHAVIOR
+   SIMPLE NAVIGATION - HIDES ON SCROLL, NEVER REAPPEARS
    ================================================================ */
-function initSmartNavigation() {
+function initSimpleNavigation() {
   const nav = Q('.nav');
   const main = Q('#main');
   if (!nav) return;
 
   let lastScrollY = window.scrollY;
   let scrollTimeout = null;
-  let isNavVisible = true;
-
-  // Function to show navigation
-  function showNav() {
-    nav.classList.remove('nav-hidden');
-    nav.classList.add('nav-visible');
-    if (main) main.classList.remove('main-expanded');
-    isNavVisible = true;
-  }
 
   // Function to hide navigation
   function hideNav() {
     nav.classList.remove('nav-visible');
     nav.classList.add('nav-hidden');
     if (main) main.classList.add('main-expanded');
-    isNavVisible = false;
   }
 
-  // Handle scroll events
+  // Function to show navigation (only at top)
+  function showNav() {
+    nav.classList.remove('nav-hidden');
+    nav.classList.add('nav-visible');
+    if (main) main.classList.remove('main-expanded');
+  }
+
+  // Handle scroll events - SIMPLE VERSION: Hide on scroll, never show on scroll up
   function handleScroll() {
     const currentScrollY = window.scrollY;
     
     // Always show nav at the top of the page
-    if (currentScrollY < 50) {
+    if (currentScrollY < 10) {
       showNav();
       lastScrollY = currentScrollY;
       return;
     }
 
-    // Hide nav when scrolling down, show when scrolling up
-    if (currentScrollY > lastScrollY && currentScrollY > 100) {
-      // Scrolling down
-      if (isNavVisible) {
-        hideNav();
-      }
-    } else {
-      // Scrolling up
-      if (!isNavVisible) {
-        showNav();
-      }
+    // Hide nav when scrolling down OR up (any scrolling away from top)
+    if (currentScrollY > 50) {
+      hideNav();
     }
 
     lastScrollY = currentScrollY;
@@ -135,28 +124,17 @@ function initSmartNavigation() {
     if (scrollTimeout) {
       clearTimeout(scrollTimeout);
     }
-
-    // Set timeout to hide nav after scrolling stops (only if not at top)
-    if (currentScrollY > 100) {
-      scrollTimeout = setTimeout(() => {
-        hideNav();
-      }, 1500); // Hide after 1.5 seconds of no scrolling
-    }
   }
 
   // Add scroll event listener
   window.addEventListener('scroll', handleScroll, { passive: true });
 
-  // Show nav when touching the top of the screen
-  window.addEventListener('touchstart', (e) => {
-    if (e.touches[0].clientY < 100) {
+  // Show nav when touching the very top of the screen
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches[0].clientY < 10) {
       showNav();
     }
-  });
-
-  // Force show nav when interacting with it
-  nav.addEventListener('mouseenter', showNav);
-  nav.addEventListener('touchstart', showNav);
+  }, { passive: true });
 
   // Initialize nav state
   if (window.scrollY === 0) {
