@@ -1451,36 +1451,58 @@ function bindGlobalNav() {
   }));
 }
 /* ================================================================
-   HIDE NAVIGATION ON SCROLL
+   HIDE NAVIGATION ON SCROLL - IMPROVED VERSION
    ================================================================ */
 let lastScrollY = window.scrollY;
 const nav = document.querySelector('.nav');
+let isNavHidden = false;
 
-window.addEventListener('scroll', () => {
+function handleScroll() {
   if (!nav) return;
   
-  if (window.scrollY > lastScrollY && window.scrollY > 100) {
+  const currentScrollY = window.scrollY;
+  
+  if (currentScrollY > lastScrollY && currentScrollY > 100) {
     // Scrolling down & past 100px - hide nav
-    nav.classList.add('nav-hidden');
-  } else {
-    // Scrolling up - show nav
-    nav.classList.remove('nav-hidden');
+    if (!isNavHidden) {
+      nav.classList.add('nav-hidden');
+      isNavHidden = true;
+    }
+  } else if (currentScrollY < lastScrollY || currentScrollY <= 100) {
+    // Scrolling up or at top - show nav
+    if (isNavHidden) {
+      nav.classList.remove('nav-hidden');
+      isNavHidden = false;
+    }
   }
   
-  lastScrollY = window.scrollY;
-});
+  lastScrollY = currentScrollY;
+}
 
-// Also hide nav when clicking outside (optional)
-document.addEventListener('click', (e) => {
-  if (!nav.contains(e.target)) {
-    nav.classList.add('nav-hidden');
+// Throttle scroll events for better performance
+let scrollTimeout;
+window.addEventListener('scroll', () => {
+  if (!scrollTimeout) {
+    scrollTimeout = setTimeout(() => {
+      handleScroll();
+      scrollTimeout = null;
+    }, 10);
   }
 });
 
 // Show nav when hovering near top of page
 document.addEventListener('mousemove', (e) => {
-  if (e.clientY < 100) {
+  if (e.clientY < 50 && isNavHidden) {
     nav.classList.remove('nav-hidden');
+    isNavHidden = false;
+  }
+});
+
+// Ensure nav is visible when page loads
+window.addEventListener('load', () => {
+  if (nav) {
+    nav.classList.remove('nav-hidden');
+    isNavHidden = false;
   }
 });
 /* ================================================================
