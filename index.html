@@ -187,6 +187,27 @@
         <section id="performance" style="display:none">
           <h2>Performance Analytics</h2>
           
+          <!-- Add Remittance Entry -->
+          <div class="card">
+            <div class="h">➕ Add Remittance Entry</div>
+            <div class="row wrap">
+              <input id="remAddStart" type="date" class="input" placeholder="Start Date"/>
+              <input id="remAddEnd" type="date" class="input" placeholder="End Date"/>
+              <select id="remAddCountry" class="input">
+                <option value="">Select Country</option>
+              </select>
+              <select id="remAddProduct" class="input">
+                <option value="">Select Product</option>
+              </select>
+              <input id="remAddOrders" type="number" class="input" placeholder="Orders" min="0"/>
+              <input id="remAddPieces" type="number" class="input" placeholder="Pieces" min="0"/>
+              <input id="remAddRevenue" type="number" class="input" placeholder="Revenue (USD)" step="0.01"/>
+              <input id="remAddAdSpend" type="number" class="input" placeholder="Ad Spend (USD)" step="0.01"/>
+              <input id="remAddExtra" type="number" class="input" placeholder="Extra/Piece (USD)" step="0.01"/>
+              <button id="remAddSave" class="btn">💾 Save Remittance</button>
+            </div>
+          </div>
+
           <!-- Remittance Report -->
           <div class="card">
             <div class="h">📋 Remittance Report</div>
@@ -209,6 +230,7 @@
                     <th>Revenue</th>
                     <th>Ad Spend</th>
                     <th>Profit</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody id="remittanceBody"></tbody>
@@ -220,40 +242,9 @@
                     <th id="remRevenueT">0</th>
                     <th id="remAdSpendT">0</th>
                     <th id="remProfitT">0</th>
+                    <th></th>
                   </tr>
                 </tfoot>
-              </table>
-            </div>
-          </div>
-
-          <!-- Top Delivered Products -->
-          <div class="card">
-            <div class="h">🏆 Top Delivered Products</div>
-            <div class="row wrap">
-              <select id="pfQuick" class="input">
-                <option value="8">Last 8 days</option>
-                <option value="28">Last 28 days</option>
-                <option value="custom">Custom Range</option>
-              </select>
-              <input id="pfStart" type="date" class="input"/>
-              <input id="pfEnd" type="date" class="input"/>
-              <select id="pfCountry" class="input"><option value="">All countries</option></select>
-              <button id="pfRun" class="btn">📊 Analyze</button>
-            </div>
-            <div class="table-scroll">
-              <table id="pfTable" class="table">
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th>Country</th>
-                    <th>Pieces</th>
-                    <th>Ad Spend</th>
-                    <th>Product Cost</th>
-                    <th>Total Profit</th>
-                    <th>Profit / pc</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
               </table>
             </div>
           </div>
@@ -288,45 +279,6 @@
                     <th id="pcDelT">0</th>
                     <th id="pcPiecesT">0</th>
                     <th id="pcProfitT">0</th>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-
-          <!-- Lifetime Product Performance -->
-          <div class="card">
-            <div class="h">📊 Lifetime Product Performance</div>
-            <div class="row wrap">
-              <select id="lpProduct" class="input"><option value="">All products</option></select>
-              <input id="lpStart" type="date" class="input"/>
-              <input id="lpEnd" type="date" class="input"/>
-              <button id="lpRun" class="btn">🚀 Generate Report</button>
-            </div>
-            <div class="table-scroll">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th>Country</th>
-                    <th>Revenue</th>
-                    <th>Ad Spend</th>
-                    <th>Shipping</th>
-                    <th>Base Cost</th>
-                    <th>Pieces</th>
-                    <th>Profit</th>
-                  </tr>
-                </thead>
-                <tbody id="lifetimeBody"></tbody>
-                <tfoot>
-                  <tr class="totals">
-                    <th colspan="2">Totals</th>
-                    <th id="ltRevT">0</th>
-                    <th id="ltAdT">0</th>
-                    <th id="ltShipT">0</th>
-                    <th id="ltBaseT">0</th>
-                    <th id="ltPiecesT">0</th>
-                    <th id="ltProfitT">0</th>
                   </tr>
                 </tfoot>
               </table>
