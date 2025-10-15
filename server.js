@@ -15,15 +15,12 @@ const DATA_FILE = path.join(ROOT, 'db.json');
 const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
 const PUBLIC_DIR = path.join(ROOT, 'public');
 
-// ===================== MIDDLEWARE - FIXED ORDER =====================
+// ===================== MIDDLEWARE =====================
 app.use(morgan('dev'));
 app.use(cors({ origin: true, credentials: true }));
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(cookieParser());
-
-// ===================== STATIC FILE SERVING - FIXED =====================
-app.use('/public', express.static(PUBLIC_DIR));
-app.use(express.static(PUBLIC_DIR)); // Serve from root as well
+app.use(express.static(PUBLIC_DIR));
 
 // ===================== DATABASE FUNCTIONS =====================
 function initDB() {
@@ -448,7 +445,5 @@ app.get('/product.html', (req, res) => {
 // ===================== START SERVER =====================
 app.listen(PORT, () => {
   console.log(`🚀 EAS Tracker running on port ${PORT}`);
-  console.log(`📁 Serving static files from: ${PUBLIC_DIR}`);
   console.log(`🔐 Default password: eastafricashop`);
-  console.log(`🌐 Access at: http://localhost:${PORT}`);
 });
