@@ -187,7 +187,82 @@
         <section id="performance" style="display:none">
           <h2>Performance Analytics</h2>
           
-       
+          <!-- Top Delivered Products -->
+          <div class="card">
+            <div class="h">🏆 Top Delivered Products</div>
+            <div class="row wrap">
+              <input id="topDelStart" type="date" class="input" placeholder="Start Date"/>
+              <input id="topDelEnd" type="date" class="input" placeholder="End Date"/>
+              <select id="topDelCountry" class="input">
+                <option value="">All countries</option>
+              </select>
+              <button id="topDelRun" class="btn">📊 Show Top Products</button>
+            </div>
+            <div class="table-scroll">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Product</th>
+                    <th>Country</th>
+                    <th>Pieces Delivered</th>
+                    <th>Revenue</th>
+                    <th>Ad Spend</th>
+                    <th>Profit</th>
+                  </tr>
+                </thead>
+                <tbody id="topDeliveredBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Remittance Analytics -->
+          <div class="card">
+            <div class="h">📈 Remittance Analytics</div>
+            <div class="row wrap">
+              <input id="remAnalyticsStart" type="date" class="input" placeholder="Start Date"/>
+              <input id="remAnalyticsEnd" type="date" class="input" placeholder="End Date"/>
+              <select id="remAnalyticsCountry" class="input">
+                <option value="">All countries</option>
+              </select>
+              <select id="remAnalyticsProduct" class="input">
+                <option value="">All products</option>
+              </select>
+              <button id="remAnalyticsRun" class="btn">📊 Generate Analytics</button>
+            </div>
+            <div class="table-scroll">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Country</th>
+                    <th>Pieces</th>
+                    <th>Revenue</th>
+                    <th>Ad Spend</th>
+                    <th>Cost China</th>
+                    <th>Ship China→Kenya</th>
+                    <th>Inter-country Ship</th>
+                    <th>Total Cost</th>
+                    <th>Profit</th>
+                  </tr>
+                </thead>
+                <tbody id="remAnalyticsBody"></tbody>
+                <tfoot>
+                  <tr class="totals">
+                    <th colspan="2">Totals</th>
+                    <th id="remAnalyticsPiecesT">0</th>
+                    <th id="remAnalyticsRevenueT">0</th>
+                    <th id="remAnalyticsAdSpendT">0</th>
+                    <th id="remAnalyticsCostChinaT">0</th>
+                    <th id="remAnalyticsShipChinaT">0</th>
+                    <th id="remAnalyticsInterShipT">0</th>
+                    <th id="remAnalyticsTotalCostT">0</th>
+                    <th id="remAnalyticsProfitT">0</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
 
           <!-- Remittance Report -->
           <div class="card">
@@ -210,6 +285,10 @@
                     <th>Pieces</th>
                     <th>Revenue</th>
                     <th>Ad Spend</th>
+                    <th>Cost China</th>
+                    <th>Ship China→Kenya</th>
+                    <th>Inter-country Ship</th>
+                    <th>Total Cost</th>
                     <th>Profit</th>
                     <th>Actions</th>
                   </tr>
@@ -222,6 +301,10 @@
                     <th id="remPiecesT">0</th>
                     <th id="remRevenueT">0</th>
                     <th id="remAdSpendT">0</th>
+                    <th id="remCostChinaT">0</th>
+                    <th id="remShipChinaT">0</th>
+                    <th id="remInterShipT">0</th>
+                    <th id="remTotalCostT">0</th>
                     <th id="remProfitT">0</th>
                     <th></th>
                   </tr>
@@ -246,7 +329,10 @@
                     <th>Country</th>
                     <th>Revenue</th>
                     <th>Ad Spend</th>
-                    <th>Delivery Cost</th>
+                    <th>Cost China</th>
+                    <th>Ship China→Kenya</th>
+                    <th>Inter-country Ship</th>
+                    <th>Total Cost</th>
                     <th>Pieces</th>
                     <th>Profit</th>
                   </tr>
@@ -257,7 +343,10 @@
                     <th>Totals</th>
                     <th id="pcRevT">0</th>
                     <th id="pcAdT">0</th>
-                    <th id="pcDelT">0</th>
+                    <th id="pcCostChinaT">0</th>
+                    <th id="pcShipChinaT">0</th>
+                    <th id="pcInterShipT">0</th>
+                    <th id="pcTotalCostT">0</th>
                     <th id="pcPiecesT">0</th>
                     <th id="pcProfitT">0</th>
                   </tr>
@@ -265,7 +354,53 @@
               </table>
             </div>
           </div>
-             <!-- Add Remittance Entry -->
+
+          <!-- Lifetime Product Performance -->
+          <div class="card">
+            <div class="h">📊 Lifetime Product Performance</div>
+            <div class="row wrap">
+              <select id="lpProduct" class="input">
+                <option value="">All products</option>
+              </select>
+              <input id="lpStart" type="date" class="input"/>
+              <input id="lpEnd" type="date" class="input"/>
+              <button id="lpRun" class="btn">📈 Calculate</button>
+            </div>
+            <div class="table-scroll">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Country</th>
+                    <th>Revenue</th>
+                    <th>Ad Spend</th>
+                    <th>Cost China</th>
+                    <th>Ship China→Kenya</th>
+                    <th>Inter-country Ship</th>
+                    <th>Total Cost</th>
+                    <th>Pieces</th>
+                    <th>Profit</th>
+                  </tr>
+                </thead>
+                <tbody id="lifetimeBody"></tbody>
+                <tfoot>
+                  <tr class="totals">
+                    <th colspan="2">Totals</th>
+                    <th id="ltRevT">0</th>
+                    <th id="ltAdT">0</th>
+                    <th id="ltCostChinaT">0</th>
+                    <th id="ltShipChinaT">0</th>
+                    <th id="ltInterShipT">0</th>
+                    <th id="ltTotalCostT">0</th>
+                    <th id="ltPiecesT">0</th>
+                    <th id="ltProfitT">0</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          <!-- Add Remittance Entry -->
           <div class="card">
             <div class="h">➕ Add Remittance Entry</div>
             <div class="row wrap">
@@ -411,14 +546,12 @@
           <div class="card">
             <div class="h">📝 Financial Entries</div>
             <div class="row wrap">
-              <input id="feStartDate" type="date" class="input" placeholder="Start Date"/>
-              <input id="feEndDate" type="date" class="input" placeholder="End Date"/>
+              <input id="feDate" type="date" class="input" placeholder="Date"/>
               <select id="feCat" class="input"></select>
               <input id="feAmt" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
               <input id="feNote" class="input" placeholder="Note"/>
               <button id="feAdd" class="btn">💾 Add Entry</button>
             </div>
-            <small>Entries will be created for each day in the date range.</small>
 
             <div class="row wrap" style="margin-top: 15px;">
               <input id="fes" type="date" class="input"/>
@@ -436,7 +569,6 @@
                     <th>Category</th>
                     <th>Amount</th>
                     <th>Note</th>
-                    <th>Period</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
