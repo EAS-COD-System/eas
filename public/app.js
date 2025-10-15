@@ -1466,9 +1466,58 @@ async function refreshInfluencers(product) {
 }
 
 /* ================================================================
-   NAV - Fixed navigation (no scroll behavior)
+   FORCE FIXED NAVIGATION
+   ================================================================ */
+function forceFixedNavigation() {
+  const nav = Q('.nav');
+  if (!nav) return;
+  
+  // Force fixed positioning
+  nav.style.position = 'fixed';
+  nav.style.top = '0';
+  nav.style.left = '0';
+  nav.style.right = '0';
+  nav.style.zIndex = '1000';
+  nav.style.background = '#ffffff';
+  
+  // Ensure main content has proper margin
+  const main = Q('#main');
+  if (main) {
+    main.style.marginTop = '60px';
+  }
+  
+  // Handle scroll events to keep it fixed
+  window.addEventListener('scroll', function() {
+    const scrollY = window.scrollY;
+    
+    // Always keep nav at top
+    nav.style.transform = `translateY(${scrollY}px)`;
+    nav.style.transform = 'translateY(0)'; // Force to top
+    
+    // Alternative method: reset position on scroll
+    if (nav.style.position !== 'fixed') {
+      nav.style.position = 'fixed';
+      nav.style.top = '0';
+    }
+  });
+  
+  // Also handle resize events
+  window.addEventListener('resize', function() {
+    nav.style.position = 'fixed';
+    nav.style.top = '0';
+    nav.style.left = '0';
+    nav.style.right = '0';
+  });
+}
+
+/* ================================================================
+   NAV - Fixed navigation with JavaScript enforcement
    ================================================================ */
 function bindGlobalNav() {
+  // First force the fixed positioning
+  forceFixedNavigation();
+  
+  // Then handle the view switching
   QA('.nav a[data-view]')?.forEach(a => a.addEventListener('click', e=>{
     e.preventDefault();
     const v = a.dataset.view;
