@@ -98,7 +98,7 @@ body {
   padding: 20px;
 }
 
-/* ---------- Professional Navigation - FIXED AT TOP (DOES NOT SCROLL) ---------- */
+/* ---------- Professional Navigation - FIXED AT TOP (ENFORCED) ---------- */
 .nav {
   position: fixed !important;
   top: 0 !important;
@@ -114,23 +114,23 @@ body {
   height: 60px !important;
   box-shadow: var(--shadow-nav) !important;
   width: 100% !important;
+  transform: translate3d(0, 0, 0) !important; /* Force GPU acceleration */
+  will-change: transform !important; /* Optimize for fixed positioning */
 }
 
 /* Main content starts below the fixed nav */
 #main {
-  margin-top: 60px; /* Push content below the fixed nav */
+  margin-top: 60px !important; /* Force margin */
 }
 
-/* Remove body padding since we're using margin on main */
 body {
   background: var(--bg-body) !important;
   color: var(--text-primary);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  padding-top: 0; /* No padding needed */
+  padding-top: 0 !important;
 }
-
 .nav a {
   padding: 8px 16px !important;
   border-radius: 6px !important;
