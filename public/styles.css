@@ -98,7 +98,7 @@ body {
   padding: 20px;
 }
 
-/* ---------- Professional Navigation - FIXED OVERLAY ---------- */
+/* ---------- Professional Navigation - FIXED AT TOP (DOES NOT SCROLL) ---------- */
 .nav {
   position: fixed !important;
   top: 0 !important;
@@ -116,9 +116,19 @@ body {
   width: 100% !important;
 }
 
-/* Remove the margin from main since we're using padding on body */
+/* Main content starts below the fixed nav */
 #main {
-  margin-top: 0;
+  margin-top: 60px; /* Push content below the fixed nav */
+}
+
+/* Remove body padding since we're using margin on main */
+body {
+  background: var(--bg-body) !important;
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  padding-top: 0; /* No padding needed */
 }
 
 .nav a {
