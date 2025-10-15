@@ -46,7 +46,8 @@ async function boot() {
   }
 
   await preload();
-  forceFixedNavigation(); // ADD THIS - Force the simple fixed nav
+  forceFixedNavigation(); // Force the simple fixed nav
+  initScrollToHideNav(); // Initialize scroll-to-hide behavior
   bindGlobalNav();
 
   if (state.productId) {
@@ -60,22 +61,6 @@ async function boot() {
     renderSettingsPage();
   }
 }
-
-Q('#loginBtn')?.addEventListener('click', async () => {
-  const password = Q('#pw')?.value || '';
-  try {
-    await api('/api/auth', { method:'POST', body: JSON.stringify({ password }) });
-    await boot();
-  } catch (e) {
-    alert('Wrong password');
-  }
-});
-
-Q('#logoutLink')?.addEventListener('click', async (e) => {
-  e.preventDefault();
-  try { await api('/api/auth', { method:'POST', body: JSON.stringify({ password: 'logout' })}); } catch {}
-  location.reload();
-});
 /* ================================================================
    COMMON LOADERS
    ================================================================ */
@@ -1465,51 +1450,96 @@ async function refreshInfluencers(product) {
   };
 }
 /* ================================================================
-   FORCE FIXED NAVIGATION - SIMPLE VERSION
+   ENHANCED MOBILE NAVIGATION WITH SCROLL BEHAVIOR
    ================================================================ */
 function forceFixedNavigation() {
   const nav = Q('.nav');
   if (!nav) return;
   
-  // Simple fixed positioning - no complex transforms
+  // Simple fixed positioning
   nav.style.position = 'fixed';
   nav.style.top = '0';
   nav.style.left = '0';
   nav.style.right = '0';
-  nav.style.zIndex = '9999';
+  nav.style.zIndex = '10000';
   nav.style.background = '#ffffff';
+  nav.style.borderBottom = '1px solid #e5e5e5';
+  nav.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
   
   // Ensure main content has proper margin
   const main = Q('#main');
   if (main) {
-    main.style.marginTop = '50px';
+    const navHeight = nav.offsetHeight;
+    main.style.marginTop = navHeight + 'px';
   }
-  
-  // Remove any scroll event listeners that might interfere
-  // Simple fixed nav doesn't need scroll handling
 }
 
 /* ================================================================
-   NAV - Fixed navigation with JavaScript enforcement
+   SCROLL-TO-HIDE NAVIGATION
    ================================================================ */
-function bindGlobalNav() {
-  // First force the fixed positioning
-  forceFixedNavigation();
+function initScrollToHideNav() {
+  const nav = Q('.nav');
+  if (!nav) return;
   
-  // Then handle the view switching
-  QA('.nav a[data-view]')?.forEach(a => a.addEventListener('click', e=>{
-    e.preventDefault();
-    const v = a.dataset.view;
-    ['home','products','performance','stockMovement','finance','settings'].forEach(id=>{
-      const el = Q('#'+id);
-      if (el) el.style.display = (id===v)?'':'none';
-    });
-    QA('.nav a').forEach(x=>x.classList.toggle('active', x===a));
-    if (v==='home') { renderCompactKpis(); renderCountryStockSpend(); }
-    if (v==='products') { renderCompactCountryStats(); renderAdvertisingOverview(); }
-    if (v==='stockMovement') { renderStockMovementPage(); }
-    if (v==='performance') { renderRemittanceReport(); }
-  }));
+  let lastScrollY = window.scrollY;
+  let ticking = false;
+  let scrollTimeout;
+  
+  function updateNavVisibility() {
+    const currentScrollY = window.scrollY;
+    const scrollDelta = currentScrollY - lastScrollY;
+    
+    // Only hide on mobile devices
+    if (window.innerWidth <= 768) {
+      if (scrollDelta > 5 && currentScrollY > 100) {
+        // Scrolling down - hide nav
+        nav.classList.add('hidden');
+      } else if (scrollDelta < -5) {
+        // Scrolling up - show nav
+        nav.classList.remove('hidden');
+      }
+    } else {
+      // Always show on desktop
+      nav.classList.remove('hidden');
+    }
+    
+    lastScrollY = currentScrollY;
+    ticking = false;
+  }
+  
+  function handleScroll() {
+    if (!ticking) {
+      requestAnimationFrame(updateNavVisibility);
+      ticking = true;
+    }
+    
+    // Clear any existing timeout
+    clearTimeout(scrollTimeout);
+    
+    // Set timeout to ensure nav stays hidden after scrolling stops
+    scrollTimeout = setTimeout(() => {
+      if (window.innerWidth <= 768 && window.scrollY > 100) {
+        nav.classList.add('hidden');
+      }
+    }, 1500); // Hide after 1.5 seconds of no scrolling
+  }
+  
+  // Add scroll event listener
+  window.addEventListener('scroll', handleScroll, { passive: true });
+  
+  // Show nav on touch start (for mobile)
+  document.addEventListener('touchstart', () => {
+    if (window.innerWidth <= 768) {
+      nav.classList.remove('hidden');
+    }
+  });
+  
+  // Ensure nav is visible when resizing to desktop
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 768) {
+      nav.classList.remove('hidden');
+    }
+  });
 }
 
 /* ================================================================
