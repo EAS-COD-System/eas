@@ -1,4 +1,4 @@
- /* ================================================================
+/* ================================================================
    EAS Tracker – Front-end (index.html + product.html)
    ================================================================ */
 
@@ -46,8 +46,7 @@ async function boot() {
   }
 
   await preload();
-  forceFixedNavigation(); // Force the simple fixed nav
-  initScrollToHideNav(); // Initialize scroll-to-hide behavior
+  initSmartNavigation(); // Initialize smart navigation with scroll behavior
   bindGlobalNav();
 
   if (state.productId) {
@@ -61,6 +60,112 @@ async function boot() {
     renderSettingsPage();
   }
 }
+
+Q('#loginBtn')?.addEventListener('click', async () => {
+  const password = Q('#pw')?.value || '';
+  try {
+    await api('/api/auth', { method:'POST', body: JSON.stringify({ password }) });
+    await boot();
+  } catch (e) {
+    alert('Wrong password');
+  }
+});
+
+Q('#logoutLink')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  try { await api('/api/auth', { method:'POST', body: JSON.stringify({ password: 'logout' })}); } catch {}
+  location.reload();
+});
+
+/* ================================================================
+   SMART NAVIGATION WITH SCROLL BEHAVIOR
+   ================================================================ */
+function initSmartNavigation() {
+  const nav = Q('.nav');
+  const main = Q('#main');
+  if (!nav) return;
+
+  let lastScrollY = window.scrollY;
+  let scrollTimeout = null;
+  let isNavVisible = true;
+
+  // Function to show navigation
+  function showNav() {
+    nav.classList.remove('nav-hidden');
+    nav.classList.add('nav-visible');
+    if (main) main.classList.remove('main-expanded');
+    isNavVisible = true;
+  }
+
+  // Function to hide navigation
+  function hideNav() {
+    nav.classList.remove('nav-visible');
+    nav.classList.add('nav-hidden');
+    if (main) main.classList.add('main-expanded');
+    isNavVisible = false;
+  }
+
+  // Handle scroll events
+  function handleScroll() {
+    const currentScrollY = window.scrollY;
+    
+    // Always show nav at the top of the page
+    if (currentScrollY < 50) {
+      showNav();
+      lastScrollY = currentScrollY;
+      return;
+    }
+
+    // Hide nav when scrolling down, show when scrolling up
+    if (currentScrollY > lastScrollY && currentScrollY > 100) {
+      // Scrolling down
+      if (isNavVisible) {
+        hideNav();
+      }
+    } else {
+      // Scrolling up
+      if (!isNavVisible) {
+        showNav();
+      }
+    }
+
+    lastScrollY = currentScrollY;
+
+    // Clear existing timeout
+    if (scrollTimeout) {
+      clearTimeout(scrollTimeout);
+    }
+
+    // Set timeout to hide nav after scrolling stops (only if not at top)
+    if (currentScrollY > 100) {
+      scrollTimeout = setTimeout(() => {
+        hideNav();
+      }, 1500); // Hide after 1.5 seconds of no scrolling
+    }
+  }
+
+  // Add scroll event listener
+  window.addEventListener('scroll', handleScroll, { passive: true });
+
+  // Show nav when touching the top of the screen
+  window.addEventListener('touchstart', (e) => {
+    if (e.touches[0].clientY < 100) {
+      showNav();
+    }
+  });
+
+  // Force show nav when interacting with it
+  nav.addEventListener('mouseenter', showNav);
+  nav.addEventListener('touchstart', showNav);
+
+  // Initialize nav state
+  if (window.scrollY === 0) {
+    showNav();
+  } else {
+    hideNav();
+  }
+}
+
 /* ================================================================
    COMMON LOADERS
    ================================================================ */
@@ -1449,97 +1554,25 @@ async function refreshInfluencers(product) {
     }
   };
 }
-/* ================================================================
-   ENHANCED MOBILE NAVIGATION WITH SCROLL BEHAVIOR
-   ================================================================ */
-function forceFixedNavigation() {
-  const nav = Q('.nav');
-  if (!nav) return;
-  
-  // Simple fixed positioning
-  nav.style.position = 'fixed';
-  nav.style.top = '0';
-  nav.style.left = '0';
-  nav.style.right = '0';
-  nav.style.zIndex = '10000';
-  nav.style.background = '#ffffff';
-  nav.style.borderBottom = '1px solid #e5e5e5';
-  nav.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
-  
-  // Ensure main content has proper margin
-  const main = Q('#main');
-  if (main) {
-    const navHeight = nav.offsetHeight;
-    main.style.marginTop = navHeight + 'px';
-  }
-}
 
 /* ================================================================
-   SCROLL-TO-HIDE NAVIGATION
+   NAV - Fixed navigation with JavaScript enforcement
    ================================================================ */
-function initScrollToHideNav() {
-  const nav = Q('.nav');
-  if (!nav) return;
-  
-  let lastScrollY = window.scrollY;
-  let ticking = false;
-  let scrollTimeout;
-  
-  function updateNavVisibility() {
-    const currentScrollY = window.scrollY;
-    const scrollDelta = currentScrollY - lastScrollY;
-    
-    // Only hide on mobile devices
-    if (window.innerWidth <= 768) {
-      if (scrollDelta > 5 && currentScrollY > 100) {
-        // Scrolling down - hide nav
-        nav.classList.add('hidden');
-      } else if (scrollDelta < -5) {
-        // Scrolling up - show nav
-        nav.classList.remove('hidden');
-      }
-    } else {
-      // Always show on desktop
-      nav.classList.remove('hidden');
-    }
-    
-    lastScrollY = currentScrollY;
-    ticking = false;
-  }
-  
-  function handleScroll() {
-    if (!ticking) {
-      requestAnimationFrame(updateNavVisibility);
-      ticking = true;
-    }
-    
-    // Clear any existing timeout
-    clearTimeout(scrollTimeout);
-    
-    // Set timeout to ensure nav stays hidden after scrolling stops
-    scrollTimeout = setTimeout(() => {
-      if (window.innerWidth <= 768 && window.scrollY > 100) {
-        nav.classList.add('hidden');
-      }
-    }, 1500); // Hide after 1.5 seconds of no scrolling
-  }
-  
-  // Add scroll event listener
-  window.addEventListener('scroll', handleScroll, { passive: true });
-  
-  // Show nav on touch start (for mobile)
-  document.addEventListener('touchstart', () => {
-    if (window.innerWidth <= 768) {
-      nav.classList.remove('hidden');
-    }
-  });
-  
-  // Ensure nav is visible when resizing to desktop
-  window.addEventListener('resize', () => {
-    if (window.innerWidth > 768) {
-      nav.classList.remove('hidden');
-    }
-  });
+function bindGlobalNav() {
+  // Handle the view switching
+  QA('.nav a[data-view]')?.forEach(a => a.addEventListener('click', e=>{
+    e.preventDefault();
+    const v = a.dataset.view;
+    ['home','products','performance','stockMovement','finance','settings'].forEach(id=>{
+      const el = Q('#'+id);
+      if (el) el.style.display = (id===v)?'':'none';
+    });
+    QA('.nav a').forEach(x=>x.classList.toggle('active', x===a));
+    if (v==='home') { renderCompactKpis(); renderCountryStockSpend(); }
+    if (v==='products') { renderCompactCountryStats(); renderAdvertisingOverview(); }
+    if (v==='stockMovement') { renderStockMovementPage(); }
+    if (v==='performance') { renderRemittanceReport(); }
+  }));
 }
 
 /* ================================================================
