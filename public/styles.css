@@ -89,7 +89,7 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  padding-top: 0; /* No padding needed since nav is separate */
+  padding-top: 60px; /* Space for fixed navbar that overlays content */
 }
 
 .container {
@@ -98,7 +98,7 @@ body {
   padding: 20px;
 }
 
-/* ---------- Professional Navigation - FIXED AT TOP (SEPARATE SECTION) ---------- */
+/* ---------- Professional Navigation - FIXED OVERLAY ---------- */
 .nav {
   position: fixed !important;
   top: 0 !important;
@@ -116,9 +116,9 @@ body {
   width: 100% !important;
 }
 
-/* Main content starts below the fixed nav */
+/* Remove the margin from main since we're using padding on body */
 #main {
-  margin-top: 60px; /* Push content below the fixed nav */
+  margin-top: 0;
 }
 
 .nav a {
