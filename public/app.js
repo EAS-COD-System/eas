@@ -1464,50 +1464,29 @@ async function refreshInfluencers(product) {
     }
   };
 }
-
 /* ================================================================
-   FORCE FIXED NAVIGATION
+   FORCE FIXED NAVIGATION - SIMPLE VERSION
    ================================================================ */
 function forceFixedNavigation() {
   const nav = Q('.nav');
   if (!nav) return;
   
-  // Force fixed positioning
+  // Simple fixed positioning - no complex transforms
   nav.style.position = 'fixed';
   nav.style.top = '0';
   nav.style.left = '0';
   nav.style.right = '0';
-  nav.style.zIndex = '1000';
+  nav.style.zIndex = '9999';
   nav.style.background = '#ffffff';
   
   // Ensure main content has proper margin
   const main = Q('#main');
   if (main) {
-    main.style.marginTop = '60px';
+    main.style.marginTop = '50px';
   }
   
-  // Handle scroll events to keep it fixed
-  window.addEventListener('scroll', function() {
-    const scrollY = window.scrollY;
-    
-    // Always keep nav at top
-    nav.style.transform = `translateY(${scrollY}px)`;
-    nav.style.transform = 'translateY(0)'; // Force to top
-    
-    // Alternative method: reset position on scroll
-    if (nav.style.position !== 'fixed') {
-      nav.style.position = 'fixed';
-      nav.style.top = '0';
-    }
-  });
-  
-  // Also handle resize events
-  window.addEventListener('resize', function() {
-    nav.style.position = 'fixed';
-    nav.style.top = '0';
-    nav.style.left = '0';
-    nav.style.right = '0';
-  });
+  // Remove any scroll event listeners that might interfere
+  // Simple fixed nav doesn't need scroll handling
 }
 
 /* ================================================================
