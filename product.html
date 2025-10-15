@@ -3,282 +3,176 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Product – EAS Tracker</title>
-  <link rel="stylesheet" href="/public/styles.css"/>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <title>EAS Tracker – Product</title>
+  <link rel="stylesheet" href="/styles.css"/>
 </head>
 <body>
-  <nav class="nav">
-    <a href="/">← Back to Dashboard</a>
-    <span class="nav-right brand">EAS Tracker</span>
-  </nav>
+  <div class="container">
+    <nav class="nav">
+      <a href="/" class="active">← Dashboard</a>
+      <span class="nav-right" id="pdTransitBadge">Transit total: 0</span>
+    </nav>
 
-  <div id="product" class="container">
-    <!-- Product Header -->
-    <div class="section">
-      <h2 id="pdTitle">Product</h2>
+    <header style="margin:12px 0 20px">
+      <h1 id="pdTitle">Product</h1>
       <div id="pdSku" class="muted"></div>
-    </div>
+    </header>
 
-    <!-- Stock & Ad Spend by Country -->
-    <div class="section">
-      <h3>Stock &amp; Ad Spend by Country (this product)</h3>
+    <!-- Stock & Ad Spend -->
+    <section class="section">
+      <h2>Stock & Ad Spend by Country</h2>
       <div class="table-scroll">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Country</th>
-              <th>Stock</th>
-              <th>Facebook</th>
-              <th>TikTok</th>
-              <th>Google</th>
-              <th>Total Ad Spend</th>
-            </tr>
-          </thead>
+        <table class="table compact">
+          <thead><tr><th>Country</th><th>Approx. Stock</th><th>Total Ad Spend (USD)</th></tr></thead>
           <tbody id="pdStockBody"></tbody>
           <tfoot>
+            <tr class="totals"><th>Totals</th><th id="pdStockTotal">0</th><th id="pdAdTotal">0</th></tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <!-- Profit Budget -->
+    <section class="section">
+      <h2>Profit + Advertising Budget (per country)</h2>
+      <div class="card compact">
+        <div class="row wrap">
+          <select id="pdPBCountry" class="input sm"></select>
+          <input id="pdPBValue" type="number" class="input sm" placeholder="Budget (USD)" min="0" step="0.01"/>
+          <button id="pdPBSave" class="btn sm">Save</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="table compact">
+          <thead><tr><th>Country</th><th>Budget (USD)</th><th></th></tr></thead>
+          <tbody id="pdPBBBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Transit Sections -->
+    <section class="section">
+      <h2>Transit (China → Kenya)</h2>
+      <div class="table-scroll">
+        <table class="table compact">
+          <thead><tr>
+            <th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="pdShipCKBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Transit (Inter-country)</h2>
+      <div class="table-scroll">
+        <table class="table compact">
+          <thead><tr>
+            <th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="pdShipICBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Arrived Shipments -->
+    <section class="section">
+      <h2>Arrived Shipments</h2>
+      <div class="table-scroll">
+        <table class="table compact">
+          <thead><tr>
+            <th>ID</th><th>Route</th><th>Qty</th><th>Ship Cost</th><th>Departed</th><th>Arrived</th><th>Days</th>
+          </tr></thead>
+          <tbody id="pdShipArrivedBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Remittance Entries -->
+    <section class="section">
+      <h2>Remittance Entries</h2>
+      <div class="table-scroll">
+        <table class="table compact">
+          <thead><tr>
+            <th>Period</th><th>Country</th><th>Orders</th><th>Pieces</th><th>Revenue</th><th>Ad Spend</th><th>Extra/pc</th><th>Profit</th><th></th>
+          </tr></thead>
+          <tbody id="pdRBody"></tbody>
+          <tfoot>
             <tr class="totals">
-              <th>Totals</th>
-              <th id="pdStockTotal">0</th>
-              <th id="pdFbTotal">0</th>
-              <th id="pdTtTotal">0</th>
-              <th id="pdGgTotal">0</th>
-              <th id="pdAdTotal">0</th>
+              <th colspan="4">Totals</th>
+              <th id="pdRRevT">0</th><th id="pdRAdT">0</th><th id="pdRExtraT">0</th><th id="pdRProfitT">0</th><th></th>
             </tr>
           </tfoot>
         </table>
       </div>
-    </div>
-
-    <!-- Profit + Advertising Budget -->
-    <div class="section">
-      <h3>Profit + Advertising Budget (per country)</h3>
-      <div class="card">
-        <div class="row wrap">
-          <select id="pdPBCountry" class="input"></select>
-          <input id="pdPBValue" type="number" class="input" placeholder="Budget (USD)" step="0.01"/>
-          <button id="pdPBSave" class="btn">Save Budget</button>
-        </div>
-        <div class="table-scroll">
-          <table class="table">
-            <thead><tr><th>Country</th><th>Budget</th><th></th></tr></thead>
-            <tbody id="pdPBBBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- Daily Ad Spend -->
-    <div class="section">
-      <h3>Daily Ad Spend (Replace current)</h3>
-      <div class="card">
-        <div class="row wrap">
-          <select id="pdProductForSpend" class="input"></select>
-          <select id="pdAdCountry" class="input"></select>
-          <select id="pdAdPlatform" class="input">
-            <option value="facebook">Facebook</option>
-            <option value="tiktok">TikTok</option>
-            <option value="google">Google</option>
-          </select>
-          <input id="pdAdAmount" type="number" class="input" placeholder="Amount (USD)" step="0.01"/>
-          <button id="pdAdSave" class="btn">Save / Replace</button>
-        </div>
-        <small>The list above replaces by (product + country + platform).</small>
-      </div>
-    </div>
-
-    <!-- Stock Movement -->
-    <div class="section">
-      <h3>Stock Movement</h3>
-      <div class="card">
-        <div class="row wrap">
-          <select id="pdMvTo" class="input"></select>
-          <input id="pdMvQty" type="number" class="input" placeholder="Qty" min="0"/>
-          <input id="pdMvShip" type="number" class="input" placeholder="Shipping Cost (USD)" min="0" step="0.01"/>
-          <input id="pdMvNote" class="input" placeholder="Note (optional)"/>
-          <button id="pdMvAdd" class="btn">Add Movement</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Transit Tables -->
-    <div class="section">
-      <h3>Transit (China → Kenya)</h3>
-      <div class="table-scroll">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Route</th>
-              <th>Qty</th>
-              <th>Ship Cost</th>
-              <th>Departed</th>
-              <th>Arrived</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="pdShipCKBody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="section">
-      <h3>Transit (Inter-country)</h3>
-      <div class="table-scroll">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Route</th>
-              <th>Qty</th>
-              <th>Ship Cost</th>
-              <th>Departed</th>
-              <th>Arrived</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="pdShipICBody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Arrived Shipments -->
-    <div class="section">
-      <h3>Arrived Shipments</h3>
-      <div class="table-scroll">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Route</th>
-              <th>Qty</th>
-              <th>Ship Cost</th>
-              <th>Departed</th>
-              <th>Arrived</th>
-              <th>Days</th>
-              <th>Note</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="pdArrivedBody"></tbody>
-        </table>
-      </div>
-    </div>
+    </section>
 
     <!-- Lifetime Performance -->
-    <div class="section">
-      <h3>Lifetime (This Product)</h3>
-      <div class="card">
+    <section class="section">
+      <h2>Lifetime (This Product)</h2>
+      <div class="card compact">
         <div class="row wrap">
-          <input id="pdLPStart" type="date" class="input"/>
-          <input id="pdLPEnd" type="date" class="input"/>
-          <button id="pdLPRun" class="btn">Run</button>
-        </div>
-        <div class="table-scroll">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Country</th>
-                <th>Revenue</th>
-                <th>Ad Spend</th>
-                <th>Shipping</th>
-                <th>Base Cost</th>
-                <th>Pieces</th>
-                <th>Profit</th>
-              </tr>
-            </thead>
-            <tbody id="pdLPBody"></tbody>
-            <tfoot>
-              <tr class="totals">
-                <th>Totals</th>
-                <th id="pdLPRevT">0</th>
-                <th id="pdLPAdT">0</th>
-                <th id="pdLPShipT">0</th>
-                <th id="pdLPBaseT">0</th>
-                <th id="pdLPPcsT">0</th>
-                <th id="pdLPProfitT">0</th>
-              </tr>
-            </tfoot>
-          </table>
+          <input id="pdLPStart" type="date" class="input sm"/>
+          <input id="pdLPEnd" type="date" class="input sm"/>
+          <button id="pdLPRun" class="btn sm">Run</button>
         </div>
       </div>
-    </div>
-
-    <!-- Influencer Spend -->
-    <div class="section">
-      <h3>Influencer Spend</h3>
-      <div class="card">
-        <!-- Add Influencer -->
-        <div class="row wrap">
-          <input id="pdInfName" class="input" placeholder="Influencer name"/>
-          <input id="pdInfSocial" class="input" placeholder="Social @handle"/>
-          <select id="pdInfCountry" class="input"></select>
-          <button id="pdInfAdd" class="btn">Add Influencer</button>
-        </div>
-
-        <!-- Add Spend -->
-        <div class="row wrap">
-          <input id="pdInfDate" type="date" class="input"/>
-          <select id="pdInfSelect" class="input"></select>
-          <select id="pdInfFilterCountry" class="input">
-            <option value="">All countries</option>
-          </select>
-          <input id="pdInfAmount" type="number" class="input" placeholder="Spend (USD)" step="0.01"/>
-          <button id="pdInfSpendAdd" class="btn">Add Spend</button>
-        </div>
-
-        <!-- Filter -->
-        <div class="row wrap">
-          <input id="pdInfStart" type="date" class="input"/>
-          <input id="pdInfEnd" type="date" class="input"/>
-          <button id="pdInfRun" class="btn outline">Filter</button>
-          <div class="badge">Total: <span id="pdInfTotal">0</span> USD</div>
-        </div>
-
-        <!-- Influencer Table -->
-        <div class="table-scroll">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Country</th>
-                <th>Influencer</th>
-                <th>Social</th>
-                <th>Amount</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="pdInfBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- Remittances -->
-    <div class="section">
-      <h3>Remittances for This Product</h3>
       <div class="table-scroll">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Period</th>
-              <th>Country</th>
-              <th>Orders</th>
-              <th>Pieces</th>
-              <th>Revenue</th>
-              <th>Ad Spend</th>
-              <th>Extra/Piece</th>
-              <th>Actions</th>
+        <table class="table compact">
+          <thead><tr>
+            <th>Country</th><th>Revenue</th><th>Ad Spend</th><th>Shipping</th><th>Base Cost</th><th>Pieces</th><th>Profit</th>
+          </tr></thead>
+          <tbody id="pdLPBody"></tbody>
+          <tfoot>
+            <tr class="totals">
+              <th>Totals</th><th id="pdLPRevT">0</th><th id="pdLPAdT">0</th><th id="pdLPShipT">0</th>
+              <th id="pdLPBaseT">0</th><th id="pdLPPcsT">0</th><th id="pdLPProfitT">0</th>
             </tr>
-          </thead>
-          <tbody id="pdRemittancesBody"></tbody>
+          </tfoot>
         </table>
       </div>
-    </div>
+    </section>
+
+    <!-- Influencer Spend -->
+    <section class="section">
+      <h2>Influencer Spend</h2>
+
+      <div class="card compact">
+        <div class="h">Add Influencer</div>
+        <div class="row wrap">
+          <input id="pdInfName" class="input sm" placeholder="Influencer Name"/>
+          <input id="pdInfSocial" class="input sm" placeholder="Social @handle"/>
+          <select id="pdInfCountry" class="input sm"></select>
+          <button id="pdInfAdd" class="btn sm">Add Influencer</button>
+        </div>
+      </div>
+
+      <div class="card compact">
+        <div class="h">Add Spend</div>
+        <div class="row wrap">
+          <input id="pdInfDate" type="date" class="input sm"/>
+          <select id="pdInfSelect" class="input sm"></select>
+          <select id="pdInfFilterCountry" class="input sm"><option value="">All countries</option></select>
+          <input id="pdInfAmount" type="number" class="input sm" min="0" step="0.01" placeholder="Spend (USD)"/>
+          <button id="pdInfSpendAdd" class="btn sm">Add Spend</button>
+        </div>
+        <div class="row wrap" style="margin-top:8px">
+          <input id="pdInfStart" type="date" class="input sm"/>
+          <input id="pdInfEnd" type="date" class="input sm"/>
+          <button id="pdInfRun" class="btn sm outline">Filter</button>
+          <div class="badge">Total: <span id="pdInfTotal">0</span> USD</div>
+        </div>
+      </div>
+
+      <div class="table-scroll">
+        <table class="table compact">
+          <thead><tr><th>Date</th><th>Country</th><th>Influencer</th><th>Social</th><th>Spend (USD)</th><th></th></tr></thead>
+          <tbody id="pdInfBody"></tbody>
+        </table>
+      </div>
+    </section>
   </div>
 
-  <script src="/public/app.js"></script>
+  <script src="/app.js" defer></script>
 </body>
 </html>
