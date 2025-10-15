@@ -268,32 +268,21 @@ app.get('/api/finance/entries', requireAuth, (req,res)=>{
 });
 app.post('/api/finance/entries', requireAuth, (req,res)=>{
   const db = loadDB(); db.finance = db.finance||{ categories:{debit:[],credit:[]}, entries:[] };
-  const { startDate, endDate, type, category, amount, note } = req.body||{};
-  if (!startDate||!endDate||!type||!category) return res.status(400).json({ error:'Missing fields' });
+  const { date, type, category, amount, note } = req.body||{};
+  if (!date||!type||!category) return res.status(400).json({ error:'Missing fields' });
   
-  // Create entries for each day in the range
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const entries = [];
+  const entry = { 
+    id: uuidv4(), 
+    date, 
+    type, 
+    category, 
+    amount: +amount||0, 
+    note: note||''
+  };
   
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const dateStr = d.toISOString().slice(0,10);
-    const entry = { 
-      id: uuidv4(), 
-      date: dateStr, 
-      type, 
-      category, 
-      amount: +amount||0, 
-      note: note||'',
-      periodStart: startDate,
-      periodEnd: endDate
-    };
-    entries.push(entry);
-    db.finance.entries.push(entry);
-  }
-  
+  db.finance.entries.push(entry);
   saveDB(db); 
-  res.json({ ok:true, entries });
+  res.json({ ok:true, entry });
 });
 app.delete('/api/finance/entries/:id', requireAuth, (req,res)=>{
   const db = loadDB(); db.finance.entries = (db.finance.entries||[]).filter(e=>e.id!==req.params.id);
