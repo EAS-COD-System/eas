@@ -187,36 +187,7 @@
         <section id="performance" style="display:none">
           <h2>Performance Analytics</h2>
           
-          <!-- Top Delivered Products -->
-          <div class="card">
-            <div class="h">🏆 Top Delivered Products</div>
-            <div class="row wrap">
-              <input id="topDelStart" type="date" class="input" placeholder="Start Date"/>
-              <input id="topDelEnd" type="date" class="input" placeholder="End Date"/>
-              <select id="topDelCountry" class="input">
-                <option value="">All countries</option>
-              </select>
-              <button id="topDelRun" class="btn">📊 Show Top Products</button>
-            </div>
-            <div class="table-scroll">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>Rank</th>
-                    <th>Product</th>
-                    <th>Country</th>
-                    <th>Pieces Delivered</th>
-                    <th>Revenue</th>
-                    <th>Ad Spend</th>
-                    <th>Profit</th>
-                  </tr>
-                </thead>
-                <tbody id="topDeliveredBody"></tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Remittance Analytics -->
+              <!-- Remittance Analytics -->
           <div class="card">
             <div class="h">📈 Remittance Analytics</div>
             <div class="row wrap">
@@ -264,7 +235,70 @@
             </div>
           </div>
 
-          <!-- Remittance Report -->
+       
+          <!-- Profit by Country -->
+          <div class="card">
+            <div class="h">💰 Profit by Country</div>
+            <div class="row wrap">
+              <select id="pcCountry" class="input"><option value="">All countries</option></select>
+              <input id="pcStart" type="date" class="input"/>
+              <input id="pcEnd" type="date" class="input"/>
+              <button id="pcRun" class="btn">📈 Calculate</button>
+            </div>
+            <div class="table-scroll">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Country</th>
+                    <th>Revenue</th>
+                    <th>Ad Spend</th>
+                    <th>Cost China</th>
+                    <th>Ship China→Kenya</th>
+                    <th>Inter-country Ship</th>
+                    <th>Total Cost</th>
+                    <th>Pieces</th>
+                    <th>Profit</th>
+                  </tr>
+                </thead>
+                <tbody id="profitCountryBody"></tbody>
+                <tfoot>
+                  <tr class="totals">
+                    <th>Totals</th>
+                    <th id="pcRevT">0</th>
+                    <th id="pcAdT">0</th>
+                    <th id="pcCostChinaT">0</th>
+                    <th id="pcShipChinaT">0</th>
+                    <th id="pcInterShipT">0</th>
+                    <th id="pcTotalCostT">0</th>
+                    <th id="pcPiecesT">0</th>
+                    <th id="pcProfitT">0</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+              <!-- Add Remittance Entry -->
+          <div class="card">
+            <div class="h">➕ Add Remittance Entry</div>
+            <div class="row wrap">
+              <input id="remAddStart" type="date" class="input" placeholder="Start Date"/>
+              <input id="remAddEnd" type="date" class="input" placeholder="End Date"/>
+              <select id="remAddCountry" class="input">
+                <option value="">Select Country</option>
+              </select>
+              <select id="remAddProduct" class="input">
+                <option value="">Select Product</option>
+              </select>
+              <input id="remAddOrders" type="number" class="input" placeholder="Orders" min="0"/>
+              <input id="remAddPieces" type="number" class="input" placeholder="Pieces" min="0"/>
+              <input id="remAddRevenue" type="number" class="input" placeholder="Revenue (USD)" step="0.01"/>
+              <input id="remAddAdSpend" type="number" class="input" placeholder="Ad Spend (USD)" step="0.01"/>
+              <input id="remAddExtra" type="number" class="input" placeholder="Extra/Piece (USD)" step="0.01"/>
+              <button id="remAddSave" class="btn">💾 Save Remittance</button>
+            </div>
+          </div>
+
+   <!-- Remittance Report -->
           <div class="card">
             <div class="h">📋 Remittance Report</div>
             <div class="row wrap">
@@ -313,113 +347,7 @@
             </div>
           </div>
 
-          <!-- Profit by Country -->
-          <div class="card">
-            <div class="h">💰 Profit by Country</div>
-            <div class="row wrap">
-              <select id="pcCountry" class="input"><option value="">All countries</option></select>
-              <input id="pcStart" type="date" class="input"/>
-              <input id="pcEnd" type="date" class="input"/>
-              <button id="pcRun" class="btn">📈 Calculate</button>
-            </div>
-            <div class="table-scroll">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>Country</th>
-                    <th>Revenue</th>
-                    <th>Ad Spend</th>
-                    <th>Cost China</th>
-                    <th>Ship China→Kenya</th>
-                    <th>Inter-country Ship</th>
-                    <th>Total Cost</th>
-                    <th>Pieces</th>
-                    <th>Profit</th>
-                  </tr>
-                </thead>
-                <tbody id="profitCountryBody"></tbody>
-                <tfoot>
-                  <tr class="totals">
-                    <th>Totals</th>
-                    <th id="pcRevT">0</th>
-                    <th id="pcAdT">0</th>
-                    <th id="pcCostChinaT">0</th>
-                    <th id="pcShipChinaT">0</th>
-                    <th id="pcInterShipT">0</th>
-                    <th id="pcTotalCostT">0</th>
-                    <th id="pcPiecesT">0</th>
-                    <th id="pcProfitT">0</th>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-
-          <!-- Lifetime Product Performance -->
-          <div class="card">
-            <div class="h">📊 Lifetime Product Performance</div>
-            <div class="row wrap">
-              <select id="lpProduct" class="input">
-                <option value="">All products</option>
-              </select>
-              <input id="lpStart" type="date" class="input"/>
-              <input id="lpEnd" type="date" class="input"/>
-              <button id="lpRun" class="btn">📈 Calculate</button>
-            </div>
-            <div class="table-scroll">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th>Country</th>
-                    <th>Revenue</th>
-                    <th>Ad Spend</th>
-                    <th>Cost China</th>
-                    <th>Ship China→Kenya</th>
-                    <th>Inter-country Ship</th>
-                    <th>Total Cost</th>
-                    <th>Pieces</th>
-                    <th>Profit</th>
-                  </tr>
-                </thead>
-                <tbody id="lifetimeBody"></tbody>
-                <tfoot>
-                  <tr class="totals">
-                    <th colspan="2">Totals</th>
-                    <th id="ltRevT">0</th>
-                    <th id="ltAdT">0</th>
-                    <th id="ltCostChinaT">0</th>
-                    <th id="ltShipChinaT">0</th>
-                    <th id="ltInterShipT">0</th>
-                    <th id="ltTotalCostT">0</th>
-                    <th id="ltPiecesT">0</th>
-                    <th id="ltProfitT">0</th>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-
-          <!-- Add Remittance Entry -->
-          <div class="card">
-            <div class="h">➕ Add Remittance Entry</div>
-            <div class="row wrap">
-              <input id="remAddStart" type="date" class="input" placeholder="Start Date"/>
-              <input id="remAddEnd" type="date" class="input" placeholder="End Date"/>
-              <select id="remAddCountry" class="input">
-                <option value="">Select Country</option>
-              </select>
-              <select id="remAddProduct" class="input">
-                <option value="">Select Product</option>
-              </select>
-              <input id="remAddOrders" type="number" class="input" placeholder="Orders" min="0"/>
-              <input id="remAddPieces" type="number" class="input" placeholder="Pieces" min="0"/>
-              <input id="remAddRevenue" type="number" class="input" placeholder="Revenue (USD)" step="0.01"/>
-              <input id="remAddAdSpend" type="number" class="input" placeholder="Ad Spend (USD)" step="0.01"/>
-              <input id="remAddExtra" type="number" class="input" placeholder="Extra/Piece (USD)" step="0.01"/>
-              <button id="remAddSave" class="btn">💾 Save Remittance</button>
-            </div>
-          </div>
+          
         </section>
 
         <!-- STOCK MOVEMENT -->
