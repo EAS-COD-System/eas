@@ -46,6 +46,7 @@ async function boot() {
   }
 
   await preload();
+  forceFixedNavigation(); // ADD THIS - Force the simple fixed nav
   bindGlobalNav();
 
   if (state.productId) {
@@ -75,7 +76,6 @@ Q('#logoutLink')?.addEventListener('click', async (e) => {
   try { await api('/api/auth', { method:'POST', body: JSON.stringify({ password: 'logout' })}); } catch {}
   location.reload();
 });
-
 /* ================================================================
    COMMON LOADERS
    ================================================================ */
