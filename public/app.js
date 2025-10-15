@@ -166,10 +166,11 @@ function fillCommonSelects() {
   // Countries for all selects (without China)
   const countrySelects = ['#mvFrom', '#mvTo', '#adCountry', '#rCountry', 
     '#pdAdCountry', '#pdRCountry', '#pdMvFrom', '#pdMvTo', '#pdInfCountry', 
-    '#pdInfFilterCountry', '#pdPBCountry', '#pcCountry', '#remCountry', '#remAddCountry'];
+    '#pdInfFilterCountry', '#pdPBCountry', '#pcCountry', '#remCountry', '#remAddCountry',
+    '#topDelCountry', '#remAnalyticsCountry'];
   
   countrySelects.forEach(sel => QA(sel).forEach(el => {
-    if (sel === '#pcCountry' || sel === '#remCountry') {
+    if (sel === '#pcCountry' || sel === '#remCountry' || sel === '#topDelCountry' || sel === '#remAnalyticsCountry') {
       el.innerHTML = `<option value="">All countries</option>` +
         state.countries.map(c=>`<option value="${c}">${c}</option>`).join('');
     } else if (sel === '#mvFrom' || sel === '#pdMvFrom') {
@@ -188,7 +189,7 @@ function fillCommonSelects() {
   }));
 
   // Products (filters can include "All")
-  const productFilters = ['#remProduct'];
+  const productFilters = ['#remProduct', '#remAnalyticsProduct', '#lpProduct'];
   productFilters.forEach(sel => QA(sel).forEach(el => {
     el.innerHTML = `<option value="">All products</option>` +
       state.products.map(p=>`<option value="${p.id}">${p.name}${p.sku?` (${p.sku})`:''}</option>`).join('');
@@ -687,7 +688,7 @@ function renderProductsTable() {
 }
 
 /* ================================================================
-   PERFORMANCE PAGE - UPDATED
+   PERFORMANCE PAGE - UPDATED WITH NEW SECTIONS
    ================================================================ */
 function renderPerformancePage() {
   // Add Remittance Entry
@@ -695,6 +696,12 @@ function renderPerformancePage() {
   
   // Remittance Report
   renderRemittanceReport();
+
+  // Top Delivered Products
+  bindTopDeliveredProducts();
+
+  // Remittance Analytics
+  bindRemittanceAnalytics();
 
   // Profit by Country
   Q('#pcRun')?.addEventListener('click', async ()=>{
@@ -706,23 +713,48 @@ function renderPerformancePage() {
 
     const byC = {};
     list.forEach(r=>{
-      if (!byC[r.country]) byC[r.country] = {rev:0, ad:0, extra:0, pcs:0};
-      byC[r.country].rev += (+r.revenue||0);
-      byC[r.country].ad  += (+r.adSpend||0);
-      byC[r.country].extra += (+r.extraPerPiece||0)*(+r.pieces||0);
-      byC[r.country].pcs += (+r.pieces||0);
+      if (!byC[r.country]) byC[r.country] = {rev:0, ad:0, costChina:0, shipChina:0, interShip:0, pcs:0};
+      const product = state.products.find(p => p.id === r.productId) || {};
+      const pieces = +r.pieces || 0;
+      const costChina = (+product.cost_china || 0) * pieces;
+      const shipChina = (+product.ship_china_to_kenya || 0) * pieces;
+      const interShip = (+r.extraPerPiece || 0) * pieces;
+      
+      byC[r.country].rev += (+r.revenue || 0);
+      byC[r.country].ad  += (+r.adSpend || 0);
+      byC[r.country].costChina += costChina;
+      byC[r.country].shipChina += shipChina;
+      byC[r.country].interShip += interShip;
+      byC[r.country].pcs += pieces;
     });
 
-    const tb = Q('#profitCountryBody'); let R=0,A=0,E=0,P=0;
+    const tb = Q('#profitCountryBody'); 
+    let R=0, A=0, CC=0, SC=0, IS=0, P=0;
     const rows = Object.entries(byC).map(([cc,v])=>{
-      const profit = v.rev - v.ad - v.extra;
-      R+=v.rev; A+=v.ad; E+=v.extra; P+=profit;
-      return `<tr><td>${cc}</td><td>${fmt(v.rev)}</td><td>${fmt(v.ad)}</td><td>${fmt(v.extra)}</td><td>${fmt(v.pcs)}</td><td>${fmt(profit)}</td></tr>`;
+      const totalCost = v.costChina + v.shipChina + v.interShip;
+      const profit = v.rev - v.ad - totalCost;
+      R+=v.rev; A+=v.ad; CC+=v.costChina; SC+=v.shipChina; IS+=v.interShip; P+=profit;
+      
+      return `<tr>
+        <td>${cc}</td>
+        <td>${fmt(v.rev)}</td>
+        <td>${fmt(v.ad)}</td>
+        <td>${fmt(v.costChina)}</td>
+        <td>${fmt(v.shipChina)}</td>
+        <td>${fmt(v.interShip)}</td>
+        <td>${fmt(totalCost)}</td>
+        <td>${fmt(v.pcs)}</td>
+        <td class="${profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(profit)}</td>
+      </tr>`;
     }).join('');
-    tb.innerHTML = rows || `<tr><td colspan="6" class="muted">No data</td></tr>`;
+    
+    tb.innerHTML = rows || `<tr><td colspan="9" class="muted">No data</td></tr>`;
     Q('#pcRevT').textContent = fmt(R);
     Q('#pcAdT').textContent = fmt(A);
-    Q('#pcDelT').textContent = fmt(E);
+    Q('#pcCostChinaT').textContent = fmt(CC);
+    Q('#pcShipChinaT').textContent = fmt(SC);
+    Q('#pcInterShipT').textContent = fmt(IS);
+    Q('#pcTotalCostT').textContent = fmt(CC + SC + IS);
     Q('#pcPiecesT').textContent = fmt(Object.values(byC).reduce((t,v)=>t+v.pcs,0));
     Q('#pcProfitT').textContent = fmt(P);
   });
@@ -761,29 +793,225 @@ function renderPerformancePage() {
     rem.forEach(r=>{
       const k = `${r.productId}|${r.country}`;
       const prod = prodMap[r.productId]||{};
-      const basePerPc = (+prod.cost_china||0) + (+prod.ship_china_to_kenya||0);
-      const pcs = +r.pieces||0;
-      const extra = (+r.extraPerPiece||0)*pcs;
+      const pieces = +r.pieces || 0;
+      const costChina = (+prod.cost_china || 0) * pieces;
+      const shipChina = (+prod.ship_china_to_kenya || 0) * pieces;
+      const interShip = (+r.extraPerPiece || 0) * pieces;
+      const totalCost = costChina + shipChina + interShip;
 
-      if (!byPKC[k]) byPKC[k]={ name:prod.name||r.productId, country:r.country, rev:0, ad:0, ship:0, base:0, pcs:0, profit:0 };
-      byPKC[k].rev += (+r.revenue||0);
-      byPKC[k].ad  += (+r.adSpend||0);
-      byPKC[k].ship+= extra;
-      byPKC[k].base+= basePerPc*pcs;
-      byPKC[k].pcs += pcs;
+      if (!byPKC[k]) byPKC[k] = { 
+        name: prod.name || r.productId, 
+        country: r.country, 
+        rev: 0, ad: 0, 
+        costChina: 0, shipChina: 0, interShip: 0,
+        totalCost: 0, pcs: 0, profit: 0 
+      };
+      
+      byPKC[k].rev += (+r.revenue || 0);
+      byPKC[k].ad  += (+r.adSpend || 0);
+      byPKC[k].costChina += costChina;
+      byPKC[k].shipChina += shipChina;
+      byPKC[k].interShip += interShip;
+      byPKC[k].totalCost += totalCost;
+      byPKC[k].pcs += pieces;
     });
-    Object.values(byPKC).forEach(v => v.profit = v.rev - v.ad - v.ship - v.base);
+    
+    Object.values(byPKC).forEach(v => v.profit = v.rev - v.ad - v.totalCost);
 
-    const tb = Q('#lifetimeBody'); let R=0,A=0,S=0,B=0,P=0,PCS=0;
+    const tb = Q('#lifetimeBody'); 
+    let R=0, A=0, CC=0, SC=0, IS=0, TC=0, P=0, PCS=0;
     const rows = Object.values(byPKC).map(v=>{
-      R+=v.rev; A+=v.ad; S+=v.ship; B+=v.base; P+=v.profit; PCS+=v.pcs;
-      return `<tr><td>${v.name}</td><td>${v.country}</td><td>${fmt(v.rev)}</td><td>${fmt(v.ad)}</td><td>${fmt(v.ship)}</td><td>${fmt(v.base)}</td><td>${fmt(v.pcs)}</td><td>${fmt(v.profit)}</td></tr>`;
+      R+=v.rev; A+=v.ad; CC+=v.costChina; SC+=v.shipChina; IS+=v.interShip; 
+      TC+=v.totalCost; P+=v.profit; PCS+=v.pcs;
+      
+      return `<tr>
+        <td>${v.name}</td>
+        <td>${v.country}</td>
+        <td>${fmt(v.rev)}</td>
+        <td>${fmt(v.ad)}</td>
+        <td>${fmt(v.costChina)}</td>
+        <td>${fmt(v.shipChina)}</td>
+        <td>${fmt(v.interShip)}</td>
+        <td>${fmt(v.totalCost)}</td>
+        <td>${fmt(v.pcs)}</td>
+        <td class="${v.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(v.profit)}</td>
+      </tr>`;
     }).join('');
-    tb.innerHTML = rows || `<tr><td colspan="8" class="muted">No data</td></tr>`;
-    Q('#ltRevT').textContent=fmt(R); Q('#ltAdT').textContent=fmt(A);
-    Q('#ltShipT').textContent=fmt(S); Q('#ltBaseT').textContent=fmt(B);
-    Q('#ltPiecesT').textContent=fmt(PCS); Q('#ltProfitT').textContent=fmt(P);
+    
+    tb.innerHTML = rows || `<tr><td colspan="10" class="muted">No data</td></tr>`;
+    Q('#ltRevT').textContent = fmt(R);
+    Q('#ltAdT').textContent = fmt(A);
+    Q('#ltCostChinaT').textContent = fmt(CC);
+    Q('#ltShipChinaT').textContent = fmt(SC);
+    Q('#ltInterShipT').textContent = fmt(IS);
+    Q('#ltTotalCostT').textContent = fmt(TC);
+    Q('#ltPiecesT').textContent = fmt(PCS);
+    Q('#ltProfitT').textContent = fmt(P);
   });
+}
+
+/* ================================================================
+   TOP DELIVERED PRODUCTS
+   ================================================================ */
+function bindTopDeliveredProducts() {
+  const btn = Q('#topDelRun');
+  if (!btn) return;
+  
+  btn.onclick = async () => {
+    const start = Q('#topDelStart')?.value;
+    const end = Q('#topDelEnd')?.value;
+    const country = Q('#topDelCountry')?.value || '';
+    
+    let rem = (await api('/api/remittances')).remittances || [];
+    
+    if (start) rem = rem.filter(r => r.start >= start);
+    if (end) rem = rem.filter(r => r.end <= end);
+    if (country) rem = rem.filter(r => r.country === country);
+    
+    // Group by product and country, sum pieces
+    const productStats = {};
+    rem.forEach(r => {
+      const key = `${r.productId}|${r.country}`;
+      if (!productStats[key]) {
+        productStats[key] = {
+          productId: r.productId,
+          country: r.country,
+          pieces: 0,
+          revenue: 0,
+          adSpend: 0
+        };
+      }
+      productStats[key].pieces += (+r.pieces || 0);
+      productStats[key].revenue += (+r.revenue || 0);
+      productStats[key].adSpend += (+r.adSpend || 0);
+    });
+    
+    // Convert to array and sort by pieces (descending)
+    const sortedProducts = Object.values(productStats)
+      .sort((a, b) => b.pieces - a.pieces)
+      .slice(0, 20); // Top 20
+    
+    const prodMap = Object.fromEntries(state.products.map(p => [p.id, p]));
+    const tb = Q('#topDeliveredBody');
+    
+    tb.innerHTML = sortedProducts.map((stat, index) => {
+      const product = prodMap[stat.productId] || {};
+      const profit = stat.revenue - stat.adSpend;
+      
+      return `<tr>
+        <td>${index + 1}</td>
+        <td>${product.name || stat.productId}</td>
+        <td>${stat.country}</td>
+        <td><strong>${fmt(stat.pieces)}</strong></td>
+        <td>${fmt(stat.revenue)}</td>
+        <td>${fmt(stat.adSpend)}</td>
+        <td class="${profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(profit)}</td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="7" class="muted">No data for selected period</td></tr>`;
+  };
+}
+
+/* ================================================================
+   REMITTANCE ANALYTICS
+   ================================================================ */
+function bindRemittanceAnalytics() {
+  const btn = Q('#remAnalyticsRun');
+  if (!btn) return;
+  
+  btn.onclick = async () => {
+    const start = Q('#remAnalyticsStart')?.value;
+    const end = Q('#remAnalyticsEnd')?.value;
+    const country = Q('#remAnalyticsCountry')?.value || '';
+    const productId = Q('#remAnalyticsProduct')?.value || '';
+    
+    let rem = (await api('/api/remittances')).remittances || [];
+    
+    if (start) rem = rem.filter(r => r.start >= start);
+    if (end) rem = rem.filter(r => r.end <= end);
+    if (country) rem = rem.filter(r => r.country === country);
+    if (productId) rem = rem.filter(r => r.productId === productId);
+    
+    // Group by product and country
+    const analytics = {};
+    rem.forEach(r => {
+      const key = `${r.productId}|${r.country}`;
+      if (!analytics[key]) {
+        analytics[key] = {
+          productId: r.productId,
+          country: r.country,
+          pieces: 0,
+          revenue: 0,
+          adSpend: 0,
+          costChina: 0,
+          shipChina: 0,
+          interShip: 0,
+          totalCost: 0
+        };
+      }
+      
+      const product = state.products.find(p => p.id === r.productId) || {};
+      const pieces = +r.pieces || 0;
+      
+      analytics[key].pieces += pieces;
+      analytics[key].revenue += (+r.revenue || 0);
+      analytics[key].adSpend += (+r.adSpend || 0);
+      analytics[key].costChina += (+product.cost_china || 0) * pieces;
+      analytics[key].shipChina += (+product.ship_china_to_kenya || 0) * pieces;
+      analytics[key].interShip += (+r.extraPerPiece || 0) * pieces;
+    });
+    
+    // Calculate total cost and profit for each entry
+    Object.values(analytics).forEach(item => {
+      item.totalCost = item.costChina + item.shipChina + item.interShip;
+    });
+    
+    // Sort by pieces (descending)
+    const sortedAnalytics = Object.values(analytics)
+      .sort((a, b) => b.pieces - a.pieces);
+    
+    const prodMap = Object.fromEntries(state.products.map(p => [p.id, p]));
+    const tb = Q('#remAnalyticsBody');
+    
+    let totalPieces = 0, totalRevenue = 0, totalAdSpend = 0;
+    let totalCostChina = 0, totalShipChina = 0, totalInterShip = 0, totalTotalCost = 0, totalProfit = 0;
+    
+    tb.innerHTML = sortedAnalytics.map(item => {
+      const product = prodMap[item.productId] || {};
+      const profit = item.revenue - item.adSpend - item.totalCost;
+      
+      totalPieces += item.pieces;
+      totalRevenue += item.revenue;
+      totalAdSpend += item.adSpend;
+      totalCostChina += item.costChina;
+      totalShipChina += item.shipChina;
+      totalInterShip += item.interShip;
+      totalTotalCost += item.totalCost;
+      totalProfit += profit;
+      
+      return `<tr>
+        <td>${product.name || item.productId}</td>
+        <td>${item.country}</td>
+        <td><strong>${fmt(item.pieces)}</strong></td>
+        <td>${fmt(item.revenue)}</td>
+        <td>${fmt(item.adSpend)}</td>
+        <td>${fmt(item.costChina)}</td>
+        <td>${fmt(item.shipChina)}</td>
+        <td>${fmt(item.interShip)}</td>
+        <td>${fmt(item.totalCost)}</td>
+        <td class="${profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(profit)}</td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="10" class="muted">No data for selected period</td></tr>`;
+    
+    // Update totals
+    Q('#remAnalyticsPiecesT').textContent = fmt(totalPieces);
+    Q('#remAnalyticsRevenueT').textContent = fmt(totalRevenue);
+    Q('#remAnalyticsAdSpendT').textContent = fmt(totalAdSpend);
+    Q('#remAnalyticsCostChinaT').textContent = fmt(totalCostChina);
+    Q('#remAnalyticsShipChinaT').textContent = fmt(totalShipChina);
+    Q('#remAnalyticsInterShipT').textContent = fmt(totalInterShip);
+    Q('#remAnalyticsTotalCostT').textContent = fmt(totalTotalCost);
+    Q('#remAnalyticsProfitT').textContent = fmt(totalProfit);
+  };
 }
 
 /* ================================================================
@@ -833,7 +1061,7 @@ function bindRemittanceAdd() {
 }
 
 /* ================================================================
-   REMITTANCE REPORT - UPDATED (sort by pieces descending)
+   REMITTANCE REPORT - UPDATED (with cost columns)
    ================================================================ */
 function renderRemittanceReport() {
   const btn = Q('#remRun');
@@ -856,18 +1084,27 @@ function renderRemittanceReport() {
     rem.sort((a, b) => (b.pieces || 0) - (a.pieces || 0));
     
     const prodMap = Object.fromEntries(state.products.map(p => [p.id, p]));
-    let totalOrders = 0, totalPieces = 0, totalRevenue = 0, totalAdSpend = 0, totalProfit = 0;
+    let totalOrders = 0, totalPieces = 0, totalRevenue = 0, totalAdSpend = 0;
+    let totalCostChina = 0, totalShipChina = 0, totalInterShip = 0, totalTotalCost = 0, totalProfit = 0;
     
     const tb = Q('#remittanceBody');
     tb.innerHTML = rem.map(r => {
       const product = prodMap[r.productId] || {};
-      const baseCost = (+product.cost_china || 0) + (+product.ship_china_to_kenya || 0);
-      const profit = (+r.revenue || 0) - (+r.adSpend || 0) - ((+r.extraPerPiece || 0) * (+r.pieces || 0)) - (baseCost * (+r.pieces || 0));
+      const pieces = +r.pieces || 0;
+      const costChina = (+product.cost_china || 0) * pieces;
+      const shipChina = (+product.ship_china_to_kenya || 0) * pieces;
+      const interShip = (+r.extraPerPiece || 0) * pieces;
+      const totalCost = costChina + shipChina + interShip;
+      const profit = (+r.revenue || 0) - (+r.adSpend || 0) - totalCost;
       
       totalOrders += (+r.orders || 0);
-      totalPieces += (+r.pieces || 0);
+      totalPieces += pieces;
       totalRevenue += (+r.revenue || 0);
       totalAdSpend += (+r.adSpend || 0);
+      totalCostChina += costChina;
+      totalShipChina += shipChina;
+      totalInterShip += interShip;
+      totalTotalCost += totalCost;
       totalProfit += profit;
       
       return `<tr>
@@ -878,15 +1115,23 @@ function renderRemittanceReport() {
         <td>${fmt(r.pieces)}</td>
         <td>${fmt(r.revenue)}</td>
         <td>${fmt(r.adSpend)}</td>
+        <td>${fmt(costChina)}</td>
+        <td>${fmt(shipChina)}</td>
+        <td>${fmt(interShip)}</td>
+        <td>${fmt(totalCost)}</td>
         <td class="${profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(profit)}</td>
         <td><button class="btn outline rem-del" data-id="${r.id}">Delete</button></td>
       </tr>`;
-    }).join('') || `<tr><td colspan="9" class="muted">No remittance data</td></tr>`;
+    }).join('') || `<tr><td colspan="13" class="muted">No remittance data</td></tr>`;
     
     Q('#remOrdersT').textContent = fmt(totalOrders);
     Q('#remPiecesT').textContent = fmt(totalPieces);
     Q('#remRevenueT').textContent = fmt(totalRevenue);
     Q('#remAdSpendT').textContent = fmt(totalAdSpend);
+    Q('#remCostChinaT').textContent = fmt(totalCostChina);
+    Q('#remShipChinaT').textContent = fmt(totalShipChina);
+    Q('#remInterShipT').textContent = fmt(totalInterShip);
+    Q('#remTotalCostT').textContent = fmt(totalTotalCost);
     Q('#remProfitT').textContent = fmt(totalProfit);
     
     // Add delete functionality
@@ -999,7 +1244,7 @@ async function renderTransitTables() {
 }
 
 /* ================================================================
-   FINANCE PAGE
+   FINANCE PAGE - UPDATED (single day entries)
    ================================================================ */
 function renderFinancePage() {
   refreshFinanceCategories();
@@ -1020,19 +1265,17 @@ function renderFinancePage() {
     }
   });
 
-  // entries add with date range
+  // entries add with single date
   Q('#feAdd')?.addEventListener('click', async ()=>{
-    const startDate = Q('#feStartDate')?.value, 
-          endDate = Q('#feEndDate')?.value, 
+    const date = Q('#feDate')?.value, 
           cat = Q('#feCat')?.value, 
           amt = +Q('#feAmt')?.value||0, 
           note = Q('#feNote')?.value||'';
     
-    if (!startDate||!endDate||!cat) return alert('Pick date range & category');
-    if (new Date(startDate) > new Date(endDate)) return alert('Start date must be before end date');
+    if (!date||!cat) return alert('Pick date & category');
     
     const type = state.categories.credit.includes(cat) ? 'credit':'debit';
-    await api('/api/finance/entries',{method:'POST', body: JSON.stringify({startDate, endDate, type, category:cat, amount:amt, note})});
+    await api('/api/finance/entries',{method:'POST', body: JSON.stringify({date, type, category:cat, amount:amt, note})});
     Q('#feAmt').value=''; Q('#feNote').value='';
     await runFinancePeriod();
   });
@@ -1072,10 +1315,9 @@ async function runFinancePeriod() {
       <td>${x.category}</td>
       <td>${fmt(x.amount)}</td>
       <td>${x.note||''}</td>
-      <td>${x.periodStart && x.periodEnd ? `${x.periodStart} - ${x.periodEnd}` : 'Single day'}</td>
       <td><button class="btn outline fe-del" data-id="${x.id}">Delete</button></td>
     </tr>
-  `).join('') || `<tr><td colspan="7" class="muted">No entries</td></tr>`);
+  `).join('') || `<tr><td colspan="6" class="muted">No entries</td></tr>`);
   tb?.addEventListener('click', async (e)=>{
     if (e.target.classList.contains('fe-del')) {
       await api(`/api/finance/entries/${e.target.dataset.id}`,{method:'DELETE'});
