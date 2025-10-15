@@ -46,6 +46,7 @@ async function boot() {
   }
 
   await preload();
+  forceFixedNavigation(); // ADD THIS LINE HERE
   bindGlobalNav();
 
   if (state.productId) {
@@ -59,23 +60,6 @@ async function boot() {
     renderSettingsPage();
   }
 }
-
-Q('#loginBtn')?.addEventListener('click', async () => {
-  const password = Q('#pw')?.value || '';
-  try {
-    await api('/api/auth', { method:'POST', body: JSON.stringify({ password }) });
-    await boot();
-  } catch (e) {
-    alert('Wrong password');
-  }
-});
-
-Q('#logoutLink')?.addEventListener('click', async (e) => {
-  e.preventDefault();
-  try { await api('/api/auth', { method:'POST', body: JSON.stringify({ password: 'logout' })}); } catch {}
-  location.reload();
-});
-
 /* ================================================================
    COMMON LOADERS
    ================================================================ */
@@ -1466,73 +1450,61 @@ async function refreshInfluencers(product) {
 }
 
 /* ================================================================
-   FORCE FIXED NAVIGATION
+   SIMPLE FIXED NAVIGATION
    ================================================================ */
 function forceFixedNavigation() {
   const nav = Q('.nav');
   if (!nav) return;
   
-  // Force fixed positioning
+  // Simple fixed positioning - no complex transforms
   nav.style.position = 'fixed';
   nav.style.top = '0';
   nav.style.left = '0';
   nav.style.right = '0';
-  nav.style.zIndex = '1000';
+  nav.style.zIndex = '9999';
   nav.style.background = '#ffffff';
   
-  // Ensure main content has proper margin
+  // Remove any margin from main content
   const main = Q('#main');
   if (main) {
-    main.style.marginTop = '60px';
+    main.style.marginTop = '0';
   }
   
-  // Handle scroll events to keep it fixed
+  // Simple scroll handling - just ensure it stays at top
   window.addEventListener('scroll', function() {
-    const scrollY = window.scrollY;
-    
-    // Always keep nav at top
-    nav.style.transform = `translateY(${scrollY}px)`;
-    nav.style.transform = 'translateY(0)'; // Force to top
-    
-    // Alternative method: reset position on scroll
-    if (nav.style.position !== 'fixed') {
-      nav.style.position = 'fixed';
+    if (parseInt(nav.style.top) !== 0) {
       nav.style.top = '0';
     }
   });
+}
+/* ================================================================
+   SIMPLE FIXED NAVIGATION
+   ================================================================ */
+function forceFixedNavigation() {
+  const nav = Q('.nav');
+  if (!nav) return;
   
-  // Also handle resize events
-  window.addEventListener('resize', function() {
-    nav.style.position = 'fixed';
-    nav.style.top = '0';
-    nav.style.left = '0';
-    nav.style.right = '0';
+  // Simple fixed positioning - no complex transforms
+  nav.style.position = 'fixed';
+  nav.style.top = '0';
+  nav.style.left = '0';
+  nav.style.right = '0';
+  nav.style.zIndex = '9999';
+  nav.style.background = '#ffffff';
+  
+  // Remove any margin from main content
+  const main = Q('#main');
+  if (main) {
+    main.style.marginTop = '0';
+  }
+  
+  // Simple scroll handling - just ensure it stays at top
+  window.addEventListener('scroll', function() {
+    if (parseInt(nav.style.top) !== 0) {
+      nav.style.top = '0';
+    }
   });
 }
-
-/* ================================================================
-   NAV - Fixed navigation with JavaScript enforcement
-   ================================================================ */
-function bindGlobalNav() {
-  // First force the fixed positioning
-  forceFixedNavigation();
-  
-  // Then handle the view switching
-  QA('.nav a[data-view]')?.forEach(a => a.addEventListener('click', e=>{
-    e.preventDefault();
-    const v = a.dataset.view;
-    ['home','products','performance','stockMovement','finance','settings'].forEach(id=>{
-      const el = Q('#'+id);
-      if (el) el.style.display = (id===v)?'':'none';
-    });
-    QA('.nav a').forEach(x=>x.classList.toggle('active', x===a));
-    if (v==='home') { renderCompactKpis(); renderCountryStockSpend(); }
-    if (v==='products') { renderCompactCountryStats(); renderAdvertisingOverview(); }
-    if (v==='stockMovement') { renderStockMovementPage(); }
-    if (v==='performance') { renderRemittanceReport(); }
-  }));
-}
-
 /* ================================================================
    BOOT
    ================================================================ */
