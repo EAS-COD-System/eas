@@ -1,4 +1,4 @@
-/* ================================================================
+ /* ================================================================
    EAS Tracker – Front-end (index.html + product.html)
    ================================================================ */
 
@@ -46,7 +46,6 @@ async function boot() {
   }
 
   await preload();
-  forceFixedNavigation(); // ADD THIS LINE HERE
   bindGlobalNav();
 
   if (state.productId) {
@@ -60,6 +59,23 @@ async function boot() {
     renderSettingsPage();
   }
 }
+
+Q('#loginBtn')?.addEventListener('click', async () => {
+  const password = Q('#pw')?.value || '';
+  try {
+    await api('/api/auth', { method:'POST', body: JSON.stringify({ password }) });
+    await boot();
+  } catch (e) {
+    alert('Wrong password');
+  }
+});
+
+Q('#logoutLink')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  try { await api('/api/auth', { method:'POST', body: JSON.stringify({ password: 'logout' })}); } catch {}
+  location.reload();
+});
+
 /* ================================================================
    COMMON LOADERS
    ================================================================ */
@@ -1450,61 +1466,73 @@ async function refreshInfluencers(product) {
 }
 
 /* ================================================================
-   SIMPLE FIXED NAVIGATION
+   FORCE FIXED NAVIGATION
    ================================================================ */
 function forceFixedNavigation() {
   const nav = Q('.nav');
   if (!nav) return;
   
-  // Simple fixed positioning - no complex transforms
+  // Force fixed positioning
   nav.style.position = 'fixed';
   nav.style.top = '0';
   nav.style.left = '0';
   nav.style.right = '0';
-  nav.style.zIndex = '9999';
+  nav.style.zIndex = '1000';
   nav.style.background = '#ffffff';
   
-  // Remove any margin from main content
+  // Ensure main content has proper margin
   const main = Q('#main');
   if (main) {
-    main.style.marginTop = '0';
+    main.style.marginTop = '60px';
   }
   
-  // Simple scroll handling - just ensure it stays at top
+  // Handle scroll events to keep it fixed
   window.addEventListener('scroll', function() {
-    if (parseInt(nav.style.top) !== 0) {
+    const scrollY = window.scrollY;
+    
+    // Always keep nav at top
+    nav.style.transform = `translateY(${scrollY}px)`;
+    nav.style.transform = 'translateY(0)'; // Force to top
+    
+    // Alternative method: reset position on scroll
+    if (nav.style.position !== 'fixed') {
+      nav.style.position = 'fixed';
       nav.style.top = '0';
     }
   });
+  
+  // Also handle resize events
+  window.addEventListener('resize', function() {
+    nav.style.position = 'fixed';
+    nav.style.top = '0';
+    nav.style.left = '0';
+    nav.style.right = '0';
+  });
 }
+
 /* ================================================================
-   SIMPLE FIXED NAVIGATION
+   NAV - Fixed navigation with JavaScript enforcement
    ================================================================ */
-function forceFixedNavigation() {
-  const nav = Q('.nav');
-  if (!nav) return;
+function bindGlobalNav() {
+  // First force the fixed positioning
+  forceFixedNavigation();
   
-  // Simple fixed positioning - no complex transforms
-  nav.style.position = 'fixed';
-  nav.style.top = '0';
-  nav.style.left = '0';
-  nav.style.right = '0';
-  nav.style.zIndex = '9999';
-  nav.style.background = '#ffffff';
-  
-  // Remove any margin from main content
-  const main = Q('#main');
-  if (main) {
-    main.style.marginTop = '0';
-  }
-  
-  // Simple scroll handling - just ensure it stays at top
-  window.addEventListener('scroll', function() {
-    if (parseInt(nav.style.top) !== 0) {
-      nav.style.top = '0';
-    }
-  });
+  // Then handle the view switching
+  QA('.nav a[data-view]')?.forEach(a => a.addEventListener('click', e=>{
+    e.preventDefault();
+    const v = a.dataset.view;
+    ['home','products','performance','stockMovement','finance','settings'].forEach(id=>{
+      const el = Q('#'+id);
+      if (el) el.style.display = (id===v)?'':'none';
+    });
+    QA('.nav a').forEach(x=>x.classList.toggle('active', x===a));
+    if (v==='home') { renderCompactKpis(); renderCountryStockSpend(); }
+    if (v==='products') { renderCompactCountryStats(); renderAdvertisingOverview(); }
+    if (v==='stockMovement') { renderStockMovementPage(); }
+    if (v==='performance') { renderRemittanceReport(); }
+  }));
 }
+
 /* ================================================================
    BOOT
    ================================================================ */
