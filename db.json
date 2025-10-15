@@ -1,46 +1,19 @@
 {
   "password": "eastafricashop",
-  "countries": ["kenya","tanzania","uganda","zambia","zimbabwe"],
-  "products": [
-    {
-      "id": "prod-001",
-      "name": "Neck Massager",
-      "sku": "NECK-001",
-      "status": "active",
-      "cost_china": 6.5,
-      "ship_china_to_kenya": 1.2,
-      "margin_budget": 8,
-      "budgets": { "kenya": 500 }
-    }
-  ],
-  "adspend": [
-    { "id": "ad-001", "productId": "prod-001", "country": "kenya", "platform": "facebook", "amount": 25.5 }
-  ],
-  "deliveries": [
-    { "id": "del-001", "date": "2025-10-06", "country": "kenya", "delivered": 42 }
-  ],
-  "shipments": [
-    { "id": "ship-001", "productId": "prod-001", "fromCountry": "china", "toCountry": "kenya", "qty": 100, "shipCost": 120, "note": "Initial shipment", "departedAt": "2025-09-28", "arrivedAt": "2025-10-05" },
-    { "id": "ship-002", "productId": "prod-001", "fromCountry": "kenya", "toCountry": "zambia", "qty": 30, "shipCost": 45, "note": "Regional distribution", "departedAt": "2025-10-08", "arrivedAt": null }
-  ],
-  "remittances": [
-    { "id": "rem-001", "start": "2025-10-01", "end": "2025-10-08", "country": "kenya", "productId": "prod-001", "orders": 50, "pieces": 70, "revenue": 2100, "adSpend": 600, "extraPerPiece": 0.35 }
-  ],
+  "countries": ["china", "kenya", "tanzania", "uganda", "zambia", "zimbabwe"],
+  "products": [],
+  "adspend": [],
+  "deliveries": [],
+  "shipments": [],
+  "remittances": [],
   "finance": {
     "categories": {
-      "debit": ["Facebook Ads","TikTok Ads","Google Ads","Shipping","Salaries","Rent","Misc"],
-      "credit": ["Product Revenue","Boxleo Payout","Other Revenue"]
+      "debit": [],
+      "credit": []
     },
-    "entries": [
-      { "id": "fin-001", "date": "2025-10-06", "type": "debit", "category": "Facebook Ads", "amount": 250, "note": "Daily ads KE" },
-      { "id": "fin-002", "date": "2025-10-07", "type": "credit", "category": "Product Revenue", "amount": 900, "note": "Payout" }
-    ]
+    "entries": []
   },
-  "influencers": [
-    { "id": "inf-001", "name": "Aisha M.", "social": "@aisha_ke", "country": "kenya" }
-  ],
-  "influencerSpends": [
-    { "id": "infsp-001", "date": "2025-10-07", "influencerId": "inf-001", "country": "kenya", "productId": "prod-001", "amount": 75 }
-  ],
+  "influencers": [],
+  "influencerSpends": [],
   "snapshots": []
 }
