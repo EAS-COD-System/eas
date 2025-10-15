@@ -1,1279 +1,1451 @@
-/* EAS Tracker – Advanced Business Intelligence Frontend */
+/* ================================================================
+   EAS Tracker – Front-end (index.html + product.html)
+   ================================================================ */
 
-// ===================== UTILITY FUNCTIONS =====================
-const Q = (s, r = document) => r.querySelector(s);
-const QA = (s, r = document) => Array.from(r.querySelectorAll(s));
-const fmt = n => (Number(n || 0)).toLocaleString(undefined, { maximumFractionDigits: 2 });
-const todayISO = () => new Date().toISOString().slice(0, 10);
+/* ---------- helpers ---------- */
+const Q  = (s, r=document) => r.querySelector(s);
+const QA = (s, r=document) => Array.from(r.querySelectorAll(s));
+const fmt = n => (Number(n||0)).toLocaleString(undefined,{maximumFractionDigits:2});
+const isoToday = () => new Date().toISOString().slice(0,10);
 const getQuery = k => new URLSearchParams(location.search).get(k);
+const safeJSON = v => { try { return JSON.parse(v); } catch { return null; } };
 
-// API helper
-async function api(path, opts = {}) {
+async function api(path, opts={}) {
   const res = await fetch(path, {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     ...opts
   });
-  if (!res.ok) {
-    const error = await res.text();
-    throw new Error(error || `HTTP ${res.status}`);
-  }
-  return await res.json();
+  const ct = res.headers.get('content-type')||'';
+  const body = ct.includes('application/json') ? await res.json() : await res.text();
+  if (!res.ok) throw new Error(body?.error || body || ('HTTP '+res.status));
+  return body;
 }
 
-// ===================== APPLICATION STATE =====================
+/* ---------- global state ---------- */
 const state = {
-  view: 'home',
+  productId: getQuery('id'),
   countries: [],
   products: [],
-  categories: { debit: [], credit: [] },
-  product: null,
-  productId: getQuery('id')
+  productsActive: [],
+  categories: { debit:[], credit:[] }
 };
 
-// ===================== QUICK ACTION FUNCTIONS =====================
-function switchToSection(section) {
-  QA('.nav-link').forEach(nav => nav.classList.remove('active'));
-  QA('.page-section').forEach(section => section.classList.add('hide'));
-  
-  Q(`[data-view="${section}"]`).classList.add('active');
-  Q(`#${section}`).classList.remove('hide');
-}
-
-function showAdSpendForm() {
-  Q('#adSpendForm').classList.remove('hide');
-  Q('#movementForm').classList.add('hide');
-}
-
-function hideAdSpendForm() {
-  Q('#adSpendForm').classList.add('hide');
-}
-
-function showMovementForm() {
-  Q('#movementForm').classList.remove('hide');
-  Q('#adSpendForm').classList.add('hide');
-}
-
-function hideMovementForm() {
-  Q('#movementForm').classList.add('hide');
-}
-
-// ===================== AUTHENTICATION =====================
-async function checkAuth() {
+/* ================================================================
+   AUTH + BOOT
+   ================================================================ */
+async function boot() {
   try {
-    const res = await fetch('/api/auth/check', { credentials: 'include' });
-    const data = await res.json();
-    return data.authenticated === true;
+    await api('/api/meta');                 // cookie OK? (fast ping)
+    Q('#login')?.classList.add('hide');
+    Q('#main')?.removeAttribute('style');
   } catch {
-    return false;
+    Q('#login')?.classList.remove('hide');
+    Q('#main')?.setAttribute('style','display:none');
+    return;
   }
-}
 
-async function gate() {
-  const isAuthenticated = await checkAuth();
-  
-  if (isAuthenticated) {
-    Q('#login').classList.add('hide');
-    Q('#main').classList.remove('hide');
-    
-    await preloadProducts();
-    fillGlobalSelects();
-    initNav();
+  await preload();
+  bindGlobalNav();
 
-    if (state.productId) {
-      await loadProduct(state.productId);
-      renderProductPage();
-    } else {
-      initDashboard();
-      initProducts();
-      initPerformance();
-      initFinance();
-      initSettings();
-    }
+  if (state.productId) {
+    renderProductPage();
   } else {
-    Q('#login').classList.remove('hide');
-    Q('#main').classList.add('hide');
+    renderDashboardPage();
+    renderProductsPage();
+    renderPerformancePage();
+    renderStockMovementPage();
+    renderFinancePage();
+    renderSettingsPage();
   }
 }
 
-// Login handler
-Q('#loginBtn').addEventListener('click', async () => {
-  const password = Q('#pw').value;
-  if (!password) return alert('Please enter password');
-
+Q('#loginBtn')?.addEventListener('click', async () => {
+  const password = Q('#pw')?.value || '';
   try {
-    await api('/api/auth', { 
-      method: 'POST', 
-      body: JSON.stringify({ password }) 
-    });
-    await gate();
-  } catch (error) {
-    alert('Wrong password or server error');
+    await api('/api/auth', { method:'POST', body: JSON.stringify({ password }) });
+    await boot();
+  } catch (e) {
+    alert('Wrong password');
   }
 });
 
-// Logout handler
-Q('#logoutLink').addEventListener('click', async (e) => {
+Q('#logoutLink')?.addEventListener('click', async (e) => {
   e.preventDefault();
-  try { 
-    await api('/api/auth', { 
-      method: 'POST', 
-      body: JSON.stringify({ password: 'logout' }) 
-    }); 
-  } catch {}
+  try { await api('/api/auth', { method:'POST', body: JSON.stringify({ password: 'logout' })}); } catch {}
   location.reload();
 });
 
-// ===================== DATA MANAGEMENT =====================
-async function preloadProducts() {
-  try {
-    const r = await api('/api/products');
-    state.products = r.products || [];
-  } catch { 
-    state.products = []; 
-  }
+/* ================================================================
+   COMMON LOADERS
+   ================================================================ */
+async function preload() {
+  const meta = await api('/api/meta');                 // {countries}
+  state.countries = meta.countries || [];
+
+  const pr = await api('/api/products');               // {products}
+  state.products = pr.products || [];
+  state.productsActive = state.products.filter(p => p.status !== 'paused');
+
+  const cats = await api('/api/finance/categories');   // {debit:[],credit:[]}
+  state.categories = cats || { debit:[], credit:[] };
+
+  fillCommonSelects();
 }
 
-function productsActiveOnly() {
-  return (state.products || []).filter(p => p.status !== 'paused');
-}
-
-function fillGlobalSelects() {
-  // Filter out China from most selectors
-  const salesCountries = state.countries.filter(c => c !== 'china');
+function fillCommonSelects() {
+  // Countries for all selects
+  const countrySelects = ['#mvFrom', '#mvTo', '#adCountry', '#rCountry', 
+    '#pdAdCountry', '#pdRCountry', '#pdMvFrom', '#pdMvTo', '#pdInfCountry', 
+    '#pdInfFilterCountry', '#pdPBCountry', '#pcCountry', '#pfCountry', '#remCountry'];
   
-  // Country selectors (without China)
-  const countrySelectors = [
-    '#adCountry', '#rCountry', '#pfCountry', '#pdAdCountry', 
-    '#pdRCountry', '#pdMvTo', '#pdPBCountry', '#pdInfCountry',
-    '#pdInfFilterCountry', '#pcCountry'
-  ];
-  
-  countrySelectors.forEach(sel => {
-    const el = Q(sel);
-    if (el) {
-      el.innerHTML = salesCountries.map(c => `<option value="${c}">${c}</option>`).join('');
-      if (sel === '#pcCountry' || sel === '#pfCountry' || sel === '#pdInfFilterCountry') {
-        el.insertAdjacentHTML('afterbegin', '<option value="">All countries</option>');
-      }
+  countrySelects.forEach(sel => QA(sel).forEach(el => {
+    if (sel === '#pcCountry' || sel === '#pfCountry' || sel === '#remCountry') {
+      el.innerHTML = `<option value="">All countries</option>` +
+        state.countries.map(c=>`<option value="${c}">${c}</option>`).join('');
+    } else {
+      el.innerHTML = state.countries.map(c=>`<option value="${c}">${c}</option>`).join('');
     }
+  }));
+
+  // Products (only available/active in add forms)
+  const productInputs = ['#mvProduct','#adProduct','#rProduct','#lpProductFilter','#pdProductForSpend'];
+  productInputs.forEach(sel => QA(sel).forEach(el => {
+    el.innerHTML = state.productsActive.map(p=>`<option value="${p.id}">${p.name}${p.sku?` (${p.sku})`:''}</option>`).join('');
+  }));
+
+  // Products (filters can include "All")
+  const productFilters = ['#lpProduct', '#remProduct'];
+  productFilters.forEach(sel => QA(sel).forEach(el => {
+    el.innerHTML = `<option value="">All products</option>` +
+      state.products.map(p=>`<option value="${p.id}">${p.name}${p.sku?` (${p.sku})`:''}</option>`).join('');
+  }));
+
+  // Finance categories select for entries
+  const allCats = [...state.categories.debit, ...state.categories.credit].sort();
+  QA('#feCat').forEach(el => {
+    el.innerHTML = `<option value="" disabled selected>Select category</option>` +
+      allCats.map(c=>`<option>${c}</option>`).join('');
   });
-
-  // Movement FROM selectors (include China)
-  const fromSelectors = ['#mvFrom', '#pdMvFrom'];
-  fromSelectors.forEach(sel => {
-    const el = Q(sel);
-    if (el) el.innerHTML = state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
-  });
-
-  // Product selectors
-  const productSelectors = ['#adProduct', '#rProduct', '#mvProduct', '#pdInfSelect'];
-  productSelectors.forEach(sel => {
-    const el = Q(sel);
-    if (el) {
-      el.innerHTML = productsActiveOnly().map(p => 
-        `<option value="${p.id}">${p.name}${p.sku ? ' (' + p.sku + ')' : ''}</option>`
-      ).join('');
-    }
-  });
-
-  // Lifetime product selector
-  if (Q('#lpProduct')) {
-    Q('#lpProduct').innerHTML = '<option value="">All Products</option>' +
-      state.products.map(p => `<option value="${p.id}">${p.name}${p.sku ? ' (' + p.sku + ')' : ''}</option>`).join('');
-  }
-
-  // Edit product selector
-  if (Q('#epSelect')) {
-    Q('#epSelect').innerHTML = '<option value="">Select Product</option>' +
-      state.products.map(p => `<option value="${p.id}">${p.name} (${p.sku || '—'})</option>`).join('');
-  }
-}
-
-// ===================== DASHBOARD =====================
-function initDashboard() {
-  renderKpis();
-  renderStockAndSpendByCountry();
-  initDailyAdSpend();
-  initMovements();
-  renderTransitTables();
-  initLifetimeGlobal();
-}
-
-async function renderKpis() {
-  const activeProducts = productsActiveOnly().length;
-  const salesCountries = state.countries.filter(c => c !== 'china').length;
   
-  Q('#kpiProducts').textContent = activeProducts;
-  Q('#kpiCountries').textContent = salesCountries;
+  // Finance category search
+  QA('#fcSearchCat').forEach(el => {
+    el.innerHTML = `<option value="">All categories</option>` +
+      allCats.map(c=>`<option>${c}</option>`).join('');
+  });
+}
 
+/* ================================================================
+   DASHBOARD
+   ================================================================ */
+function renderDashboardPage() {
+  renderCompactKpis();
+  renderCountryStockSpend();
+  bindDailyAdSpend();
+  renderWeeklyDelivered();
+  initTodos();
+}
+
+/* ---------- COMPACT KPIs ---------- */
+async function renderCompactKpis() {
+  Q('#kpiProducts') && (Q('#kpiProducts').textContent = state.products.length);
+  Q('#kpiCountries') && (Q('#kpiCountries').textContent = state.countries.length);
+  
   try {
     const s = await api('/api/shipments');
     const live = (s.shipments || []).filter(x => !x.arrivedAt).length;
-    Q('#kpiTransit').textContent = live;
-  } catch {}
+    Q('#kpiTransit') && (Q('#kpiTransit').textContent = live);
+  } catch { Q('#kpiTransit') && (Q('#kpiTransit').textContent = '—'); }
 
   try {
     const a = await api('/api/adspend');
-    const total = (a.adSpends || []).reduce((t, x) => t + (+x.amount || 0), 0);
-    Q('#kpiAdSpend').textContent = fmt(total) + ' USD';
-  } catch {}
+    const total = (a.adSpends||[]).reduce((t,x)=>t+(+x.amount||0),0);
+    Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = `${fmt(total)} USD`);
+  } catch { Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = '—'); }
 
-  try {
-    const r = await api('/api/deliveries');
-    const total = (r.deliveries || []).filter(d => d.country !== 'china')
-      .reduce((t, d) => t + (+d.delivered || 0), 0);
-    Q('#kpiDelivered').textContent = fmt(total);
-  } catch {}
+  const t = Q('#wAllT')?.textContent || '0';
+  Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = t);
 }
 
-async function renderStockAndSpendByCountry() {
-  const body = Q('#stockByCountryBody');
-  const salesCountries = state.countries.filter(c => c !== 'china');
-  const per = {};
-  salesCountries.forEach(c => per[c] = { stock: 0, ad: 0 });
+/* ---------- Stock & Ad Spend by Country (global) ---------- */
+async function renderCountryStockSpend() {
+  const body = Q('#stockByCountryBody'); if (!body) return;
+  body.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
 
+  const per = {}; 
+  state.countries.forEach(c=> {
+    per[c] = { 
+      stock: 0, 
+      facebook: 0, 
+      tiktok: 0, 
+      google: 0, 
+      totalAd: 0 
+    };
+  });
+
+  // Arrived shipments add to dest, deduct from origin
   try {
     const s = await api('/api/shipments');
-    (s.shipments || []).forEach(sp => {
-      if (sp.arrivedAt) {
-        const to = sp.toCountry, from = sp.fromCountry, qty = +sp.qty || 0;
-        if (to && to !== 'china') { 
-          per[to] = per[to] || { stock: 0, ad: 0 }; 
-          per[to].stock += qty; 
-        }
-        if (from && from !== 'china') { 
-          per[from] = per[from] || { stock: 0, ad: 0 }; 
-          per[from].stock -= qty; 
-        }
+    (s.shipments||[]).filter(x=>x.arrivedAt).forEach(sp=>{
+      const to = sp.toCountry || sp.to, from = sp.fromCountry || sp.from, qty = (+sp.qty||0);
+      if (to && state.countries.includes(to)) {
+        per[to] = per[to] || {stock:0, facebook:0, tiktok:0, google:0, totalAd:0}; 
+        per[to].stock += qty;
+      }
+      if (from && state.countries.includes(from)) {
+        per[from] = per[from]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0}; 
+        per[from].stock -= qty;
       }
     });
   } catch {}
 
+  // Remittances pieces deduct from that country
   try {
     const r = await api('/api/remittances');
-    (r.remittances || []).forEach(rr => {
-      if (rr.country !== 'china' && per[rr.country]) {
-        per[rr.country].stock -= (+rr.pieces || 0);
+    (r.remittances||[]).forEach(x=>{
+      if (state.countries.includes(x.country)) {
+        per[x.country] = per[x.country]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0};
+        per[x.country].stock -= (+x.pieces||0);
       }
     });
   } catch {}
 
+  // Ad spend from /api/adspend (already "replace current")
   try {
     const a = await api('/api/adspend');
-    (a.adSpends || []).forEach(x => {
-      if (x.country !== 'china' && per[x.country]) {
-        per[x.country].ad += (+x.amount || 0);
+    (a.adSpends||[]).forEach(x=>{
+      if (state.countries.includes(x.country)) {
+        per[x.country] = per[x.country]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0};
+        const amount = +x.amount||0;
+        if (x.platform === 'facebook') per[x.country].facebook += amount;
+        else if (x.platform === 'tiktok') per[x.country].tiktok += amount;
+        else if (x.platform === 'google') per[x.country].google += amount;
+        per[x.country].totalAd += amount;
       }
     });
   } catch {}
 
-  let st = 0, ad = 0;
-  const rows = Object.entries(per).map(([c, v]) => {
-    st += v.stock; ad += v.ad;
-    return `<tr><td>${c}</td><td>${fmt(v.stock)}</td><td>${fmt(v.ad)}</td></tr>`;
+  let st=0, fb=0, tt=0, gg=0, totalAd=0;
+  const rows = Object.entries(per).map(([c,v])=>{
+    st += v.stock; 
+    fb += v.facebook; 
+    tt += v.tiktok; 
+    gg += v.google; 
+    totalAd += v.totalAd;
+    
+    return `<tr>
+      <td>${c}</td>
+      <td>${fmt(v.stock)}</td>
+      <td>${fmt(v.facebook)}</td>
+      <td>${fmt(v.tiktok)}</td>
+      <td>${fmt(v.google)}</td>
+      <td>${fmt(v.totalAd)}</td>
+    </tr>`;
   }).join('');
   
-  body.innerHTML = rows || '<tr><td colspan="3" class="muted">No data</td></tr>';
-  Q('#stockTotal').textContent = fmt(st);
-  Q('#adTotal').textContent = fmt(ad);
+  body.innerHTML = rows || `<tr><td colspan="6" class="muted">No data</td></tr>`;
+  Q('#stockTotal') && (Q('#stockTotal').textContent = fmt(st));
+  Q('#fbTotal') && (Q('#fbTotal').textContent = fmt(fb));
+  Q('#ttTotal') && (Q('#ttTotal').textContent = fmt(tt));
+  Q('#ggTotal') && (Q('#ggTotal').textContent = fmt(gg));
+  Q('#adTotal') && (Q('#adTotal').textContent = fmt(totalAd));
 }
 
-function initDailyAdSpend() {
-  Q('#adSave').addEventListener('click', async () => {
+/* ---------- Daily Ad Spend (no date, replace current) ---------- */
+function bindDailyAdSpend() {
+  const btn = Q('#adSave');
+  if (!btn) return;
+  btn.onclick = async ()=>{
     const payload = {
-      productId: Q('#adProduct').value,
-      country: Q('#adCountry').value,
-      platform: Q('#adPlatform').value,
-      amount: +Q('#adAmount').value || 0
+      productId: Q('#adProduct')?.value,
+      country: Q('#adCountry')?.value,
+      platform: Q('#adPlatform')?.value,
+      amount: +Q('#adAmount')?.value || 0
     };
-    
-    if (!payload.productId || !payload.country || !payload.platform) {
-      return alert('Missing fields');
-    }
-    
+    if (!payload.productId || !payload.country || !payload.platform) return alert('Fill all fields');
     try {
-      await api('/api/adspend', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+      await api('/api/adspend',{method:'POST', body: JSON.stringify(payload)});  // upsert
+      await renderCountryStockSpend();
+      await renderCompactKpis();
       alert('Ad spend saved');
-      renderKpis();
-      renderStockAndSpendByCountry();
-      Q('#adAmount').value = '';
-      hideAdSpendForm();
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
+    } catch(e){ alert(e.message); }
+  };
+}
+
+/* ---------- Weekly Delivered grid (restore) ---------- */
+function mondayOf(dateISO) {
+  const d = new Date(dateISO);
+  const k = (d.getDay()+6)%7; d.setDate(d.getDate()-k);
+  return d;
+}
+function weekDays(fromMonDate) {
+  return [...Array(7)].map((_,i)=> {
+    const t = new Date(fromMonDate); t.setDate(t.getDate()+i);
+    return t.toISOString().slice(0,10);
   });
 }
 
-function initMovements() {
-  Q('#mvAdd').addEventListener('click', async () => {
-    const payload = {
-      productId: Q('#mvProduct').value,
-      fromCountry: Q('#mvFrom').value,
-      toCountry: Q('#mvTo').value,
-      qty: +Q('#mvQty').value || 0,
-      shipCost: +Q('#mvShip').value || 0,
-      departedAt: todayISO(),
-      arrivedAt: null
-    };
-    
-    if (!payload.productId) return alert('Select product');
-    
+function renderWeeklyDelivered() {
+  const head = Q('#weeklyHead'), body = Q('#weeklyBody'), rangeLbl = Q('#weeklyRange');
+  if (!head || !body) return;
+
+  let anchor = isoToday();
+  const updateGrid = async () => {
+    const mon = mondayOf(anchor);
+    const days = weekDays(mon);
+    rangeLbl.textContent = `Week: ${days[0]} → ${days[6]}`;
+
+    head.innerHTML = `<tr><th>Country</th>${days.map(d=>{
+      const lab = new Date(d).toLocaleDateString(undefined,{weekday:'short'});
+      return `<th>${lab}<br>${d}</th>`;
+    }).join('')}<th>Total</th></tr>`;
+
+    body.innerHTML = state.countries.map(c=>{
+      const cells = days.map(d=>`<td><input type="number" min="0" class="wd-cell" data-country="${c}" data-date="${d}" placeholder="0"/></td>`).join('');
+      return `<tr data-row="${c}"><td>${c}</td>${cells}<td class="row-total">0</td></tr>`;
+    }).join('');
+
+    // preload
     try {
-      await api('/api/shipments', {
-        method: 'POST',
-        body: JSON.stringify(payload)
+      const r = await api('/api/deliveries');
+      const map = {};
+      (r.deliveries||[]).forEach(x => map[`${x.country}|${x.date}`] = +x.delivered||0);
+      QA('.wd-cell').forEach(inp=>{
+        const k = `${inp.dataset.country}|${inp.dataset.date}`;
+        if (map[k] != null) inp.value = map[k];
       });
-      alert('Movement added');
-      renderTransitTables();
-      Q('#mvQty').value = '';
-      Q('#mvShip').value = '';
-      hideMovementForm();
-    } catch (e) {
-      alert('Error: ' + e.message);
+    } catch {}
+
+    computeWeeklyTotals();
+  };
+
+  function computeWeeklyTotals() {
+    // rows
+    QA('tr[data-row]').forEach(tr=>{
+      const t = QA('.wd-cell', tr).reduce((s,el)=>s+(+el.value||0),0);
+      Q('.row-total', tr).textContent = fmt(t);
+    });
+    // columns + grand
+    const cols = QA('thead th', Q('#weeklyTable')).length - 2;
+    let grand = 0;
+    for (let i=0;i<cols;i++) {
+      let colSum = 0;
+      QA('tr[data-row]').forEach(tr=>{
+        const inp = QA('.wd-cell', tr)[i];
+        colSum += (+inp.value||0);
+      });
+      Q(`#w${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i]}T`).textContent = fmt(colSum);
+      grand += colSum;
     }
-  });
-}
-
-async function renderTransitTables() {
-  try {
-    const s = await api('/api/shipments');
-    const list = (s.shipments || []).filter(x => !x.arrivedAt);
-    const productsById = Object.fromEntries(state.products.map(p => [p.id, p.name]));
-
-    const ck = list.filter(sp =>
-      sp.fromCountry.toLowerCase() === 'china' &&
-      sp.toCountry.toLowerCase() === 'kenya'
-    );
-    const ic = list.filter(sp => !ck.includes(sp));
-
-    // China → Kenya table
-    const ckBody = Q('#shipCKBody');
-    ckBody.innerHTML = ck.map(sp => {
-      const name = productsById[sp.productId] || sp.productId;
-      return `<tr>
-        <td>${name}</td>
-        <td>${fmt(sp.qty)}</td>
-        <td>${fmt(sp.shipCost)}</td>
-        <td>${sp.departedAt || ''}</td>
-        <td>
-          <button class="btn outline compact" data-mark-arrived="${sp.id}">Arrived</button>
-          <button class="btn outline compact danger" data-del-transit="${sp.id}">Delete</button>
-        </td>
-      </tr>`;
-    }).join('') || '<tr><td colspan="5" class="muted">No transit</td></tr>';
-
-    // Inter-country table
-    const icBody = Q('#shipICBody');
-    icBody.innerHTML = ic.map(sp => {
-      const name = productsById[sp.productId] || sp.productId;
-      return `<tr>
-        <td>${name}</td>
-        <td>${sp.fromCountry} → ${sp.toCountry}</td>
-        <td>${fmt(sp.qty)}</td>
-        <td>
-          <button class="btn outline compact" data-mark-arrived="${sp.id}">Arrived</button>
-          <button class="btn outline compact danger" data-del-transit="${sp.id}">Delete</button>
-        </td>
-      </tr>`;
-    }).join('') || '<tr><td colspan="4" class="muted">No transit</td></tr>';
-
-    // Add event listeners
-    QA('[data-mark-arrived]').forEach(btn => {
-      btn.onclick = async () => {
-        const id = btn.dataset.markArrived;
-        const date = prompt('Arrival date (YYYY-MM-DD)', todayISO());
-        if (!date) return;
-        try {
-          await api('/api/shipments/' + id, {
-            method: 'PUT',
-            body: JSON.stringify({ arrivedAt: date })
-          });
-          renderTransitTables();
-          renderStockAndSpendByCountry();
-        } catch (e) {
-          alert('Error: ' + e.message);
-        }
-      };
-    });
-
-    QA('[data-del-transit]').forEach(btn => {
-      btn.onclick = async () => {
-        if (!confirm('Delete shipment?')) return;
-        await api('/api/shipments/' + btn.dataset.delTransit, { method: 'DELETE' });
-        renderTransitTables();
-      };
-    });
-
-  } catch (e) {
-    console.error('Error rendering transit:', e);
+    Q('#wAllT').textContent = fmt(grand);
+    // mirror to KPI
+    Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = fmt(grand));
   }
+
+  Q('#weeklyPrev')?.addEventListener('click',()=>{ const d = new Date(anchor); d.setDate(d.getDate()-7); anchor = d.toISOString().slice(0,10); updateGrid(); });
+  Q('#weeklyNext')?.addEventListener('click',()=>{ const d = new Date(anchor); d.setDate(d.getDate()+7); anchor = d.toISOString().slice(0,10); updateGrid(); });
+  Q('#weeklyReset')?.addEventListener('click',()=>{ QA('.wd-cell').forEach(el=>el.value=''); computeWeeklyTotals(); });
+  Q('#weeklyTable')?.addEventListener('input', (e)=>{ if (e.target.classList.contains('wd-cell')) computeWeeklyTotals(); });
+  Q('#weeklySave')?.addEventListener('click', async ()=>{
+    const payload = [];
+    QA('.wd-cell').forEach(inp=>{
+      const val = +inp.value||0;
+      if (val>0) payload.push({ date: inp.dataset.date, country: inp.dataset.country, delivered: val });
+    });
+    try {
+      for (const row of payload) await api('/api/deliveries',{method:'POST', body: JSON.stringify(row)});
+      alert('Weekly deliveries saved');
+    } catch(e){ alert('Save failed: '+e.message); }
+  });
+
+  updateGrid();
 }
 
-function initLifetimeGlobal() {
-  Q('#lpRun').addEventListener('click', async () => {
-    const productId = Q('#lpProduct').value || '';
-    const start = Q('#lpStart').value, end = Q('#lpEnd').value;
-    const qs = new URLSearchParams();
-    if (start) qs.append('start', start);
-    if (end) qs.append('end', end);
-    
-    try {
-      const r = await api('/api/remittances' + (qs.toString() ? '?' + qs.toString() : ''));
-      const list = (r.remittances || []).filter(x => x.country !== 'china');
-      const filteredList = productId ? list.filter(x => x.productId === productId) : list;
-      
-      const prodMap = Object.fromEntries(state.products.map(p => [p.id, p]));
-      const byProductCountry = {};
-      
-      filteredList.forEach(x => {
-        const key = `${x.productId}|${x.country}`;
-        if (!byProductCountry[key]) {
-          byProductCountry[key] = {
-            name: prodMap[x.productId]?.name || x.productId,
-            country: x.country,
-            revenue: 0, adSpend: 0, shipping: 0, baseCost: 0, pieces: 0, profit: 0
-          };
-        }
-        
-        const p = byProductCountry[key];
-        const pieces = +x.pieces || 0;
-        const baseCostPerPiece = (+prodMap[x.productId]?.cost_china || 0) + (+prodMap[x.productId]?.ship_china_to_kenya || 0);
-        const extraCost = (+x.extraPerPiece || 0) * pieces;
-        
-        p.revenue += +x.revenue || 0;
-        p.adSpend += +x.adSpend || 0;
-        p.shipping += extraCost;
-        p.baseCost += baseCostPerPiece * pieces;
-        p.pieces += pieces;
-        p.profit = p.revenue - p.adSpend - p.shipping - p.baseCost;
-      });
-      
-      let totalRev = 0, totalAd = 0, totalShip = 0, totalBase = 0, totalPieces = 0, totalProfit = 0;
-      const rows = Object.values(byProductCountry).map(p => {
-        totalRev += p.revenue;
-        totalAd += p.adSpend;
-        totalShip += p.shipping;
-        totalBase += p.baseCost;
-        totalPieces += p.pieces;
-        totalProfit += p.profit;
-        
-        return `<tr>
-          <td>${p.name}</td>
-          <td>${p.country}</td>
-          <td>${fmt(p.revenue)}</td>
-          <td>${fmt(p.adSpend)}</td>
-          <td>${fmt(p.shipping)}</td>
-          <td>${fmt(p.baseCost)}</td>
-          <td>${fmt(p.pieces)}</td>
-          <td>${fmt(p.profit)}</td>
-        </tr>`;
-      }).join('');
-      
-      Q('#lifetimeBody').innerHTML = rows || '<tr><td colspan="8" class="muted">No data</td></tr>';
-      Q('#ltRevT').textContent = fmt(totalRev);
-      Q('#ltAdT').textContent = fmt(totalAd);
-      Q('#ltShipT').textContent = fmt(totalShip);
-      Q('#ltBaseT').textContent = fmt(totalBase);
-      Q('#ltPiecesT').textContent = fmt(totalPieces);
-      Q('#ltProfitT').textContent = fmt(totalProfit);
-      
-    } catch (e) {
-      alert('Error: ' + e.message);
+/* ---------- To-do + Weekly To-do ---------- */
+function initTodos() {
+  const KEY='eas_todos', WKEY='eas_weekly';
+  const load = k => safeJSON(localStorage.getItem(k))|| (k===WKEY?{}:[]);
+  const save = (k,v)=>localStorage.setItem(k,JSON.stringify(v));
+
+  // quick to-dos
+  const listEl = Q('#todoList'); const addBtn = Q('#todoAdd');
+  function renderQuick(){
+    const arr = load(KEY);
+    listEl.innerHTML = arr.map(t=>`<div class="flex">
+      <span>${t.done?'✅ ':''}${t.text}</span>
+      <button class="btn outline" data-done="${t.id}">${t.done?'Undo':'Done'}</button>
+      <button class="btn outline" data-del="${t.id}">Delete</button>
+    </div>`).join('') || '<div class="muted">No tasks</div>';
+  }
+  addBtn?.addEventListener('click', ()=>{
+    const v = Q('#todoText')?.value.trim(); if (!v) return;
+    const arr = load(KEY); arr.push({id:crypto.randomUUID(),text:v,done:false}); save(KEY,arr); Q('#todoText').value=''; renderQuick();
+  });
+  listEl?.addEventListener('click',(e)=>{
+    if (e.target.dataset.done) {
+      const arr = load(KEY);
+      const it = arr.find(x=>x.id===e.target.dataset.done); 
+      it.done=!it.done; save(KEY,arr); renderQuick();
+    }
+    if (e.target.dataset.del)  {
+      const arr = load(KEY);
+      const idx = arr.findIndex(x=>x.id===e.target.dataset.del); arr.splice(idx,1); save(KEY,arr); renderQuick();
     }
   });
+  renderQuick();
+
+  // weekly to-dos
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const wrap = Q('#weeklyWrap');
+  function renderWeekly(){
+    const data = load(WKEY);
+    wrap.innerHTML = days.map(d=>{
+      const arr = data[d]||[];
+      return `<div class="card">
+        <div class="h">${d}</div>
+        <div class="row"><input id="w_${d}" class="input" placeholder="Task"/><button class="btn" data-add="${d}">Add</button></div>
+        <div class="list">${arr.map(t=>`<div class="flex"><span>${t.done?'✅ ':''}${t.text}</span>
+          <button class="btn outline" data-tgl="${d}|${t.id}">${t.done?'Undo':'Done'}</button>
+          <button class="btn outline" data-del="${d}|${t.id}">Delete</button>
+        </div>`).join('')}</div>
+      </div>`;
+    }).join('');
+  }
+  wrap?.addEventListener('click',(e)=>{
+    const data = load(WKEY);
+    if (e.target.dataset.add) {
+      const d = e.target.dataset.add, v = Q('#w_'+d).value.trim(); if (!v) return;
+      data[d] = data[d]||[]; data[d].push({id:crypto.randomUUID(),text:v,done:false}); save(WKEY,data); renderWeekly();
+    }
+    if (e.target.dataset.tgl) {
+      const [d,id]=e.target.dataset.tgl.split('|'); const it=(data[d]||[]).find(x=>x.id===id); it.done=!it.done; save(WKEY,data); renderWeekly();
+    }
+    if (e.target.dataset.del) {
+      const [d,id]=e.target.dataset.del.split('|'); const arr=(data[d]||[]); const i=arr.findIndex(x=>x.id===id); arr.splice(i,1); data[d]=arr; save(WKEY,data); renderWeekly();
+    }
+  });
+  renderWeekly();
 }
 
-// ===================== PRODUCTS MANAGEMENT =====================
-function initProducts() {
-  Q('#pAdd').addEventListener('click', async () => {
-    const payload = {
-      name: Q('#pName').value.trim(),
-      sku: Q('#pSku').value.trim(),
-      cost_china: +Q('#pCost').value || 0,
-      ship_china_to_kenya: +Q('#pShip').value || 0,
-      margin_budget: +Q('#pMB').value || 0
+/* ================================================================
+   PRODUCTS PAGE (list)
+   ================================================================ */
+function renderProductsPage() {
+  // Render country product stats first
+  renderCompactCountryStats();
+
+  // Add Advertising Overview section
+  renderAdvertisingOverview();
+
+  // add product
+  Q('#pAdd')?.addEventListener('click', async ()=>{
+    const p = {
+      name: Q('#pName')?.value.trim(),
+      sku:  Q('#pSku')?.value.trim(),
+      cost_china: +Q('#pCost')?.value||0,
+      ship_china_to_kenya: +Q('#pShip')?.value||0,
+      margin_budget: +Q('#pMB')?.value||0
     };
-    
-    if (!payload.name) return alert('Name required');
-    
-    try {
-      await api('/api/products', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      await preloadProducts();
-      fillGlobalSelects();
-      renderProductsTable();
-      alert('Product added');
-      
-      // Clear form
-      Q('#pName').value = '';
-      Q('#pSku').value = '';
-      Q('#pCost').value = '';
-      Q('#pShip').value = '';
-      Q('#pMB').value = '';
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
+    if (!p.name) return alert('Name required');
+    await api('/api/products',{method:'POST', body: JSON.stringify(p)});
+    await preload();
+    renderProductsTable();
+    renderCompactCountryStats();
+    renderAdvertisingOverview();
+    alert('Product added');
   });
-  
   renderProductsTable();
 }
 
+/* ---------- COMPACT COUNTRY STATS ---------- */
+function renderCompactCountryStats() {
+  const container = Q('#countryProductStats');
+  if (!container) return;
+
+  api('/api/adspend').then(adData => {
+    const adSpends = adData.adSpends || [];
+    const countryStats = {};
+    
+    state.countries.forEach(country => {
+      countryStats[country] = { active: 0, paused: 0, total: 0 };
+    });
+
+    state.products.forEach(product => {
+      state.countries.forEach(country => {
+        countryStats[country].total++;
+        if (product.status === 'active') {
+          countryStats[country].active++;
+        } else {
+          countryStats[country].paused++;
+        }
+      });
+    });
+
+    let html = '';
+    Object.keys(countryStats).sort().forEach(country => {
+      const stats = countryStats[country];
+      html += `
+        <div class="country-stat-card-compact">
+          <div class="country-name-compact">${country}</div>
+          <div class="stats-row-compact">
+            <div class="stat-item-compact active">
+              <div class="stat-label-compact">Active</div>
+              <div class="stat-value-compact">${stats.active}</div>
+            </div>
+            <div class="stat-item-compact paused">
+              <div class="stat-label-compact">Paused</div>
+              <div class="stat-value-compact">${stats.paused}</div>
+            </div>
+            <div class="stat-item-compact total">
+              <div class="stat-label-compact">Total</div>
+              <div class="stat-value-compact">${stats.total}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    
+    container.innerHTML = html;
+  }).catch(console.error);
+}
+
+function renderAdvertisingOverview() {
+  const container = Q('#advertisingOverview');
+  if (!container) return;
+
+  // Get ad spend data
+  api('/api/adspend').then(adData => {
+    const adSpends = adData.adSpends || [];
+    
+    // Group by country and product
+    const byCountry = {};
+    
+    adSpends.forEach(spend => {
+      const country = spend.country;
+      const productId = spend.productId;
+      const platform = spend.platform;
+      const amount = +spend.amount || 0;
+      
+      if (!byCountry[country]) {
+        byCountry[country] = {};
+      }
+      
+      if (!byCountry[country][productId]) {
+        byCountry[country][productId] = {
+          facebook: 0,
+          tiktok: 0,
+          google: 0,
+          total: 0
+        };
+      }
+      
+      if (platform === 'facebook') byCountry[country][productId].facebook += amount;
+      else if (platform === 'tiktok') byCountry[country][productId].tiktok += amount;
+      else if (platform === 'google') byCountry[country][productId].google += amount;
+      
+      byCountry[country][productId].total += amount;
+    });
+    
+    // Create HTML
+    let html = '';
+    
+    Object.keys(byCountry).sort().forEach(country => {
+      const products = byCountry[country];
+      
+      // Sort products by total spend (descending)
+      const sortedProducts = Object.entries(products)
+        .filter(([_, data]) => data.total > 0) // Only show products with spend
+        .sort((a, b) => b[1].total - a[1].total);
+      
+      if (sortedProducts.length === 0) return;
+      
+      html += `<div class="card country-section">
+        <div class="h" style="color: var(--primary); margin-bottom: 12px;">${country}</div>`;
+      
+      sortedProducts.forEach(([productId, data]) => {
+        const product = state.products.find(p => p.id === productId) || { name: productId };
+        html += `
+        <div class="product-row">
+          <div class="product-name">${product.name}</div>
+          <div class="platform-spends">
+            <span class="platform-badge ${data.facebook > 0 ? 'active' : ''}">Facebook: ${fmt(data.facebook)}</span>
+            <span class="platform-badge ${data.tiktok > 0 ? 'active' : ''}">TikTok: ${fmt(data.tiktok)}</span>
+            <span class="platform-badge ${data.google > 0 ? 'active' : ''}">Google: ${fmt(data.google)}</span>
+            <span class="total-badge">Total: ${fmt(data.total)}</span>
+          </div>
+        </div>`;
+      });
+      
+      html += `</div>`;
+    });
+    
+    container.innerHTML = html || '<div class="card"><div class="muted">No advertising data yet</div></div>';
+  }).catch(console.error);
+}
+
 function renderProductsTable() {
-  const tbody = Q('#productsTable');
-  tbody.innerHTML = state.products.map(p => `
+  const tb = Q('#productsTable tbody'); if (!tb) return;
+  tb.innerHTML = state.products.map(p=>`
     <tr>
       <td>${p.name}</td>
-      <td>${p.sku || '-'}</td>
-      <td><span class="badge ${p.status === 'paused' ? 'muted' : ''}">${p.status}</span></td>
-      <td>${fmt(p.cost_china)}</td>
-      <td>${fmt(p.ship_china_to_kenya)}</td>
+      <td>${p.sku||'-'}</td>
+      <td><span class="badge ${p.status==='paused'?'muted':''}">${p.status||'active'}</span></td>
       <td>
-        <a class="btn compact" href="/product.html?id=${p.id}">Open</a>
-        <button class="btn outline compact" data-pause="${p.id}">${p.status === 'active' ? 'Pause' : 'Run'}</button>
-        <button class="btn outline compact danger" data-del="${p.id}">Delete</button>
+        <a class="btn" href="/product.html?id=${p.id}">Open</a>
+        <button class="btn outline act-toggle" data-id="${p.id}">${p.status==='active'?'Pause':'Run'}</button>
+        <button class="btn outline act-del" data-id="${p.id}">Delete</button>
       </td>
     </tr>
-  `).join('') || '<tr><td colspan="6" class="muted">No products</td></tr>';
-  
-  tbody.addEventListener('click', async (e) => {
-    const pauseId = e.target.dataset.pause;
-    const delId = e.target.dataset.del;
-    
-    if (pauseId) {
-      const product = state.products.find(p => p.id === pauseId);
-      const newStatus = product.status === 'active' ? 'paused' : 'active';
-      await api(`/api/products/${pauseId}/status`, {
-        method: 'POST',
-        body: JSON.stringify({ status: newStatus })
-      });
-      await preloadProducts();
-      renderProductsTable();
-      fillGlobalSelects();
+  `).join('') || `<tr><td colspan="4" class="muted">No products</td></tr>`;
+
+  tb.onclick = async (e)=>{
+    const id = e.target.dataset?.id; if (!id) return;
+    if (e.target.classList.contains('act-toggle')) {
+      const p = state.products.find(x=>x.id===id); const ns = p.status==='active'?'paused':'active';
+      await api(`/api/products/${id}/status`,{method:'POST', body: JSON.stringify({status:ns})});
+      await preload(); renderProductsTable(); renderCompactCountryStats(); renderAdvertisingOverview();
     }
-    
-    if (delId) {
-      if (!confirm('Delete product and all related data?')) return;
-      await api('/api/products/' + delId, { method: 'DELETE' });
-      await preloadProducts();
-      renderProductsTable();
-      fillGlobalSelects();
-      renderStockAndSpendByCountry();
+    if (e.target.classList.contains('act-del')) {
+      if (!confirm('Delete product and ALL its data?')) return;
+      await api(`/api/products/${id}`,{method:'DELETE'}); // server will cascade
+      await preload(); renderProductsTable(); renderCompactCountryStats(); renderAdvertisingOverview(); renderCountryStockSpend(); renderCompactKpis();
     }
-  });
+  };
 }
 
-// ===================== PERFORMANCE =====================
-function initPerformance() {
-  // Top products
-  Q('#pfRun').addEventListener('click', async () => {
-    const quick = Q('#pfQuick').value;
-    let start = Q('#pfStart').value, end = Q('#pfEnd').value;
-    const country = Q('#pfCountry').value || '';
-    
-    if (quick && quick !== 'custom') {
-      const daysAgo = new Date();
-      daysAgo.setDate(daysAgo.getDate() - parseInt(quick));
-      start = daysAgo.toISOString().slice(0, 10);
-      end = todayISO();
-    }
-    
-    const qs = new URLSearchParams();
-    if (start) qs.append('start', start);
-    if (end) qs.append('end', end);
-    if (country) qs.append('country', country);
-    
-    try {
-      const r = await api('/api/remittances' + (qs.toString() ? '?' + qs.toString() : ''));
-      const list = (r.remittances || []).filter(x => x.country !== 'china');
-      const prodMap = Object.fromEntries(state.products.map(p => [p.id, p]));
-      const byProduct = {};
-      
-      list.forEach(x => {
-        const key = x.productId;
-        if (!byProduct[key]) {
-          byProduct[key] = {
-            name: prodMap[x.productId]?.name || x.productId,
-            country: x.country,
-            pieces: 0, adSpend: 0, productCost: 0, profit: 0
-          };
-        }
-        
-        const p = byProduct[key];
-        const pieces = +x.pieces || 0;
-        const baseCost = (+prodMap[x.productId]?.cost_china || 0) + (+prodMap[x.productId]?.ship_china_to_kenya || 0);
-        const extraCost = (+x.extraPerPiece || 0) * pieces;
-        const profit = (+x.revenue || 0) - (+x.adSpend || 0) - (baseCost * pieces) - extraCost;
-        
-        p.pieces += pieces;
-        p.adSpend += +x.adSpend || 0;
-        p.productCost += baseCost * pieces;
-        p.profit += profit;
-      });
-      
-      const sorted = Object.values(byProduct).sort((a, b) => b.pieces - a.pieces);
-      const rows = sorted.map(p => `
-        <tr>
-          <td>${p.name}</td>
-          <td>${p.country}</td>
-          <td>${fmt(p.pieces)}</td>
-          <td>${fmt(p.adSpend)}</td>
-          <td>${fmt(p.productCost)}</td>
-          <td>${fmt(p.profit)}</td>
-          <td>${p.pieces ? fmt(p.profit / p.pieces) : '0'}</td>
-        </tr>
-      `).join('');
-      
-      Q('#pfTable').innerHTML = rows || '<tr><td colspan="7" class="muted">No data</td></tr>';
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  });
-  
-  // Remittance report
-  Q('#rAdd').addEventListener('click', async () => {
-    const payload = {
-      start: Q('#rStart').value,
-      end: Q('#rEnd').value,
-      country: Q('#rCountry').value,
-      productId: Q('#rProduct').value,
-      orders: +Q('#rOrders').value || 0,
-      pieces: +Q('#rPieces').value || 0,
-      revenue: +Q('#rRev').value || 0,
-      adSpend: +Q('#rAds').value || 0,
-      extraPerPiece: +Q('#rExtra').value || 0
-    };
-    
-    if (!payload.start || !payload.end || !payload.country || !payload.productId) {
-      return alert('Missing required fields');
-    }
-    
-    try {
-      await api('/api/remittances', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      alert('Remittance saved');
-      
-      // Clear form
-      Q('#rStart').value = '';
-      Q('#rEnd').value = '';
-      Q('#rOrders').value = '';
-      Q('#rPieces').value = '';
-      Q('#rRev').value = '';
-      Q('#rAds').value = '';
-      Q('#rExtra').value = '';
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  });
-}
+/* ================================================================
+   PERFORMANCE PAGE
+   ================================================================ */
+function renderPerformancePage() {
+  // Remittance Report
+  renderRemittanceReport();
 
-// ===================== FINANCE =====================
-async function initFinance() {
-  await loadFinanceCategories();
-  
-  // Add category
-  Q('#fcAdd').addEventListener('click', async () => {
-    const type = Q('#fcType').value;
-    const name = Q('#fcName').value.trim();
-    
-    if (!name) return alert('Category name required');
-    
-    try {
-      await api('/api/finance/categories', {
-        method: 'POST',
-        body: JSON.stringify({ type, name })
-      });
-      await loadFinanceCategories();
-      Q('#fcName').value = '';
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  });
-  
-  // Add entry
-  Q('#feAdd').addEventListener('click', async () => {
-    const date = Q('#feDate').value;
-    const category = Q('#feCat').value;
-    const amount = +Q('#feAmt').value || 0;
-    const note = Q('#feNote').value;
-    
-    if (!date || !category) return alert('Date and category required');
-    
-    const type = state.categories.credit.includes(category) ? 'credit' : 'debit';
-    
-    try {
-      await api('/api/finance/entries', {
-        method: 'POST',
-        body: JSON.stringify({ date, type, category, amount, note })
-      });
-      renderFinancePeriod();
-      Q('#feAmt').value = '';
-      Q('#feNote').value = '';
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  });
-  
-  // Run period report
-  Q('#feRun').addEventListener('click', renderFinancePeriod);
-  
-  renderFinancePeriod();
-}
+  // Top delivered
+  Q('#pfRun')?.addEventListener('click', async ()=>{
+    const quick = Q('#pfQuick')?.value;
+    let start = Q('#pfStart')?.value, end = Q('#pfEnd')?.value;
+    if (quick && quick!=='custom') { const d=new Date(); d.setDate(d.getDate()-(+quick)); start=d.toISOString().slice(0,10); end=isoToday(); }
+    const c = Q('#pfCountry')?.value || '';
+    let rem = (await api('/api/remittances')).remittances || [];
+    if (start) rem = rem.filter(r=>r.start>=start);
+    if (end)   rem = rem.filter(r=>r.end<=end);
+    if (c)     rem = rem.filter(r=>r.country===c);
 
-async function loadFinanceCategories() {
-  try {
-    const cats = await api('/api/finance/categories');
-    state.categories = cats;
-    
-    // Update category displays
-    Q('#fcDebits').innerHTML = (cats.debit || []).map(c => `
-      <span class="chip">${c} <button class="x" data-del-debit="${c}">×</button></span>
-    `).join('') || '—';
-    
-    Q('#fcCredits').innerHTML = (cats.credit || []).map(c => `
-      <span class="chip">${c} <button class="x" data-del-credit="${c}">×</button></span>
-    `).join('') || '—';
-    
-    // Update category dropdown
-    const allCats = [...(cats.debit || []), ...(cats.credit || [])].sort();
-    Q('#feCat').innerHTML = '<option value="" disabled selected>Select category</option>' +
-      allCats.map(c => `<option value="${c}">${c}</option>`).join('');
-    
-    // Add delete handlers
-    const catsContainer = Q('.categories-grid');
-    catsContainer.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('x')) {
-        const category = e.target.parentElement.dataset.delDebit || e.target.parentElement.dataset.delCredit;
-        const type = e.target.parentElement.dataset.delDebit ? 'debit' : 'credit';
-        
-        if (confirm(`Delete category "${category}"?`)) {
-          await api(`/api/finance/categories?type=${type}&name=${encodeURIComponent(category)}`, {
-            method: 'DELETE'
-          });
-          await loadFinanceCategories();
-        }
-      }
+    const prodMap = Object.fromEntries(state.products.map(p=>[p.id,p]));
+    const by = {}; // product-country
+    rem.forEach(r=>{
+      const k = `${r.productId}|${r.country}`;
+      const prod = prodMap[r.productId]||{};
+      if (!by[k]) by[k]={ name: prod.name||r.productId, country:r.country, pieces:0, ad:0, prodCost:0, profit:0 };
+      const pcs = +r.pieces||0;
+      const base = (+prod.cost_china||0)+(+prod.ship_china_to_kenya||0);
+      const extra = (+r.extraPerPiece||0)*pcs;
+      by[k].pieces += pcs;
+      by[k].ad     += (+r.adSpend||0);
+      by[k].prodCost += base*pcs;
+      by[k].profit += (+r.revenue||0) - (+r.adSpend||0) - extra - base*pcs;
     });
-    
-  } catch (e) {
-    console.error('Error loading finance categories:', e);
-  }
-}
 
-async function renderFinancePeriod() {
-  try {
-    const start = Q('#fes').value;
-    const end = Q('#fee').value;
-    const qs = new URLSearchParams();
-    if (start) qs.append('start', start);
-    if (end) qs.append('end', end);
-    
-    const r = await api('/api/finance/entries' + (qs.toString() ? '?' + qs.toString() : ''));
-    const entries = r.entries || [];
-    
-    // Update running balance - BIG AND BOLD
-    Q('#feRunning').textContent = fmt(r.running || 0) + ' USD';
-    Q('#feBalance').textContent = 'Period Balance: ' + fmt(r.balance || 0) + ' USD';
-    
-    const rows = entries.map(entry => `
-      <tr>
-        <td>${entry.date}</td>
-        <td>${entry.type}</td>
-        <td>${entry.category}</td>
-        <td>${fmt(entry.amount)}</td>
-        <td>${entry.note || ''}</td>
-        <td><button class="btn outline compact" data-del-entry="${entry.id}">Delete</button></td>
-      </tr>
-    `).join('');
-    
-    Q('#feTable').innerHTML = rows || '<tr><td colspan="6" class="muted">No entries</td></tr>';
-    
-    // Add delete handlers for entries
-    Q('#feTable').addEventListener('click', async (e) => {
-      if (e.target.dataset.delEntry) {
-        if (confirm('Delete this entry?')) {
-          await api('/api/finance/entries/' + e.target.dataset.delEntry, { method: 'DELETE' });
-          renderFinancePeriod();
-        }
-      }
+    const tb = Q('#pfTable tbody');
+    tb.innerHTML = Object.values(by).sort((a,b)=>b.pieces-a.pieces).map(x =>
+      `<tr><td>${x.name}</td><td>${x.country}</td><td>${fmt(x.pieces)}</td><td>${fmt(x.ad)}</td><td>${fmt(x.prodCost)}</td><td>${fmt(x.profit)}</td><td>${x.pieces?fmt(x.profit/x.pieces):'0'}</td></tr>`
+    ).join('') || `<tr><td colspan="7" class="muted">No data</td></tr>`;
+  });
+
+  // Profit by Country
+  Q('#pcRun')?.addEventListener('click', async ()=>{
+    const s = Q('#pcStart')?.value, e = Q('#pcEnd')?.value, c = Q('#pcCountry')?.value || '';
+    let list = (await api('/api/remittances')).remittances || [];
+    if (s) list = list.filter(r=>r.start >= s);
+    if (e) list = list.filter(r=>r.end <= e);
+    if (c) list = list.filter(r=>r.country === c);
+
+    const byC = {};
+    list.forEach(r=>{
+      if (!byC[r.country]) byC[r.country] = {rev:0, ad:0, extra:0, pcs:0};
+      byC[r.country].rev += (+r.revenue||0);
+      byC[r.country].ad  += (+r.adSpend||0);
+      byC[r.country].extra += (+r.extraPerPiece||0)*(+r.pieces||0);
+      byC[r.country].pcs += (+r.pieces||0);
     });
-    
-  } catch (e) {
-    alert('Error: ' + e.message);
-  }
-}
 
-// ===================== SETTINGS =====================
-function initSettings() {
-  // Add country
-  Q('#ctyAdd').addEventListener('click', async () => {
-    const name = Q('#cty').value.trim();
-    if (!name) return;
-    
-    try {
-      await api('/api/countries', {
-        method: 'POST',
-        body: JSON.stringify({ name })
-      });
-      // Reload countries
-      const meta = await api('/api/meta');
-      state.countries = meta.countries || [];
-      fillGlobalSelects();
-      renderCountryChips();
-      Q('#cty').value = '';
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
+    const tb = Q('#profitCountryBody'); let R=0,A=0,E=0,P=0;
+    const rows = Object.entries(byC).map(([cc,v])=>{
+      const profit = v.rev - v.ad - v.extra;
+      R+=v.rev; A+=v.ad; E+=v.extra; P+=profit;
+      return `<tr><td>${cc}</td><td>${fmt(v.rev)}</td><td>${fmt(v.ad)}</td><td>${fmt(v.extra)}</td><td>${fmt(v.pcs)}</td><td>${fmt(profit)}</td></tr>`;
+    }).join('');
+    tb.innerHTML = rows || `<tr><td colspan="6" class="muted">No data</td></tr>`;
+    Q('#pcRevT').textContent = fmt(R);
+    Q('#pcAdT').textContent = fmt(A);
+    Q('#pcDelT').textContent = fmt(E);
+    Q('#pcPiecesT').textContent = fmt(Object.values(byC).reduce((t,v)=>t+v.pcs,0));
+    Q('#pcProfitT').textContent = fmt(P);
   });
-  
-  renderCountryChips();
-  
-  // Edit product
-  const epSelect = Q('#epSelect');
-  epSelect.addEventListener('change', () => {
-    const product = state.products.find(p => p.id === epSelect.value);
-    if (!product) return;
-    
-    Q('#epName').value = product.name;
-    Q('#epSku').value = product.sku || '';
-    Q('#epCost').value = product.cost_china || 0;
-    Q('#epShip').value = product.ship_china_to_kenya || 0;
-    Q('#epMB').value = product.margin_budget || 0;
-  });
-  
-  Q('#epSave').addEventListener('click', async () => {
-    const id = epSelect.value;
-    if (!id) return alert('Select a product');
-    
-    const payload = {
-      name: Q('#epName').value,
-      sku: Q('#epSku').value,
-      cost_china: +Q('#epCost').value || 0,
-      ship_china_to_kenya: +Q('#epShip').value || 0,
-      margin_budget: +Q('#epMB').value || 0
-    };
-    
-    try {
-      await api('/api/products/' + id, {
-        method: 'PUT',
-        body: JSON.stringify(payload)
-      });
-      await preloadProducts();
-      fillGlobalSelects();
-      alert('Product updated');
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  });
-  
-  // Snapshots
-  Q('#snapSave').addEventListener('click', async () => {
-    const name = Q('#snapName').value.trim() || `Manual ${new Date().toLocaleString()}`;
-    
-    try {
-      await api('/api/snapshots', {
-        method: 'POST',
-        body: JSON.stringify({ name })
-      });
-      renderSnapshots();
-      Q('#snapName').value = '';
-      alert('Snapshot saved');
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  });
-  
-  renderSnapshots();
-}
 
-function renderCountryChips() {
-  const salesCountries = state.countries.filter(c => c !== 'china');
-  const container = Q('#ctyList');
-  
-  container.innerHTML = salesCountries.map(c => `
-    <span class="chip">${c} <button class="x" data-del-cty="${c}">×</button></span>
-  `).join('') || '—';
-  
-  container.addEventListener('click', async (e) => {
-    if (e.target.classList.contains('x')) {
-      const country = e.target.parentElement.dataset.delCty;
-      if (confirm(`Delete country "${country}"?`)) {
-        try {
-          await api('/api/countries/' + encodeURIComponent(country), { method: 'DELETE' });
-          // Reload countries
-          const meta = await api('/api/meta');
-          state.countries = meta.countries || [];
-          fillGlobalSelects();
-          renderCountryChips();
-        } catch (error) {
-          alert('Error: ' + error.message);
-        }
-      }
-    }
-  });
-}
+  // Global Lifetime Product Performance
+  Q('#lpRun')?.addEventListener('click', async ()=>{
+    const pid = Q('#lpProduct')?.value || '';
+    const s   = Q('#lpStart')?.value;
+    const e   = Q('#lpEnd')?.value;
 
-async function renderSnapshots() {
-  try {
-    const r = await api('/api/snapshots');
-    const snapshots = r.snapshots || [];
-    const tbody = Q('#snapList');
+    let rem = (await api('/api/remittances')).remittances || [];
+    const infSpends = (await api('/api/influencers/spend')).spends || [];
     
-    tbody.innerHTML = snapshots.map(snap => `
-      <tr>
-        <td>${snap.name}</td>
-        <td>${new Date(snap.createdAt).toLocaleDateString()}</td>
-        <td>
-          <button class="btn outline compact" data-restore="${snap.file}">Restore</button>
-          <button class="btn outline compact danger" data-del-snap="${snap.id}">Delete</button>
-        </td>
-      </tr>
-    `).join('') || '<tr><td colspan="3" class="muted">No snapshots</td></tr>';
-    
-    tbody.addEventListener('click', async (e) => {
-      if (e.target.dataset.restore) {
-        if (confirm('Restore this snapshot? Current data will be replaced.')) {
-          try {
-            await api('/api/snapshots/restore', {
-              method: 'POST',
-              body: JSON.stringify({ file: e.target.dataset.restore })
-            });
-            alert('System restored - reloading...');
-            location.reload();
-          } catch (error) {
-            alert('Error: ' + error.message);
-          }
-        }
-      }
+    if (pid) {
+      rem = rem.filter(r=>r.productId===pid);
+      // Filter influencer spends by product and date range
+      const filteredInfSpends = infSpends.filter(inf => 
+        inf.productId === pid && 
+        (!s || inf.date >= s) && 
+        (!e || inf.date <= e)
+      );
       
-      if (e.target.dataset.delSnap) {
-        if (confirm('Delete this snapshot?')) {
-          await api('/api/snapshots/' + e.target.dataset.delSnap, { method: 'DELETE' });
-          renderSnapshots();
+      // Add influencer spends to ad spend
+      filteredInfSpends.forEach(inf => {
+        const matchingRem = rem.find(r => r.country === inf.country && r.start >= s && r.end <= e);
+        if (matchingRem) {
+          matchingRem.adSpend = (+matchingRem.adSpend || 0) + (+inf.amount || 0);
         }
-      }
+      });
+    }
+    if (s) rem = rem.filter(r=>r.start >= s);
+    if (e) rem = rem.filter(r=>r.end   <= e);
+
+    const prodMap = Object.fromEntries(state.products.map(p=>[p.id,p]));
+    const byPKC = {}; // product-country buckets
+    rem.forEach(r=>{
+      const k = `${r.productId}|${r.country}`;
+      const prod = prodMap[r.productId]||{};
+      const basePerPc = (+prod.cost_china||0) + (+prod.ship_china_to_kenya||0);
+      const pcs = +r.pieces||0;
+      const extra = (+r.extraPerPiece||0)*pcs;
+
+      if (!byPKC[k]) byPKC[k]={ name:prod.name||r.productId, country:r.country, rev:0, ad:0, ship:0, base:0, pcs:0, profit:0 };
+      byPKC[k].rev += (+r.revenue||0);
+      byPKC[k].ad  += (+r.adSpend||0);
+      byPKC[k].ship+= extra;
+      byPKC[k].base+= basePerPc*pcs;
+      byPKC[k].pcs += pcs;
     });
-    
-  } catch (e) {
-    alert('Error: ' + e.message);
-  }
+    Object.values(byPKC).forEach(v => v.profit = v.rev - v.ad - v.ship - v.base);
+
+    const tb = Q('#lifetimeBody'); let R=0,A=0,S=0,B=0,P=0,PCS=0;
+    const rows = Object.values(byPKC).map(v=>{
+      R+=v.rev; A+=v.ad; S+=v.ship; B+=v.base; P+=v.profit; PCS+=v.pcs;
+      return `<tr><td>${v.name}</td><td>${v.country}</td><td>${fmt(v.rev)}</td><td>${fmt(v.ad)}</td><td>${fmt(v.ship)}</td><td>${fmt(v.base)}</td><td>${fmt(v.pcs)}</td><td>${fmt(v.profit)}</td></tr>`;
+    }).join('');
+    tb.innerHTML = rows || `<tr><td colspan="8" class="muted">No data</td></tr>`;
+    Q('#ltRevT').textContent=fmt(R); Q('#ltAdT').textContent=fmt(A);
+    Q('#ltShipT').textContent=fmt(S); Q('#ltBaseT').textContent=fmt(B);
+    Q('#ltPiecesT').textContent=fmt(PCS); Q('#ltProfitT').textContent=fmt(P);
+  });
 }
 
-// ===================== PRODUCT PAGE =====================
-async function loadProduct(id) {
-  await preloadProducts();
-  state.product = state.products.find(p => p.id === id) || null;
-}
-
-function renderProductPage() {
-  if (!state.product) {
-    alert('Product not found');
-    location.href = '/';
-    return;
-  }
+/* ================================================================
+   REMITTANCE REPORT
+   ================================================================ */
+function renderRemittanceReport() {
+  const btn = Q('#remRun');
+  if (!btn) return;
   
-  Q('#pdTitle').textContent = state.product.name;
-  Q('#pdTitleMain').textContent = state.product.name;
-  Q('#pdSku').textContent = state.product.sku ? `SKU: ${state.product.sku}` : '';
-  
-  fillGlobalSelects();
-  bindProductHandlers();
-  refreshProductSections();
-}
-
-function bindProductHandlers() {
-  // Profit budget
-  Q('#pdPBSave').addEventListener('click', async () => {
-    const country = Q('#pdPBCountry').value;
-    const value = +Q('#pdPBValue').value || 0;
+  btn.onclick = async () => {
+    const start = Q('#remStart')?.value;
+    const end = Q('#remEnd')?.value;
+    const country = Q('#remCountry')?.value || '';
+    const productId = Q('#remProduct')?.value || '';
     
-    const budgets = { ...state.product.budgets };
-    budgets[country] = value;
+    let rem = (await api('/api/remittances')).remittances || [];
     
-    try {
-      await api('/api/products/' + state.product.id, {
-        method: 'PUT',
-        body: JSON.stringify({ budgets })
-      });
-      await loadProduct(state.product.id);
-      renderPBTable();
-      Q('#pdPBValue').value = '';
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  });
-  
-  // Lifetime performance
-  Q('#pdLPRun').addEventListener('click', () => {
-    renderProductLifetime();
-  });
-  
-  // Add influencer
-  Q('#pdInfAdd').addEventListener('click', async () => {
-    const payload = {
-      name: Q('#pdInfName').value.trim(),
-      social: Q('#pdInfSocial').value.trim(),
-      country: Q('#pdInfCountry').value
-    };
+    if (start) rem = rem.filter(r => r.start >= start);
+    if (end) rem = rem.filter(r => r.end <= end);
+    if (country) rem = rem.filter(r => r.country === country);
+    if (productId) rem = rem.filter(r => r.productId === productId);
     
-    if (!payload.name) return alert('Name required');
+    const prodMap = Object.fromEntries(state.products.map(p => [p.id, p]));
+    let totalOrders = 0, totalPieces = 0, totalRevenue = 0, totalAdSpend = 0, totalProfit = 0;
     
-    try {
-      await api('/api/influencers', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      renderInfluencers();
-      Q('#pdInfName').value = '';
-      Q('#pdInfSocial').value = '';
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  });
-  
-  // Add influencer spend - NOW INCLUDED IN LIFETIME AD SPEND
-  Q('#pdInfSpendAdd').addEventListener('click', async () => {
-    const payload = {
-      date: Q('#pdInfDate').value || todayISO(),
-      influencerId: Q('#pdInfSelect').value,
-      country: Q('#pdInfCountry').value,
-      productId: state.product.id,
-      amount: +Q('#pdInfAmount').value || 0
-    };
-    
-    if (!payload.influencerId) return alert('Select influencer');
-    
-    try {
-      await api('/api/influencers/spend', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+    const tb = Q('#remittanceBody');
+    tb.innerHTML = rem.map(r => {
+      const product = prodMap[r.productId] || {};
+      const baseCost = (+product.cost_china || 0) + (+product.ship_china_to_kenya || 0);
+      const profit = (+r.revenue || 0) - (+r.adSpend || 0) - ((+r.extraPerPiece || 0) * (+r.pieces || 0)) - (baseCost * (+r.pieces || 0));
       
-      // Also add to adspend for lifetime tracking
-      await api('/api/adspend', {
-        method: 'POST',
-        body: JSON.stringify({
-          productId: state.product.id,
-          country: payload.country,
-          platform: 'influencer',
-          amount: payload.amount
-        })
-      });
-      
-      renderInfluencers();
-      refreshProductSections();
-      Q('#pdInfAmount').value = '';
-      alert('Influencer spend recorded and added to lifetime ad spend');
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  });
-  
-  // Filter influencer spends
-  Q('#pdInfRun').addEventListener('click', () => {
-    renderInfluencers();
-  });
-}
-
-async function refreshProductSections() {
-  await loadProduct(state.product.id);
-  renderProductStockAd();
-  renderPBTable();
-  renderProductRemittances();
-  renderProductTransit();
-  renderProductArrived();
-  renderProductLifetime();
-  renderInfluencers();
-}
-
-async function renderProductStockAd() {
-  const body = Q('#pdStockBody');
-  const salesCountries = state.countries.filter(c => c !== 'china');
-  const per = {};
-  salesCountries.forEach(c => per[c] = { stock: 0, ad: 0 });
-
-  try {
-    const s = await api('/api/shipments');
-    (s.shipments || []).filter(x => x.productId === state.product.id && x.arrivedAt).forEach(sp => {
-      const to = sp.toCountry, from = sp.fromCountry, qty = +sp.qty || 0;
-      if (to && to !== 'china') { 
-        per[to] = per[to] || { stock: 0, ad: 0 }; 
-        per[to].stock += qty; 
-      }
-      if (from && from !== 'china') { 
-        per[from] = per[from] || { stock: 0, ad: 0 }; 
-        per[from].stock -= qty; 
-      }
-    });
-  } catch {}
-
-  try {
-    const r = await api('/api/remittances');
-    (r.remittances || []).filter(x => x.productId === state.product.id && x.country !== 'china').forEach(rr => {
-      per[rr.country] = per[rr.country] || { stock: 0, ad: 0 };
-      per[rr.country].stock -= (+rr.pieces || 0);
-    });
-  } catch {}
-
-  try {
-    const a = await api('/api/adspend');
-    (a.adSpends || []).filter(x => x.productId === state.product.id && x.country !== 'china').forEach(ad => {
-      per[ad.country] = per[ad.country] || { stock: 0, ad: 0 };
-      per[ad.country].ad += (+ad.amount || 0);
-    });
-  } catch {}
-
-  let st = 0, ad = 0;
-  const rows = Object.entries(per).map(([c, v]) => {
-    st += v.stock; ad += v.ad;
-    return `<tr><td>${c}</td><td>${fmt(v.stock)}</td><td>${fmt(v.ad)}</td></tr>`;
-  }).join('');
-  
-  body.innerHTML = rows || '<tr><td colspan="3" class="muted">No data</td></tr>';
-  Q('#pdStockTotal').textContent = fmt(st);
-  Q('#pdAdTotal').textContent = fmt(ad);
-
-  // Update transit badge
-  const transit = (await api('/api/shipments')).shipments
-    .filter(x => x.productId === state.product.id && !x.arrivedAt)
-    .reduce((t, x) => t + (+x.qty || 0), 0);
-    
-  Q('#pdTransitBadge').textContent = `Transit: ${fmt(transit)}`;
-}
-
-function renderPBTable() {
-  const tbody = Q('#pdPBBBody');
-  const map = state.product.budgets || {};
-  const salesCountries = state.countries.filter(c => c !== 'china');
-  
-  tbody.innerHTML = salesCountries.map(c => `
-    <tr>
-      <td>${c}</td>
-      <td>${fmt(map[c] || 0)}</td>
-      <td><button class="btn outline compact" data-clear-b="${c}">Clear</button></td>
-    </tr>
-  `).join('');
-  
-  tbody.addEventListener('click', async (e) => {
-    const country = e.target.dataset.clearB;
-    if (!country) return;
-    
-    const budgets = { ...state.product.budgets };
-    delete budgets[country];
-    
-    try {
-      await api('/api/products/' + state.product.id, {
-        method: 'PUT',
-        body: JSON.stringify({ budgets })
-      });
-      await loadProduct(state.product.id);
-      renderPBTable();
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  });
-}
-
-async function renderProductRemittances() {
-  try {
-    const r = await api('/api/remittances');
-    const list = (r.remittances || []).filter(x => x.productId === state.product.id && x.country !== 'china');
-    const tbody = Q('#pdRBody');
-    
-    let totalRev = 0, totalAd = 0, totalExtra = 0, totalProfit = 0;
-    const rows = list.map(x => {
-      const extra = (+x.extraPerPiece || 0) * (+x.pieces || 0);
-      const profit = (+x.revenue || 0) - (+x.adSpend || 0) - extra;
-      totalRev += +x.revenue || 0;
-      totalAd += +x.adSpend || 0;
-      totalExtra += extra;
+      totalOrders += (+r.orders || 0);
+      totalPieces += (+r.pieces || 0);
+      totalRevenue += (+r.revenue || 0);
+      totalAdSpend += (+r.adSpend || 0);
       totalProfit += profit;
       
       return `<tr>
-        <td>${x.start} → ${x.end}</td>
-        <td>${x.country}</td>
-        <td>${fmt(x.orders)}</td>
-        <td>${fmt(x.pieces)}</td>
-        <td>${fmt(x.revenue)}</td>
-        <td>${fmt(x.adSpend)}</td>
-        <td>${fmt(x.extraPerPiece)}</td>
-        <td>${fmt(profit)}</td>
-        <td><button class="btn outline compact danger" data-del-rem="${x.id}">Delete</button></td>
+        <td>${r.start} - ${r.end}</td>
+        <td>${product.name || r.productId}</td>
+        <td>${r.country}</td>
+        <td>${fmt(r.orders)}</td>
+        <td>${fmt(r.pieces)}</td>
+        <td>${fmt(r.revenue)}</td>
+        <td>${fmt(r.adSpend)}</td>
+        <td class="${profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(profit)}</td>
       </tr>`;
-    }).join('');
+    }).join('') || `<tr><td colspan="8" class="muted">No remittance data</td></tr>`;
     
-    tbody.innerHTML = rows || '<tr><td colspan="9" class="muted">No entries</td></tr>';
-    Q('#pdRRevT').textContent = fmt(totalRev);
-    Q('#pdRAdT').textContent = fmt(totalAd);
-    Q('#pdRExtraT').textContent = fmt(totalExtra);
-    Q('#pdRProfitT').textContent = fmt(totalProfit);
-    
-    // Add delete handlers
-    tbody.addEventListener('click', async (e) => {
-      if (e.target.dataset.delRem) {
-        if (confirm('Delete this remittance?')) {
-          await api('/api/remittances/' + e.target.dataset.delRem, { method: 'DELETE' });
-          renderProductRemittances();
-          renderProductLifetime();
-          renderProductStockAd();
-        }
-      }
-    });
-    
-  } catch (e) {
-    console.error('Error rendering product remittances:', e);
-  }
+    Q('#remOrdersT').textContent = fmt(totalOrders);
+    Q('#remPiecesT').textContent = fmt(totalPieces);
+    Q('#remRevenueT').textContent = fmt(totalRevenue);
+    Q('#remAdSpendT').textContent = fmt(totalAdSpend);
+    Q('#remProfitT').textContent = fmt(totalProfit);
+  };
 }
 
-// ... Additional product page rendering functions would continue here
+/* ================================================================
+   STOCK MOVEMENT PAGE
+   ================================================================ */
+function renderStockMovementPage() {
+  // Stock Movement (create shipment)
+  const btn = Q('#mvAdd'); if (!btn) return;
+  btn.onclick = async ()=>{
+    const payload = {
+      productId: Q('#mvProduct')?.value,
+      fromCountry: Q('#mvFrom')?.value,
+      toCountry: Q('#mvTo')?.value,
+      qty: +Q('#mvQty')?.value || 0,
+      shipCost: +Q('#mvShip')?.value || 0,
+      note: Q('#mvNote')?.value || '',
+      departedAt: isoToday(),
+      arrivedAt: null
+    };
+    if (!payload.productId || !payload.fromCountry || !payload.toCountry) return alert('Missing fields');
+    try{
+      await api('/api/shipments',{method:'POST', body: JSON.stringify(payload)});
+      await renderTransitTables();
+      alert('Shipment created');
+    } catch(e){ alert(e.message); }
+  };
 
-// ===================== NAVIGATION =====================
-function initNav() {
-  QA('.nav-link[data-view]').forEach(a => {
-    a.addEventListener('click', (e) => {
-      e.preventDefault();
-      const view = a.dataset.view;
-      
-      // Hide all sections
-      QA('.page-section').forEach(section => section.classList.add('hide'));
-      
-      // Show selected section
-      Q(`#${view}`).classList.remove('hide');
-      
-      // Update active nav
-      QA('.nav-link').forEach(nav => nav.classList.remove('active'));
-      a.classList.add('active');
-      
-      // Refresh dashboard if needed
-      if (view === 'home') {
-        renderKpis();
-        renderStockAndSpendByCountry();
-        renderTransitTables();
-      }
+  // Transit tables (CK + IC)
+  renderTransitTables();
+}
+
+async function renderTransitTables() {
+  const tbl1 = Q('#shipCKBody'), tbl2 = Q('#shipICBody');
+  if (!tbl1 && !tbl2) return;
+  const s = await api('/api/shipments');
+  const live = (s.shipments||[]).filter(x=>!x.arrivedAt);
+  const prodMap = Object.fromEntries(state.products.map(p=>[p.id,p.name]));
+
+  const row = sp => {
+    const days = sp.arrivedAt ? Math.round((+new Date(sp.arrivedAt)-(+new Date(sp.departedAt)))/86400000) : '';
+    return `<tr>
+      <td>${sp.id}</td>
+      <td>${prodMap[sp.productId]||sp.productId}</td>
+      <td>${sp.fromCountry||sp.from} → ${sp.toCountry||sp.to}</td>
+      <td>${fmt(sp.qty)}</td>
+      <td>${fmt(sp.shipCost)}</td>
+      <td>${sp.departedAt||''}</td>
+      <td>${sp.arrivedAt||''}</td>
+      <td>${days}</td>
+      <td>${sp.note||''}</td>
+      <td>
+        <button class="btn outline act-arr" data-id="${sp.id}">Arrived</button>
+        <button class="btn outline act-edit" data-id="${sp.id}">Edit</button>
+        <button class="btn outline act-del" data-id="${sp.id}">Delete</button>
+      </td>
+    </tr>`;
+  };
+
+  const ck = live.filter(sp => (sp.fromCountry||sp.from||'').toLowerCase()==='china' && (sp.toCountry||sp.to||'').toLowerCase()==='kenya');
+  const ic = live.filter(sp => !ck.includes(sp));
+
+  if (tbl1) tbl1.innerHTML = ck.map(row).join('') || `<tr><td colspan="10" class="muted">No transit</td></tr>`;
+  if (tbl2) tbl2.innerHTML = ic.map(row).join('') || `<tr><td colspan="10" class="muted">No transit</td></tr>`;
+
+  const host = Q('#stockMovement') || document;
+  host.addEventListener('click', async (e)=>{
+    const id = e.target.dataset?.id;
+    if (!id) return;
+
+    if (e.target.classList.contains('act-arr')) {
+      const date = prompt('Arrival date (YYYY-MM-DD)', isoToday());
+      if (!date) return;
+      try { await api(`/api/shipments/${id}`, { method:'PUT', body: JSON.stringify({ arrivedAt: date })}); }
+      catch(err){ return alert(err.message); }
+      await renderTransitTables();
+      await renderCountryStockSpend();
+    }
+
+    if (e.target.classList.contains('act-edit')) {
+      const qty = +prompt('New qty?', '0') || 0;
+      const shipCost = +prompt('New shipping cost?', '0') || 0;
+      const note = prompt('Note?', '') || '';
+      try { await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({ qty, shipCost, note })}); }
+      catch(err){ return alert(err.message); }
+      await renderTransitTables();
+    }
+
+    if (e.target.classList.contains('act-del')) {
+      if (!confirm('Delete shipment?')) return;
+      try { await api(`/api/shipments/${id}`,{method:'DELETE'}); }
+      catch(err){ return alert(err.message); }
+      await renderTransitTables();
+    }
+  }, { once:true });
+}
+
+/* ================================================================
+   FINANCE PAGE
+   ================================================================ */
+function renderFinancePage() {
+  refreshFinanceCategories();
+  Q('#fcAdd')?.addEventListener('click', async ()=>{
+    const type = Q('#fcType')?.value, name = Q('#fcName')?.value.trim();
+    if (!name) return;
+    await api('/api/finance/categories',{method:'POST', body: JSON.stringify({type,name})});
+    Q('#fcName').value=''; await refreshFinanceCategories();
+  });
+
+  // delete category chips (delegation)
+  Q('#finance')?.addEventListener('click', async (e)=>{
+    if (e.target.classList.contains('chip-x')) {
+      const type = e.target.dataset.type, name = e.target.dataset.name;
+      if (!confirm(`Delete category "${name}"?`)) return;
+      await api(`/api/finance/categories?type=${encodeURIComponent(type)}&name=${encodeURIComponent(name)}`,{method:'DELETE'});
+      await refreshFinanceCategories();
+    }
+  });
+
+  // entries add with date range
+  Q('#feAdd')?.addEventListener('click', async ()=>{
+    const startDate = Q('#feStartDate')?.value, 
+          endDate = Q('#feEndDate')?.value, 
+          cat = Q('#feCat')?.value, 
+          amt = +Q('#feAmt')?.value||0, 
+          note = Q('#feNote')?.value||'';
+    
+    if (!startDate||!endDate||!cat) return alert('Pick date range & category');
+    if (new Date(startDate) > new Date(endDate)) return alert('Start date must be before end date');
+    
+    const type = state.categories.credit.includes(cat) ? 'credit':'debit';
+    await api('/api/finance/entries',{method:'POST', body: JSON.stringify({startDate, endDate, type, category:cat, amount:amt, note})});
+    Q('#feAmt').value=''; Q('#feNote').value='';
+    await runFinancePeriod();
+  });
+
+  // Category search
+  Q('#fcSearchRun')?.addEventListener('click', runFinanceCategorySearch);
+
+  Q('#feRun')?.addEventListener('click', runFinancePeriod);
+  runFinancePeriod();
+}
+
+async function refreshFinanceCategories() {
+  const cats = await api('/api/finance/categories');
+  state.categories = cats;
+  const mk = (arr, type) => arr.map(c=>`<span class="chip">${c}<button class="chip-x" data-type="${type}" data-name="${c}">×</button></span>`).join('') || '—';
+  Q('#fcDebits') && (Q('#fcDebits').innerHTML = mk(cats.debit,'debit'));
+  Q('#fcCredits') && (Q('#fcCredits').innerHTML = mk(cats.credit,'credit'));
+
+  // refresh entries select
+  const all = [...cats.debit, ...cats.credit].sort();
+  Q('#feCat') && (Q('#feCat').innerHTML = `<option value="" disabled selected>Select category</option>` + all.map(c=>`<option>${c}</option>`).join(''));
+  
+  // refresh category search select
+  Q('#fcSearchCat') && (Q('#fcSearchCat').innerHTML = `<option value="">All categories</option>` + all.map(c=>`<option>${c}</option>`).join(''));
+}
+
+async function runFinancePeriod() {
+  const s = Q('#fes')?.value, e = Q('#fee')?.value;
+  const r = await api('/api/finance/entries' + ((s||e)?`?start=${s||''}&end=${e||''}`:''));
+  Q('#runBalance') && (Q('#runBalance').textContent = fmt(r.running||0)+' USD');
+  Q('#feBalance') && (Q('#feBalance').textContent = 'Period Balance: ' + fmt(r.balance||0) + ' USD');
+  const tb = Q('#feTable tbody');
+  tb && (tb.innerHTML = (r.entries||[]).map(x=>`
+    <tr>
+      <td>${x.date}</td>
+      <td>${x.type}</td>
+      <td>${x.category}</td>
+      <td>${fmt(x.amount)}</td>
+      <td>${x.note||''}</td>
+      <td>${x.periodStart && x.periodEnd ? `${x.periodStart} - ${x.periodEnd}` : 'Single day'}</td>
+      <td><button class="btn outline fe-del" data-id="${x.id}">Delete</button></td>
+    </tr>
+  `).join('') || `<tr><td colspan="7" class="muted">No entries</td></tr>`);
+  tb?.addEventListener('click', async (e)=>{
+    if (e.target.classList.contains('fe-del')) {
+      await api(`/api/finance/entries/${e.target.dataset.id}`,{method:'DELETE'});
+      await runFinancePeriod();
+    }
+  }, { once:true });
+}
+
+async function runFinanceCategorySearch() {
+  const s = Q('#fcSearchStart')?.value, 
+        e = Q('#fcSearchEnd')?.value, 
+        cat = Q('#fcSearchCat')?.value,
+        type = Q('#fcSearchType')?.value;
+  
+  if (!s || !e) return alert('Select date range');
+  
+  const r = await api(`/api/finance/entries?start=${s}&end=${e}` + (cat ? `&category=${cat}` : '') + (type ? `&type=${type}` : ''));
+  
+  Q('#fcSearchResult').textContent = `Total: ${fmt(r.categoryTotal || 0)} USD`;
+  Q('#fcSearchCount').textContent = `Entries: ${r.entries?.length || 0}`;
+}
+
+/* ================================================================
+   SETTINGS PAGE
+   ================================================================ */
+function renderSettingsPage() {
+  // countries add/delete
+  Q('#ctyAdd')?.addEventListener('click', async ()=>{
+    const name = Q('#cty')?.value.trim(); if (!name) return;
+    await api('/api/countries',{method:'POST', body: JSON.stringify({name})});
+    await preload(); renderCountryChips();
+  });
+  renderCountryChips();
+  Q('#ctyList')?.addEventListener('click', async (e)=>{
+    if (e.target.classList.contains('chip-x')) {
+      const name = e.target.dataset.name;
+      if (!confirm(`Delete country "${name}"?`)) return;
+      await api(`/api/countries/${encodeURIComponent(name)}`,{method:'DELETE'});
+      await preload(); renderCountryChips(); fillCommonSelects();
+    }
+  });
+
+  // edit product info
+  const sel = Q('#epSelect');
+  if (sel) {
+    sel.innerHTML = `<option value="">Select product…</option>`+
+      state.products.map(p=>`<option value="${p.id}">${p.name}${p.sku?` (${p.sku})`:''}</option>`).join('');
+    sel.onchange = ()=>{
+      const p = state.products.find(x=>x.id===sel.value);
+      if (!p) return;
+      Q('#epName').value = p.name||''; Q('#epSku').value = p.sku||'';
+      Q('#epCost').value = p.cost_china||0; Q('#epShip').value = p.ship_china_to_kenya||0;
+      Q('#epMB').value = p.margin_budget||0;
+    };
+    Q('#epSave')?.addEventListener('click', async ()=>{
+      const id = sel.value; if (!id) return alert('Pick a product');
+      const up = {
+        name: Q('#epName').value, sku: Q('#epSku').value,
+        cost_china:+Q('#epCost').value||0, ship_china_to_kenya:+Q('#epShip').value||0,
+        margin_budget:+Q('#epMB').value||0
+      };
+      await api(`/api/products/${id}`,{method:'PUT', body: JSON.stringify(up)});
+      await preload(); alert('Saved');
     });
+  }
+
+  // manual save/restore (never auto-delete on push)
+  const listBox = Q('#snapList');
+  async function refreshSnaps() {
+    const r = await api('/api/snapshots');
+    listBox.innerHTML = (r.snapshots||[]).map(s=>`
+      <tr>
+        <td>${s.name}</td><td>${s.file.replace(/^.*data\\?\\/,'')}</td>
+        <td>
+          <button class="btn outline ss-push" data-file="${s.file}">Push</button>
+          <button class="btn outline ss-del" data-id="${s.id}">Delete</button>
+        </td>
+      </tr>`).join('') || `<tr><td colspan="3" class="muted">No snapshots</td></tr>`;
+  }
+  refreshSnaps();
+
+  Q('#snapSave')?.addEventListener('click', async ()=>{
+    const name = Q('#snapName')?.value.trim() || ('Manual '+new Date().toLocaleString());
+    await api('/api/snapshots',{method:'POST', body: JSON.stringify({name})});
+    Q('#snapName').value='';
+    await refreshSnaps();
+  });
+
+  listBox?.addEventListener('click', async (e)=>{
+    if (e.target.classList.contains('ss-push')) {
+      await api('/api/snapshots/restore',{method:'POST', body: JSON.stringify({file:e.target.dataset.file})});
+      alert('Pushed snapshot to system. (Snapshot kept)');
+      location.reload();
+    }
+    if (e.target.classList.contains('ss-del')) {
+      if (!confirm('Delete this snapshot?')) return;
+      await api(`/api/snapshots/${e.target.dataset.id}`,{method:'DELETE'});
+      await refreshSnaps();
+    }
   });
 }
 
-// ===================== INITIALIZATION =====================
-async function initializeApp() {
-  try {
-    // Load initial data
-    const meta = await api('/api/meta');
-    state.countries = meta.countries || [];
+function renderCountryChips() {
+  const box = Q('#ctyList'); if (!box) return;
+  box.innerHTML = state.countries.map(c=>`<span class="chip">${c}<button class="chip-x" data-name="${c}">×</button></span>`).join('') || '—';
+}
+
+/* ================================================================
+   PRODUCT PAGE (product.html?id=...)
+   ================================================================ */
+async function renderProductPage() {
+  await preload();
+  const product = state.products.find(p=>p.id===state.productId);
+  if (!product) { alert('Product not found'); location.href='/'; return; }
+  Q('#pdTitle').textContent = product.name;
+  Q('#pdSku').textContent = product.sku ? `SKU: ${product.sku}` : '';
+
+  // Stock & Ad Spend by Country (this product only)
+  await renderProductStockAd(product);
+  // Profit + Budget per country (manual budgets)
+  renderProductBudgets(product);
+  // Transit tables
+  await renderProductTransit(product);
+  // Arrived shipments section
+  await renderProductArrivedShipments(product);
+  // Lifetime (this product) with filter
+  bindProductLifetime(product);
+  // Remittances for this product
+  await renderProductRemittances(product);
+  // Influencers
+  await bindInfluencers(product);
+}
+
+async function renderProductStockAd(product) {
+  const tb = Q('#pdStockBody'); if (!tb) return;
+  const per = {}; 
+  state.countries.forEach(c=> {
+    per[c] = { 
+      stock: 0, 
+      facebook: 0, 
+      tiktok: 0, 
+      google: 0, 
+      totalAd: 0 
+    };
+  });
+
+  const s = await api('/api/shipments');
+  (s.shipments||[]).filter(x=>x.productId===product.id && x.arrivedAt).forEach(sp=>{
+    const to = sp.toCountry||sp.to, from = sp.fromCountry||sp.from, q=(+sp.qty||0);
+    if (to && state.countries.includes(to)) {
+      per[to]=per[to]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0}; per[to].stock += q;
+    }
+    if (from && state.countries.includes(from)) {
+      per[from]=per[from]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0}; per[from].stock -= q;
+    }
+  });
+
+  const r = await api('/api/remittances');
+  (r.remittances||[]).filter(x=>x.productId===product.id).forEach(rr=>{
+    if (state.countries.includes(rr.country)) {
+      per[rr.country]=per[rr.country]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0};
+      per[rr.country].stock -= (+rr.pieces||0);
+    }
+  });
+
+  const a = await api('/api/adspend');
+  (a.adSpends||[]).filter(x=>x.productId===product.id).forEach(sp=>{
+    if (state.countries.includes(sp.country)) {
+      per[sp.country]=per[sp.country]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0};
+      const amount = +sp.amount||0;
+      if (sp.platform === 'facebook') per[sp.country].facebook += amount;
+      else if (sp.platform === 'tiktok') per[sp.country].tiktok += amount;
+      else if (sp.platform === 'google') per[sp.country].google += amount;
+      per[sp.country].totalAd += amount;
+    }
+  });
+
+  let st=0, fb=0, tt=0, gg=0, totalAd=0;
+  tb.innerHTML = Object.entries(per).map(([c,v])=>{
+    st+=v.stock; fb+=v.facebook; tt+=v.tiktok; gg+=v.google; totalAd+=v.totalAd;
     
-    // Start the application
-    await gate();
-  } catch (error) {
-    console.log('Application started - login required');
+    return `<tr>
+      <td>${c}</td>
+      <td>${fmt(v.stock)}</td>
+      <td>${fmt(v.facebook)}</td>
+      <td>${fmt(v.tiktok)}</td>
+      <td>${fmt(v.google)}</td>
+      <td>${fmt(v.totalAd)}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="6" class="muted">No data</td></tr>`;
+  
+  Q('#pdStockTotal').textContent = fmt(st);
+  Q('#pdFbTotal').textContent = fmt(fb);
+  Q('#pdTtTotal').textContent = fmt(tt);
+  Q('#pdGgTotal').textContent = fmt(gg);
+  Q('#pdAdTotal').textContent = fmt(totalAd);
+}
+
+function renderProductBudgets(product) {
+  const sel = Q('#pdPBCountry'), inp = Q('#pdPBValue'), btn = Q('#pdPBSave'), tb=Q('#pdPBBBody');
+  const map = product.budgets||{};
+  tb.innerHTML = state.countries.map(c=>`
+    <tr><td>${c}</td><td>${fmt(map[c]||0)}</td>
+    <td><button class="btn outline pb-clear" data-c="${c}">Clear</button></td></tr>
+  `).join('') || `<tr><td colspan="3" class="muted">No budgets yet</td></tr>`;
+
+  btn.onclick = async ()=>{
+    const c = sel.value; const v = +inp.value||0;
+    const up = { budgets: {...(product.budgets||{}), [c]: v } };
+    await api(`/api/products/${product.id}`,{method:'PUT', body: JSON.stringify(up)});
+    await renderProductPage();
+  };
+  tb.onclick = async (e)=>{
+    if (e.target.classList.contains('pb-clear')) {
+      const c = e.target.dataset.c;
+      const up = { budgets: {...(product.budgets||{})} }; delete up.budgets[c];
+      await api(`/api/products/${product.id}`,{method:'PUT', body: JSON.stringify(up)});
+      await renderProductPage();
+    }
+  };
+}
+
+async function renderProductTransit(product) {
+  const s = await api('/api/shipments');
+  const list = (s.shipments||[]).filter(x=>x.productId===product.id && !x.arrivedAt);
+  const ck = list.filter(sp => (sp.fromCountry||sp.from||'').toLowerCase()==='china' && (sp.toCountry||sp.to||'').toLowerCase()==='kenya');
+  const ic = list.filter(sp => !ck.includes(sp));
+  const row = sp => `<tr>
+    <td>${sp.id}</td><td>${sp.fromCountry||sp.from} → ${sp.toCountry||sp.to}</td>
+    <td>${fmt(sp.qty)}</td><td>${fmt(sp.shipCost)}</td>
+    <td>${sp.departedAt||''}</td><td>${sp.arrivedAt||''}</td>
+    <td>${sp.note||''}</td>
+    <td>
+      <button class="btn outline p-act-arr" data-id="${sp.id}">Arrived</button>
+      <button class="btn outline p-act-edit" data-id="${sp.id}">Edit</button>
+      <button class="btn outline p-act-del" data-id="${sp.id}">Delete</button>
+    </td></tr>`;
+  Q('#pdShipCKBody').innerHTML = ck.map(row).join('') || `<tr><td colspan="8" class="muted">No shipments</td></tr>`;
+  Q('#pdShipICBody').innerHTML = ic.map(row).join('') || `<tr><td colspan="8" class="muted">No shipments</td></tr>`;
+
+  const host = Q('#product');
+  host.addEventListener('click', async (e)=>{
+    const id = e.target.dataset?.id; if (!id) return;
+    if (e.target.classList.contains('p-act-arr')) {
+      const date = prompt('Arrival date (YYYY-MM-DD)', isoToday()); if (!date) return;
+      await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({arrivedAt:date})});
+      await renderProductTransit(product); 
+      await renderProductArrivedShipments(product);
+      await renderProductStockAd(product);
+    }
+    if (e.target.classList.contains('p-act-edit')) {
+      const qty = +prompt('New qty?', '0')||0;
+      const shipCost = +prompt('New shipping cost?', '0')||0;
+      const note = prompt('Note?', '') || '';
+      await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({qty,shipCost,note})});
+      await renderProductTransit(product);
+    }
+    if (e.target.classList.contains('p-act-del')) {
+      if (!confirm('Delete shipment?')) return;
+      await api(`/api/shipments/${id}`,{method:'DELETE'});
+      await renderProductTransit(product);
+    }
+  }, { once:true });
+}
+
+async function renderProductArrivedShipments(product) {
+  const s = await api('/api/shipments');
+  const arrived = (s.shipments||[]).filter(x=>x.productId===product.id && x.arrivedAt);
+  
+  const row = sp => {
+    const days = sp.arrivedAt ? Math.round((+new Date(sp.arrivedAt)-(+new Date(sp.departedAt)))/86400000) : '';
+    return `<tr>
+      <td>${sp.id}</td>
+      <td>${sp.fromCountry||sp.from} → ${sp.toCountry||sp.to}</td>
+      <td>${fmt(sp.qty)}</td>
+      <td>${fmt(sp.shipCost)}</td>
+      <td>${sp.departedAt||''}</td>
+      <td>${sp.arrivedAt||''}</td>
+      <td>${days}</td>
+      <td>${sp.note||''}</td>
+      <td>
+        <button class="btn outline p-arr-edit" data-id="${sp.id}">Edit</button>
+        <button class="btn outline p-arr-del" data-id="${sp.id}">Delete</button>
+      </td>
+    </tr>`;
+  };
+
+  Q('#pdArrivedBody').innerHTML = arrived.map(row).join('') || `<tr><td colspan="9" class="muted">No arrived shipments</td></tr>`;
+
+  const host = Q('#product');
+  host.addEventListener('click', async (e)=>{
+    const id = e.target.dataset?.id; if (!id) return;
+    
+    if (e.target.classList.contains('p-arr-edit')) {
+      const qty = +prompt('New qty?', '0')||0;
+      const shipCost = +prompt('New shipping cost?', '0')||0;
+      const note = prompt('Note?', '') || '';
+      await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({qty,shipCost,note})});
+      await renderProductArrivedShipments(product);
+    }
+    if (e.target.classList.contains('p-arr-del')) {
+      if (!confirm('Delete shipment?')) return;
+      await api(`/api/shipments/${id}`,{method:'DELETE'});
+      await renderProductArrivedShipments(product);
+      await renderProductStockAd(product);
+    }
+  }, { once:true });
+}
+
+async function renderProductRemittances(product) {
+  try {
+    const remittances = await api('/api/remittances?productId=' + product.id);
+    const tb = Q('#pdRemittancesBody');
+    if (!tb) return;
+    
+    tb.innerHTML = (remittances.remittances||[]).map(r => `
+      <tr>
+        <td>${r.start} - ${r.end}</td>
+        <td>${r.country}</td>
+        <td>${fmt(r.orders)}</td>
+        <td>${fmt(r.pieces)}</td>
+        <td>${fmt(r.revenue)}</td>
+        <td>${fmt(r.adSpend)}</td>
+        <td>${fmt(r.extraPerPiece)}</td>
+        <td>
+          <button class="btn outline pd-rem-del" data-id="${r.id}">Delete</button>
+        </td>
+      </tr>
+    `).join('') || `<tr><td colspan="8" class="muted">No remittances for this product</td></tr>`;
+
+    // Add delete functionality
+    tb.addEventListener('click', async (e)=>{
+      if (e.target.classList.contains('pd-rem-del')) {
+        if (!confirm('Delete this remittance entry?')) return;
+        await api(`/api/remittances/${e.target.dataset.id}`,{method:'DELETE'});
+        await renderProductRemittances(product);
+        bindProductLifetime(product); // Refresh lifetime data
+      }
+    });
+  } catch (e) {
+    console.error('Failed to load product remittances:', e);
   }
 }
 
-// Start the application when DOM is loaded
-document.addEventListener('DOMContentLoaded', initializeApp);
+function bindProductLifetime(product) {
+  const run = async ()=>{
+    const s = Q('#pdLPStart')?.value, e = Q('#pdLPEnd')?.value;
+    let rem = (await api('/api/remittances')).remittances || [];
+    const infSpends = (await api('/api/influencers/spend')).spends || [];
+    
+    rem = rem.filter(r=>r.productId===product.id);
+    
+    // Filter influencer spends by product and date range
+    const filteredInfSpends = infSpends.filter(inf => 
+      inf.productId === product.id && 
+      (!s || inf.date >= s) && 
+      (!e || inf.date <= e)
+    );
+    
+    // Add influencer spends to ad spend
+    filteredInfSpends.forEach(inf => {
+      const matchingRem = rem.find(r => r.country === inf.country && r.start >= s && r.end <= e);
+      if (matchingRem) {
+        matchingRem.adSpend = (+matchingRem.adSpend || 0) + (+inf.amount || 0);
+      }
+    });
+    
+    if (s) rem = rem.filter(r=>r.start >= s);
+    if (e) rem = rem.filter(r=>r.end   <= e);
+    
+    const base = (+product.cost_china||0) + (+product.ship_china_to_kenya||0);
+    const byC = {};
+    rem.forEach(r=>{
+      const pcs=+r.pieces||0, extra=(+r.extraPerPiece||0)*pcs;
+      if (!byC[r.country]) byC[r.country]={rev:0,ad:0,ship:0,base:0,pcs:0,profit:0};
+      byC[r.country].rev += (+r.revenue||0);
+      byC[r.country].ad  += (+r.adSpend||0);
+      byC[r.country].ship+= extra;
+      byC[r.country].base+= base*pcs;
+      byC[r.country].pcs += pcs;
+    });
+    Object.values(byC).forEach(v=> v.profit = v.rev - v.ad - v.ship - v.base);
+
+    const tb = Q('#pdLPBody'); let R=0,A=0,S=0,B=0,P=0,PCS=0;
+    tb.innerHTML = Object.entries(byC).map(([c,v])=>{
+      R+=v.rev;A+=v.ad;S+=v.ship;B+=v.base;P+=v.profit;PCS+=v.pcs;
+      return `<tr><td>${c}</td><td>${fmt(v.rev)}</td><td>${fmt(v.ad)}</td><td>${fmt(v.ship)}</td><td>${fmt(v.base)}</td><td>${fmt(v.pcs)}</td><td>${fmt(v.profit)}</td></tr>`;
+    }).join('') || `<tr><td colspan="7" class="muted">No data</td></tr>`;
+    Q('#pdLPRevT').textContent=fmt(R); Q('#pdLPAdT').textContent=fmt(A);
+    Q('#pdLPShipT').textContent=fmt(S); Q('#pdLPBaseT').textContent=fmt(B);
+    Q('#pdLPPcsT').textContent=fmt(PCS); Q('#pdLPProfitT').textContent=fmt(P);
+  };
+  Q('#pdLPRun')?.addEventListener('click', run);
+  run();
+}
+
+async function bindInfluencers(product) {
+  // add influencer
+  Q('#pdInfAdd')?.addEventListener('click', async ()=>{
+    const payload = {
+      name: Q('#pdInfName')?.value.trim(),
+      social: Q('#pdInfSocial')?.value.trim(),
+      country: Q('#pdInfCountry')?.value
+    };
+    if (!payload.name) return alert('Name required');
+    await api('/api/influencers',{method:'POST', body: JSON.stringify(payload)});
+    Q('#pdInfName').value=''; Q('#pdInfSocial').value='';
+    await refreshInfluencers(product);
+  });
+
+  // add spend
+  Q('#pdInfSpendAdd')?.addEventListener('click', async ()=>{
+    const payload = {
+      date: Q('#pdInfDate')?.value || isoToday(),
+      influencerId: Q('#pdInfSelect')?.value,
+      country: Q('#pdInfCountry')?.value,
+      productId: product.id,
+      amount: +Q('#pdInfAmount')?.value||0
+    };
+    if (!payload.influencerId) return alert('Select influencer');
+    await api('/api/influencers/spend',{method:'POST', body: JSON.stringify(payload)});
+    await refreshInfluencers(product);
+  });
+
+  // filters
+  Q('#pdInfRun')?.addEventListener('click', ()=>refreshInfluencers(product));
+  await refreshInfluencers(product);
+}
+
+async function refreshInfluencers(product) {
+  const infs = await api('/api/influencers');
+  const spends = await api('/api/influencers/spend');
+  const sel = Q('#pdInfSelect');
+  sel.innerHTML = (infs.influencers||[]).map(i=>`<option value="${i.id}">${i.name}</option>`).join('') || '<option value="">No influencers</option>';
+
+  const s = Q('#pdInfStart')?.value, e = Q('#pdInfEnd')?.value, c = Q('#pdInfFilterCountry')?.value||'';
+  const list = (spends.spends||[]).filter(x=>x.productId===product.id)
+    .filter(x=>(!c || x.country===c))
+    .filter(x=>(!s || x.date>=s) && (!e || x.date<=e));
+  const infMap = Object.fromEntries((infs.influencers||[]).map(i=>[i.id,i]));
+  let total = 0;
+  Q('#pdInfBody').innerHTML = list.map(x=>{
+    total += (+x.amount||0);
+    const i = infMap[x.influencerId]||{};
+    return `<tr><td>${x.date}</td><td>${x.country}</td><td>${i.name||'-'}</td><td>${i.social||'-'}</td><td>${fmt(x.amount)}</td>
+      <td><button class="btn outline inf-del" data-id="${x.id}">Delete</button></td></tr>`;
+  }).join('') || `<tr><td colspan="6" class="muted">No spends</td></tr>`;
+  Q('#pdInfTotal').textContent = fmt(total);
+
+  Q('#pdInfBody').onclick = async (e)=>{
+    if (e.target.classList.contains('inf-del')) {
+      await api(`/api/influencers/spend/${e.target.dataset.id}`,{method:'DELETE'});
+      await refreshInfluencers(product);
+    }
+  };
+}
+
+/* ================================================================
+   NAV
+   ================================================================ */
+function bindGlobalNav() {
+  QA('.nav a[data-view]')?.forEach(a => a.addEventListener('click', e=>{
+    e.preventDefault();
+    const v = a.dataset.view;
+    ['home','products','performance','stockMovement','finance','settings'].forEach(id=>{
+      const el = Q('#'+id);
+      if (el) el.style.display = (id===v)?'':'none';
+    });
+    QA('.nav a').forEach(x=>x.classList.toggle('active', x===a));
+    if (v==='home') { renderCompactKpis(); renderCountryStockSpend(); }
+    if (v==='products') { renderCompactCountryStats(); renderAdvertisingOverview(); }
+    if (v==='stockMovement') { renderStockMovementPage(); }
+    if (v==='performance') { renderRemittanceReport(); }
+  }));
+}
+
+/* ================================================================
+   BOOT
+   ================================================================ */
+boot();
