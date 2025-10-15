@@ -927,6 +927,87 @@ select.input {
 .row.compact { gap: 6px; }
 .row.compact .input { min-height: auto; }
 
+/* ---------- Top Products Ranking Styles ---------- */
+.table .rank-column {
+  text-align: center;
+  font-weight: 700;
+  background: var(--primary-50);
+}
+
+.table .highlight-column {
+  background: var(--success-light);
+  font-weight: 700;
+}
+
+/* Analytics Table Improvements */
+.table-scroll .table {
+  font-size: 0.82rem;
+}
+
+.table-scroll .table th {
+  white-space: nowrap;
+  padding: 8px 10px;
+}
+
+.table-scroll .table td {
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+/* Financial table specific styles */
+.financial-table .cost-column {
+  background: var(--warning-light);
+}
+
+.financial-table .profit-column {
+  background: var(--success-light);
+}
+
+/* Compact financial inputs */
+.finance-input-compact {
+  max-width: 120px;
+}
+
+/* Date range compact */
+.date-range-compact {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.date-range-compact .input {
+  min-width: 140px;
+}
+
+/* Performance section specific */
+#performance .card {
+  margin-bottom: 20px;
+}
+
+#performance .section {
+  margin-bottom: 25px;
+}
+
+/* Top products highlight */
+.top-product-row {
+  background: linear-gradient(90deg, var(--success-light) 0%, transparent 100%);
+}
+
+.top-product-row:nth-child(1) {
+  background: linear-gradient(90deg, var(--accent-amber) 0%, transparent 100%);
+  font-weight: 700;
+}
+
+.top-product-row:nth-child(2) {
+  background: linear-gradient(90deg, var(--primary-100) 0%, transparent 100%);
+  font-weight: 600;
+}
+
+.top-product-row:nth-child(3) {
+  background: linear-gradient(90deg, var(--primary-50) 0%, transparent 100%);
+  font-weight: 500;
+}
+
 /* ---------- Mobile Navigation Styles ---------- */
 @media (max-width: 1024px) {
   .nav {
