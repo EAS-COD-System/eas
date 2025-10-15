@@ -89,7 +89,7 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  padding-top: 60px; /* Space for fixed navbar */
+  padding-top: 70px; /* Space for fixed navbar */
 }
 
 .container {
@@ -98,7 +98,7 @@ body {
   padding: 20px;
 }
 
-/* ---------- Professional Navigation - FIXED AT TOP ---------- */
+/* ---------- Professional Navigation - FIXED AT TOP (PROPERLY FIXED) ---------- */
 .nav {
   position: fixed !important;
   top: 0 !important;
@@ -114,8 +114,6 @@ body {
   height: 60px !important;
   box-shadow: var(--shadow-nav) !important;
   width: 100% !important;
-  transform: none !important;
-  transition: none !important;
 }
 
 .nav a {
