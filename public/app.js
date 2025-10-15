@@ -1450,61 +1450,7 @@ function bindGlobalNav() {
     if (v==='stockMovement') { renderStockMovementPage(); }
   }));
 }
-/* ================================================================
-   HIDE NAVIGATION ON SCROLL - IMPROVED VERSION
-   ================================================================ */
-let lastScrollY = window.scrollY;
-const nav = document.querySelector('.nav');
-let isNavHidden = false;
 
-function handleScroll() {
-  if (!nav) return;
-  
-  const currentScrollY = window.scrollY;
-  
-  if (currentScrollY > lastScrollY && currentScrollY > 100) {
-    // Scrolling down & past 100px - hide nav
-    if (!isNavHidden) {
-      nav.classList.add('nav-hidden');
-      isNavHidden = true;
-    }
-  } else if (currentScrollY < lastScrollY || currentScrollY <= 100) {
-    // Scrolling up or at top - show nav
-    if (isNavHidden) {
-      nav.classList.remove('nav-hidden');
-      isNavHidden = false;
-    }
-  }
-  
-  lastScrollY = currentScrollY;
-}
-
-// Throttle scroll events for better performance
-let scrollTimeout;
-window.addEventListener('scroll', () => {
-  if (!scrollTimeout) {
-    scrollTimeout = setTimeout(() => {
-      handleScroll();
-      scrollTimeout = null;
-    }, 10);
-  }
-});
-
-// Show nav when hovering near top of page
-document.addEventListener('mousemove', (e) => {
-  if (e.clientY < 50 && isNavHidden) {
-    nav.classList.remove('nav-hidden');
-    isNavHidden = false;
-  }
-});
-
-// Ensure nav is visible when page loads
-window.addEventListener('load', () => {
-  if (nav) {
-    nav.classList.remove('nav-hidden');
-    isNavHidden = false;
-  }
-});
 /* ================================================================
    BOOT
    ================================================================ */
