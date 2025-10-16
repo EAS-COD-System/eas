@@ -11,7 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const ROOT = __dirname;
-const DATA_FILE = '/data/db.json';
+const DATA_FILE = '/opt/render/project/src/data/db.json';
 const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
 
 /* ---------------- middleware ---------------- */
