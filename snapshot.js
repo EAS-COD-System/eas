@@ -3,15 +3,8 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
 const ROOT = __dirname;
-
-// Render-compatible file paths
-const DATA_FILE = process.env.NODE_ENV === 'production' 
-  ? '/opt/render/project/src/data/db.json'
-  : path.join(ROOT, 'data', 'db.json');
-
-const SNAPSHOT_DIR = process.env.NODE_ENV === 'production'
-  ? path.join(ROOT, 'data', 'snapshots')
-  : path.join(ROOT, 'data', 'snapshots');
+const DATA_FILE = '/opt/render/project/src/data/db.json';
+const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
 
 async function createSnapshot(name = null) {
   try {
