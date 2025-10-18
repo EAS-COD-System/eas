@@ -123,25 +123,7 @@
           <!-- Brainstorming Section -->
           <div class="section">
             <h2>💡 Brainstorming</h2>
-            <div class="card">
-              <div class="row wrap">
-                <input id="bsTitle" class="input" placeholder="Idea title"/>
-                <textarea id="bsDescription" class="input" placeholder="Detailed description" style="flex:1; min-height: 60px;"></textarea>
-                <select id="bsCategory" class="input">
-                  <option value="product">Product Idea</option>
-                  <option value="marketing">Marketing</option>
-                  <option value="operations">Operations</option>
-                  <option value="general">General</option>
-                </select>
-                <select id="bsPriority" class="input">
-                  <option value="low">Low Priority</option>
-                  <option value="medium">Medium Priority</option>
-                  <option value="high">High Priority</option>
-                </select>
-                <button id="bsAdd" class="btn">💡 Add Idea</button>
-              </div>
-            </div>
-            <div id="brainstormingList" class="ideas-grid"></div>
+            <div id="brainstormingSection"></div>
           </div>
 
           <div class="section">
@@ -153,27 +135,15 @@
             <div id="todoList" class="todo-list"></div>
           </div>
 
+          <!-- Tested Products Section -->
+          <div class="section">
+            <h2>🧪 Notes for Tested Products</h2>
+            <div id="testedProductsSection"></div>
+          </div>
+
           <div class="section">
             <h2>Weekly To-Do</h2>
             <div id="weeklyWrap" class="weeks"></div>
-          </div>
-
-          <!-- Product Testing Notes Section -->
-          <div class="section">
-            <h2>🧪 Notes for Tested Products</h2>
-            <div class="card">
-              <div class="row wrap">
-                <input id="testProductName" class="input" placeholder="Product Name"/>
-                <select id="testCountry" class="input">
-                  <option value="">Select Country</option>
-                </select>
-                <input id="testCostPerLead" type="number" class="input" placeholder="Cost Per Lead (USD)" step="0.01"/>
-                <input id="testConfirmationRate" type="number" class="input" placeholder="Confirmation Rate %" step="0.1" min="0" max="100"/>
-                <input id="testSellingPrice" type="number" class="input" placeholder="Selling Price (USD)" step="0.01"/>
-                <button id="testSave" class="btn">💾 Save Test Data</button>
-              </div>
-            </div>
-            <div id="productTestsList" class="tests-grid"></div>
           </div>
         </section>
 
@@ -181,20 +151,6 @@
         <section id="products" style="display:none">
           <h2>Products Management</h2>
           
-          <!-- Product Info Section -->
-          <div class="section">
-            <h2>🔍 Product Info & Analysis</h2>
-            <div class="card">
-              <div class="row wrap">
-                <select id="piProduct" class="input">
-                  <option value="">Select Product</option>
-                </select>
-                <button id="piLoad" class="btn">📊 Load Analysis</button>
-              </div>
-              <div id="productInfoResults"></div>
-            </div>
-          </div>
-
           <!-- Advertising Overview -->
           <div class="section">
             <h2>🎯 Advertising Overview by Country</h2>
@@ -207,12 +163,38 @@
             <div class="row wrap">
               <input id="pName" class="input" placeholder="Product Name"/>
               <input id="pSku" class="input" placeholder="SKU"/>
-              <div id="sellingPricesContainer" class="selling-prices-container" style="width: 100%; margin: 10px 0;">
-                <div class="h" style="font-size: 0.9rem; margin-bottom: 8px;">Selling Prices by Country:</div>
-                <div id="sellingPricesInputs" class="row wrap"></div>
-              </div>
               <input id="pMB" type="number" class="input" placeholder="Profit + Ads Budget (USD)" step="0.01"/>
               <button id="pAdd" class="btn">🚀 Add Product</button>
+            </div>
+          </div>
+
+          <!-- Add Selling Prices -->
+          <div class="card">
+            <div class="h">💰 Set Selling Prices by Country</div>
+            <div class="row wrap">
+              <select id="spProduct" class="input">
+                <option value="">Select product...</option>
+              </select>
+              <select id="spCountry" class="input">
+                <option value="">Select country...</option>
+              </select>
+              <input id="spPrice" type="number" class="input" placeholder="Selling Price (USD)" step="0.01"/>
+              <button id="spSave" class="btn">💾 Save Price</button>
+            </div>
+          </div>
+
+          <!-- Product Info Section -->
+          <div class="section">
+            <h2>📋 Product Info & Analytics</h2>
+            <div class="card">
+              <div class="h">Search Product Details</div>
+              <div class="row wrap">
+                <select id="productInfoSelect" class="input">
+                  <option value="">Select product...</option>
+                </select>
+                <button id="productInfoRun" class="btn">🔍 Get Product Info</button>
+              </div>
+              <div id="productInfoResults"></div>
             </div>
           </div>
 
@@ -226,7 +208,6 @@
                     <th>Name</th>
                     <th>SKU</th>
                     <th>Status</th>
-                    <th>Profit Status</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -234,52 +215,81 @@
               </table>
             </div>
           </div>
-          
+
           <!-- Country Product Stats -->
           <div class="section">
             <h2>📊 Products by Country</h2>
             <div id="countryProductStats" class="country-stats-grid-compact"></div>
           </div>
+
         </section>
 
         <!-- PERFORMANCE -->
         <section id="performance" style="display:none">
           <h2>Performance Analytics</h2>
-          
-          <!-- Lifetime Product Costs -->
+
+          <!-- Product Orders Tracking -->
           <div class="card">
-            <div class="h">📊 Lifetime Product Costs Analysis</div>
+            <div class="h">📦 Product Orders Tracking</div>
             <div class="row wrap">
-              <select id="lpcProduct" class="input">
-                <option value="">All Products</option>
+              <select id="poProduct" class="input">
+                <option value="">Select product...</option>
               </select>
-              <input id="lpcStart" type="date" class="input" placeholder="Start Date"/>
-              <input id="lpcEnd" type="date" class="input" placeholder="End Date"/>
-              <button id="lpcRun" class="btn">📈 Generate Cost Analysis</button>
+              <select id="poCountry" class="input">
+                <option value="">Select country...</option>
+              </select>
+              <input id="poDate" type="date" class="input"/>
+              <input id="poOrders" type="number" class="input" placeholder="Orders" min="0"/>
+              <button id="poSave" class="btn">💾 Save Orders</button>
             </div>
-            <div id="lifetimeCostsResults"></div>
           </div>
 
-          <!-- Orders Tracking -->
+          <!-- Product Costs Analysis -->
           <div class="card">
-            <div class="h">📦 Orders Tracking (For Delivery Rate Calculation)</div>
+            <div class="h">💰 Lifetime Product Costs Analysis</div>
             <div class="row wrap">
-              <select id="ordProduct" class="input">
-                <option value="">Select Product</option>
+              <select id="pcaProduct" class="input">
+                <option value="">All products</option>
               </select>
-              <input id="ordStart" type="date" class="input" placeholder="Start Date"/>
-              <input id="ordEnd" type="date" class="input" placeholder="End Date"/>
-              <input id="ordCount" type="number" class="input" placeholder="Orders Count" min="0"/>
-              <button id="ordSave" class="btn">💾 Save Orders</button>
+              <select id="pcaRange" class="input date-range-select">
+                <option value="8days">Last 8 days</option>
+                <option value="15days">Last 15 days</option>
+                <option value="1month">Last 1 month</option>
+                <option value="2months">Last 2 months</option>
+                <option value="6months">Last 6 months</option>
+                <option value="1year">Last 1 year</option>
+                <option value="2years">Last 2 years</option>
+                <option value="lifetime">Lifetime</option>
+                <option value="custom">Custom range</option>
+              </select>
+              <div class="custom-range" style="display: none;">
+                <input type="date" class="input custom-start"/>
+                <input type="date" class="input custom-end"/>
+              </div>
+              <button id="pcaRun" class="btn">📊 Generate Analysis</button>
             </div>
+            <div id="pcaResults"></div>
           </div>
 
           <!-- Remittance Analytics -->
           <div class="card">
             <div class="h">📈 Remittance Analytics (🏆 Filtered By Top Delivered)</div>
             <div class="row wrap">
-              <input id="remAnalyticsStart" type="date" class="input" placeholder="Start Date"/>
-              <input id="remAnalyticsEnd" type="date" class="input" placeholder="End Date"/>
+              <select id="remAnalyticsRange" class="input date-range-select">
+                <option value="8days">Last 8 days</option>
+                <option value="15days">Last 15 days</option>
+                <option value="1month">Last 1 month</option>
+                <option value="2months">Last 2 months</option>
+                <option value="6months">Last 6 months</option>
+                <option value="1year">Last 1 year</option>
+                <option value="2years">Last 2 years</option>
+                <option value="lifetime">Lifetime</option>
+                <option value="custom">Custom range</option>
+              </select>
+              <div class="custom-range" style="display: none;">
+                <input type="date" class="input custom-start"/>
+                <input type="date" class="input custom-end"/>
+              </div>
               <select id="remAnalyticsCountry" class="input">
                 <option value="">All countries</option>
               </select>
@@ -298,11 +308,14 @@
                     <th>Revenue</th>
                     <th>Ad Spend</th>
                     <th>Boxleo Fees</th>
-                    <th>Cost Per Delivered Order</th>
-                    <th>Cost Per Piece</th>
-                    <th>Ad Cost Per Order</th>
-                    <th>Ad Cost Per Piece</th>
+                    <th>Product Cost</th>
+                    <th>Total Cost</th>
                     <th>Delivery Rate</th>
+                    <th>Cost/Order</th>
+                    <th>Cost/Piece</th>
+                    <th>Ad Cost/Order</th>
+                    <th>Ad Cost/Piece</th>
+                    <th>Max CPL</th>
                     <th>Profit</th>
                   </tr>
                 </thead>
@@ -314,7 +327,14 @@
                     <th id="remAnalyticsRevenueT">0</th>
                     <th id="remAnalyticsAdSpendT">0</th>
                     <th id="remAnalyticsBoxleoT">0</th>
-                    <th colspan="4"></th>
+                    <th id="remAnalyticsProductCostT">0</th>
+                    <th id="remAnalyticsTotalCostT">0</th>
+                    <th id="remAnalyticsDeliveryRateT">0%</th>
+                    <th id="remAnalyticsCostOrderT">0</th>
+                    <th id="remAnalyticsCostPieceT">0</th>
+                    <th id="remAnalyticsAdOrderT">0</th>
+                    <th id="remAnalyticsAdPieceT">0</th>
+                    <th id="remAnalyticsMaxCPLT">0</th>
                     <th id="remAnalyticsProfitT">0</th>
                   </tr>
                 </tfoot>
@@ -326,9 +346,22 @@
           <div class="card">
             <div class="h">💰 Profit by Country</div>
             <div class="row wrap">
+              <select id="pcRange" class="input date-range-select">
+                <option value="8days">Last 8 days</option>
+                <option value="15days">Last 15 days</option>
+                <option value="1month">Last 1 month</option>
+                <option value="2months">Last 2 months</option>
+                <option value="6months">Last 6 months</option>
+                <option value="1year">Last 1 year</option>
+                <option value="2years">Last 2 years</option>
+                <option value="lifetime">Lifetime</option>
+                <option value="custom">Custom range</option>
+              </select>
+              <div class="custom-range" style="display: none;">
+                <input type="date" class="input custom-start"/>
+                <input type="date" class="input custom-end"/>
+              </div>
               <select id="pcCountry" class="input"><option value="">All countries</option></select>
-              <input id="pcStart" type="date" class="input"/>
-              <input id="pcEnd" type="date" class="input"/>
               <button id="pcRun" class="btn">📈 Calculate</button>
             </div>
             <div class="table-scroll">
@@ -338,12 +371,13 @@
                     <th>Country</th>
                     <th>Revenue</th>
                     <th>Ad Spend</th>
-                    <th>Product Cost</th>
-                    <th>Shipping Cost</th>
                     <th>Boxleo Fees</th>
+                    <th>Product Cost</th>
                     <th>Total Cost</th>
                     <th>Pieces</th>
                     <th>Delivery Rate</th>
+                    <th>Cost/Order</th>
+                    <th>Cost/Piece</th>
                     <th>Profit</th>
                   </tr>
                 </thead>
@@ -353,12 +387,13 @@
                     <th>Totals</th>
                     <th id="pcRevT">0</th>
                     <th id="pcAdT">0</th>
-                    <th id="pcProductCostT">0</th>
-                    <th id="pcShippingCostT">0</th>
                     <th id="pcBoxleoT">0</th>
+                    <th id="pcProductCostT">0</th>
                     <th id="pcTotalCostT">0</th>
                     <th id="pcPiecesT">0</th>
                     <th id="pcDeliveryRateT">0%</th>
+                    <th id="pcCostOrderT">0</th>
+                    <th id="pcCostPieceT">0</th>
                     <th id="pcProfitT">0</th>
                   </tr>
                 </tfoot>
@@ -391,8 +426,21 @@
           <div class="card">
             <div class="h">📋 Entries</div>
             <div class="row wrap">
-              <input id="remStart" type="date" class="input" placeholder="Start Date"/>
-              <input id="remEnd" type="date" class="input" placeholder="End Date"/>
+              <select id="remRange" class="input date-range-select">
+                <option value="8days">Last 8 days</option>
+                <option value="15days">Last 15 days</option>
+                <option value="1month">Last 1 month</option>
+                <option value="2months">Last 2 months</option>
+                <option value="6months">Last 6 months</option>
+                <option value="1year">Last 1 year</option>
+                <option value="2years">Last 2 years</option>
+                <option value="lifetime">Lifetime</option>
+                <option value="custom">Custom range</option>
+              </select>
+              <div class="custom-range" style="display: none;">
+                <input type="date" class="input custom-start"/>
+                <input type="date" class="input custom-end"/>
+              </div>
               <select id="remCountry" class="input"><option value="">All countries</option></select>
               <select id="remProduct" class="input"><option value="">All products</option></select>
               <button id="remRun" class="btn">📊 Generate Report</button>
@@ -409,6 +457,8 @@
                     <th>Revenue</th>
                     <th>Ad Spend</th>
                     <th>Boxleo Fees</th>
+                    <th>Product Cost</th>
+                    <th>Total Cost</th>
                     <th>Delivery Rate</th>
                     <th>Profit</th>
                     <th>Actions</th>
@@ -423,6 +473,8 @@
                     <th id="remRevenueT">0</th>
                     <th id="remAdSpendT">0</th>
                     <th id="remBoxleoT">0</th>
+                    <th id="remProductCostT">0</th>
+                    <th id="remTotalCostT">0</th>
                     <th id="remDeliveryRateT">0%</th>
                     <th id="remProfitT">0</th>
                     <th></th>
@@ -431,6 +483,7 @@
               </table>
             </div>
           </div>
+
         </section>
 
         <!-- STOCK MOVEMENT -->
@@ -447,8 +500,8 @@
               <select id="mvProduct" class="input"></select>
               <input id="mvQty" type="number" class="input" placeholder="Quantity" min="0"/>
               <input id="mvShip" type="number" class="input" placeholder="Shipping Cost (USD)" min="0" step="0.01"/>
-              <div id="purchaseCostContainer" style="display: none;">
-                <input id="mvPurchase" type="number" class="input" placeholder="Purchase Cost from China (USD)" min="0" step="0.01"/>
+              <div id="chinaCostField" style="display: none;">
+                <input id="mvChinaCost" type="number" class="input" placeholder="China Cost (USD)" min="0" step="0.01"/>
               </div>
               <input id="mvNote" class="input" placeholder="Note (optional)"/>
               <button id="mvAdd" class="btn">📦 Add Movement</button>
@@ -467,7 +520,7 @@
                     <th>Route</th>
                     <th>Qty</th>
                     <th>Ship Cost</th>
-                    <th>Purchase Cost</th>
+                    <th>China Cost</th>
                     <th>Departed</th>
                     <th>Arrived</th>
                     <th>Days</th>
@@ -616,10 +669,6 @@
               </select>
               <input id="epName" class="input" placeholder="Product name"/>
               <input id="epSku" class="input" placeholder="SKU"/>
-              <div id="epSellingPricesContainer" class="selling-prices-container" style="width: 100%; margin: 10px 0;">
-                <div class="h" style="font-size: 0.9rem; margin-bottom: 8px;">Selling Prices by Country:</div>
-                <div id="epSellingPricesInputs" class="row wrap"></div>
-              </div>
               <input id="epMB" type="number" class="input" placeholder="Profit + Ads Budget (USD)" step="0.01"/>
               <button id="epSave" class="btn">💾 Save Changes</button>
             </div>
