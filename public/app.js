@@ -1,43 +1,38 @@
 /* ================================================================
-   EAS Tracker – Front-end (Complete Rebuild)
+   EAS Tracker – Frontend (Complete Rebuild)
    ================================================================ */
 
-/* ---------- helpers ---------- */
-const Q  = (s, r=document) => r.querySelector(s);
-const QA = (s, r=document) => Array.from(r.querySelectorAll(s));
-const fmt = n => (Number(n||0)).toLocaleString(undefined,{maximumFractionDigits:2});
-const isoToday = () => new Date().toISOString().slice(0,10);
+const Q = (s, r = document) => r.querySelector(s);
+const QA = (s, r = document) => Array.from(r.querySelectorAll(s));
+const fmt = n => (Number(n || 0)).toLocaleString(undefined, { maximumFractionDigits: 2 });
+const isoToday = () => new Date().toISOString().slice(0, 10);
 const getQuery = k => new URLSearchParams(location.search).get(k);
 const safeJSON = v => { try { return JSON.parse(v); } catch { return null; } };
 
-async function api(path, opts={}) {
+async function api(path, opts = {}) {
   const res = await fetch(path, {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     ...opts
   });
-  const ct = res.headers.get('content-type')||'';
+  const ct = res.headers.get('content-type') || '';
   const body = ct.includes('application/json') ? await res.json() : await res.text();
-  if (!res.ok) throw new Error(body?.error || body || ('HTTP '+res.status));
+  if (!res.ok) throw new Error(body?.error || body || ('HTTP ' + res.status));
   return body;
 }
 
-/* ---------- global state ---------- */
 const state = {
   productId: getQuery('id'),
   countries: [],
   products: [],
   productsActive: [],
-  categories: { debit:[], credit:[] },
+  categories: { debit: [], credit: [] },
   productNotes: [],
   productSellingPrices: [],
   brainstorming: [],
   testedProducts: []
 };
 
-/* ================================================================
-   AUTH + BOOT
-   ================================================================ */
 async function boot() {
   try {
     await api('/api/meta');
@@ -45,7 +40,7 @@ async function boot() {
     Q('#main')?.removeAttribute('style');
   } catch {
     Q('#login')?.classList.remove('hide');
-    Q('#main')?.setAttribute('style','display:none');
+    Q('#main')?.setAttribute('style', 'display:none');
     return;
   }
 
@@ -68,7 +63,7 @@ async function boot() {
 Q('#loginBtn')?.addEventListener('click', async () => {
   const password = Q('#pw')?.value || '';
   try {
-    await api('/api/auth', { method:'POST', body: JSON.stringify({ password }) });
+    await api('/api/auth', { method: 'POST', body: JSON.stringify({ password }) });
     await boot();
   } catch (e) {
     alert('Wrong password');
@@ -77,13 +72,10 @@ Q('#loginBtn')?.addEventListener('click', async () => {
 
 Q('#logoutLink')?.addEventListener('click', async (e) => {
   e.preventDefault();
-  try { await api('/api/auth', { method:'POST', body: JSON.stringify({ password: 'logout' })}); } catch {}
+  try { await api('/api/auth', { method: 'POST', body: JSON.stringify({ password: 'logout' }) }); } catch { }
   location.reload();
 });
 
-/* ================================================================
-   SIMPLE NAVIGATION
-   ================================================================ */
 function initSimpleNavigation() {
   const nav = Q('.nav');
   const main = Q('#main');
@@ -105,7 +97,7 @@ function initSimpleNavigation() {
 
   function handleScroll() {
     const currentScrollY = window.scrollY;
-    
+
     if (currentScrollY < 10) {
       showNav();
       lastScrollY = currentScrollY;
@@ -134,9 +126,6 @@ function initSimpleNavigation() {
   }
 }
 
-/* ================================================================
-   COMMON LOADERS
-   ================================================================ */
 async function preload() {
   const meta = await api('/api/meta');
   state.countries = (meta.countries || []).filter(country => country !== 'china');
@@ -146,60 +135,57 @@ async function preload() {
   state.productsActive = state.products.filter(p => p.status !== 'paused');
 
   const cats = await api('/api/finance/categories');
-  state.categories = cats || { debit:[], credit:[] };
+  state.categories = cats || { debit: [], credit: [] };
 
   fillCommonSelects();
 }
 
 function fillCommonSelects() {
-  const countrySelects = ['#adCountry', '#rCountry', '#pdAdCountry', '#pdRCountry', 
+  const countrySelects = ['#adCountry', '#rCountry', '#pdAdCountry', '#pdRCountry',
     '#pdInfCountry', '#pdInfFilterCountry', '#pcCountry', '#remCountry', '#remAddCountry',
     '#topDelCountry', '#remAnalyticsCountry', '#spCountry', '#poCountry', '#pdNoteCountry'];
-  
+
   countrySelects.forEach(sel => QA(sel).forEach(el => {
     if (sel === '#pcCountry' || sel === '#remCountry' || sel === '#topDelCountry' || sel === '#remAnalyticsCountry') {
       el.innerHTML = `<option value="">All countries</option>` +
-        state.countries.map(c=>`<option value="${c}">${c}</option>`).join('');
+        state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
     } else if (sel === '#mvFrom' || sel === '#pdMvFrom') {
       el.innerHTML = `<option value="china">china</option>` +
-        state.countries.map(c=>`<option value="${c}">${c}</option>`).join('');
+        state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
     } else {
-      el.innerHTML = state.countries.map(c=>`<option value="${c}">${c}</option>`).join('');
+      el.innerHTML = state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
     }
   }));
 
-  const productInputs = ['#mvProduct','#adProduct','#rProduct','#remAddProduct','#spProduct','#poProduct','#pcaProduct'];
+  const productInputs = ['#mvProduct', '#adProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct', '#pcaProduct'];
   productInputs.forEach(sel => QA(sel).forEach(el => {
-    el.innerHTML = state.productsActive.map(p=>`<option value="${p.id}">${p.name}${p.sku?` (${p.sku})`:''}</option>`).join('');
+    el.innerHTML = state.productsActive.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
   }));
 
   const productFilters = ['#remProduct', '#remAnalyticsProduct', '#productInfoSelect'];
   productFilters.forEach(sel => QA(sel).forEach(el => {
     el.innerHTML = `<option value="">All products</option>` +
-      state.products.map(p=>`<option value="${p.id}">${p.name}${p.sku?` (${p.sku})`:''}</option>`).join('');
+      state.products.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
   }));
 
   const allCats = [...state.categories.debit, ...state.categories.credit].sort();
   QA('#feCat').forEach(el => {
     el.innerHTML = `<option value="" disabled selected>Select category</option>` +
-      allCats.map(c=>`<option>${c}</option>`).join('');
+      allCats.map(c => `<option>${c}</option>`).join('');
   });
-  
+
   QA('#fcSearchCat').forEach(el => {
     el.innerHTML = `<option value="">All categories</option>` +
-      allCats.map(c=>`<option>${c}</option>`).join('');
+      allCats.map(c => `<option>${c}</option>`).join('');
   });
 }
 
-/* ================================================================
-   DATE RANGE SELECTOR
-   ================================================================ */
 function initDateRangeSelectors() {
   QA('.date-range-select').forEach(select => {
     const container = select.closest('.row');
     const customRange = container.querySelector('.custom-range');
-    
-    select.addEventListener('change', function() {
+
+    select.addEventListener('change', function () {
       if (this.value === 'custom') {
         customRange.style.display = 'flex';
       } else {
@@ -213,20 +199,17 @@ function getDateRange(container) {
   const select = container.querySelector('.date-range-select');
   const customStart = container.querySelector('.custom-start');
   const customEnd = container.querySelector('.custom-end');
-  
+
   if (select.value === 'custom') {
     return {
       start: customStart.value,
       end: customEnd.value
     };
   }
-  
+
   return { range: select.value };
 }
 
-/* ================================================================
-   DASHBOARD
-   ================================================================ */
 function renderDashboardPage() {
   renderCompactKpis();
   renderCountryStockSpend();
@@ -237,11 +220,10 @@ function renderDashboardPage() {
   initTestedProducts();
 }
 
-/* ---------- COMPACT KPIs ---------- */
 async function renderCompactKpis() {
   Q('#kpiProducts') && (Q('#kpiProducts').textContent = state.products.length);
   Q('#kpiCountries') && (Q('#kpiCountries').textContent = state.countries.length);
-  
+
   try {
     const s = await api('/api/shipments');
     const live = (s.shipments || []).filter(x => !x.arrivedAt).length;
@@ -250,7 +232,7 @@ async function renderCompactKpis() {
 
   try {
     const a = await api('/api/adspend');
-    const total = (a.adSpends||[]).reduce((t,x)=>t+(+x.amount||0),0);
+    const total = (a.adSpends || []).reduce((t, x) => t + (+x.amount || 0), 0);
     Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = `${fmt(total)} USD`);
   } catch { Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = '—'); }
 
@@ -258,69 +240,68 @@ async function renderCompactKpis() {
   Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = t);
 }
 
-/* ---------- Stock & Ad Spend by Country ---------- */
 async function renderCountryStockSpend() {
   const body = Q('#stockByCountryBody'); if (!body) return;
   body.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
 
-  const per = {}; 
-  state.countries.forEach(c=> {
-    per[c] = { 
-      stock: 0, 
-      facebook: 0, 
-      tiktok: 0, 
-      google: 0, 
-      totalAd: 0 
+  const per = {};
+  state.countries.forEach(c => {
+    per[c] = {
+      stock: 0,
+      facebook: 0,
+      tiktok: 0,
+      google: 0,
+      totalAd: 0
     };
   });
 
   try {
     const s = await api('/api/shipments');
-    (s.shipments||[]).filter(x=>x.arrivedAt).forEach(sp=>{
-      const to = sp.toCountry || sp.to, from = sp.fromCountry || sp.from, qty = (+sp.qty||0);
+    (s.shipments || []).filter(x => x.arrivedAt).forEach(sp => {
+      const to = sp.toCountry || sp.to, from = sp.fromCountry || sp.from, qty = (+sp.qty || 0);
       if (to && state.countries.includes(to)) {
-        per[to] = per[to] || {stock:0, facebook:0, tiktok:0, google:0, totalAd:0}; 
+        per[to] = per[to] || { stock: 0, facebook: 0, tiktok: 0, google: 0, totalAd: 0 };
         per[to].stock += qty;
       }
       if (from && state.countries.includes(from)) {
-        per[from] = per[from]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0}; 
+        per[from] = per[from] || { stock: 0, facebook: 0, tiktok: 0, google: 0, totalAd: 0 };
         per[from].stock -= qty;
       }
     });
-  } catch {}
+  } catch { }
 
   try {
     const r = await api('/api/remittances');
-    (r.remittances||[]).forEach(x=>{
+    (r.remittances || []).forEach(x => {
       if (state.countries.includes(x.country)) {
-        per[x.country] = per[x.country]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0};
-        per[x.country].stock -= (+x.pieces||0);
+        per[x.country] = per[x.country] || { stock: 0, facebook: 0, tiktok: 0, google: 0, totalAd: 0 };
+        per[x.country].stock -= (+x.pieces || 0);
       }
     });
-  } catch {}
+  } catch { }
 
   try {
     const a = await api('/api/adspend');
-    (a.adSpends||[]).forEach(x=>{
+    (a.adSpends || []).forEach(x => {
       if (state.countries.includes(x.country)) {
-        per[x.country] = per[x.country]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0};
-        const amount = +x.amount||0;
+        per[x.country] = per[x.country] || { stock: 0, facebook: 0, tiktok: 0, google: 0, totalAd: 0 };
+        const amount = +x.amount || 0;
         if (x.platform === 'facebook') per[x.country].facebook += amount;
         else if (x.platform === 'tiktok') per[x.country].tiktok += amount;
         else if (x.platform === 'google') per[x.country].google += amount;
         per[x.country].totalAd += amount;
       }
     });
-  } catch {}
+  } catch { }
 
-  let st=0, fb=0, tt=0, gg=0, totalAd=0;
-  const rows = Object.entries(per).map(([c,v])=>{
-    st += v.stock; 
-    fb += v.facebook; 
-    tt += v.tiktok; 
-    gg += v.google; 
+  let st = 0, fb = 0, tt = 0, gg = 0, totalAd = 0;
+  const rows = Object.entries(per).map(([c, v]) => {
+    st += v.stock;
+    fb += v.facebook;
+    tt += v.tiktok;
+    gg += v.google;
     totalAd += v.totalAd;
-    
+
     return `<tr>
       <td>${c}</td>
       <td>${fmt(v.stock)}</td>
@@ -330,7 +311,7 @@ async function renderCountryStockSpend() {
       <td>${fmt(v.totalAd)}</td>
     </tr>`;
   }).join('');
-  
+
   body.innerHTML = rows || `<tr><td colspan="6" class="muted">No data</td></tr>`;
   Q('#stockTotal') && (Q('#stockTotal').textContent = fmt(st));
   Q('#fbTotal') && (Q('#fbTotal').textContent = fmt(fb));
@@ -339,11 +320,10 @@ async function renderCountryStockSpend() {
   Q('#adTotal') && (Q('#adTotal').textContent = fmt(totalAd));
 }
 
-/* ---------- Daily Ad Spend ---------- */
 function bindDailyAdSpend() {
   const btn = Q('#adSave');
   if (!btn) return;
-  btn.onclick = async ()=>{
+  btn.onclick = async () => {
     const payload = {
       productId: Q('#adProduct')?.value,
       country: Q('#adCountry')?.value,
@@ -352,24 +332,24 @@ function bindDailyAdSpend() {
     };
     if (!payload.productId || !payload.country || !payload.platform) return alert('Fill all fields');
     try {
-      await api('/api/adspend',{method:'POST', body: JSON.stringify(payload)});
+      await api('/api/adspend', { method: 'POST', body: JSON.stringify(payload) });
       await renderCountryStockSpend();
       await renderCompactKpis();
       alert('Ad spend saved');
-    } catch(e){ alert(e.message); }
+    } catch (e) { alert(e.message); }
   };
 }
 
-/* ---------- Weekly Delivered grid ---------- */
 function mondayOf(dateISO) {
   const d = new Date(dateISO);
-  const k = (d.getDay()+6)%7; d.setDate(d.getDate()-k);
+  const k = (d.getDay() + 6) % 7; d.setDate(d.getDate() - k);
   return d;
 }
+
 function weekDays(fromMonDate) {
-  return [...Array(7)].map((_,i)=> {
-    const t = new Date(fromMonDate); t.setDate(t.getDate()+i);
-    return t.toISOString().slice(0,10);
+  return [...Array(7)].map((_, i) => {
+    const t = new Date(fromMonDate); t.setDate(t.getDate() + i);
+    return t.toISOString().slice(0, 10);
   });
 }
 
@@ -383,70 +363,69 @@ function renderWeeklyDelivered() {
     const days = weekDays(mon);
     rangeLbl.textContent = `Week: ${days[0]} → ${days[6]}`;
 
-    head.innerHTML = `<tr><th>Country</th>${days.map(d=>{
-      const lab = new Date(d).toLocaleDateString(undefined,{weekday:'short'});
+    head.innerHTML = `<tr><th>Country</th>${days.map(d => {
+      const lab = new Date(d).toLocaleDateString(undefined, { weekday: 'short' });
       return `<th>${lab}<br>${d}</th>`;
     }).join('')}<th>Total</th></tr>`;
 
-    body.innerHTML = state.countries.map(c=>{
-      const cells = days.map(d=>`<td><input type="number" min="0" class="wd-cell" data-country="${c}" data-date="${d}" placeholder="0"/></td>`).join('');
+    body.innerHTML = state.countries.map(c => {
+      const cells = days.map(d => `<td><input type="number" min="0" class="wd-cell" data-country="${c}" data-date="${d}" placeholder="0"/></td>`).join('');
       return `<tr data-row="${c}"><td>${c}</td>${cells}<td class="row-total">0</td></tr>`;
     }).join('');
 
     try {
       const r = await api('/api/deliveries');
       const map = {};
-      (r.deliveries||[]).forEach(x => map[`${x.country}|${x.date}`] = +x.delivered||0);
-      QA('.wd-cell').forEach(inp=>{
+      (r.deliveries || []).forEach(x => map[`${x.country}|${x.date}`] = +x.delivered || 0);
+      QA('.wd-cell').forEach(inp => {
         const k = `${inp.dataset.country}|${inp.dataset.date}`;
         if (map[k] != null) inp.value = map[k];
       });
-    } catch {}
+    } catch { }
 
     computeWeeklyTotals();
   };
 
   function computeWeeklyTotals() {
-    QA('tr[data-row]').forEach(tr=>{
-      const t = QA('.wd-cell', tr).reduce((s,el)=>s+(+el.value||0),0);
+    QA('tr[data-row]').forEach(tr => {
+      const t = QA('.wd-cell', tr).reduce((s, el) => s + (+el.value || 0), 0);
       Q('.row-total', tr).textContent = fmt(t);
     });
-    
+
     const cols = QA('thead th', Q('#weeklyTable')).length - 2;
     let grand = 0;
-    for (let i=0;i<cols;i++) {
+    for (let i = 0; i < cols; i++) {
       let colSum = 0;
-      QA('tr[data-row]').forEach(tr=>{
+      QA('tr[data-row]').forEach(tr => {
         const inp = QA('.wd-cell', tr)[i];
-        colSum += (+inp.value||0);
+        colSum += (+inp.value || 0);
       });
-      Q(`#w${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i]}T`).textContent = fmt(colSum);
+      Q(`#w${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]}T`).textContent = fmt(colSum);
       grand += colSum;
     }
     Q('#wAllT').textContent = fmt(grand);
     Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = fmt(grand));
   }
 
-  Q('#weeklyPrev')?.addEventListener('click',()=>{ const d = new Date(anchor); d.setDate(d.getDate()-7); anchor = d.toISOString().slice(0,10); updateGrid(); });
-  Q('#weeklyNext')?.addEventListener('click',()=>{ const d = new Date(anchor); d.setDate(d.getDate()+7); anchor = d.toISOString().slice(0,10); updateGrid(); });
-  Q('#weeklyReset')?.addEventListener('click',()=>{ QA('.wd-cell').forEach(el=>el.value=''); computeWeeklyTotals(); });
-  Q('#weeklyTable')?.addEventListener('input', (e)=>{ if (e.target.classList.contains('wd-cell')) computeWeeklyTotals(); });
-  Q('#weeklySave')?.addEventListener('click', async ()=>{
+  Q('#weeklyPrev')?.addEventListener('click', () => { const d = new Date(anchor); d.setDate(d.getDate() - 7); anchor = d.toISOString().slice(0, 10); updateGrid(); });
+  Q('#weeklyNext')?.addEventListener('click', () => { const d = new Date(anchor); d.setDate(d.getDate() + 7); anchor = d.toISOString().slice(0, 10); updateGrid(); });
+  Q('#weeklyReset')?.addEventListener('click', () => { QA('.wd-cell').forEach(el => el.value = ''); computeWeeklyTotals(); });
+  Q('#weeklyTable')?.addEventListener('input', (e) => { if (e.target.classList.contains('wd-cell')) computeWeeklyTotals(); });
+  Q('#weeklySave')?.addEventListener('click', async () => {
     const payload = [];
-    QA('.wd-cell').forEach(inp=>{
-      const val = +inp.value||0;
-      if (val>0) payload.push({ date: inp.dataset.date, country: inp.dataset.country, delivered: val });
+    QA('.wd-cell').forEach(inp => {
+      const val = +inp.value || 0;
+      if (val > 0) payload.push({ date: inp.dataset.date, country: inp.dataset.country, delivered: val });
     });
     try {
-      for (const row of payload) await api('/api/deliveries',{method:'POST', body: JSON.stringify(row)});
+      for (const row of payload) await api('/api/deliveries', { method: 'POST', body: JSON.stringify(row) });
       alert('Weekly deliveries saved');
-    } catch(e){ alert('Save failed: '+e.message); }
+    } catch (e) { alert('Save failed: ' + e.message); }
   });
 
   updateGrid();
 }
 
-/* ---------- Brainstorming ---------- */
 function initBrainstorming() {
   const container = Q('#brainstormingSection');
   if (!container) return;
@@ -475,12 +454,11 @@ function initBrainstorming() {
         
         <div id="brainstormingList" class="ideas-list">
           ${state.brainstorming.map(idea => `
-            <div class="idea-card ${idea.isProfitable ? 'profitable' : 'not-profitable'}" data-id="${idea.id}">
+            <div class="idea-card" data-id="${idea.id}">
               <div class="idea-header">
                 <strong>${idea.title}</strong>
                 <span class="idea-category ${idea.category}">${idea.category}</span>
                 <div class="idea-actions">
-                  <button class="btn outline small brain-edit" data-id="${idea.id}">Edit</button>
                   <button class="btn outline small brain-del" data-id="${idea.id}">Delete</button>
                 </div>
               </div>
@@ -530,71 +508,69 @@ function initBrainstorming() {
   }
 }
 
-/* ---------- To-do + Weekly To-do ---------- */
 function initTodos() {
-  const KEY='eas_todos', WKEY='eas_weekly';
-  const load = k => safeJSON(localStorage.getItem(k))|| (k===WKEY?{}:[]);
-  const save = (k,v)=>localStorage.setItem(k,JSON.stringify(v));
+  const KEY = 'eas_todos', WKEY = 'eas_weekly';
+  const load = k => safeJSON(localStorage.getItem(k)) || (k === WKEY ? {} : []);
+  const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
   const listEl = Q('#todoList'); const addBtn = Q('#todoAdd');
-  function renderQuick(){
+  function renderQuick() {
     const arr = load(KEY);
-    listEl.innerHTML = arr.map(t=>`<div class="flex">
-      <span>${t.done?'✅ ':''}${t.text}</span>
-      <button class="btn outline" data-done="${t.id}">${t.done?'Undo':'Done'}</button>
+    listEl.innerHTML = arr.map(t => `<div class="flex">
+      <span>${t.done ? '✅ ' : ''}${t.text}</span>
+      <button class="btn outline" data-done="${t.id}">${t.done ? 'Undo' : 'Done'}</button>
       <button class="btn outline" data-del="${t.id}">Delete</button>
     </div>`).join('') || '<div class="muted">No tasks</div>';
   }
-  addBtn?.addEventListener('click', ()=>{
+  addBtn?.addEventListener('click', () => {
     const v = Q('#todoText')?.value.trim(); if (!v) return;
-    const arr = load(KEY); arr.push({id:crypto.randomUUID(),text:v,done:false}); save(KEY,arr); Q('#todoText').value=''; renderQuick();
+    const arr = load(KEY); arr.push({ id: crypto.randomUUID(), text: v, done: false }); save(KEY, arr); Q('#todoText').value = ''; renderQuick();
   });
-  listEl?.addEventListener('click',(e)=>{
+  listEl?.addEventListener('click', (e) => {
     if (e.target.dataset.done) {
       const arr = load(KEY);
-      const it = arr.find(x=>x.id===e.target.dataset.done); 
-      it.done=!it.done; save(KEY,arr); renderQuick();
+      const it = arr.find(x => x.id === e.target.dataset.done);
+      it.done = !it.done; save(KEY, arr); renderQuick();
     }
-    if (e.target.dataset.del)  {
+    if (e.target.dataset.del) {
       const arr = load(KEY);
-      const idx = arr.findIndex(x=>x.id===e.target.dataset.del); arr.splice(idx,1); save(KEY,arr); renderQuick();
+      const idx = arr.findIndex(x => x.id === e.target.dataset.del); arr.splice(idx, 1); save(KEY, arr); renderQuick();
     }
   });
   renderQuick();
 
-  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const wrap = Q('#weeklyWrap');
-  function renderWeekly(){
+  function renderWeekly() {
     const data = load(WKEY);
-    wrap.innerHTML = days.map(d=>{
-      const arr = data[d]||[];
+    wrap.innerHTML = days.map(d => {
+      const arr = data[d] || [];
       return `<div class="card">
         <div class="h">${d}</div>
         <div class="row"><input id="w_${d}" class="input" placeholder="Task"/><button class="btn" data-add="${d}">Add</button></div>
-        <div class="list">${arr.map(t=>`<div class="flex"><span>${t.done?'✅ ':''}${t.text}</span>
-          <button class="btn outline" data-tgl="${d}|${t.id}">${t.done?'Undo':'Done'}</button>
+        <div class="list">${arr.map(t => `<div class="flex"><span>${t.done ? '✅ ' : ''}${t.text}</span>
+          <button class="btn outline" data-tgl="${d}|${t.id}">${t.done ? 'Undo' : 'Done'}</button>
           <button class="btn outline" data-del="${d}|${t.id}">Delete</button>
         </div>`).join('')}</div>
       </div>`;
     }).join('');
   }
-  wrap?.addEventListener('click',(e)=>{
+  wrap?.addEventListener('click', (e) => {
     const data = load(WKEY);
     if (e.target.dataset.add) {
-      const d = e.target.dataset.add, v = Q('#w_'+d).value.trim(); if (!v) return;
-      data[d] = data[d]||[]; data[d].push({id:crypto.randomUUID(),text:v,done:false}); save(WKEY,data); renderWeekly();
+      const d = e.target.dataset.add, v = Q('#w_' + d).value.trim(); if (!v) return;
+      data[d] = data[d] || []; data[d].push({ id: crypto.randomUUID(), text: v, done: false }); save(WKEY, data); renderWeekly();
     }
     if (e.target.dataset.tgl) {
-      const [d,id]=e.target.dataset.tgl.split('|'); const it=(data[d]||[]).find(x=>x.id===id); it.done=!it.done; save(WKEY,data); renderWeekly();
+      const [d, id] = e.target.dataset.tgl.split('|'); const it = (data[d] || []).find(x => x.id === id); it.done = !it.done; save(WKEY, data); renderWeekly();
     }
     if (e.target.dataset.del) {
-      const [d,id]=e.target.dataset.del.split('|'); const arr=(data[d]||[]); const i=arr.findIndex(x=>x.id===id); arr.splice(i,1); data[d]=arr; save(WKEY,data); renderWeekly();
+      const [d, id] = e.target.dataset.del.split('|'); const arr = (data[d] || []); const i = arr.findIndex(x => x.id === id); arr.splice(i, 1); data[d] = arr; save(WKEY, data); renderWeekly();
     }
   });
   renderWeekly();
 }
 
-/* ---------- Tested Products ---------- */
 function initTestedProducts() {
   const container = Q('#testedProductsSection');
   if (!container) return;
@@ -651,7 +627,7 @@ function initTestedProducts() {
                 <span class="stat-badge">CPL: $${fmt(country.costPerLead)}</span>
                 <span class="stat-badge">Confirmation: ${fmt(country.confirmationRate)}%</span>
                 <span class="stat-badge">Price: $${fmt(country.sellingPrice)}</span>
-                <span class="stat-badge">Max Budget: $${fmt(country.sellingPrice * (country.confirmationRate/100))}</span>
+                <span class="stat-badge">Max Budget: $${fmt(country.sellingPrice * (country.confirmationRate / 100))}</span>
               </div>
             </div>
           `).join('')}
@@ -678,7 +654,7 @@ function initTestedProducts() {
       Q('#testCostPerLead').value = '';
       Q('#testConfirmationRate').value = '';
       Q('#testSellingPrice').value = '';
-      
+
       return api('/api/tested-products');
     }).then(data => {
       state.testedProducts = data.testedProducts || [];
@@ -700,22 +676,18 @@ function initTestedProducts() {
   }
 }
 
-/* ================================================================
-   PRODUCTS PAGE
-   ================================================================ */
 function renderProductsPage() {
   renderCompactCountryStats();
   renderAdvertisingOverview();
   initDateRangeSelectors();
 
-  Q('#pAdd')?.addEventListener('click', async ()=>{
+  Q('#pAdd')?.addEventListener('click', async () => {
     const p = {
       name: Q('#pName')?.value.trim(),
-      sku:  Q('#pSku')?.value.trim(),
-      margin_budget: +Q('#pMB')?.value||0
+      sku: Q('#pSku')?.value.trim()
     };
     if (!p.name) return alert('Name required');
-    await api('/api/products',{method:'POST', body: JSON.stringify(p)});
+    await api('/api/products', { method: 'POST', body: JSON.stringify(p) });
     await preload();
     renderProductsTable();
     renderCompactCountryStats();
@@ -723,7 +695,7 @@ function renderProductsPage() {
     alert('Product added');
   });
 
-  Q('#spSave')?.addEventListener('click', async ()=>{
+  Q('#spSave')?.addEventListener('click', async () => {
     const productId = Q('#spProduct')?.value;
     const country = Q('#spCountry')?.value;
     const price = +Q('#spPrice')?.value || 0;
@@ -744,7 +716,6 @@ function renderProductsPage() {
   renderProductInfoSection();
 }
 
-/* ---------- COMPACT COUNTRY STATS ---------- */
 function renderCompactCountryStats() {
   const container = Q('#countryProductStats');
   if (!container) return;
@@ -752,7 +723,7 @@ function renderCompactCountryStats() {
   api('/api/adspend').then(adData => {
     const adSpends = adData.adSpends || [];
     const countryStats = {};
-    
+
     state.countries.forEach(country => {
       countryStats[country] = { active: 0, paused: 0, total: 0 };
     });
@@ -791,7 +762,7 @@ function renderCompactCountryStats() {
         </div>
       `;
     });
-    
+
     container.innerHTML = html;
   }).catch(console.error);
 }
@@ -802,19 +773,19 @@ function renderAdvertisingOverview() {
 
   api('/api/adspend').then(adData => {
     const adSpends = adData.adSpends || [];
-    
+
     const byCountry = {};
-    
+
     adSpends.forEach(spend => {
       const country = spend.country;
       const productId = spend.productId;
       const platform = spend.platform;
       const amount = +spend.amount || 0;
-      
+
       if (!byCountry[country]) {
         byCountry[country] = {};
       }
-      
+
       if (!byCountry[country][productId]) {
         byCountry[country][productId] = {
           facebook: 0,
@@ -823,27 +794,27 @@ function renderAdvertisingOverview() {
           total: 0
         };
       }
-      
+
       if (platform === 'facebook') byCountry[country][productId].facebook += amount;
       else if (platform === 'tiktok') byCountry[country][productId].tiktok += amount;
       else if (platform === 'google') byCountry[country][productId].google += amount;
-      
+
       byCountry[country][productId].total += amount;
     });
-    
+
     let html = '';
-    
+
     Object.keys(byCountry).sort().forEach(country => {
       const products = byCountry[country];
       const sortedProducts = Object.entries(products)
         .filter(([_, data]) => data.total > 0)
         .sort((a, b) => b[1].total - a[1].total);
-      
+
       if (sortedProducts.length === 0) return;
-      
+
       html += `<div class="card country-section">
         <div class="h" style="color: var(--primary); margin-bottom: 12px;">${country}</div>`;
-      
+
       sortedProducts.forEach(([productId, data]) => {
         const product = state.products.find(p => p.id === productId) || { name: productId };
         html += `
@@ -857,17 +828,17 @@ function renderAdvertisingOverview() {
           </div>
         </div>`;
       });
-      
+
       html += `</div>`;
     });
-    
+
     container.innerHTML = html || '<div class="card"><div class="muted">No advertising data yet</div></div>';
   }).catch(console.error);
 }
 
 function renderProductsTable() {
   const tb = Q('#productsTable tbody'); if (!tb) return;
-  tb.innerHTML = state.products.map(p=>{
+  tb.innerHTML = state.products.map(p => {
     let rowClass = '';
     if (!p.hasData) {
       rowClass = 'no-data-row';
@@ -876,30 +847,30 @@ function renderProductsTable() {
     } else {
       rowClass = 'loss-row';
     }
-    
+
     return `
     <tr class="${rowClass}">
       <td>${p.name}</td>
-      <td>${p.sku||'-'}</td>
-      <td><span class="badge ${p.status==='paused'?'muted':''}">${p.status||'active'}</span></td>
+      <td>${p.sku || '-'}</td>
+      <td><span class="badge ${p.status === 'paused' ? 'muted' : ''}">${p.status || 'active'}</span></td>
       <td>
         <a class="btn" href="/product.html?id=${p.id}">Open</a>
-        <button class="btn outline act-toggle" data-id="${p.id}">${p.status==='active'?'Pause':'Run'}</button>
+        <button class="btn outline act-toggle" data-id="${p.id}">${p.status === 'active' ? 'Pause' : 'Run'}</button>
         <button class="btn outline act-del" data-id="${p.id}">Delete</button>
       </td>
     </tr>
   `}).join('') || `<tr><td colspan="4" class="muted">No products</td></tr>`;
 
-  tb.onclick = async (e)=>{
+  tb.onclick = async (e) => {
     const id = e.target.dataset?.id; if (!id) return;
     if (e.target.classList.contains('act-toggle')) {
-      const p = state.products.find(x=>x.id===id); const ns = p.status==='active'?'paused':'active';
-      await api(`/api/products/${id}/status`,{method:'POST', body: JSON.stringify({status:ns})});
+      const p = state.products.find(x => x.id === id); const ns = p.status === 'active' ? 'paused' : 'active';
+      await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: ns }) });
       await preload(); renderProductsTable(); renderCompactCountryStats(); renderAdvertisingOverview();
     }
     if (e.target.classList.contains('act-del')) {
       if (!confirm('Delete product and ALL its data?')) return;
-      await api(`/api/products/${id}`,{method:'DELETE'});
+      await api(`/api/products/${id}`, { method: 'DELETE' });
       await preload(); renderProductsTable(); renderCompactCountryStats(); renderAdvertisingOverview(); renderCountryStockSpend(); renderCompactKpis();
     }
   };
@@ -916,12 +887,9 @@ function renderProductInfoSection() {
     const product = state.products.find(p => p.id === productId);
     if (!product) return;
 
-    // Get selling prices
     const prices = await api(`/api/products/${productId}/prices`);
-    
-    // Get product metrics
     const metrics = await api(`/api/analytics/remittance?productId=${productId}&range=lifetime`);
-    
+
     let html = `
       <div class="product-info-results">
         <div class="product-info-header">
@@ -937,9 +905,10 @@ function renderProductInfoSection() {
                 <tr>
                   <th>Country</th>
                   <th>Selling Price</th>
-                  <th>Max Cost Per Lead</th>
+                  <th>Product Cost</th>
+                  <th>Available for Profit & Ads</th>
                   <th>Delivery Rate</th>
-                  <th>Profit + Ad Budget</th>
+                  <th>Max Cost Per Lead</th>
                 </tr>
               </thead>
               <tbody>
@@ -948,19 +917,21 @@ function renderProductInfoSection() {
     state.countries.forEach(country => {
       const price = prices.prices.find(p => p.country === country);
       const countryMetrics = metrics.analytics.find(m => m.country === country);
-      
+
       const sellingPrice = price ? price.price : 0;
+      const productCost = countryMetrics ? countryMetrics.totalProductCost / (countryMetrics.totalPieces || 1) : 0;
+      const availableForProfitAndAds = sellingPrice - productCost;
       const deliveryRate = countryMetrics ? countryMetrics.deliveryRate : 0;
-      const maxCPL = deliveryRate > 0 ? sellingPrice * (deliveryRate / 100) : 0;
-      const profitBudget = countryMetrics ? countryMetrics.profit : 0;
+      const maxCPL = deliveryRate > 0 ? availableForProfitAndAds * (deliveryRate / 100) : 0;
 
       html += `
         <tr>
           <td>${country}</td>
           <td>$${fmt(sellingPrice)}</td>
-          <td>$${fmt(maxCPL)}</td>
+          <td>$${fmt(productCost)}</td>
+          <td class="${availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(availableForProfitAndAds)}</td>
           <td>${fmt(deliveryRate)}%</td>
-          <td class="${profitBudget >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(profitBudget)}</td>
+          <td>$${fmt(maxCPL)}</td>
         </tr>
       `;
     });
@@ -970,28 +941,6 @@ function renderProductInfoSection() {
             </table>
           </div>
         </div>
-        
-        <div class="product-notes-section">
-          <h4>📝 Product Notes</h4>
-          <div class="notes-grid">
-    `;
-
-    // Get product notes
-    const notes = await api(`/api/products/${productId}/notes`);
-    state.countries.forEach(country => {
-      const note = notes.notes.find(n => n.country === country);
-      html += `
-        <div class="note-card">
-          <div class="note-country">${country}</div>
-          <div class="note-content">${note ? note.note : 'No notes yet'}</div>
-          ${note ? `<div class="note-date">Updated: ${new Date(note.updatedAt).toLocaleDateString()}</div>` : ''}
-        </div>
-      `;
-    });
-
-    html += `
-          </div>
-        </div>
       </div>
     `;
 
@@ -999,9 +948,6 @@ function renderProductInfoSection() {
   };
 }
 
-/* ================================================================
-   PERFORMANCE PAGE
-   ================================================================ */
 function renderPerformancePage() {
   initDateRangeSelectors();
   bindProductOrders();
@@ -1012,23 +958,23 @@ function renderPerformancePage() {
   bindRemittanceReport();
 }
 
-/* ---------- Product Orders Tracking ---------- */
 function bindProductOrders() {
   const btn = Q('#poSave');
   if (!btn) return;
-  
+
   btn.onclick = async () => {
     const payload = {
       productId: Q('#poProduct')?.value,
       country: Q('#poCountry')?.value,
-      date: Q('#poDate')?.value || isoToday(),
+      startDate: Q('#poStartDate')?.value,
+      endDate: Q('#poEndDate')?.value,
       orders: +Q('#poOrders')?.value || 0
     };
-    
-    if (!payload.productId || !payload.country) {
-      return alert('Please select product and country');
+
+    if (!payload.productId || !payload.country || !payload.startDate || !payload.endDate) {
+      return alert('Please select product, country, and date range');
     }
-    
+
     try {
       await api('/api/product-orders', { method: 'POST', body: JSON.stringify(payload) });
       alert('Orders data saved successfully!');
@@ -1039,21 +985,20 @@ function bindProductOrders() {
   };
 }
 
-/* ---------- Product Costs Analysis ---------- */
 function bindProductCostsAnalysis() {
   const btn = Q('#pcaRun');
   if (!btn) return;
-  
+
   btn.onclick = async () => {
     const productId = Q('#pcaProduct')?.value || '';
     const dateRange = getDateRange(Q('#pcaRun').closest('.row'));
-    
+
     try {
       const analysis = await api('/api/product-costs-analysis?' + new URLSearchParams({
         productId,
         ...dateRange
       }));
-      
+
       renderProductCostsAnalysis(analysis);
     } catch (e) {
       alert('Error generating analysis: ' + e.message);
@@ -1064,10 +1009,10 @@ function bindProductCostsAnalysis() {
 function renderProductCostsAnalysis(analysis) {
   const container = Q('#pcaResults');
   if (!container) return;
-  
+
   const profitClass = analysis.netProfit >= 0 ? 'number-positive' : 'number-negative';
   const bgClass = analysis.netProfit >= 0 ? 'profit-bg' : 'loss-bg';
-  
+
   container.innerHTML = `
     <div class="costs-analysis-summary ${bgClass}">
       <div class="summary-header">
@@ -1095,32 +1040,38 @@ function renderProductCostsAnalysis(analysis) {
             <tr>
               <td>Product Costs</td>
               <td>$${fmt(analysis.totalProductCost)}</td>
+              <td>China Product Cost</td>
+              <td>$${fmt(analysis.totalChinaCost)}</td>
+            </tr>
+            <tr>
               <td>China Shipping</td>
               <td>$${fmt(analysis.totalChinaShipping)}</td>
-            </tr>
-            <tr>
               <td>Inter-country Shipping</td>
               <td>$${fmt(analysis.totalInterShipping)}</td>
+            </tr>
+            <tr>
               <td>Influencer Costs</td>
               <td>$${fmt(analysis.totalInfluencerCost)}</td>
-            </tr>
-            <tr>
               <td>Advertising Spend</td>
               <td>$${fmt(analysis.totalAdSpend)}</td>
+            </tr>
+            <tr>
               <td>Boxleo Fees</td>
               <td>$${fmt(analysis.totalBoxleoFees)}</td>
-            </tr>
-            <tr>
               <td><strong>Delivered Pieces</strong></td>
               <td>${fmt(analysis.totalPieces)}</td>
-              <td><strong>Total Orders</strong></td>
-              <td>${fmt(analysis.totalOrders)}</td>
             </tr>
             <tr>
+              <td><strong>Total Orders</strong></td>
+              <td>${fmt(analysis.totalOrders)}</td>
               <td><strong>Delivery Rate</strong></td>
               <td>${fmt(analysis.deliveryRate)}%</td>
+            </tr>
+            <tr>
               <td><strong>Cost per Piece</strong></td>
               <td>$${fmt(analysis.costPerDeliveredPiece)}</td>
+              <td><strong>Cost per Order</strong></td>
+              <td>$${fmt(analysis.costPerDeliveredOrder)}</td>
             </tr>
           </tbody>
         </table>
@@ -1129,23 +1080,22 @@ function renderProductCostsAnalysis(analysis) {
   `;
 }
 
-/* ---------- Remittance Analytics ---------- */
 function bindRemittanceAnalytics() {
   const btn = Q('#remAnalyticsRun');
   if (!btn) return;
-  
+
   btn.onclick = async () => {
     const dateRange = getDateRange(btn.closest('.row'));
     const country = Q('#remAnalyticsCountry')?.value || '';
     const productId = Q('#remAnalyticsProduct')?.value || '';
-    
+
     try {
       const analytics = await api('/api/analytics/remittance?' + new URLSearchParams({
         ...dateRange,
         country,
         productId
       }));
-      
+
       renderRemittanceAnalytics(analytics.analytics);
     } catch (e) {
       alert('Error generating analytics: ' + e.message);
@@ -1156,15 +1106,15 @@ function bindRemittanceAnalytics() {
 function renderRemittanceAnalytics(analytics) {
   const tb = Q('#remAnalyticsBody');
   if (!tb) return;
-  
+
   let totalPieces = 0, totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
-  let totalProductCost = 0, totalTotalCost = 0, totalProfit = 0;
-  
+  let totalProductCost = 0, totalTotalCost = 0, totalProfit = 0, totalOrders = 0;
+
   analytics.sort((a, b) => b.pieces - a.pieces);
-  
+
   tb.innerHTML = analytics.map(item => {
     const product = state.products.find(p => p.id === item.productId) || { name: item.productId };
-    
+
     totalPieces += item.totalPieces;
     totalRevenue += item.totalRevenue;
     totalAdSpend += item.totalAdSpend;
@@ -1172,10 +1122,12 @@ function renderRemittanceAnalytics(analytics) {
     totalProductCost += item.totalProductCost;
     totalTotalCost += item.totalCost;
     totalProfit += item.profit;
-    
+    totalOrders += item.totalOrders;
+
     return `<tr>
       <td>${product.name}</td>
       <td>${item.country}</td>
+      <td><strong>${fmt(item.totalOrders)}</strong></td>
       <td><strong>${fmt(item.totalPieces)}</strong></td>
       <td>${fmt(item.totalRevenue)}</td>
       <td>${fmt(item.totalAdSpend)}</td>
@@ -1187,42 +1139,43 @@ function renderRemittanceAnalytics(analytics) {
       <td>${fmt(item.costPerDeliveredPiece)}</td>
       <td>${fmt(item.costPerOrderAd)}</td>
       <td>${fmt(item.costPerPieceAd)}</td>
-      <td>${fmt(item.maxCostPerLead)}</td>
+      <td>${fmt(item.boxleoPerOrder)}</td>
+      <td>${fmt(item.boxleoPerPiece)}</td>
       <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(item.profit)}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="15" class="muted">No data for selected period</td></tr>`;
-  
-  // Update totals
+  }).join('') || `<tr><td colspan="17" class="muted">No data for selected period</td></tr>`;
+
+  Q('#remAnalyticsOrdersT').textContent = fmt(totalOrders);
   Q('#remAnalyticsPiecesT').textContent = fmt(totalPieces);
   Q('#remAnalyticsRevenueT').textContent = fmt(totalRevenue);
   Q('#remAnalyticsAdSpendT').textContent = fmt(totalAdSpend);
   Q('#remAnalyticsBoxleoT').textContent = fmt(totalBoxleo);
   Q('#remAnalyticsProductCostT').textContent = fmt(totalProductCost);
   Q('#remAnalyticsTotalCostT').textContent = fmt(totalTotalCost);
-  Q('#remAnalyticsDeliveryRateT').textContent = fmt(totalPieces > 0 ? (totalPieces / totalPieces * 100) : 0) + '%';
-  Q('#remAnalyticsCostOrderT').textContent = fmt(totalPieces > 0 ? totalTotalCost / totalPieces : 0);
+  Q('#remAnalyticsDeliveryRateT').textContent = fmt(totalOrders > 0 ? (totalPieces / totalOrders * 100) : 0) + '%';
+  Q('#remAnalyticsCostOrderT').textContent = fmt(totalOrders > 0 ? totalTotalCost / totalOrders : 0);
   Q('#remAnalyticsCostPieceT').textContent = fmt(totalPieces > 0 ? totalTotalCost / totalPieces : 0);
-  Q('#remAnalyticsAdOrderT').textContent = fmt(totalPieces > 0 ? totalAdSpend / totalPieces : 0);
+  Q('#remAnalyticsAdOrderT').textContent = fmt(totalOrders > 0 ? totalAdSpend / totalOrders : 0);
   Q('#remAnalyticsAdPieceT').textContent = fmt(totalPieces > 0 ? totalAdSpend / totalPieces : 0);
-  Q('#remAnalyticsMaxCPLT').textContent = fmt(totalProfit / totalPieces);
+  Q('#remAnalyticsBoxleoOrderT').textContent = fmt(totalOrders > 0 ? totalBoxleo / totalOrders : 0);
+  Q('#remAnalyticsBoxleoPieceT').textContent = fmt(totalPieces > 0 ? totalBoxleo / totalPieces : 0);
   Q('#remAnalyticsProfitT').textContent = fmt(totalProfit);
 }
 
-/* ---------- Profit by Country ---------- */
 function bindProfitByCountry() {
   const btn = Q('#pcRun');
   if (!btn) return;
-  
+
   btn.onclick = async () => {
     const dateRange = getDateRange(btn.closest('.row'));
     const country = Q('#pcCountry')?.value || '';
-    
+
     try {
       const analytics = await api('/api/analytics/profit-by-country?' + new URLSearchParams({
         ...dateRange,
         country
       }));
-      
+
       renderProfitByCountry(analytics.analytics);
     } catch (e) {
       alert('Error calculating profit: ' + e.message);
@@ -1233,10 +1186,10 @@ function bindProfitByCountry() {
 function renderProfitByCountry(analytics) {
   const tb = Q('#profitCountryBody');
   if (!tb) return;
-  
+
   let totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
-  let totalProductCost = 0, totalTotalCost = 0, totalPieces = 0, totalProfit = 0;
-  
+  let totalProductCost = 0, totalTotalCost = 0, totalPieces = 0, totalProfit = 0, totalOrders = 0;
+
   tb.innerHTML = Object.entries(analytics).map(([country, metrics]) => {
     totalRevenue += metrics.totalRevenue;
     totalAdSpend += metrics.totalAdSpend;
@@ -1245,7 +1198,8 @@ function renderProfitByCountry(analytics) {
     totalTotalCost += metrics.totalCost;
     totalPieces += metrics.totalPieces;
     totalProfit += metrics.profit;
-    
+    totalOrders += metrics.totalOrders;
+
     return `<tr>
       <td>${country}</td>
       <td>${fmt(metrics.totalRevenue)}</td>
@@ -1253,39 +1207,32 @@ function renderProfitByCountry(analytics) {
       <td>${fmt(metrics.totalBoxleoFees)}</td>
       <td>${fmt(metrics.totalProductCost)}</td>
       <td>${fmt(metrics.totalCost)}</td>
+      <td>${fmt(metrics.totalOrders)}</td>
       <td>${fmt(metrics.totalPieces)}</td>
       <td>${fmt(metrics.deliveryRate)}%</td>
       <td>${fmt(metrics.costPerDeliveredOrder)}</td>
       <td>${fmt(metrics.costPerDeliveredPiece)}</td>
       <td class="${metrics.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(metrics.profit)}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="11" class="muted">No data</td></tr>`;
-  
+  }).join('') || `<tr><td colspan="12" class="muted">No data</td></tr>`;
+
   Q('#pcRevT').textContent = fmt(totalRevenue);
   Q('#pcAdT').textContent = fmt(totalAdSpend);
   Q('#pcBoxleoT').textContent = fmt(totalBoxleo);
   Q('#pcProductCostT').textContent = fmt(totalProductCost);
   Q('#pcTotalCostT').textContent = fmt(totalTotalCost);
+  Q('#pcOrdersT').textContent = fmt(totalOrders);
   Q('#pcPiecesT').textContent = fmt(totalPieces);
-  Q('#pcDeliveryRateT').textContent = fmt(totalPieces > 0 ? (totalPieces / totalPieces * 100) : 0) + '%';
-  Q('#pcCostOrderT').textContent = fmt(totalPieces > 0 ? totalTotalCost / totalPieces : 0);
+  Q('#pcDeliveryRateT').textContent = fmt(totalOrders > 0 ? (totalPieces / totalOrders * 100) : 0) + '%';
+  Q('#pcCostOrderT').textContent = fmt(totalOrders > 0 ? totalTotalCost / totalOrders : 0);
   Q('#pcCostPieceT').textContent = fmt(totalPieces > 0 ? totalTotalCost / totalPieces : 0);
   Q('#pcProfitT').textContent = fmt(totalProfit);
 }
 
-/* ---------- Add Remittance Entry ---------- */
 function bindRemittanceAdd() {
   const btn = Q('#remAddSave');
   if (!btn) return;
-  
-  // Set default dates
-  const today = new Date();
-  const sevenDaysAgo = new Date(today);
-  sevenDaysAgo.setDate(today.getDate() - 7);
-  
-  Q('#remAddStart').value = sevenDaysAgo.toISOString().slice(0,10);
-  Q('#remAddEnd').value = today.toISOString().slice(0,10);
-  
+
   btn.onclick = async () => {
     const payload = {
       start: Q('#remAddStart')?.value,
@@ -1298,22 +1245,20 @@ function bindRemittanceAdd() {
       adSpend: +Q('#remAddAdSpend')?.value || 0,
       boxleoFees: +Q('#remAddBoxleo')?.value || 0
     };
-    
+
     if (!payload.start || !payload.end || !payload.country || !payload.productId) {
       return alert('Please fill all required fields: Start Date, End Date, Country, and Product');
     }
-    
+
     try {
       await api('/api/remittances', { method: 'POST', body: JSON.stringify(payload) });
       alert('Remittance entry added successfully!');
-      // Clear only numeric fields, keep dates and selections
       Q('#remAddOrders').value = '';
       Q('#remAddPieces').value = '';
       Q('#remAddRevenue').value = '';
       Q('#remAddAdSpend').value = '';
       Q('#remAddBoxleo').value = '';
-      
-      // Refresh the remittance report
+
       renderRemittanceReport();
     } catch (e) {
       alert('Error adding remittance: ' + e.message);
@@ -1321,11 +1266,10 @@ function bindRemittanceAdd() {
   };
 }
 
-/* ---------- Remittance Report ---------- */
 function bindRemittanceReport() {
   const btn = Q('#remRun');
   if (!btn) return;
-  
+
   btn.onclick = renderRemittanceReport;
 }
 
@@ -1333,22 +1277,21 @@ async function renderRemittanceReport() {
   const dateRange = getDateRange(Q('#remRun').closest('.row'));
   const country = Q('#remCountry')?.value || '';
   const productId = Q('#remProduct')?.value || '';
-  
+
   let rem = await api('/api/remittances?' + new URLSearchParams({
     ...dateRange,
     country,
     productId
   }));
-  
+
   rem = rem.remittances || [];
-  
-  // Sort by pieces descending
+
   rem.sort((a, b) => (b.pieces || 0) - (a.pieces || 0));
-  
+
   const prodMap = Object.fromEntries(state.products.map(p => [p.id, p]));
   let totalOrders = 0, totalPieces = 0, totalRevenue = 0, totalAdSpend = 0;
   let totalBoxleo = 0, totalProductCost = 0, totalTotalCost = 0, totalProfit = 0;
-  
+
   const tb = Q('#remittanceBody');
   tb.innerHTML = rem.map(r => {
     const product = prodMap[r.productId] || {};
@@ -1357,8 +1300,8 @@ async function renderRemittanceReport() {
     const productCost = costPerPiece * (+r.pieces || 0);
     const totalCost = productCost + (+r.adSpend || 0) + (+r.boxleoFees || 0);
     const profit = (+r.revenue || 0) - totalCost;
-    const deliveryRate = 0; // This would need orders data to calculate
-    
+    const deliveryRate = (+r.orders || 0) > 0 ? ((+r.pieces || 0) / (+r.orders || 0)) * 100 : 0;
+
     totalOrders += (+r.orders || 0);
     totalPieces += (+r.pieces || 0);
     totalRevenue += (+r.revenue || 0);
@@ -1367,7 +1310,7 @@ async function renderRemittanceReport() {
     totalProductCost += productCost;
     totalTotalCost += totalCost;
     totalProfit += profit;
-    
+
     return `<tr>
       <td>${r.start} - ${r.end}</td>
       <td>${product.name || r.productId}</td>
@@ -1384,7 +1327,7 @@ async function renderRemittanceReport() {
       <td><button class="btn outline rem-del" data-id="${r.id}">Delete</button></td>
     </tr>`;
   }).join('') || `<tr><td colspan="13" class="muted">No remittance data</td></tr>`;
-  
+
   Q('#remOrdersT').textContent = fmt(totalOrders);
   Q('#remPiecesT').textContent = fmt(totalPieces);
   Q('#remRevenueT').textContent = fmt(totalRevenue);
@@ -1394,8 +1337,7 @@ async function renderRemittanceReport() {
   Q('#remTotalCostT').textContent = fmt(totalTotalCost);
   Q('#remDeliveryRateT').textContent = fmt(totalOrders > 0 ? (totalPieces / totalOrders * 100) : 0) + '%';
   Q('#remProfitT').textContent = fmt(totalProfit);
-  
-  // Add delete functionality
+
   tb.addEventListener('click', async (e) => {
     if (e.target.classList.contains('rem-del')) {
       if (!confirm('Delete this remittance entry?')) return;
@@ -1409,23 +1351,8 @@ async function renderRemittanceReport() {
   });
 }
 
-// Helper function for product costs calculation (simplified)
-function calculateProductCosts(db, productId, country) {
-  // This is a simplified version - in real implementation, 
-  // this would calculate based on actual shipment data
-  return {
-    totalCost: 0,
-    totalPieces: 0,
-    costPerPiece: 10 // Example default cost
-  };
-}
-
-/* ================================================================
-   STOCK MOVEMENT PAGE
-   ================================================================ */
 function renderStockMovementPage() {
-  // Show/hide China cost field based on origin selection
-  Q('#mvFrom')?.addEventListener('change', function() {
+  Q('#mvFrom')?.addEventListener('change', function () {
     const chinaField = Q('#chinaCostField');
     if (this.value === 'china') {
       chinaField.style.display = 'block';
@@ -1436,8 +1363,8 @@ function renderStockMovementPage() {
 
   const btn = Q('#mvAdd');
   if (!btn) return;
-  
-  btn.onclick = async ()=>{
+
+  btn.onclick = async () => {
     const payload = {
       productId: Q('#mvProduct')?.value,
       fromCountry: Q('#mvFrom')?.value,
@@ -1449,15 +1376,15 @@ function renderStockMovementPage() {
       departedAt: isoToday(),
       arrivedAt: null
     };
-    
+
     if (!payload.productId || !payload.fromCountry || !payload.toCountry) return alert('Missing fields');
     if (payload.fromCountry === 'china' && !payload.chinaCost) return alert('China cost required for shipments from China');
-    
-    try{
-      await api('/api/shipments',{method:'POST', body: JSON.stringify(payload)});
+
+    try {
+      await api('/api/shipments', { method: 'POST', body: JSON.stringify(payload) });
       await renderTransitTables();
       alert('Shipment created');
-    } catch(e){ alert(e.message); }
+    } catch (e) { alert(e.message); }
   };
 
   renderTransitTables();
@@ -1466,24 +1393,24 @@ function renderStockMovementPage() {
 async function renderTransitTables() {
   const tbl1 = Q('#shipCKBody'), tbl2 = Q('#shipICBody');
   if (!tbl1 && !tbl2) return;
-  
+
   const s = await api('/api/shipments');
-  const live = (s.shipments||[]).filter(x=>!x.arrivedAt);
-  const prodMap = Object.fromEntries(state.products.map(p=>[p.id,p.name]));
+  const live = (s.shipments || []).filter(x => !x.arrivedAt);
+  const prodMap = Object.fromEntries(state.products.map(p => [p.id, p.name]));
 
   const row = sp => {
-    const days = sp.arrivedAt ? Math.round((+new Date(sp.arrivedAt)-(+new Date(sp.departedAt)))/86400000) : '';
+    const days = sp.arrivedAt ? Math.round((+new Date(sp.arrivedAt) - (+new Date(sp.departedAt))) / 86400000) : '';
     return `<tr>
       <td>${sp.id}</td>
-      <td>${prodMap[sp.productId]||sp.productId}</td>
-      <td>${sp.fromCountry||sp.from} → ${sp.toCountry||sp.to}</td>
+      <td>${prodMap[sp.productId] || sp.productId}</td>
+      <td>${sp.fromCountry || sp.from} → ${sp.toCountry || sp.to}</td>
       <td>${fmt(sp.qty)}</td>
       <td>${fmt(sp.shipCost)}</td>
       <td>${sp.fromCountry === 'china' ? fmt(sp.chinaCost) : '-'}</td>
-      <td>${sp.departedAt||''}</td>
-      <td>${sp.arrivedAt||''}</td>
+      <td>${sp.departedAt || ''}</td>
+      <td>${sp.arrivedAt || ''}</td>
       <td>${days}</td>
-      <td>${sp.note||''}</td>
+      <td>${sp.note || ''}</td>
       <td>
         <button class="btn outline act-arr" data-id="${sp.id}">Arrived</button>
         <button class="btn outline act-edit" data-id="${sp.id}">Edit</button>
@@ -1492,22 +1419,22 @@ async function renderTransitTables() {
     </tr>`;
   };
 
-  const ck = live.filter(sp => (sp.fromCountry||sp.from||'').toLowerCase()==='china' && (sp.toCountry||sp.to||'').toLowerCase()==='kenya');
+  const ck = live.filter(sp => (sp.fromCountry || sp.from || '').toLowerCase() === 'china' && (sp.toCountry || sp.to || '').toLowerCase() === 'kenya');
   const ic = live.filter(sp => !ck.includes(sp));
 
   if (tbl1) tbl1.innerHTML = ck.map(row).join('') || `<tr><td colspan="11" class="muted">No transit</td></tr>`;
   if (tbl2) tbl2.innerHTML = ic.map(row).join('') || `<tr><td colspan="10" class="muted">No transit</td></tr>`;
 
   const host = Q('#stockMovement') || document;
-  host.addEventListener('click', async (e)=>{
+  host.addEventListener('click', async (e) => {
     const id = e.target.dataset?.id;
     if (!id) return;
 
     if (e.target.classList.contains('act-arr')) {
       const date = prompt('Arrival date (YYYY-MM-DD)', isoToday());
       if (!date) return;
-      try { await api(`/api/shipments/${id}`, { method:'PUT', body: JSON.stringify({ arrivedAt: date })}); }
-      catch(err){ return alert(err.message); }
+      try { await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) }); }
+      catch (err) { return alert(err.message); }
       await renderTransitTables();
       await renderCountryStockSpend();
     }
@@ -1517,152 +1444,144 @@ async function renderTransitTables() {
       const shipCost = +prompt('New shipping cost?', '0') || 0;
       const chinaCost = +prompt('New China cost?', '0') || 0;
       const note = prompt('Note?', '') || '';
-      try { await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({ qty, shipCost, chinaCost, note })}); }
-      catch(err){ return alert(err.message); }
+      try { await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost, chinaCost, note }) }); }
+      catch (err) { return alert(err.message); }
       await renderTransitTables();
     }
 
     if (e.target.classList.contains('act-del')) {
       if (!confirm('Delete shipment?')) return;
-      try { await api(`/api/shipments/${id}`,{method:'DELETE'}); }
-      catch(err){ return alert(err.message); }
+      try { await api(`/api/shipments/${id}`, { method: 'DELETE' }); }
+      catch (err) { return alert(err.message); }
       await renderTransitTables();
     }
-  }, { once:true });
+  }, { once: true });
 }
 
-/* ================================================================
-   FINANCE PAGE
-   ================================================================ */
 function renderFinancePage() {
   refreshFinanceCategories();
-  
-  Q('#fcAdd')?.addEventListener('click', async ()=>{
+
+  Q('#fcAdd')?.addEventListener('click', async () => {
     const type = Q('#fcType')?.value, name = Q('#fcName')?.value.trim();
     if (!name) return;
-    await api('/api/finance/categories',{method:'POST', body: JSON.stringify({type,name})});
-    Q('#fcName').value=''; await refreshFinanceCategories();
+    await api('/api/finance/categories', { method: 'POST', body: JSON.stringify({ type, name }) });
+    Q('#fcName').value = ''; await refreshFinanceCategories();
   });
 
-  Q('#finance')?.addEventListener('click', async (e)=>{
+  Q('#finance')?.addEventListener('click', async (e) => {
     if (e.target.classList.contains('chip-x')) {
       const type = e.target.dataset.type, name = e.target.dataset.name;
       if (!confirm(`Delete category "${name}"?`)) return;
-      await api(`/api/finance/categories?type=${encodeURIComponent(type)}&name=${encodeURIComponent(name)}`,{method:'DELETE'});
+      await api(`/api/finance/categories?type=${encodeURIComponent(type)}&name=${encodeURIComponent(name)}`, { method: 'DELETE' });
       await refreshFinanceCategories();
     }
   });
 
-  Q('#feAdd')?.addEventListener('click', async ()=>{
-    const date = Q('#feDate')?.value, 
-          cat = Q('#feCat')?.value, 
-          amt = +Q('#feAmt')?.value||0, 
-          note = Q('#feNote')?.value||'';
-    
-    if (!date||!cat) return alert('Pick date & category');
-    
-    const type = state.categories.credit.includes(cat) ? 'credit':'debit';
-    await api('/api/finance/entries',{method:'POST', body: JSON.stringify({date, type, category:cat, amount:amt, note})});
-    Q('#feAmt').value=''; Q('#feNote').value='';
+  Q('#feAdd')?.addEventListener('click', async () => {
+    const date = Q('#feDate')?.value,
+      cat = Q('#feCat')?.value,
+      amt = +Q('#feAmt')?.value || 0,
+      note = Q('#feNote')?.value || '';
+
+    if (!date || !cat) return alert('Pick date & category');
+
+    const type = state.categories.credit.includes(cat) ? 'credit' : 'debit';
+    await api('/api/finance/entries', { method: 'POST', body: JSON.stringify({ date, type, category: cat, amount: amt, note }) });
+    Q('#feAmt').value = ''; Q('#feNote').value = '';
     await runFinancePeriod();
   });
 
   Q('#fcSearchRun')?.addEventListener('click', runFinanceCategorySearch);
   Q('#feRun')?.addEventListener('click', runFinancePeriod);
-  
+
   runFinancePeriod();
 }
 
 async function refreshFinanceCategories() {
   const cats = await api('/api/finance/categories');
   state.categories = cats;
-  const mk = (arr, type) => arr.map(c=>`<span class="chip">${c}<button class="chip-x" data-type="${type}" data-name="${c}">×</button></span>`).join('') || '—';
-  Q('#fcDebits') && (Q('#fcDebits').innerHTML = mk(cats.debit,'debit'));
-  Q('#fcCredits') && (Q('#fcCredits').innerHTML = mk(cats.credit,'credit'));
+  const mk = (arr, type) => arr.map(c => `<span class="chip">${c}<button class="chip-x" data-type="${type}" data-name="${c}">×</button></span>`).join('') || '—';
+  Q('#fcDebits') && (Q('#fcDebits').innerHTML = mk(cats.debit, 'debit'));
+  Q('#fcCredits') && (Q('#fcCredits').innerHTML = mk(cats.credit, 'credit'));
 
   const all = [...cats.debit, ...cats.credit].sort();
-  Q('#feCat') && (Q('#feCat').innerHTML = `<option value="" disabled selected>Select category</option>` + all.map(c=>`<option>${c}</option>`).join(''));
-  
-  Q('#fcSearchCat') && (Q('#fcSearchCat').innerHTML = `<option value="">All categories</option>` + all.map(c=>`<option>${c}</option>`).join(''));
+  Q('#feCat') && (Q('#feCat').innerHTML = `<option value="" disabled selected>Select category</option>` + all.map(c => `<option>${c}</option>`).join(''));
+
+  Q('#fcSearchCat') && (Q('#fcSearchCat').innerHTML = `<option value="">All categories</option>` + all.map(c => `<option>${c}</option>`).join(''));
 }
 
 async function runFinancePeriod() {
   const s = Q('#fes')?.value, e = Q('#fee')?.value;
-  const r = await api('/api/finance/entries' + ((s||e)?`?start=${s||''}&end=${e||''}`:''));
-  Q('#runBalance') && (Q('#runBalance').textContent = fmt(r.running||0)+' USD');
-  Q('#feBalance') && (Q('#feBalance').textContent = 'Period Balance: ' + fmt(r.balance||0) + ' USD');
+  const r = await api('/api/finance/entries' + ((s || e) ? `?start=${s || ''}&end=${e || ''}` : ''));
+  Q('#runBalance') && (Q('#runBalance').textContent = fmt(r.running || 0) + ' USD');
+  Q('#feBalance') && (Q('#feBalance').textContent = 'Period Balance: ' + fmt(r.balance || 0) + ' USD');
   const tb = Q('#feTable tbody');
-  tb && (tb.innerHTML = (r.entries||[]).map(x=>`
+  tb && (tb.innerHTML = (r.entries || []).map(x => `
     <tr>
       <td>${x.date}</td>
       <td>${x.type}</td>
       <td>${x.category}</td>
       <td>${fmt(x.amount)}</td>
-      <td>${x.note||''}</td>
+      <td>${x.note || ''}</td>
       <td><button class="btn outline fe-del" data-id="${x.id}">Delete</button></td>
     </tr>
   `).join('') || `<tr><td colspan="6" class="muted">No entries</td></tr>`);
-  tb?.addEventListener('click', async (e)=>{
+  tb?.addEventListener('click', async (e) => {
     if (e.target.classList.contains('fe-del')) {
-      await api(`/api/finance/entries/${e.target.dataset.id}`,{method:'DELETE'});
+      await api(`/api/finance/entries/${e.target.dataset.id}`, { method: 'DELETE' });
       await runFinancePeriod();
     }
-  }, { once:true });
+  }, { once: true });
 }
 
 async function runFinanceCategorySearch() {
-  const s = Q('#fcSearchStart')?.value, 
-        e = Q('#fcSearchEnd')?.value, 
-        cat = Q('#fcSearchCat')?.value,
-        type = Q('#fcSearchType')?.value;
-  
+  const s = Q('#fcSearchStart')?.value,
+    e = Q('#fcSearchEnd')?.value,
+    cat = Q('#fcSearchCat')?.value,
+    type = Q('#fcSearchType')?.value;
+
   if (!s || !e) return alert('Select date range');
-  
+
   const r = await api(`/api/finance/entries?start=${s}&end=${e}` + (cat ? `&category=${cat}` : '') + (type ? `&type=${type}` : ''));
-  
+
   Q('#fcSearchResult').textContent = `Total: ${fmt(r.categoryTotal || 0)} USD`;
   Q('#fcSearchCount').textContent = `Entries: ${r.entries?.length || 0}`;
 }
 
-/* ================================================================
-   SETTINGS PAGE
-   ================================================================ */
 function renderSettingsPage() {
-  Q('#ctyAdd')?.addEventListener('click', async ()=>{
+  Q('#ctyAdd')?.addEventListener('click', async () => {
     const name = Q('#cty')?.value.trim(); if (!name) return;
-    await api('/api/countries',{method:'POST', body: JSON.stringify({name})});
+    await api('/api/countries', { method: 'POST', body: JSON.stringify({ name }) });
     await preload(); renderCountryChips();
   });
-  
+
   renderCountryChips();
-  
-  Q('#ctyList')?.addEventListener('click', async (e)=>{
+
+  Q('#ctyList')?.addEventListener('click', async (e) => {
     if (e.target.classList.contains('chip-x')) {
       const name = e.target.dataset.name;
       if (!confirm(`Delete country "${name}"?`)) return;
-      await api(`/api/countries/${encodeURIComponent(name)}`,{method:'DELETE'});
+      await api(`/api/countries/${encodeURIComponent(name)}`, { method: 'DELETE' });
       await preload(); renderCountryChips(); fillCommonSelects();
     }
   });
 
   const sel = Q('#epSelect');
   if (sel) {
-    sel.innerHTML = `<option value="">Select product…</option>`+
-      state.products.map(p=>`<option value="${p.id}">${p.name}${p.sku?` (${p.sku})`:''}</option>`).join('');
-    sel.onchange = ()=>{
-      const p = state.products.find(x=>x.id===sel.value);
+    sel.innerHTML = `<option value="">Select product…</option>` +
+      state.products.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+    sel.onchange = () => {
+      const p = state.products.find(x => x.id === sel.value);
       if (!p) return;
-      Q('#epName').value = p.name||''; Q('#epSku').value = p.sku||'';
-      Q('#epMB').value = p.margin_budget||0;
+      Q('#epName').value = p.name || ''; Q('#epSku').value = p.sku || '';
     };
-    
-    Q('#epSave')?.addEventListener('click', async ()=>{
+
+    Q('#epSave')?.addEventListener('click', async () => {
       const id = sel.value; if (!id) return alert('Pick a product');
       const up = {
-        name: Q('#epName').value, sku: Q('#epSku').value,
-        margin_budget:+Q('#epMB').value||0
+        name: Q('#epName').value, sku: Q('#epSku').value
       };
-      await api(`/api/products/${id}`,{method:'PUT', body: JSON.stringify(up)});
+      await api(`/api/products/${id}`, { method: 'PUT', body: JSON.stringify(up) });
       await preload(); alert('Saved');
     });
   }
@@ -1670,9 +1589,9 @@ function renderSettingsPage() {
   const listBox = Q('#snapList');
   async function refreshSnaps() {
     const r = await api('/api/snapshots');
-    listBox.innerHTML = (r.snapshots||[]).map(s=>`
+    listBox.innerHTML = (r.snapshots || []).map(s => `
       <tr>
-        <td>${s.name}</td><td>${s.file.replace(/^.*data\\?\\/,'')}</td>
+        <td>${s.name}</td><td>${s.file.replace(/^.*data\\?\\/, '')}</td>
         <td>
           <button class="btn outline ss-push" data-file="${s.file}">Push</button>
           <button class="btn outline ss-del" data-id="${s.id}">Delete</button>
@@ -1681,22 +1600,22 @@ function renderSettingsPage() {
   }
   refreshSnaps();
 
-  Q('#snapSave')?.addEventListener('click', async ()=>{
-    const name = Q('#snapName')?.value.trim() || ('Manual '+new Date().toLocaleString());
-    await api('/api/snapshots',{method:'POST', body: JSON.stringify({name})});
-    Q('#snapName').value='';
+  Q('#snapSave')?.addEventListener('click', async () => {
+    const name = Q('#snapName')?.value.trim() || ('Manual ' + new Date().toLocaleString());
+    await api('/api/snapshots', { method: 'POST', body: JSON.stringify({ name }) });
+    Q('#snapName').value = '';
     await refreshSnaps();
   });
 
-  listBox?.addEventListener('click', async (e)=>{
+  listBox?.addEventListener('click', async (e) => {
     if (e.target.classList.contains('ss-push')) {
-      await api('/api/snapshots/restore',{method:'POST', body: JSON.stringify({file:e.target.dataset.file})});
+      await api('/api/snapshots/restore', { method: 'POST', body: JSON.stringify({ file: e.target.dataset.file }) });
       alert('Pushed snapshot to system. (Snapshot kept)');
       location.reload();
     }
     if (e.target.classList.contains('ss-del')) {
       if (!confirm('Delete this snapshot?')) return;
-      await api(`/api/snapshots/${e.target.dataset.id}`,{method:'DELETE'});
+      await api(`/api/snapshots/${e.target.dataset.id}`, { method: 'DELETE' });
       await refreshSnaps();
     }
   });
@@ -1704,17 +1623,14 @@ function renderSettingsPage() {
 
 function renderCountryChips() {
   const box = Q('#ctyList'); if (!box) return;
-  box.innerHTML = state.countries.map(c=>`<span class="chip">${c}<button class="chip-x" data-name="${c}">×</button></span>`).join('') || '—';
+  box.innerHTML = state.countries.map(c => `<span class="chip">${c}<button class="chip-x" data-name="${c}">×</button></span>`).join('') || '—';
 }
 
-/* ================================================================
-   PRODUCT PAGE
-   ================================================================ */
 async function renderProductPage() {
   await preload();
-  const product = state.products.find(p=>p.id===state.productId);
-  if (!product) { alert('Product not found'); location.href='/'; return; }
-  
+  const product = state.products.find(p => p.id === state.productId);
+  if (!product) { alert('Product not found'); location.href = '/'; return; }
+
   Q('#pdTitle').textContent = product.name;
   Q('#pdSku').textContent = product.sku ? `SKU: ${product.sku}` : '';
 
@@ -1731,41 +1647,41 @@ async function renderProductPage() {
 
 async function renderProductStockAd(product) {
   const tb = Q('#pdStockBody'); if (!tb) return;
-  const per = {}; 
-  state.countries.forEach(c=> {
-    per[c] = { 
-      stock: 0, 
-      facebook: 0, 
-      tiktok: 0, 
-      google: 0, 
-      totalAd: 0 
+  const per = {};
+  state.countries.forEach(c => {
+    per[c] = {
+      stock: 0,
+      facebook: 0,
+      tiktok: 0,
+      google: 0,
+      totalAd: 0
     };
   });
 
   const s = await api('/api/shipments');
-  (s.shipments||[]).filter(x=>x.productId===product.id && x.arrivedAt).forEach(sp=>{
-    const to = sp.toCountry||sp.to, from = sp.fromCountry||sp.from, q=(+sp.qty||0);
+  (s.shipments || []).filter(x => x.productId === product.id && x.arrivedAt).forEach(sp => {
+    const to = sp.toCountry || sp.to, from = sp.fromCountry || sp.from, q = (+sp.qty || 0);
     if (to && state.countries.includes(to)) {
-      per[to]=per[to]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0}; per[to].stock += q;
+      per[to] = per[to] || { stock: 0, facebook: 0, tiktok: 0, google: 0, totalAd: 0 }; per[to].stock += q;
     }
     if (from && state.countries.includes(from)) {
-      per[from]=per[from]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0}; per[from].stock -= q;
+      per[from] = per[from] || { stock: 0, facebook: 0, tiktok: 0, google: 0, totalAd: 0 }; per[from].stock -= q;
     }
   });
 
   const r = await api('/api/remittances');
-  (r.remittances||[]).filter(x=>x.productId===product.id).forEach(rr=>{
+  (r.remittances || []).filter(x => x.productId === product.id).forEach(rr => {
     if (state.countries.includes(rr.country)) {
-      per[rr.country]=per[rr.country]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0};
-      per[rr.country].stock -= (+rr.pieces||0);
+      per[rr.country] = per[rr.country] || { stock: 0, facebook: 0, tiktok: 0, google: 0, totalAd: 0 };
+      per[rr.country].stock -= (+rr.pieces || 0);
     }
   });
 
   const a = await api('/api/adspend');
-  (a.adSpends||[]).filter(x=>x.productId===product.id).forEach(sp=>{
+  (a.adSpends || []).filter(x => x.productId === product.id).forEach(sp => {
     if (state.countries.includes(sp.country)) {
-      per[sp.country]=per[sp.country]||{stock:0, facebook:0, tiktok:0, google:0, totalAd:0};
-      const amount = +sp.amount||0;
+      per[sp.country] = per[sp.country] || { stock: 0, facebook: 0, tiktok: 0, google: 0, totalAd: 0 };
+      const amount = +sp.amount || 0;
       if (sp.platform === 'facebook') per[sp.country].facebook += amount;
       else if (sp.platform === 'tiktok') per[sp.country].tiktok += amount;
       else if (sp.platform === 'google') per[sp.country].google += amount;
@@ -1773,10 +1689,10 @@ async function renderProductStockAd(product) {
     }
   });
 
-  let st=0, fb=0, tt=0, gg=0, totalAd=0;
-  tb.innerHTML = Object.entries(per).map(([c,v])=>{
-    st+=v.stock; fb+=v.facebook; tt+=v.tiktok; gg+=v.google; totalAd+=v.totalAd;
-    
+  let st = 0, fb = 0, tt = 0, gg = 0, totalAd = 0;
+  tb.innerHTML = Object.entries(per).map(([c, v]) => {
+    st += v.stock; fb += v.facebook; tt += v.tiktok; gg += v.google; totalAd += v.totalAd;
+
     return `<tr>
       <td>${c}</td>
       <td>${fmt(v.stock)}</td>
@@ -1786,7 +1702,7 @@ async function renderProductStockAd(product) {
       <td>${fmt(v.totalAd)}</td>
     </tr>`;
   }).join('') || `<tr><td colspan="6" class="muted">No data</td></tr>`;
-  
+
   Q('#pdStockTotal').textContent = fmt(st);
   Q('#pdFbTotal').textContent = fmt(fb);
   Q('#pdTtTotal').textContent = fmt(tt);
@@ -1798,8 +1714,6 @@ function renderProductBudgets(product) {
   const tb = Q('#pdPBBBody');
   if (!tb) return;
 
-  // This would need to be implemented with actual data
-  // For now, showing a placeholder
   tb.innerHTML = state.countries.map(c => `
     <tr>
       <td>${c}</td>
@@ -1814,69 +1728,69 @@ function renderProductBudgets(product) {
 
 async function renderProductTransit(product) {
   const s = await api('/api/shipments');
-  const list = (s.shipments||[]).filter(x=>x.productId===product.id && !x.arrivedAt);
-  const ck = list.filter(sp => (sp.fromCountry||sp.from||'').toLowerCase()==='china' && (sp.toCountry||sp.to||'').toLowerCase()==='kenya');
+  const list = (s.shipments || []).filter(x => x.productId === product.id && !x.arrivedAt);
+  const ck = list.filter(sp => (sp.fromCountry || sp.from || '').toLowerCase() === 'china' && (sp.toCountry || sp.to || '').toLowerCase() === 'kenya');
   const ic = list.filter(sp => !ck.includes(sp));
-  
+
   const row = sp => `<tr>
     <td>${sp.id}</td>
-    <td>${sp.fromCountry||sp.from} → ${sp.toCountry||sp.to}</td>
+    <td>${sp.fromCountry || sp.from} → ${sp.toCountry || sp.to}</td>
     <td>${fmt(sp.qty)}</td>
     <td>${fmt(sp.shipCost)}</td>
     <td>${sp.fromCountry === 'china' ? fmt(sp.chinaCost) : '-'}</td>
-    <td>${sp.departedAt||''}</td>
-    <td>${sp.arrivedAt||''}</td>
+    <td>${sp.departedAt || ''}</td>
+    <td>${sp.arrivedAt || ''}</td>
     <td>
       <button class="btn outline p-act-arr" data-id="${sp.id}">Arrived</button>
       <button class="btn outline p-act-edit" data-id="${sp.id}">Edit</button>
       <button class="btn outline p-act-del" data-id="${sp.id}">Delete</button>
     </td></tr>`;
-  
+
   Q('#pdShipCKBody').innerHTML = ck.map(row).join('') || `<tr><td colspan="8" class="muted">No shipments</td></tr>`;
   Q('#pdShipICBody').innerHTML = ic.map(row).join('') || `<tr><td colspan="7" class="muted">No shipments</td></tr>`;
 
   const host = Q('#product');
-  host.addEventListener('click', async (e)=>{
+  host.addEventListener('click', async (e) => {
     const id = e.target.dataset?.id; if (!id) return;
     if (e.target.classList.contains('p-act-arr')) {
       const date = prompt('Arrival date (YYYY-MM-DD)', isoToday()); if (!date) return;
-      await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({arrivedAt:date})});
-      await renderProductTransit(product); 
+      await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) });
+      await renderProductTransit(product);
       await renderProductArrivedShipments(product);
       await renderProductStockAd(product);
     }
     if (e.target.classList.contains('p-act-edit')) {
-      const qty = +prompt('New qty?', '0')||0;
-      const shipCost = +prompt('New shipping cost?', '0')||0;
-      const chinaCost = +prompt('New China cost?', '0')||0;
+      const qty = +prompt('New qty?', '0') || 0;
+      const shipCost = +prompt('New shipping cost?', '0') || 0;
+      const chinaCost = +prompt('New China cost?', '0') || 0;
       const note = prompt('Note?', '') || '';
-      await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({qty,shipCost,chinaCost,note})});
+      await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost, chinaCost, note }) });
       await renderProductTransit(product);
     }
     if (e.target.classList.contains('p-act-del')) {
       if (!confirm('Delete shipment?')) return;
-      await api(`/api/shipments/${id}`,{method:'DELETE'});
+      await api(`/api/shipments/${id}`, { method: 'DELETE' });
       await renderProductTransit(product);
     }
-  }, { once:true });
+  }, { once: true });
 }
 
 async function renderProductArrivedShipments(product) {
   const s = await api('/api/shipments');
-  const arrived = (s.shipments||[]).filter(x=>x.productId===product.id && x.arrivedAt);
-  
+  const arrived = (s.shipments || []).filter(x => x.productId === product.id && x.arrivedAt);
+
   const row = sp => {
-    const days = sp.arrivedAt ? Math.round((+new Date(sp.arrivedAt)-(+new Date(sp.departedAt)))/86400000) : '';
+    const days = sp.arrivedAt ? Math.round((+new Date(sp.arrivedAt) - (+new Date(sp.departedAt))) / 86400000) : '';
     return `<tr>
       <td>${sp.id}</td>
-      <td>${sp.fromCountry||sp.from} → ${sp.toCountry||sp.to}</td>
+      <td>${sp.fromCountry || sp.from} → ${sp.toCountry || sp.to}</td>
       <td>${fmt(sp.qty)}</td>
       <td>${fmt(sp.shipCost)}</td>
       <td>${sp.fromCountry === 'china' ? fmt(sp.chinaCost) : '-'}</td>
-      <td>${sp.departedAt||''}</td>
-      <td>${sp.arrivedAt||''}</td>
+      <td>${sp.departedAt || ''}</td>
+      <td>${sp.arrivedAt || ''}</td>
       <td>${days}</td>
-      <td>${sp.note||''}</td>
+      <td>${sp.note || ''}</td>
       <td>
         <button class="btn outline p-arr-edit" data-id="${sp.id}">Edit</button>
         <button class="btn outline p-arr-del" data-id="${sp.id}">Delete</button>
@@ -1887,24 +1801,24 @@ async function renderProductArrivedShipments(product) {
   Q('#pdArrivedBody').innerHTML = arrived.map(row).join('') || `<tr><td colspan="10" class="muted">No arrived shipments</td></tr>`;
 
   const host = Q('#product');
-  host.addEventListener('click', async (e)=>{
+  host.addEventListener('click', async (e) => {
     const id = e.target.dataset?.id; if (!id) return;
-    
+
     if (e.target.classList.contains('p-arr-edit')) {
-      const qty = +prompt('New qty?', '0')||0;
-      const shipCost = +prompt('New shipping cost?', '0')||0;
-      const chinaCost = +prompt('New China cost?', '0')||0;
+      const qty = +prompt('New qty?', '0') || 0;
+      const shipCost = +prompt('New shipping cost?', '0') || 0;
+      const chinaCost = +prompt('New China cost?', '0') || 0;
       const note = prompt('Note?', '') || '';
-      await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({qty,shipCost,chinaCost,note})});
+      await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost, chinaCost, note }) });
       await renderProductArrivedShipments(product);
     }
     if (e.target.classList.contains('p-arr-del')) {
       if (!confirm('Delete shipment?')) return;
-      await api(`/api/shipments/${id}`,{method:'DELETE'});
+      await api(`/api/shipments/${id}`, { method: 'DELETE' });
       await renderProductArrivedShipments(product);
       await renderProductStockAd(product);
     }
-  }, { once:true });
+  }, { once: true });
 }
 
 async function renderProductRemittances(product) {
@@ -1912,8 +1826,8 @@ async function renderProductRemittances(product) {
     const remittances = await api('/api/remittances?productId=' + product.id);
     const tb = Q('#pdRemittancesBody');
     if (!tb) return;
-    
-    tb.innerHTML = (remittances.remittances||[]).map(r => `
+
+    tb.innerHTML = (remittances.remittances || []).map(r => `
       <tr>
         <td>${r.start} - ${r.end}</td>
         <td>${r.country}</td>
@@ -1928,10 +1842,10 @@ async function renderProductRemittances(product) {
       </tr>
     `).join('') || `<tr><td colspan="8" class="muted">No remittances for this product</td></tr>`;
 
-    tb.addEventListener('click', async (e)=>{
+    tb.addEventListener('click', async (e) => {
       if (e.target.classList.contains('pd-rem-del')) {
         if (!confirm('Delete this remittance entry?')) return;
-        await api(`/api/remittances/${e.target.dataset.id}`,{method:'DELETE'});
+        await api(`/api/remittances/${e.target.dataset.id}`, { method: 'DELETE' });
         await renderProductRemittances(product);
         bindProductLifetime(product);
       }
@@ -1942,17 +1856,17 @@ async function renderProductRemittances(product) {
 }
 
 function bindProductLifetime(product) {
-  const run = async ()=>{
+  const run = async () => {
     const dateRange = getDateRange(Q('#pdLPRun').closest('.row'));
-    
+
     const analytics = await api('/api/analytics/remittance?' + new URLSearchParams({
       productId: product.id,
       ...dateRange
     }));
-    
+
     renderProductLifetime(analytics.analytics);
   };
-  
+
   Q('#pdLPRun')?.addEventListener('click', run);
   run();
 }
@@ -1960,20 +1874,21 @@ function bindProductLifetime(product) {
 function renderProductLifetime(analytics) {
   const tb = Q('#pdLPBody');
   if (!tb) return;
-  
+
   let totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
-  let totalProductCost = 0, totalShipCost = 0, totalTotalCost = 0, totalPieces = 0, totalProfit = 0;
-  
+  let totalProductCost = 0, totalShipCost = 0, totalTotalCost = 0, totalPieces = 0, totalProfit = 0, totalOrders = 0;
+
   tb.innerHTML = analytics.map(item => {
     totalRevenue += item.totalRevenue;
     totalAdSpend += item.totalAdSpend;
     totalBoxleo += item.totalBoxleoFees;
     totalProductCost += item.totalProductCost;
-    totalShipCost += 0; // This would need actual shipment data
+    totalShipCost += 0;
     totalTotalCost += item.totalCost;
     totalPieces += item.totalPieces;
     totalProfit += item.profit;
-    
+    totalOrders += item.totalOrders;
+
     return `<tr>
       <td>${item.country}</td>
       <td>${fmt(item.totalRevenue)}</td>
@@ -1982,50 +1897,52 @@ function renderProductLifetime(analytics) {
       <td>${fmt(item.totalProductCost)}</td>
       <td>${fmt(0)}</td>
       <td>${fmt(item.totalCost)}</td>
+      <td>${fmt(item.totalOrders)}</td>
       <td>${fmt(item.totalPieces)}</td>
       <td>${fmt(item.deliveryRate)}%</td>
       <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(item.profit)}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="10" class="muted">No data</td></tr>`;
-  
+  }).join('') || `<tr><td colspan="11" class="muted">No data</td></tr>`;
+
   Q('#pdLPRevT').textContent = fmt(totalRevenue);
   Q('#pdLPAdT').textContent = fmt(totalAdSpend);
   Q('#pdLPBoxleoT').textContent = fmt(totalBoxleo);
   Q('#pdLPProductCostT').textContent = fmt(totalProductCost);
   Q('#pdLPShipT').textContent = fmt(totalShipCost);
   Q('#pdLPTotalCostT').textContent = fmt(totalTotalCost);
+  Q('#pdLPOrdersT').textContent = fmt(totalOrders);
   Q('#pdLPPcsT').textContent = fmt(totalPieces);
-  Q('#pdLPDeliveryRateT').textContent = fmt(totalPieces > 0 ? (totalPieces / totalPieces * 100) : 0) + '%';
+  Q('#pdLPDeliveryRateT').textContent = fmt(totalOrders > 0 ? (totalPieces / totalOrders * 100) : 0) + '%';
   Q('#pdLPProfitT').textContent = fmt(totalProfit);
 }
 
 async function bindInfluencers(product) {
-  Q('#pdInfAdd')?.addEventListener('click', async ()=>{
+  Q('#pdInfAdd')?.addEventListener('click', async () => {
     const payload = {
       name: Q('#pdInfName')?.value.trim(),
       social: Q('#pdInfSocial')?.value.trim(),
       country: Q('#pdInfCountry')?.value
     };
     if (!payload.name) return alert('Name required');
-    await api('/api/influencers',{method:'POST', body: JSON.stringify(payload)});
-    Q('#pdInfName').value=''; Q('#pdInfSocial').value='';
+    await api('/api/influencers', { method: 'POST', body: JSON.stringify(payload) });
+    Q('#pdInfName').value = ''; Q('#pdInfSocial').value = '';
     await refreshInfluencers(product);
   });
 
-  Q('#pdInfSpendAdd')?.addEventListener('click', async ()=>{
+  Q('#pdInfSpendAdd')?.addEventListener('click', async () => {
     const payload = {
       date: Q('#pdInfDate')?.value || isoToday(),
       influencerId: Q('#pdInfSelect')?.value,
       country: Q('#pdInfCountry')?.value,
       productId: product.id,
-      amount: +Q('#pdInfAmount')?.value||0
+      amount: +Q('#pdInfAmount')?.value || 0
     };
     if (!payload.influencerId) return alert('Select influencer');
-    await api('/api/influencers/spend',{method:'POST', body: JSON.stringify(payload)});
+    await api('/api/influencers/spend', { method: 'POST', body: JSON.stringify(payload) });
     await refreshInfluencers(product);
   });
 
-  Q('#pdInfRun')?.addEventListener('click', ()=>refreshInfluencers(product));
+  Q('#pdInfRun')?.addEventListener('click', () => refreshInfluencers(product));
   await refreshInfluencers(product);
 }
 
@@ -2033,28 +1950,28 @@ async function refreshInfluencers(product) {
   const infs = await api('/api/influencers');
   const spends = await api('/api/influencers/spend');
   const sel = Q('#pdInfSelect');
-  sel.innerHTML = (infs.influencers||[]).map(i=>`<option value="${i.id}">${i.name}</option>`).join('') || '<option value="">No influencers</option>';
+  sel.innerHTML = (infs.influencers || []).map(i => `<option value="${i.id}">${i.name}</option>`).join('') || '<option value="">No influencers</option>';
 
   const dateRange = getDateRange(Q('#pdInfRun').closest('.row'));
-  const c = Q('#pdInfFilterCountry')?.value||'';
-  
-  const list = (spends.spends||[]).filter(x=>x.productId===product.id)
-    .filter(x=>(!c || x.country===c))
-    .filter(x=>(!dateRange.start || x.date>=dateRange.start) && (!dateRange.end || x.date<=dateRange.end));
-  
-  const infMap = Object.fromEntries((infs.influencers||[]).map(i=>[i.id,i]));
+  const c = Q('#pdInfFilterCountry')?.value || '';
+
+  const list = (spends.spends || []).filter(x => x.productId === product.id)
+    .filter(x => (!c || x.country === c))
+    .filter(x => (!dateRange.start || x.date >= dateRange.start) && (!dateRange.end || x.date <= dateRange.end));
+
+  const infMap = Object.fromEntries((infs.influencers || []).map(i => [i.id, i]));
   let total = 0;
-  Q('#pdInfBody').innerHTML = list.map(x=>{
-    total += (+x.amount||0);
-    const i = infMap[x.influencerId]||{};
-    return `<tr><td>${x.date}</td><td>${x.country}</td><td>${i.name||'-'}</td><td>${i.social||'-'}</td><td>${fmt(x.amount)}</td>
+  Q('#pdInfBody').innerHTML = list.map(x => {
+    total += (+x.amount || 0);
+    const i = infMap[x.influencerId] || {};
+    return `<tr><td>${x.date}</td><td>${x.country}</td><td>${i.name || '-'}</td><td>${i.social || '-'}</td><td>${fmt(x.amount)}</td>
       <td><button class="btn outline inf-del" data-id="${x.id}">Delete</button></td></tr>`;
   }).join('') || `<tr><td colspan="6" class="muted">No spends</td></tr>`;
   Q('#pdInfTotal').textContent = fmt(total);
 
-  Q('#pdInfBody').onclick = async (e)=>{
+  Q('#pdInfBody').onclick = async (e) => {
     if (e.target.classList.contains('inf-del')) {
-      await api(`/api/influencers/spend/${e.target.dataset.id}`,{method:'DELETE'});
+      await api(`/api/influencers/spend/${e.target.dataset.id}`, { method: 'DELETE' });
       await refreshInfluencers(product);
     }
   };
@@ -2085,7 +2002,7 @@ function bindProductNotes(product) {
 async function loadProductNotes(product) {
   const notes = await api(`/api/products/${product.id}/notes`);
   const container = Q('#pdNotesList');
-  
+
   if (!container) return;
 
   container.innerHTML = notes.notes.map(note => `
@@ -2108,26 +2025,20 @@ async function loadProductNotes(product) {
   });
 }
 
-/* ================================================================
-   NAV
-   ================================================================ */
 function bindGlobalNav() {
-  QA('.nav a[data-view]')?.forEach(a => a.addEventListener('click', e=>{
+  QA('.nav a[data-view]')?.forEach(a => a.addEventListener('click', e => {
     e.preventDefault();
     const v = a.dataset.view;
-    ['home','products','performance','stockMovement','finance','settings'].forEach(id=>{
-      const el = Q('#'+id);
-      if (el) el.style.display = (id===v)?'':'none';
+    ['home', 'products', 'performance', 'stockMovement', 'finance', 'settings'].forEach(id => {
+      const el = Q('#' + id);
+      if (el) el.style.display = (id === v) ? '' : 'none';
     });
-    QA('.nav a').forEach(x=>x.classList.toggle('active', x===a));
-    if (v==='home') { renderCompactKpis(); renderCountryStockSpend(); }
-    if (v==='products') { renderCompactCountryStats(); renderAdvertisingOverview(); }
-    if (v==='stockMovement') { renderStockMovementPage(); }
-    if (v==='performance') { renderRemittanceReport(); }
+    QA('.nav a').forEach(x => x.classList.toggle('active', x === a));
+    if (v === 'home') { renderCompactKpis(); renderCountryStockSpend(); }
+    if (v === 'products') { renderCompactCountryStats(); renderAdvertisingOverview(); }
+    if (v === 'stockMovement') { renderStockMovementPage(); }
+    if (v === 'performance') { renderRemittanceReport(); }
   }));
 }
 
-/* ================================================================
-   BOOT
-   ================================================================ */
 boot();
