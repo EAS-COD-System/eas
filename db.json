@@ -7,9 +7,6 @@
   "shipments": [],
   "remittances": [],
   "orders": [],
-  "productNotes": [],
-  "testedProducts": [],
-  "brainstorming": [],
   "finance": {
     "categories": {
       "debit": [],
@@ -19,5 +16,8 @@
   },
   "influencers": [],
   "influencerSpends": [],
+  "productNotes": [],
+  "brainstorming": [],
+  "productTests": [],
   "snapshots": []
 }
