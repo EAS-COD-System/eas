@@ -171,7 +171,7 @@ function fillCommonSelects() {
 
   const productFilters = ['#remProduct', '#remAnalyticsProduct', '#productInfoSelect'];
   productFilters.forEach(sel => QA(sel).forEach(el => {
-    el.innerHTML = `<option value="">All products</option>` +
+    el.innerHTML = `<option value="all">All products</option>` +
       state.products.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
   }));
 
@@ -911,8 +911,9 @@ function renderProductInfoSection() {
                 <tr>
                   <th>Country</th>
                   <th>Selling Price</th>
-                  <th>Product Cost</th>
+                  <th>Product Cost China</th>
                   <th>Shipping Cost</th>
+                  <th>Total Product Cost</th>
                   <th>Available for Profit & Ads</th>
                   <th>Delivery Rate</th>
                   <th>Max Cost Per Lead</th>
@@ -926,9 +927,10 @@ function renderProductInfoSection() {
       const countryMetrics = metrics.analytics.find(m => m.country === country);
 
       const sellingPrice = price ? price.price : 0;
-      const productCost = countryMetrics ? countryMetrics.totalProductCost / (countryMetrics.totalPieces || 1) : 0;
+      const productCostChina = countryMetrics ? countryMetrics.totalProductChinaCost / (countryMetrics.totalPieces || 1) : 0;
       const shippingCost = countryMetrics ? countryMetrics.totalShippingCost / (countryMetrics.totalPieces || 1) : 0;
-      const availableForProfitAndAds = sellingPrice - productCost - shippingCost;
+      const totalProductCost = productCostChina + shippingCost;
+      const availableForProfitAndAds = sellingPrice - totalProductCost;
       const deliveryRate = countryMetrics ? countryMetrics.deliveryRate : 0;
       const maxCPL = deliveryRate > 0 ? availableForProfitAndAds * (deliveryRate / 100) : 0;
 
@@ -936,8 +938,9 @@ function renderProductInfoSection() {
         <tr>
           <td>${country}</td>
           <td>$${fmt(sellingPrice)}</td>
-          <td>$${fmt(productCost)}</td>
+          <td>$${fmt(productCostChina)}</td>
           <td>$${fmt(shippingCost)}</td>
+          <td>$${fmt(totalProductCost)}</td>
           <td class="${availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(availableForProfitAndAds)}</td>
           <td>${fmt(deliveryRate)}%</td>
           <td>$${fmt(maxCPL)}</td>
@@ -988,7 +991,16 @@ function bindProductOrders() {
       alert('Orders data saved successfully!');
       Q('#poOrders').value = '';
     } catch (e) {
-      alert('Error saving orders: ' + e.message);
+      if (e.message.includes('Duplicate order period')) {
+        const confirmAdd = confirm('You already entered orders in that period for that product. Are you sure you want to enter again?');
+        if (confirmAdd) {
+          await api('/api/product-orders/force', { method: 'POST', body: JSON.stringify(payload) });
+          alert('Orders data saved successfully!');
+          Q('#poOrders').value = '';
+        }
+      } else {
+        alert('Error saving orders: ' + e.message);
+      }
     }
   };
 }
@@ -1046,8 +1058,8 @@ function renderProductCostsAnalysis(analysis) {
               <td class="number-negative">$${fmt(analysis.totalCost)}</td>
             </tr>
             <tr>
-              <td>Product Costs</td>
-              <td>$${fmt(analysis.totalProductCost)}</td>
+              <td>Product Cost China</td>
+              <td>$${fmt(analysis.totalProductChinaCost)}</td>
               <td>Shipping Costs</td>
               <td>$${fmt(analysis.totalShippingCost)}</td>
             </tr>
@@ -1110,9 +1122,9 @@ function renderRemittanceAnalytics(analytics) {
   if (!tb) return;
 
   let totalPieces = 0, totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
-  let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0;
+  let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0, totalDeliveryRate = 0;
 
-  analytics.sort((a, b) => b.pieces - a.pieces);
+  analytics.sort((a, b) => b.totalPieces - a.totalPieces);
 
   tb.innerHTML = analytics.map(item => {
     const product = state.products.find(p => p.id === item.productId) || { name: item.productId };
@@ -1121,7 +1133,7 @@ function renderRemittanceAnalytics(analytics) {
     totalRevenue += item.totalRevenue;
     totalAdSpend += item.totalAdSpend;
     totalBoxleo += item.totalBoxleoFees;
-    totalProductCost += item.totalProductCost;
+    totalProductCost += item.totalProductChinaCost;
     totalShippingCost += item.totalShippingCost;
     totalProfit += item.profit;
     totalOrders += item.totalOrders;
@@ -1134,15 +1146,14 @@ function renderRemittanceAnalytics(analytics) {
       <td>${fmt(item.totalRevenue)}</td>
       <td>${fmt(item.totalAdSpend)}</td>
       <td>${fmt(item.totalBoxleoFees)}</td>
-      <td>${fmt(item.totalProductCost)}</td>
+      <td>${fmt(item.totalProductChinaCost)}</td>
       <td>${fmt(item.totalShippingCost)}</td>
-      <td>${fmt(item.boxleoPerOrder)}</td>
-      <td>${fmt(item.boxleoPerPiece)}</td>
-      <td>${fmt(item.adCostPerOrder)}</td>
-      <td>${fmt(item.adCostPerPiece)}</td>
+      <td>${fmt(item.deliveryRate)}%</td>
       <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(item.profit)}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="14" class="muted">No data for selected period</td></tr>`;
+  }).join('') || `<tr><td colspan="11" class="muted">No data for selected period</td></tr>`;
+
+  const avgDeliveryRate = analytics.length > 0 ? analytics.reduce((sum, item) => sum + item.deliveryRate, 0) / analytics.length : 0;
 
   Q('#remAnalyticsOrdersT').textContent = fmt(totalOrders);
   Q('#remAnalyticsPiecesT').textContent = fmt(totalPieces);
@@ -1151,10 +1162,7 @@ function renderRemittanceAnalytics(analytics) {
   Q('#remAnalyticsBoxleoT').textContent = fmt(totalBoxleo);
   Q('#remAnalyticsProductCostT').textContent = fmt(totalProductCost);
   Q('#remAnalyticsShippingCostT').textContent = fmt(totalShippingCost);
-  Q('#remAnalyticsBoxleoOrderT').textContent = fmt(totalOrders > 0 ? totalBoxleo / totalOrders : 0);
-  Q('#remAnalyticsBoxleoPieceT').textContent = fmt(totalPieces > 0 ? totalBoxleo / totalPieces : 0);
-  Q('#remAnalyticsAdOrderT').textContent = fmt(totalOrders > 0 ? totalAdSpend / totalOrders : 0);
-  Q('#remAnalyticsAdPieceT').textContent = fmt(totalPieces > 0 ? totalAdSpend / totalPieces : 0);
+  Q('#remAnalyticsDeliveryRateT').textContent = fmt(avgDeliveryRate) + '%';
   Q('#remAnalyticsProfitT').textContent = fmt(totalProfit);
 }
 
@@ -1190,26 +1198,30 @@ function renderProfitByCountry(analytics) {
     totalRevenue += metrics.totalRevenue;
     totalAdSpend += metrics.totalAdSpend;
     totalBoxleo += metrics.totalBoxleoFees;
-    totalProductCost += metrics.totalProductCost;
+    totalProductCost += metrics.totalProductChinaCost;
     totalShippingCost += metrics.totalShippingCost;
     totalProfit += metrics.profit;
     totalOrders += metrics.totalOrders;
-    totalPieces += metrics.totalPieces;
+    totalPieces += metrics.totalDeliveredPieces;
 
     return `<tr>
       <td>${country}</td>
+      <td>${fmt(metrics.totalOrders)}</td>
+      <td>${fmt(metrics.totalDeliveredPieces)}</td>
       <td>${fmt(metrics.totalRevenue)}</td>
       <td>${fmt(metrics.totalAdSpend)}</td>
-      <td>${fmt(metrics.totalProductCost)}</td>
+      <td>${fmt(metrics.totalProductChinaCost)}</td>
       <td>${fmt(metrics.totalShippingCost)}</td>
       <td>${fmt(metrics.totalBoxleoFees)}</td>
       <td>${fmt(metrics.deliveryRate)}%</td>
       <td class="${metrics.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(metrics.profit)}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="8" class="muted">No data</td></tr>`;
+  }).join('') || `<tr><td colspan="10" class="muted">No data</td></tr>`;
 
   const totalDeliveryRate = totalOrders > 0 ? (totalPieces / totalOrders * 100) : 0;
 
+  Q('#pcOrdersT').textContent = fmt(totalOrders);
+  Q('#pcPiecesT').textContent = fmt(totalPieces);
   Q('#pcRevT').textContent = fmt(totalRevenue);
   Q('#pcAdT').textContent = fmt(totalAdSpend);
   Q('#pcProductCostT').textContent = fmt(totalProductCost);
@@ -1625,10 +1637,11 @@ function renderProductBudgets(product) {
       <td>$0.00</td>
       <td>$0.00</td>
       <td>$0.00</td>
+      <td>$0.00</td>
       <td>0%</td>
       <td>$0.00</td>
     </tr>
-  `).join('') || `<tr><td colspan="7" class="muted">No data available</td></tr>`;
+  `).join('') || `<tr><td colspan="8" class="muted">No data available</td></tr>`;
 }
 
 async function renderProductTransit(product) {
@@ -1787,7 +1800,7 @@ function renderProductLifetime(analytics) {
     totalRevenue += item.totalRevenue;
     totalAdSpend += item.totalAdSpend;
     totalBoxleo += item.totalBoxleoFees;
-    totalProductCost += item.totalProductCost;
+    totalProductCost += item.totalProductChinaCost;
     totalShipCost += item.totalShippingCost;
     totalTotalCost += item.totalCost;
     totalPieces += item.totalPieces;
@@ -1799,7 +1812,7 @@ function renderProductLifetime(analytics) {
       <td>${fmt(item.totalRevenue)}</td>
       <td>${fmt(item.totalAdSpend)}</td>
       <td>${fmt(item.totalBoxleoFees)}</td>
-      <td>${fmt(item.totalProductCost)}</td>
+      <td>${fmt(item.totalProductChinaCost)}</td>
       <td>${fmt(item.totalShippingCost)}</td>
       <td>${fmt(item.totalCost)}</td>
       <td>${fmt(item.totalOrders)}</td>
