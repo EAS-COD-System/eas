@@ -31,10 +31,14 @@ function ensureDB() {
       deliveries: [],
       shipments: [],
       remittances: [],
+      orders: [],
       finance: { categories: { debit:[], credit:[] }, entries: [] },
       influencers: [],
       influencerSpends: [],
-      snapshots: []
+      snapshots: [],
+      productNotes: [],
+      productTesting: [],
+      brainstorming: []
     }, { spaces: 2 });
   }
 }
@@ -101,8 +105,7 @@ app.post('/api/products', requireAuth, (req,res)=>{
     status: 'active',
     name: req.body.name||'',
     sku: req.body.sku||'',
-    cost_china: +req.body.cost_china||0,
-    ship_china_to_kenya: +req.body.ship_china_to_kenya||0,
+    selling_prices: req.body.selling_prices||{},
     margin_budget: +req.body.margin_budget||0,
     budgets: req.body.budgets||{}
   };
@@ -116,8 +119,7 @@ app.put('/api/products/:id', requireAuth, (req,res)=>{
   const up = req.body||{};
   if (up.name!==undefined) p.name=up.name;
   if (up.sku!==undefined) p.sku=up.sku;
-  if (up.cost_china!==undefined) p.cost_china=+up.cost_china||0;
-  if (up.ship_china_to_kenya!==undefined) p.ship_china_to_kenya=+up.ship_china_to_kenya||0;
+  if (up.selling_prices!==undefined) p.selling_prices=up.selling_prices;
   if (up.margin_budget!==undefined) p.margin_budget=+up.margin_budget||0;
   if (up.budgets!==undefined) p.budgets=up.budgets||{};
   saveDB(db); res.json({ ok:true, product:p });
@@ -136,6 +138,154 @@ app.delete('/api/products/:id', requireAuth, (req,res)=>{
   db.shipments = (db.shipments||[]).filter(s=>s.productId!==id);
   db.remittances = (db.remittances||[]).filter(r=>r.productId!==id);
   db.influencerSpends = (db.influencerSpends||[]).filter(sp=>sp.productId!==id);
+  db.productNotes = (db.productNotes||[]).filter(n=>n.productId!==id);
+  saveDB(db);
+  res.json({ ok:true });
+});
+
+/* ---------------- product notes ---------------- */
+app.get('/api/product-notes/:productId', requireAuth, (req,res)=>{
+  const db = loadDB();
+  const notes = (db.productNotes||[]).filter(n=>n.productId===req.params.productId);
+  res.json({ notes });
+});
+app.post('/api/product-notes', requireAuth, (req,res)=>{
+  const db = loadDB(); db.productNotes = db.productNotes||[];
+  const { productId, country, note } = req.body||{};
+  if (!productId) return res.status(400).json({ error:'Missing productId' });
+  
+  const existing = db.productNotes.find(n=>n.productId===productId && n.country===country);
+  if (existing) {
+    existing.note = note;
+    existing.updatedAt = new Date().toISOString();
+  } else {
+    db.productNotes.push({
+      id: uuidv4(),
+      productId,
+      country,
+      note,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }
+  saveDB(db);
+  res.json({ ok:true });
+});
+
+/* ---------------- product testing ---------------- */
+app.get('/api/product-testing', requireAuth, (req,res)=>{
+  const db = loadDB();
+  res.json({ testing: db.productTesting||[] });
+});
+app.post('/api/product-testing', requireAuth, (req,res)=>{
+  const db = loadDB(); db.productTesting = db.productTesting||[];
+  const { productName, country, costPerLead, confirmationRate, sellingPrice } = req.body||{};
+  if (!productName) return res.status(400).json({ error:'Missing product name' });
+  
+  const existing = db.productTesting.find(t=>t.productName===productName && t.country===country);
+  if (existing) {
+    existing.costPerLead = +costPerLead||0;
+    existing.confirmationRate = +confirmationRate||0;
+    existing.sellingPrice = +sellingPrice||0;
+    existing.updatedAt = new Date().toISOString();
+  } else {
+    db.productTesting.push({
+      id: uuidv4(),
+      productName,
+      country,
+      costPerLead: +costPerLead||0,
+      confirmationRate: +confirmationRate||0,
+      sellingPrice: +sellingPrice||0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }
+  saveDB(db);
+  res.json({ ok:true });
+});
+app.delete('/api/product-testing/:id', requireAuth, (req,res)=>{
+  const db = loadDB();
+  db.productTesting = (db.productTesting||[]).filter(t=>t.id!==req.params.id);
+  saveDB(db);
+  res.json({ ok:true });
+});
+
+/* ---------------- brainstorming ---------------- */
+app.get('/api/brainstorming', requireAuth, (req,res)=>{
+  const db = loadDB();
+  res.json({ ideas: db.brainstorming||[] });
+});
+app.post('/api/brainstorming', requireAuth, (req,res)=>{
+  const db = loadDB(); db.brainstorming = db.brainstorming||[];
+  const { title, description, category, priority } = req.body||{};
+  if (!title) return res.status(400).json({ error:'Missing title' });
+  
+  const idea = {
+    id: uuidv4(),
+    title,
+    description: description||'',
+    category: category||'general',
+    priority: priority||'medium',
+    status: 'new',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  db.brainstorming.push(idea);
+  saveDB(db);
+  res.json({ ok:true, idea });
+});
+app.put('/api/brainstorming/:id', requireAuth, (req,res)=>{
+  const db = loadDB();
+  const idea = (db.brainstorming||[]).find(i=>i.id===req.params.id);
+  if (!idea) return res.status(404).json({ error:'Not found' });
+  
+  const up = req.body||{};
+  if (up.title!==undefined) idea.title=up.title;
+  if (up.description!==undefined) idea.description=up.description;
+  if (up.category!==undefined) idea.category=up.category;
+  if (up.priority!==undefined) idea.priority=up.priority;
+  if (up.status!==undefined) idea.status=up.status;
+  idea.updatedAt = new Date().toISOString();
+  
+  saveDB(db);
+  res.json({ ok:true, idea });
+});
+app.delete('/api/brainstorming/:id', requireAuth, (req,res)=>{
+  const db = loadDB();
+  db.brainstorming = (db.brainstorming||[]).filter(i=>i.id!==req.params.id);
+  saveDB(db);
+  res.json({ ok:true });
+});
+
+/* ---------------- orders ---------------- */
+app.get('/api/orders', requireAuth, (req,res)=>{
+  const db = loadDB(); 
+  let orders = db.orders||[];
+  const { start, end, productId } = req.query||{};
+  if (start) orders = orders.filter(o=>o.date>=start);
+  if (end) orders = orders.filter(o=>o.date<=end);
+  if (productId) orders = orders.filter(o=>o.productId===productId);
+  res.json({ orders });
+});
+app.post('/api/orders', requireAuth, (req,res)=>{
+  const db = loadDB(); db.orders = db.orders||[];
+  const { date, productId, country, orders: orderCount } = req.body||{};
+  if (!date || !productId || !country) return res.status(400).json({ error:'Missing fields' });
+  
+  const order = {
+    id: uuidv4(),
+    date,
+    productId,
+    country,
+    orders: +orderCount||0
+  };
+  db.orders.push(order);
+  saveDB(db);
+  res.json({ ok:true, order });
+});
+app.delete('/api/orders/:id', requireAuth, (req,res)=>{
+  const db = loadDB();
+  db.orders = (db.orders||[]).filter(o=>o.id!==req.params.id);
   saveDB(db);
   res.json({ ok:true });
 });
@@ -179,6 +329,7 @@ app.post('/api/shipments', requireAuth, (req,res)=>{
     toCountry: req.body.toCountry || req.body.to,
     qty: +req.body.qty||0,
     shipCost: +req.body.shipCost||0,
+    chinaPurchaseCost: req.body.fromCountry === 'china' ? +req.body.chinaPurchaseCost||0 : 0,
     note: req.body.note || '',
     departedAt: req.body.departedAt || new Date().toISOString().slice(0,10),
     arrivedAt: req.body.arrivedAt || null
@@ -192,6 +343,7 @@ app.put('/api/shipments/:id', requireAuth, (req,res)=>{
   const up = req.body||{};
   if (up.qty!==undefined) s.qty=+up.qty||0;
   if (up.shipCost!==undefined) s.shipCost=+up.shipCost||0;
+  if (up.chinaPurchaseCost!==undefined) s.chinaPurchaseCost=+up.chinaPurchaseCost||0;
   if (up.note!==undefined) s.note=up.note;
   if (up.departedAt!==undefined) s.departedAt=up.departedAt;
   if (up.arrivedAt!==undefined) s.arrivedAt=up.arrivedAt;
@@ -220,7 +372,7 @@ app.post('/api/remittances', requireAuth, (req,res)=>{
     country:req.body.country, productId:req.body.productId,
     orders:+req.body.orders||0, pieces:+req.body.pieces||0,
     revenue:+req.body.revenue||0, adSpend:+req.body.adSpend||0,
-    extraPerPiece:+req.body.extraPerPiece||0
+    boxleoFees:+req.body.boxleoFees||0
   };
   if (!r.start||!r.end||!r.country||!r.productId) return res.status(400).json({ error:'Missing fields' });
   db.remittances.push(r); saveDB(db); res.json({ ok:true, remittance:r });
