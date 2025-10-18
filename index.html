@@ -120,6 +120,12 @@
             </div>
           </div>
 
+          <!-- Brainstorming Section -->
+          <div class="section" id="brainstorming"></div>
+
+          <!-- Product Testing Notes -->
+          <div class="section" id="productTestingNotes"></div>
+
           <div class="section">
             <h2>To-Do List</h2>
             <div class="row">
@@ -138,6 +144,10 @@
         <!-- PRODUCTS -->
         <section id="products" style="display:none">
           <h2>Products Management</h2>
+          
+          <!-- Product Info Section -->
+          <div id="productInfo"></div>
+
           <!-- Advertising Overview -->
           <div class="section">
             <h2>🎯 Advertising Overview by Country</h2>
@@ -150,10 +160,19 @@
             <div class="row wrap">
               <input id="pName" class="input" placeholder="Product Name"/>
               <input id="pSku" class="input" placeholder="SKU"/>
-              <input id="pCost" type="number" class="input" placeholder="Cost from China (USD)" step="0.01"/>
-              <input id="pShip" type="number" class="input" placeholder="Ship China→Kenya (USD)" step="0.01"/>
               <input id="pMB" type="number" class="input" placeholder="Profit + Ads Budget (USD)" step="0.01"/>
               <button id="pAdd" class="btn">🚀 Add Product</button>
+            </div>
+            <div class="section">
+              <h4>💰 Selling Prices by Country</h4>
+              <div class="row wrap">
+                ${state.countries.map(country => `
+                  <div class="row compact">
+                    <label>${country}:</label>
+                    <input id="pPrice_${country}" type="number" class="input finance-input-compact" placeholder="Price" step="0.01"/>
+                  </div>
+                `).join('')}
+              </div>
             </div>
           </div>
 
@@ -167,6 +186,7 @@
                     <th>Name</th>
                     <th>SKU</th>
                     <th>Status</th>
+                    <th>Profit/Loss</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -174,8 +194,8 @@
               </table>
             </div>
           </div>
-           <!-- Country Product Stats -->
-      
+          
+          <!-- Country Product Stats -->
           <div class="section">
             <h2>📊 Products by Country</h2>
             <div id="countryProductStats" class="country-stats-grid-compact"></div>
@@ -187,7 +207,48 @@
         <section id="performance" style="display:none">
           <h2>Performance Analytics</h2>
           
-              <!-- Remittance Analytics -->
+          <!-- Lifetime Product Costs -->
+          <div class="card">
+            <div class="h">📊 Lifetime Product Costs Analysis</div>
+            <div class="row wrap">
+              <select id="lifetimeCostProduct" class="input">
+                <option value="">All products</option>
+              </select>
+              <input id="lifetimeCostStart" type="date" class="input" placeholder="Start Date"/>
+              <input id="lifetimeCostEnd" type="date" class="input" placeholder="End Date"/>
+              <button id="lifetimeCostRun" class="btn">📈 Calculate Costs</button>
+            </div>
+            <div class="table-scroll">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Expense Type</th>
+                    <th>Amount (USD)</th>
+                  </tr>
+                </thead>
+                <tbody id="lifetimeCostBody"></tbody>
+              </table>
+            </div>
+            <div id="lifetimeCostSummary" class="big-balance" style="margin-top:15px;"></div>
+          </div>
+
+          <!-- Orders Entry -->
+          <div class="card">
+            <div class="h">📥 Add Orders Entry</div>
+            <div class="row wrap">
+              <input id="ordersDate" type="date" class="input" placeholder="Date"/>
+              <select id="ordersProduct" class="input">
+                <option value="">Select product</option>
+              </select>
+              <select id="ordersCountry" class="input">
+                <option value="">Select country</option>
+              </select>
+              <input id="ordersCount" type="number" class="input" placeholder="Orders count" min="0"/>
+              <button id="ordersAdd" class="btn">💾 Save Orders</button>
+            </div>
+          </div>
+          
+          <!-- Remittance Analytics -->
           <div class="card">
             <div class="h">📈 Remittance Analytics (🏆 Filtered By Top Delivered )</div>
             <div class="row wrap">
@@ -208,12 +269,14 @@
                     <th>Product</th>
                     <th>Country</th>
                     <th>Pieces</th>
+                    <th>Orders</th>
+                    <th>Delivery Rate</th>
                     <th>Revenue</th>
                     <th>Ad Spend</th>
-                    <th>Cost China</th>
-                    <th>Ship China→Kenya</th>
-                    <th>Inter-country Ship</th>
-                    <th>Total Cost</th>
+                    <th>Boxleo Fees</th>
+                    <th>Cost/Order</th>
+                    <th>Cost/Piece (Ad)</th>
+                    <th>Cost/Piece (Boxleo)</th>
                     <th>Profit</th>
                   </tr>
                 </thead>
@@ -222,12 +285,14 @@
                   <tr class="totals">
                     <th colspan="2">Totals</th>
                     <th id="remAnalyticsPiecesT">0</th>
+                    <th id="remAnalyticsOrdersT">0</th>
+                    <th></th>
                     <th id="remAnalyticsRevenueT">0</th>
                     <th id="remAnalyticsAdSpendT">0</th>
-                    <th id="remAnalyticsCostChinaT">0</th>
-                    <th id="remAnalyticsShipChinaT">0</th>
-                    <th id="remAnalyticsInterShipT">0</th>
-                    <th id="remAnalyticsTotalCostT">0</th>
+                    <th id="remAnalyticsBoxleoT">0</th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
                     <th id="remAnalyticsProfitT">0</th>
                   </tr>
                 </tfoot>
@@ -235,6 +300,40 @@
             </div>
           </div>
 
+          <!-- Top Delivered Products -->
+          <div class="card">
+            <div class="h">🏆 Top Delivered Products</div>
+            <div class="row wrap">
+              <input id="topDelStart" type="date" class="input" placeholder="Start Date"/>
+              <input id="topDelEnd" type="date" class="input" placeholder="End Date"/>
+              <select id="topDelCountry" class="input">
+                <option value="">All countries</option>
+              </select>
+              <button id="topDelRun" class="btn">📊 Show Top Products</button>
+            </div>
+            <div class="table-scroll">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Product</th>
+                    <th>Country</th>
+                    <th>Pieces</th>
+                    <th>Orders</th>
+                    <th>Delivery Rate</th>
+                    <th>Revenue</th>
+                    <th>Ad Spend</th>
+                    <th>Boxleo Fees</th>
+                    <th>Cost/Order</th>
+                    <th>Cost/Piece (Ad)</th>
+                    <th>Cost/Piece (Boxleo)</th>
+                    <th>Profit</th>
+                  </tr>
+                </thead>
+                <tbody id="topDeliveredBody"></tbody>
+              </table>
+            </div>
+          </div>
        
           <!-- Profit by Country -->
           <div class="card">
@@ -254,9 +353,14 @@
                     <th>Ad Spend</th>
                     <th>Cost China</th>
                     <th>Ship China→Kenya</th>
-                    <th>Inter-country Ship</th>
+                    <th>Boxleo Fees</th>
                     <th>Total Cost</th>
                     <th>Pieces</th>
+                    <th>Orders</th>
+                    <th>Delivery Rate</th>
+                    <th>Cost/Order</th>
+                    <th>Cost/Piece (Ad)</th>
+                    <th>Cost/Piece (Boxleo)</th>
                     <th>Profit</th>
                   </tr>
                 </thead>
@@ -268,16 +372,22 @@
                     <th id="pcAdT">0</th>
                     <th id="pcCostChinaT">0</th>
                     <th id="pcShipChinaT">0</th>
-                    <th id="pcInterShipT">0</th>
+                    <th id="pcBoxleoT">0</th>
                     <th id="pcTotalCostT">0</th>
                     <th id="pcPiecesT">0</th>
+                    <th id="pcOrdersT">0</th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
                     <th id="pcProfitT">0</th>
                   </tr>
                 </tfoot>
               </table>
             </div>
           </div>
-              <!-- Add Remittance Entry -->
+
+          <!-- Add Remittance Entry -->
           <div class="card">
             <div class="h">➕ Add Remittance Entry</div>
             <div class="row wrap">
@@ -293,12 +403,12 @@
               <input id="remAddPieces" type="number" class="input" placeholder="Pieces" min="0"/>
               <input id="remAddRevenue" type="number" class="input" placeholder="Revenue (USD)" step="0.01"/>
               <input id="remAddAdSpend" type="number" class="input" placeholder="Ad Spend (USD)" step="0.01"/>
-              <input id="remAddExtra" type="number" class="input" placeholder="Extra/Piece (USD)" step="0.01"/>
+              <input id="remAddBoxleo" type="number" class="input" placeholder="Boxleo Fees (USD)" step="0.01"/>
               <button id="remAddSave" class="btn">💾 Save Remittance</button>
             </div>
           </div>
 
-   <!-- Remittance Report -->
+          <!-- Remittance Report -->
           <div class="card">
             <div class="h">📋 Entries </div>
             <div class="row wrap">
@@ -317,12 +427,13 @@
                     <th>Country</th>
                     <th>Orders</th>
                     <th>Pieces</th>
+                    <th>Delivery Rate</th>
                     <th>Revenue</th>
                     <th>Ad Spend</th>
-                    <th>Cost China</th>
-                    <th>Ship China→Kenya</th>
-                    <th>Inter-country Ship</th>
-                    <th>Total Cost</th>
+                    <th>Boxleo Fees</th>
+                    <th>Cost/Order</th>
+                    <th>Cost/Piece (Ad)</th>
+                    <th>Cost/Piece (Boxleo)</th>
                     <th>Profit</th>
                     <th>Actions</th>
                   </tr>
@@ -333,12 +444,13 @@
                     <th colspan="3">Totals</th>
                     <th id="remOrdersT">0</th>
                     <th id="remPiecesT">0</th>
+                    <th></th>
                     <th id="remRevenueT">0</th>
                     <th id="remAdSpendT">0</th>
-                    <th id="remCostChinaT">0</th>
-                    <th id="remShipChinaT">0</th>
-                    <th id="remInterShipT">0</th>
-                    <th id="remTotalCostT">0</th>
+                    <th id="remBoxleoT">0</th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
                     <th id="remProfitT">0</th>
                     <th></th>
                   </tr>
@@ -347,6 +459,58 @@
             </div>
           </div>
 
+          <!-- Global Lifetime Product Performance -->
+          <div class="card">
+            <div class="h">🌍 Global Lifetime Product Performance</div>
+            <div class="row wrap">
+              <select id="lpProduct" class="input"><option value="">All products</option></select>
+              <input id="lpStart" type="date" class="input"/>
+              <input id="lpEnd" type="date" class="input"/>
+              <button id="lpRun" class="btn">📈 Calculate</button>
+            </div>
+            <div class="table-scroll">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Country</th>
+                    <th>Revenue</th>
+                    <th>Ad Spend</th>
+                    <th>Cost China</th>
+                    <th>Ship China→Kenya</th>
+                    <th>Boxleo Fees</th>
+                    <th>Total Cost</th>
+                    <th>Pieces</th>
+                    <th>Orders</th>
+                    <th>Delivery Rate</th>
+                    <th>Cost/Order</th>
+                    <th>Cost/Piece (Ad)</th>
+                    <th>Cost/Piece (Boxleo)</th>
+                    <th>Profit</th>
+                  </tr>
+                </thead>
+                <tbody id="lifetimeBody"></tbody>
+                <tfoot>
+                  <tr class="totals">
+                    <th colspan="2">Totals</th>
+                    <th id="ltRevT">0</th>
+                    <th id="ltAdT">0</th>
+                    <th id="ltCostChinaT">0</th>
+                    <th id="ltShipChinaT">0</th>
+                    <th id="ltBoxleoT">0</th>
+                    <th id="ltTotalCostT">0</th>
+                    <th id="ltPiecesT">0</th>
+                    <th id="ltOrdersT">0</th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th id="ltProfitT">0</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
           
         </section>
 
@@ -364,6 +528,9 @@
               <select id="mvProduct" class="input"></select>
               <input id="mvQty" type="number" class="input" placeholder="Quantity" min="0"/>
               <input id="mvShip" type="number" class="input" placeholder="Shipping Cost (USD)" min="0" step="0.01"/>
+              <div id="mvChinaCostGroup" class="row compact" style="display:none;">
+                <input id="mvChinaCost" type="number" class="input" placeholder="China Purchase Cost (USD)" min="0" step="0.01"/>
+              </div>
               <input id="mvNote" class="input" placeholder="Note (optional)"/>
               <button id="mvAdd" class="btn">📦 Add Movement</button>
             </div>
@@ -381,6 +548,7 @@
                     <th>Route</th>
                     <th>Qty</th>
                     <th>Ship Cost</th>
+                    <th>China Cost</th>
                     <th>Departed</th>
                     <th>Arrived</th>
                     <th>Days</th>
@@ -404,6 +572,7 @@
                     <th>Route</th>
                     <th>Qty</th>
                     <th>Ship Cost</th>
+                    <th>China Cost</th>
                     <th>Departed</th>
                     <th>Arrived</th>
                     <th>Days</th>
@@ -529,10 +698,19 @@
               </select>
               <input id="epName" class="input" placeholder="Product name"/>
               <input id="epSku" class="input" placeholder="SKU"/>
-              <input id="epCost" type="number" class="input" placeholder="Cost from China (USD)" step="0.01"/>
-              <input id="epShip" type="number" class="input" placeholder="Ship China→Kenya (USD)" step="0.01"/>
               <input id="epMB" type="number" class="input" placeholder="Profit + Ads Budget (USD)" step="0.01"/>
               <button id="epSave" class="btn">💾 Save Changes</button>
+            </div>
+            <div class="section">
+              <h4>💰 Selling Prices by Country</h4>
+              <div class="row wrap">
+                ${state.countries.map(country => `
+                  <div class="row compact">
+                    <label>${country}:</label>
+                    <input id="epPrice_${country}" type="number" class="input finance-input-compact" placeholder="Price" step="0.01"/>
+                  </div>
+                `).join('')}
+              </div>
             </div>
           </div>
 
