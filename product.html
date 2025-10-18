@@ -52,18 +52,16 @@
       </div>
     </div>
 
+    <!-- Product Notes -->
+    <div id="pdNotes" class="section"></div>
+
     <!-- Profit + Advertising Budget -->
     <div class="section">
-      <h3>Profit + Advertising Budget (per country)</h3>
+      <h3>Profit + Advertising Budget (per country) - Auto Calculated</h3>
       <div class="card">
-        <div class="row wrap">
-          <select id="pdPBCountry" class="input"></select>
-          <input id="pdPBValue" type="number" class="input" placeholder="Budget (USD)" step="0.01"/>
-          <button id="pdPBSave" class="btn">Save Budget</button>
-        </div>
         <div class="table-scroll">
           <table class="table">
-            <thead><tr><th>Country</th><th>Budget</th><th></th></tr></thead>
+            <thead><tr><th>Country</th><th>Selling Price</th><th>Profit + Ad Budget</th></tr></thead>
             <tbody id="pdPBBBody"></tbody>
           </table>
         </div>
@@ -81,8 +79,10 @@
               <th>Route</th>
               <th>Qty</th>
               <th>Ship Cost</th>
+              <th>China Cost</th>
               <th>Departed</th>
               <th>Arrived</th>
+              <th>Note</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -101,8 +101,10 @@
               <th>Route</th>
               <th>Qty</th>
               <th>Ship Cost</th>
+              <th>China Cost</th>
               <th>Departed</th>
               <th>Arrived</th>
+              <th>Note</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -122,6 +124,7 @@
               <th>Route</th>
               <th>Qty</th>
               <th>Ship Cost</th>
+              <th>China Cost</th>
               <th>Departed</th>
               <th>Arrived</th>
               <th>Days</th>
@@ -150,9 +153,16 @@
                 <th>Country</th>
                 <th>Revenue</th>
                 <th>Ad Spend</th>
-                <th>Shipping</th>
-                <th>Base Cost</th>
+                <th>Cost China</th>
+                <th>Ship China→Kenya</th>
+                <th>Boxleo Fees</th>
+                <th>Total Cost</th>
                 <th>Pieces</th>
+                <th>Orders</th>
+                <th>Delivery Rate</th>
+                <th>Cost/Order</th>
+                <th>Cost/Piece (Ad)</th>
+                <th>Cost/Piece (Boxleo)</th>
                 <th>Profit</th>
               </tr>
             </thead>
@@ -162,9 +172,16 @@
                 <th>Totals</th>
                 <th id="pdLPRevT">0</th>
                 <th id="pdLPAdT">0</th>
-                <th id="pdLPShipT">0</th>
-                <th id="pdLPBaseT">0</th>
+                <th id="pdLPCostChinaT">0</th>
+                <th id="pdLPShipChinaT">0</th>
+                <th id="pdLPBoxleoT">0</th>
+                <th id="pdLPTotalCostT">0</th>
                 <th id="pdLPPcsT">0</th>
+                <th id="pdLPOrdersT">0</th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
                 <th id="pdLPProfitT">0</th>
               </tr>
             </tfoot>
@@ -234,9 +251,13 @@
               <th>Country</th>
               <th>Orders</th>
               <th>Pieces</th>
+              <th>Delivery Rate</th>
               <th>Revenue</th>
               <th>Ad Spend</th>
-              <th>Extra/Piece</th>
+              <th>Boxleo Fees</th>
+              <th>Cost/Order</th>
+              <th>Cost/Piece (Ad)</th>
+              <th>Cost/Piece (Boxleo)</th>
               <th>Actions</th>
             </tr>
           </thead>
