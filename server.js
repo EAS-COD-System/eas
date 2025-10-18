@@ -1,4 +1,4 @@
-// server.js – EAS Tracker backend
+// server.js – EAS Tracker backend - Render Compatible
 const express = require('express');
 const fs = require('fs-extra');
 const path = require('path');
@@ -11,8 +11,15 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const ROOT = __dirname;
-const DATA_FILE = '/opt/render/project/src/data/db.json';
-const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
+
+// Render-compatible file paths
+const DATA_FILE = process.env.NODE_ENV === 'production' 
+  ? '/opt/render/project/src/data/db.json'
+  : path.join(ROOT, 'data', 'db.json');
+
+const SNAPSHOT_DIR = process.env.NODE_ENV === 'production'
+  ? path.join(ROOT, 'data', 'snapshots')
+  : path.join(ROOT, 'data', 'snapshots');
 
 /* ---------------- middleware ---------------- */
 app.use(morgan('dev'));
@@ -21,7 +28,16 @@ app.use(cookieParser());
 app.use('/public', express.static(path.join(ROOT,'public')));
 
 /* ---------------- helpers ---------------- */
+function ensureDataDirs() {
+  const dataDir = path.dirname(DATA_FILE);
+  if (!fs.existsSync(dataDir)) {
+    fs.ensureDirSync(dataDir);
+  }
+  ensureSnapDir();
+}
+
 function ensureDB() {
+  ensureDataDirs();
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeJsonSync(DATA_FILE, {
       password: 'eastafricashop',
@@ -42,6 +58,7 @@ function ensureDB() {
     }, { spaces: 2 });
   }
 }
+
 function loadDB(){ ensureDB(); return fs.readJsonSync(DATA_FILE); }
 function saveDB(db){ fs.writeJsonSync(DATA_FILE, db, { spaces:2 }); }
 function ensureSnapDir(){ fs.ensureDirSync(SNAPSHOT_DIR); }
@@ -509,8 +526,13 @@ app.delete('/api/snapshots/:id', requireAuth, async (req,res)=>{
 app.get('/product.html', (req,res)=> res.sendFile(path.join(ROOT,'product.html')));
 app.get('/', (req,res)=> res.sendFile(path.join(ROOT,'index.html')));
 
+/* ---------------- health check ---------------- */
+app.get('/health', (req,res)=> res.json({ status:'OK', timestamp: new Date().toISOString() }));
+
 /* ---------------- start ---------------- */
 app.listen(PORT, ()=> {
   console.log('✅ EAS Tracker listening on', PORT);
-  console.log('DB:', DATA_FILE);
+  console.log('Environment:', process.env.NODE_ENV || 'development');
+  console.log('DB File:', DATA_FILE);
+  console.log('Snapshot Dir:', SNAPSHOT_DIR);
 });
