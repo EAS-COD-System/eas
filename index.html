@@ -163,7 +163,6 @@
             <div class="row wrap">
               <input id="pName" class="input" placeholder="Product Name"/>
               <input id="pSku" class="input" placeholder="SKU"/>
-              <input id="pMB" type="number" class="input" placeholder="Profit + Ads Budget (USD)" step="0.01"/>
               <button id="pAdd" class="btn">🚀 Add Product</button>
             </div>
           </div>
@@ -238,7 +237,8 @@
               <select id="poCountry" class="input">
                 <option value="">Select country...</option>
               </select>
-              <input id="poDate" type="date" class="input"/>
+              <input id="poStartDate" type="date" class="input" placeholder="Start Date"/>
+              <input id="poEndDate" type="date" class="input" placeholder="End Date"/>
               <input id="poOrders" type="number" class="input" placeholder="Orders" min="0"/>
               <button id="poSave" class="btn">💾 Save Orders</button>
             </div>
@@ -304,6 +304,7 @@
                   <tr>
                     <th>Product</th>
                     <th>Country</th>
+                    <th>Orders</th>
                     <th>Pieces</th>
                     <th>Revenue</th>
                     <th>Ad Spend</th>
@@ -315,7 +316,8 @@
                     <th>Cost/Piece</th>
                     <th>Ad Cost/Order</th>
                     <th>Ad Cost/Piece</th>
-                    <th>Max CPL</th>
+                    <th>Boxleo/Order</th>
+                    <th>Boxleo/Piece</th>
                     <th>Profit</th>
                   </tr>
                 </thead>
@@ -323,6 +325,7 @@
                 <tfoot>
                   <tr class="totals">
                     <th colspan="2">Totals</th>
+                    <th id="remAnalyticsOrdersT">0</th>
                     <th id="remAnalyticsPiecesT">0</th>
                     <th id="remAnalyticsRevenueT">0</th>
                     <th id="remAnalyticsAdSpendT">0</th>
@@ -334,7 +337,8 @@
                     <th id="remAnalyticsCostPieceT">0</th>
                     <th id="remAnalyticsAdOrderT">0</th>
                     <th id="remAnalyticsAdPieceT">0</th>
-                    <th id="remAnalyticsMaxCPLT">0</th>
+                    <th id="remAnalyticsBoxleoOrderT">0</th>
+                    <th id="remAnalyticsBoxleoPieceT">0</th>
                     <th id="remAnalyticsProfitT">0</th>
                   </tr>
                 </tfoot>
@@ -374,6 +378,7 @@
                     <th>Boxleo Fees</th>
                     <th>Product Cost</th>
                     <th>Total Cost</th>
+                    <th>Orders</th>
                     <th>Pieces</th>
                     <th>Delivery Rate</th>
                     <th>Cost/Order</th>
@@ -390,6 +395,7 @@
                     <th id="pcBoxleoT">0</th>
                     <th id="pcProductCostT">0</th>
                     <th id="pcTotalCostT">0</th>
+                    <th id="pcOrdersT">0</th>
                     <th id="pcPiecesT">0</th>
                     <th id="pcDeliveryRateT">0%</th>
                     <th id="pcCostOrderT">0</th>
@@ -669,7 +675,6 @@
               </select>
               <input id="epName" class="input" placeholder="Product name"/>
               <input id="epSku" class="input" placeholder="SKU"/>
-              <input id="epMB" type="number" class="input" placeholder="Profit + Ads Budget (USD)" step="0.01"/>
               <button id="epSave" class="btn">💾 Save Changes</button>
             </div>
           </div>
