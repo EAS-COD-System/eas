@@ -55,11 +55,12 @@ function requireAuth(req, res, next) {
   return res.status(403).json({ error: 'Unauthorized' });
 }
 
-// Calculate product cost per piece including shipping
+// Calculate product cost per piece including shipping with improved logic
 function calculateProductCosts(db, productId, targetCountry = null) {
   const shipments = db.shipments || [];
   let totalPieces = 0;
-  let totalCost = 0;
+  let totalChinaCost = 0;
+  let totalShippingCost = 0;
   let shippingCostPerPiece = {};
 
   // First pass: calculate China costs and initial shipping
@@ -82,7 +83,8 @@ function calculateProductCosts(db, productId, targetCountry = null) {
         }
         
         totalPieces += pieces;
-        totalCost += (+shipment.chinaCost || 0) + (+shipment.shipCost || 0);
+        totalChinaCost += (+shipment.chinaCost || 0);
+        totalShippingCost += (+shipment.shipCost || 0);
       }
     }
   });
@@ -102,6 +104,8 @@ function calculateProductCosts(db, productId, targetCountry = null) {
           shippingCost: shippingCostPerPiece[fromCountry].shippingCost + additionalShippingCost,
           totalCost: shippingCostPerPiece[fromCountry].totalCost + additionalShippingCost
         };
+        
+        totalShippingCost += (+shipment.shipCost || 0);
       }
     }
   });
@@ -112,16 +116,18 @@ function calculateProductCosts(db, productId, targetCountry = null) {
       chinaCostPerPiece: shippingCostPerPiece[targetCountry].chinaCost,
       shippingCostPerPiece: shippingCostPerPiece[targetCountry].shippingCost,
       totalPieces,
-      totalCost
+      totalChinaCost,
+      totalShippingCost
     };
   }
 
   return {
-    costPerPiece: totalPieces > 0 ? totalCost / totalPieces : 0,
-    chinaCostPerPiece: 0,
-    shippingCostPerPiece: 0,
+    costPerPiece: totalPieces > 0 ? (totalChinaCost + totalShippingCost) / totalPieces : 0,
+    chinaCostPerPiece: totalPieces > 0 ? totalChinaCost / totalPieces : 0,
+    shippingCostPerPiece: totalPieces > 0 ? totalShippingCost / totalPieces : 0,
     totalPieces,
-    totalCost
+    totalChinaCost,
+    totalShippingCost
   };
 }
 
@@ -153,7 +159,11 @@ function calculateDeliveryRate(db, productId = null, country = null, startDate =
     }
   });
 
-  return totalOrders > 0 ? (totalDelivered / totalOrders) * 100 : 0;
+  return {
+    deliveryRate: totalOrders > 0 ? (totalDelivered / totalOrders) * 100 : 0,
+    totalOrders,
+    totalDeliveredPieces: totalDelivered
+  };
 }
 
 // Calculate comprehensive metrics
@@ -193,14 +203,12 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
 
   // Calculate product costs
   const productCosts = calculateProductCosts(db, productId, country);
-  const totalProductCost = productCosts.costPerPiece * totalPieces;
+  const totalProductChinaCost = productCosts.totalChinaCost;
+  const totalShippingCost = productCosts.totalShippingCost;
 
-  // Calculate shipping costs
-  const totalShippingCost = productCosts.shippingCostPerPiece * totalPieces;
-
-  const totalCost = totalProductCost + totalAdSpend + totalBoxleoFees + totalShippingCost;
+  const totalCost = totalProductChinaCost + totalShippingCost + totalAdSpend + totalBoxleoFees;
   const profit = totalRevenue - totalCost;
-  const deliveryRate = calculateDeliveryRate(db, productId, country, startDate, endDate);
+  const deliveryData = calculateDeliveryRate(db, productId, country, startDate, endDate);
 
   // Calculate rates
   const costPerOrder = totalOrders > 0 ? totalCost / totalOrders : 0;
@@ -214,13 +222,14 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
     totalRevenue,
     totalAdSpend,
     totalBoxleoFees,
-    totalProductCost,
+    totalProductChinaCost,
     totalShippingCost,
     totalCost,
     profit,
     totalPieces,
-    totalOrders,
-    deliveryRate,
+    totalOrders: deliveryData.totalOrders,
+    totalDeliveredPieces: deliveryData.totalDeliveredPieces,
+    deliveryRate: deliveryData.deliveryRate,
     costPerOrder,
     costPerPiece,
     adCostPerOrder,
@@ -398,7 +407,7 @@ app.delete('/api/products/notes/:id', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
-// Product Orders
+// Product Orders with duplicate check
 app.get('/api/product-orders', requireAuth, (req, res) => {
   const db = loadDB();
   const { productId, country, start, end } = req.query || {};
@@ -413,6 +422,40 @@ app.get('/api/product-orders', requireAuth, (req, res) => {
 });
 
 app.post('/api/product-orders', requireAuth, (req, res) => {
+  const db = loadDB(); db.productOrders = db.productOrders || [];
+  const { productId, country, startDate, endDate, orders } = req.body || {};
+  if (!productId || !country || !startDate || !endDate) return res.status(400).json({ error: 'Missing fields' });
+
+  // Check for existing orders in the same period
+  const existingOrder = db.productOrders.find(o => 
+    o.productId === productId && 
+    o.country === country && 
+    o.startDate === startDate && 
+    o.endDate === endDate
+  );
+
+  if (existingOrder) {
+    return res.status(409).json({ 
+      error: 'Duplicate order period', 
+      message: 'You already entered orders in that period for that product. Are you sure you want to enter again?',
+      existingOrder 
+    });
+  }
+
+  db.productOrders.push({
+    id: uuidv4(),
+    productId,
+    country,
+    startDate,
+    endDate,
+    orders: +orders || 0
+  });
+
+  saveDB(db); res.json({ ok: true });
+});
+
+// Force add product orders (bypass duplicate check)
+app.post('/api/product-orders/force', requireAuth, (req, res) => {
   const db = loadDB(); db.productOrders = db.productOrders || [];
   const { productId, country, startDate, endDate, orders } = req.body || {};
   if (!productId || !country || !startDate || !endDate) return res.status(400).json({ error: 'Missing fields' });
@@ -526,11 +569,13 @@ app.get('/api/product-costs-analysis', requireAuth, (req, res) => {
   const { productId, start, end } = req.query || {};
 
   const metrics = calculateProfitMetrics(db, productId, null, start, end);
-  const deliveryRate = calculateDeliveryRate(db, productId, null, start, end);
+  const deliveryData = calculateDeliveryRate(db, productId, null, start, end);
 
   res.json({
     ...metrics,
-    deliveryRate
+    deliveryRate: deliveryData.deliveryRate,
+    totalOrders: deliveryData.totalOrders,
+    totalDeliveredPieces: deliveryData.totalDeliveredPieces
   });
 });
 
@@ -746,7 +791,7 @@ app.get('/api/analytics/remittance', requireAuth, (req, res) => {
 
   let analytics = [];
   
-  if (productId) {
+  if (productId && productId !== 'all') {
     // Single product analysis
     const metrics = calculateProfitMetrics(db, productId, country, start, end);
     analytics = [{
@@ -756,7 +801,7 @@ app.get('/api/analytics/remittance', requireAuth, (req, res) => {
     }];
   } else {
     // Multiple products analysis
-    const products = db.products || [];
+    const products = productId === 'all' ? (db.products || []) : (db.products || []).filter(p => p.status === 'active');
     analytics = products.map(product => {
       const metrics = calculateProfitMetrics(db, product.id, country, start, end);
       return {
