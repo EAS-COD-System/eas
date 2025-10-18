@@ -14,7 +14,9 @@ const ROOT = __dirname;
 const DATA_FILE = process.env.NODE_ENV === 'production' 
   ? '/opt/render/project/src/data/db.json'
   : path.join(ROOT, 'db.json');
-const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
+const SNAPSHOT_DIR = process.env.NODE_ENV === 'production'
+  ? '/opt/render/project/src/data/snapshots'  // ✅ Production
+  : path.join(ROOT, 'data', 'snapshots');     // ✅ Development
 
 /* ---------------- middleware ---------------- */
 app.use(morgan('dev'));
