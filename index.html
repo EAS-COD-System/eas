@@ -250,7 +250,7 @@
             <div class="h">💰 Lifetime Product Costs Analysis</div>
             <div class="row wrap">
               <select id="pcaProduct" class="input">
-                <option value="">All products</option>
+                <option value="all">All products</option>
               </select>
               <select id="pcaRange" class="input date-range-select">
                 <option value="8days">Last 8 days</option>
@@ -295,7 +295,7 @@
                 <option value="">All countries</option>
               </select>
               <select id="remAnalyticsProduct" class="input">
-                <option value="">All products</option>
+                <option value="all">All products</option>
               </select>
               <button id="remAnalyticsRun" class="btn">📊 Generate Analytics</button>
             </div>
@@ -310,12 +310,9 @@
                     <th>Revenue</th>
                     <th>Advertising Spend</th>
                     <th>Boxleo Fees</th>
-                    <th>Total Product Cost</th>
+                    <th>Product Cost China</th>
                     <th>Total Shipping Cost</th>
-                    <th>Boxleo fee/Order</th>
-                    <th>Boxleo fee/Piece</th>
-                    <th>Ads/Order</th>
-                    <th>Ads/Piece</th>
+                    <th>Delivery Rate</th>
                     <th>Profit</th>
                   </tr>
                 </thead>
@@ -330,10 +327,7 @@
                     <th id="remAnalyticsBoxleoT">0</th>
                     <th id="remAnalyticsProductCostT">0</th>
                     <th id="remAnalyticsShippingCostT">0</th>
-                    <th id="remAnalyticsBoxleoOrderT">0</th>
-                    <th id="remAnalyticsBoxleoPieceT">0</th>
-                    <th id="remAnalyticsAdOrderT">0</th>
-                    <th id="remAnalyticsAdPieceT">0</th>
+                    <th id="remAnalyticsDeliveryRateT">0%</th>
                     <th id="remAnalyticsProfitT">0</th>
                   </tr>
                 </tfoot>
@@ -368,9 +362,11 @@
                 <thead>
                   <tr>
                     <th>Country</th>
+                    <th>Orders</th>
+                    <th>Delivered Pieces</th>
                     <th>Revenue</th>
                     <th>Total Advertising Spend</th>
-                    <th>Total Product Cost</th>
+                    <th>Product Cost China</th>
                     <th>Total Shipping Cost</th>
                     <th>Total Boxleo Fees</th>
                     <th>Delivery Rate</th>
@@ -381,6 +377,8 @@
                 <tfoot>
                   <tr class="totals">
                     <th>Totals</th>
+                    <th id="pcOrdersT">0</th>
+                    <th id="pcPiecesT">0</th>
                     <th id="pcRevT">0</th>
                     <th id="pcAdT">0</th>
                     <th id="pcProductCostT">0</th>
