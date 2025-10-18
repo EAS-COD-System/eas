@@ -1,4 +1,4 @@
-// server.js – EAS Tracker backend - Enhanced Version
+// server.js – EAS Tracker backend
 const express = require('express');
 const fs = require('fs-extra');
 const path = require('path');
@@ -11,17 +11,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const ROOT = __dirname;
-const DATA_FILE = path.join(ROOT, 'db.json');
+const DATA_FILE = '/opt/render/project/src/data/db.json';
 const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
 
 /* ---------------- middleware ---------------- */
 app.use(morgan('dev'));
 app.use(bodyParser.json({ limit:'1mb' }));
 app.use(cookieParser());
-
-// FIX: Correct static file serving
-app.use('/public', express.static(path.join(ROOT, 'public')));
-app.use(express.static(ROOT)); // Serve static files from root for HTML files
+app.use('/public', express.static(path.join(ROOT,'public')));
 
 /* ---------------- helpers ---------------- */
 function ensureDB() {
@@ -35,12 +32,12 @@ function ensureDB() {
       shipments: [],
       remittances: [],
       orders: [],
-      productNotes: [],
-      testedProducts: [],
-      brainstorming: [],
       finance: { categories: { debit:[], credit:[] }, entries: [] },
       influencers: [],
       influencerSpends: [],
+      productNotes: [],
+      brainstorming: [],
+      productTests: [],
       snapshots: []
     }, { spaces: 2 });
   }
@@ -140,6 +137,7 @@ app.delete('/api/products/:id', requireAuth, (req,res)=>{
   db.remittances = (db.remittances||[]).filter(r=>r.productId!==id);
   db.influencerSpends = (db.influencerSpends||[]).filter(sp=>sp.productId!==id);
   db.productNotes = (db.productNotes||[]).filter(n=>n.productId!==id);
+  db.orders = (db.orders||[]).filter(o=>o.productId!==id);
   saveDB(db);
   res.json({ ok:true });
 });
@@ -157,44 +155,14 @@ app.post('/api/product-notes', requireAuth, (req,res)=>{
   
   const existing = db.productNotes.find(n=>n.productId===productId && n.country===country);
   if (existing) {
-    existing.note = note;
+    existing.note = note||'';
     existing.updatedAt = new Date().toISOString();
   } else {
     db.productNotes.push({
       id: uuidv4(),
       productId,
       country,
-      note,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    });
-  }
-  saveDB(db); res.json({ ok:true });
-});
-
-/* ---------------- tested products ---------------- */
-app.get('/api/tested-products', requireAuth, (req,res)=>{
-  const db = loadDB(); res.json({ testedProducts: db.testedProducts||[] });
-});
-app.post('/api/tested-products', requireAuth, (req,res)=>{
-  const db = loadDB(); db.testedProducts = db.testedProducts||[];
-  const { productName, country, costPerLead, confirmationRate, sellingPrice } = req.body||{};
-  if (!productName || !country) return res.status(400).json({ error:'Missing fields' });
-  
-  const existing = db.testedProducts.find(t=>t.productName===productName && t.country===country);
-  if (existing) {
-    existing.costPerLead = +costPerLead||0;
-    existing.confirmationRate = +confirmationRate||0;
-    existing.sellingPrice = +sellingPrice||0;
-    existing.updatedAt = new Date().toISOString();
-  } else {
-    db.testedProducts.push({
-      id: uuidv4(),
-      productName,
-      country,
-      costPerLead: +costPerLead||0,
-      confirmationRate: +confirmationRate||0,
-      sellingPrice: +sellingPrice||0,
+      note: note||'',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
@@ -209,7 +177,7 @@ app.get('/api/brainstorming', requireAuth, (req,res)=>{
 app.post('/api/brainstorming', requireAuth, (req,res)=>{
   const db = loadDB(); db.brainstorming = db.brainstorming||[];
   const { title, description, category, priority } = req.body||{};
-  if (!title) return res.status(400).json({ error:'Missing title' });
+  if (!title) return res.status(400).json({ error:'Title required' });
   
   const idea = {
     id: uuidv4(),
@@ -240,7 +208,38 @@ app.put('/api/brainstorming/:id', requireAuth, (req,res)=>{
   saveDB(db); res.json({ ok:true, idea });
 });
 app.delete('/api/brainstorming/:id', requireAuth, (req,res)=>{
-  const db = loadDB(); db.brainstorming = (db.brainstorming||[]).filter(i=>i.id!==req.params.id);
+  const db = loadDB();
+  db.brainstorming = (db.brainstorming||[]).filter(i=>i.id!==req.params.id);
+  saveDB(db); res.json({ ok:true });
+});
+
+/* ---------------- product tests ---------------- */
+app.get('/api/product-tests', requireAuth, (req,res)=>{
+  const db = loadDB(); res.json({ tests: db.productTests||[] });
+});
+app.post('/api/product-tests', requireAuth, (req,res)=>{
+  const db = loadDB(); db.productTests = db.productTests||[];
+  const { productName, country, costPerLead, confirmationRate, sellingPrice } = req.body||{};
+  if (!productName || !country) return res.status(400).json({ error:'Missing fields' });
+  
+  const existing = db.productTests.find(t=>t.productName===productName && t.country===country);
+  if (existing) {
+    if (costPerLead!==undefined) existing.costPerLead = +costPerLead||0;
+    if (confirmationRate!==undefined) existing.confirmationRate = +confirmationRate||0;
+    if (sellingPrice!==undefined) existing.sellingPrice = +sellingPrice||0;
+    existing.updatedAt = new Date().toISOString();
+  } else {
+    db.productTests.push({
+      id: uuidv4(),
+      productName,
+      country,
+      costPerLead: +costPerLead||0,
+      confirmationRate: +confirmationRate||0,
+      sellingPrice: +sellingPrice||0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }
   saveDB(db); res.json({ ok:true });
 });
 
@@ -347,7 +346,7 @@ app.post('/api/remittances', requireAuth, (req,res)=>{
     country:req.body.country, productId:req.body.productId,
     orders:+req.body.orders||0, pieces:+req.body.pieces||0,
     revenue:+req.body.revenue||0, adSpend:+req.body.adSpend||0,
-    boxleoCost:+req.body.boxleoCost||0
+    boxleoFees:+req.body.boxleoFees||0
   };
   if (!r.start||!r.end||!r.country||!r.productId) return res.status(400).json({ error:'Missing fields' });
   db.remittances.push(r); saveDB(db); res.json({ ok:true, remittance:r });
@@ -486,6 +485,6 @@ app.get('/', (req,res)=> res.sendFile(path.join(ROOT,'index.html')));
 
 /* ---------------- start ---------------- */
 app.listen(PORT, ()=> {
-  console.log('✅ EAS Tracker Enhanced Version listening on', PORT);
+  console.log('✅ EAS Tracker listening on', PORT);
   console.log('DB:', DATA_FILE);
 });
