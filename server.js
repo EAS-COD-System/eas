@@ -11,7 +11,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const ROOT = __dirname;
-const DATA_FILE = path.join(ROOT, 'db.json');
+const DATA_FILE = process.env.NODE_ENV === 'production' 
+  ? '/opt/render/project/src/data/db.json'
+  : path.join(ROOT, 'db.json');
 const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
 
 /* ---------------- middleware ---------------- */
