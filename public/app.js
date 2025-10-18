@@ -167,10 +167,10 @@ function fillCommonSelects() {
   const countrySelects = ['#mvFrom', '#mvTo', '#adCountry', '#rCountry', 
     '#pdAdCountry', '#pdRCountry', '#pdMvFrom', '#pdMvTo', '#pdInfCountry', 
     '#pdInfFilterCountry', '#pdPBCountry', '#pcCountry', '#remCountry', '#remAddCountry',
-    '#topDelCountry', '#remAnalyticsCountry'];
+    '#topDelCountry', '#remAnalyticsCountry', '#productInfoCountry', '#ordersCountry'];
   
   countrySelects.forEach(sel => QA(sel).forEach(el => {
-    if (sel === '#pcCountry' || sel === '#remCountry' || sel === '#topDelCountry' || sel === '#remAnalyticsCountry') {
+    if (sel === '#pcCountry' || sel === '#remCountry' || sel === '#topDelCountry' || sel === '#remAnalyticsCountry' || sel === '#productInfoCountry') {
       el.innerHTML = `<option value="">All countries</option>` +
         state.countries.map(c=>`<option value="${c}">${c}</option>`).join('');
     } else if (sel === '#mvFrom' || sel === '#pdMvFrom') {
@@ -183,7 +183,7 @@ function fillCommonSelects() {
   }));
 
   // Products (only available/active in add forms)
-  const productInputs = ['#mvProduct','#adProduct','#rProduct','#remAddProduct','#pdProductForSpend'];
+  const productInputs = ['#mvProduct','#adProduct','#rProduct','#remAddProduct','#pdProductForSpend', '#productInfoSelect', '#ordersProduct', '#lifetimeCostProduct'];
   productInputs.forEach(sel => QA(sel).forEach(el => {
     el.innerHTML = state.productsActive.map(p=>`<option value="${p.id}">${p.name}${p.sku?` (${p.sku})`:''}</option>`).join('');
   }));
@@ -217,6 +217,8 @@ function renderDashboardPage() {
   renderCountryStockSpend();
   bindDailyAdSpend();
   renderWeeklyDelivered();
+  renderBrainstorming();
+  renderProductTestingNotes();
   initTodos();
 }
 
@@ -435,6 +437,231 @@ function renderWeeklyDelivered() {
   updateGrid();
 }
 
+/* ---------- Brainstorming ---------- */
+function renderBrainstorming() {
+  const container = Q('#brainstorming');
+  if (!container) return;
+
+  const loadIdeas = async () => {
+    try {
+      const res = await api('/api/brainstorming');
+      const ideas = res.ideas || [];
+      
+      container.innerHTML = `
+        <div class="card">
+          <div class="h">💡 Brainstorming</div>
+          <div class="row wrap">
+            <input id="bsTitle" class="input" placeholder="Idea title" style="flex:1"/>
+            <select id="bsCategory" class="input">
+              <option value="product">Product Idea</option>
+              <option value="marketing">Marketing</option>
+              <option value="operations">Operations</option>
+              <option value="strategy">Strategy</option>
+              <option value="general">General</option>
+            </select>
+            <select id="bsPriority" class="input">
+              <option value="low">Low Priority</option>
+              <option value="medium">Medium Priority</option>
+              <option value="high">High Priority</option>
+            </select>
+            <button id="bsAdd" class="btn">➕ Add Idea</button>
+          </div>
+          <textarea id="bsDescription" class="input" placeholder="Detailed description..." style="width:100%; height:80px; margin-top:10px;"></textarea>
+          
+          <div id="bsIdeas" style="margin-top:15px;">
+            ${ideas.map(idea => `
+              <div class="idea-card ${idea.priority} ${idea.status}" data-id="${idea.id}">
+                <div class="idea-header">
+                  <div class="idea-title">${idea.title}</div>
+                  <div class="idea-meta">
+                    <span class="badge ${idea.category}">${idea.category}</span>
+                    <span class="badge ${idea.priority}">${idea.priority}</span>
+                    <span class="badge ${idea.status}">${idea.status}</span>
+                  </div>
+                </div>
+                <div class="idea-description">${idea.description}</div>
+                <div class="idea-actions">
+                  <select class="idea-status" data-id="${idea.id}">
+                    <option value="new" ${idea.status==='new'?'selected':''}>New</option>
+                    <option value="in-progress" ${idea.status==='in-progress'?'selected':''}>In Progress</option>
+                    <option value="completed" ${idea.status==='completed'?'selected':''}>Completed</option>
+                    <option value="archived" ${idea.status==='archived'?'selected':''}>Archived</option>
+                  </select>
+                  <button class="btn outline bs-edit" data-id="${idea.id}">Edit</button>
+                  <button class="btn outline danger bs-delete" data-id="${idea.id}">Delete</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+
+      // Add event listeners
+      Q('#bsAdd')?.addEventListener('click', addIdea);
+      container.addEventListener('click', handleBrainstormingActions);
+      container.addEventListener('change', handleBrainstormingStatusChange);
+      
+    } catch (e) {
+      console.error('Failed to load brainstorming ideas:', e);
+    }
+  };
+
+  const addIdea = async () => {
+    const title = Q('#bsTitle')?.value.trim();
+    const description = Q('#bsDescription')?.value.trim();
+    const category = Q('#bsCategory')?.value;
+    const priority = Q('#bsPriority')?.value;
+
+    if (!title) return alert('Please enter an idea title');
+
+    try {
+      await api('/api/brainstorming', {
+        method: 'POST',
+        body: JSON.stringify({ title, description, category, priority })
+      });
+      
+      Q('#bsTitle').value = '';
+      Q('#bsDescription').value = '';
+      await loadIdeas();
+    } catch (e) {
+      alert('Failed to add idea: ' + e.message);
+    }
+  };
+
+  const handleBrainstormingActions = async (e) => {
+    if (e.target.classList.contains('bs-delete')) {
+      const id = e.target.dataset.id;
+      if (confirm('Delete this idea?')) {
+        try {
+          await api(`/api/brainstorming/${id}`, { method: 'DELETE' });
+          await loadIdeas();
+        } catch (error) {
+          alert('Failed to delete idea: ' + error.message);
+        }
+      }
+    }
+  };
+
+  const handleBrainstormingStatusChange = async (e) => {
+    if (e.target.classList.contains('idea-status')) {
+      const id = e.target.dataset.id;
+      const status = e.target.value;
+      
+      try {
+        await api(`/api/brainstorming/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ status })
+        });
+        await loadIdeas();
+      } catch (error) {
+        alert('Failed to update status: ' + error.message);
+      }
+    }
+  };
+
+  loadIdeas();
+}
+
+/* ---------- Product Testing Notes ---------- */
+function renderProductTestingNotes() {
+  const container = Q('#productTestingNotes');
+  if (!container) return;
+
+  const loadTesting = async () => {
+    try {
+      const res = await api('/api/product-testing');
+      const testing = res.testing || [];
+      
+      container.innerHTML = `
+        <div class="card">
+          <div class="h">🧪 Notes for Tested Products</div>
+          <div class="row wrap">
+            <input id="ptProductName" class="input" placeholder="Product name" style="flex:1"/>
+            <select id="ptCountry" class="input">
+              <option value="">Select country</option>
+              ${state.countries.map(c => `<option value="${c}">${c}</option>`).join('')}
+            </select>
+            <input id="ptCostPerLead" type="number" class="input" placeholder="Cost per lead (USD)" step="0.01"/>
+            <input id="ptConfirmationRate" type="number" class="input" placeholder="Confirmation rate %" step="0.1" max="100"/>
+            <input id="ptSellingPrice" type="number" class="input" placeholder="Selling price (USD)" step="0.01"/>
+            <button id="ptAdd" class="btn">💾 Save Test</button>
+          </div>
+          
+          <div id="ptResults" style="margin-top:15px;">
+            ${testing.map(test => `
+              <div class="test-card" data-id="${test.id}">
+                <div class="test-header">
+                  <strong>${test.productName}</strong> - ${test.country}
+                  <button class="btn outline danger pt-delete" data-id="${test.id}" style="float:right">Delete</button>
+                </div>
+                <div class="test-details">
+                  <span>Cost per Lead: $${fmt(test.costPerLead)}</span>
+                  <span>Confirmation Rate: ${fmt(test.confirmationRate)}%</span>
+                  <span>Selling Price: $${fmt(test.sellingPrice)}</span>
+                </div>
+                <div class="test-analysis">
+                  <strong>Max CPL: $${fmt(test.sellingPrice * (test.confirmationRate/100))}</strong>
+                  <span class="${test.costPerLead <= test.sellingPrice * (test.confirmationRate/100) ? 'number-positive' : 'number-negative'}">
+                    ${test.costPerLead <= test.sellingPrice * (test.confirmationRate/100) ? '✅ Profitable' : '❌ Not Profitable'}
+                  </span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+
+      Q('#ptAdd')?.addEventListener('click', addTest);
+      container.addEventListener('click', handleTestDelete);
+      
+    } catch (e) {
+      console.error('Failed to load product testing:', e);
+    }
+  };
+
+  const addTest = async () => {
+    const productName = Q('#ptProductName')?.value.trim();
+    const country = Q('#ptCountry')?.value;
+    const costPerLead = +Q('#ptCostPerLead')?.value || 0;
+    const confirmationRate = +Q('#ptConfirmationRate')?.value || 0;
+    const sellingPrice = +Q('#ptSellingPrice')?.value || 0;
+
+    if (!productName || !country) return alert('Please enter product name and country');
+
+    try {
+      await api('/api/product-testing', {
+        method: 'POST',
+        body: JSON.stringify({ productName, country, costPerLead, confirmationRate, sellingPrice })
+      });
+      
+      Q('#ptProductName').value = '';
+      Q('#ptCountry').value = '';
+      Q('#ptCostPerLead').value = '';
+      Q('#ptConfirmationRate').value = '';
+      Q('#ptSellingPrice').value = '';
+      await loadTesting();
+    } catch (e) {
+      alert('Failed to save test: ' + e.message);
+    }
+  };
+
+  const handleTestDelete = async (e) => {
+    if (e.target.classList.contains('pt-delete')) {
+      const id = e.target.dataset.id;
+      if (confirm('Delete this test?')) {
+        try {
+          await api(`/api/product-testing/${id}`, { method: 'DELETE' });
+          await loadTesting();
+        } catch (error) {
+          alert('Failed to delete test: ' + error.message);
+        }
+      }
+    }
+  };
+
+  loadTesting();
+}
+
 /* ---------- To-do + Weekly To-do ---------- */
 function initTodos() {
   const KEY='eas_todos', WKEY='eas_weekly';
@@ -511,13 +738,21 @@ function renderProductsPage() {
   // Add Advertising Overview section
   renderAdvertisingOverview();
 
+  // Add Product Info section
+  renderProductInfo();
+
   // add product
   Q('#pAdd')?.addEventListener('click', async ()=>{
+    const sellingPrices = {};
+    state.countries.forEach(country => {
+      const price = +Q(`#pPrice_${country}`)?.value || 0;
+      sellingPrices[country] = price;
+    });
+
     const p = {
       name: Q('#pName')?.value.trim(),
       sku:  Q('#pSku')?.value.trim(),
-      cost_china: +Q('#pCost')?.value||0,
-      ship_china_to_kenya: +Q('#pShip')?.value||0,
+      selling_prices: sellingPrices,
       margin_budget: +Q('#pMB')?.value||0
     };
     if (!p.name) return alert('Name required');
@@ -526,6 +761,7 @@ function renderProductsPage() {
     renderProductsTable();
     renderCompactCountryStats();
     renderAdvertisingOverview();
+    renderProductInfo();
     alert('Product added');
   });
   renderProductsTable();
@@ -657,34 +893,216 @@ function renderAdvertisingOverview() {
   }).catch(console.error);
 }
 
+function renderProductInfo() {
+  const container = Q('#productInfo');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="card">
+      <div class="h">📊 Product Information & Analysis</div>
+      <div class="row wrap">
+        <select id="productInfoSelect" class="input">
+          <option value="">Select product...</option>
+        </select>
+        <button id="productInfoRun" class="btn">🔍 Analyze Product</button>
+      </div>
+      <div id="productInfoResults" style="margin-top:15px;"></div>
+    </div>
+  `;
+
+  Q('#productInfoRun')?.addEventListener('click', async () => {
+    const productId = Q('#productInfoSelect')?.value;
+    if (!productId) return alert('Please select a product');
+
+    const product = state.products.find(p => p.id === productId);
+    if (!product) return;
+
+    // Get product performance data
+    const remittances = await api('/api/remittances');
+    const productRemittances = remittances.remittances.filter(r => r.productId === productId);
+    
+    // Get product notes
+    const notesRes = await api(`/api/product-notes/${productId}`);
+    const notes = notesRes.notes || [];
+
+    let html = `
+      <div class="product-analysis">
+        <h4>${product.name} ${product.sku ? `(${product.sku})` : ''}</h4>
+        
+        <div class="analysis-section">
+          <h5>💰 Profit + Advertising Budget by Country</h5>
+          <div class="table-scroll">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Country</th>
+                  <th>Selling Price</th>
+                  <th>Avg Product Cost</th>
+                  <th>Profit + Ad Budget</th>
+                  <th>Delivery Rate</th>
+                  <th>Max Cost Per Lead</th>
+                </tr>
+              </thead>
+              <tbody>
+    `;
+
+    // Calculate for each country
+    for (const country of state.countries) {
+      const sellingPrice = product.selling_prices?.[country] || 0;
+      
+      // Calculate average product cost from shipments
+      const shipments = await api('/api/shipments');
+      const productShipments = shipments.shipments.filter(s => 
+        s.productId === productId && s.toCountry === country && s.arrivedAt
+      );
+      
+      let totalCost = 0;
+      let totalQuantity = 0;
+      
+      productShipments.forEach(shipment => {
+        if (shipment.chinaPurchaseCost && shipment.qty) {
+          const costPerPiece = shipment.chinaPurchaseCost / shipment.qty;
+          totalCost += costPerPiece * shipment.qty;
+          totalQuantity += shipment.qty;
+        }
+      });
+      
+      const avgProductCost = totalQuantity > 0 ? totalCost / totalQuantity : 0;
+      const profitAdBudget = sellingPrice - avgProductCost;
+      
+      // Calculate delivery rate
+      const countryRemittances = productRemittances.filter(r => r.country === country);
+      const totalOrders = countryRemittances.reduce((sum, r) => sum + (r.orders || 0), 0);
+      const totalPieces = countryRemittances.reduce((sum, r) => sum + (r.pieces || 0), 0);
+      const deliveryRate = totalOrders > 0 ? (totalPieces / totalOrders) * 100 : 0;
+      
+      const maxCPL = profitAdBudget * (deliveryRate / 100);
+      
+      html += `
+        <tr>
+          <td>${country}</td>
+          <td>$${fmt(sellingPrice)}</td>
+          <td>$${fmt(avgProductCost)}</td>
+          <td class="${profitAdBudget >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(profitAdBudget)}</td>
+          <td>${fmt(deliveryRate)}%</td>
+          <td class="${maxCPL >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(maxCPL)}</td>
+        </tr>
+      `;
+    }
+
+    html += `
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <div class="analysis-section">
+          <h5>📝 Product Notes</h5>
+          <div class="notes-grid">
+    `;
+
+    if (notes.length === 0) {
+      html += '<div class="muted">No notes available for this product</div>';
+    } else {
+      notes.forEach(note => {
+        html += `
+          <div class="note-card">
+            <div class="note-country">${note.country}</div>
+            <div class="note-content">${note.note}</div>
+            <div class="note-date">${new Date(note.updatedAt).toLocaleDateString()}</div>
+          </div>
+        `;
+      });
+    }
+
+    html += `
+          </div>
+        </div>
+      </div>
+    `;
+
+    Q('#productInfoResults').innerHTML = html;
+  });
+}
+
 function renderProductsTable() {
   const tb = Q('#productsTable tbody'); if (!tb) return;
-  tb.innerHTML = state.products.map(p=>`
-    <tr>
-      <td>${p.name}</td>
-      <td>${p.sku||'-'}</td>
-      <td><span class="badge ${p.status==='paused'?'muted':''}">${p.status||'active'}</span></td>
-      <td>
-        <a class="btn" href="/product.html?id=${p.id}">Open</a>
-        <button class="btn outline act-toggle" data-id="${p.id}">${p.status==='active'?'Pause':'Run'}</button>
-        <button class="btn outline act-del" data-id="${p.id}">Delete</button>
-      </td>
-    </tr>
-  `).join('') || `<tr><td colspan="4" class="muted">No products</td></tr>`;
+  
+  // Calculate profit/loss for each product
+  const productsWithProfit = state.products.map(async product => {
+    const remittances = await api('/api/remittances');
+    const productRemittances = remittances.remittances.filter(r => r.productId === product.id);
+    
+    const shipments = await api('/api/shipments');
+    const productShipments = shipments.shipments.filter(s => s.productId === product.id && s.arrivedAt);
+    
+    let totalRevenue = 0;
+    let totalAdSpend = 0;
+    let totalProductCost = 0;
+    let totalShippingCost = 0;
+    
+    productRemittances.forEach(remittance => {
+      totalRevenue += remittance.revenue || 0;
+      totalAdSpend += remittance.adSpend || 0;
+    });
+    
+    productShipments.forEach(shipment => {
+      totalShippingCost += shipment.shipCost || 0;
+      if (shipment.chinaPurchaseCost) {
+        totalProductCost += shipment.chinaPurchaseCost;
+      }
+    });
+    
+    const totalCost = totalProductCost + totalShippingCost + totalAdSpend;
+    const profit = totalRevenue - totalCost;
+    
+    return { ...product, profit, hasData: productRemittances.length > 0 || productShipments.length > 0 };
+  });
 
-  tb.onclick = async (e)=>{
-    const id = e.target.dataset?.id; if (!id) return;
-    if (e.target.classList.contains('act-toggle')) {
-      const p = state.products.find(x=>x.id===id); const ns = p.status==='active'?'paused':'active';
-      await api(`/api/products/${id}/status`,{method:'POST', body: JSON.stringify({status:ns})});
-      await preload(); renderProductsTable(); renderCompactCountryStats(); renderAdvertisingOverview();
-    }
-    if (e.target.classList.contains('act-del')) {
-      if (!confirm('Delete product and ALL its data?')) return;
-      await api(`/api/products/${id}`,{method:'DELETE'}); // server will cascade
-      await preload(); renderProductsTable(); renderCompactCountryStats(); renderAdvertisingOverview(); renderCountryStockSpend(); renderCompactKpis();
-    }
-  };
+  Promise.all(productsWithProfit).then(products => {
+    tb.innerHTML = products.map(p => {
+      let rowClass = '';
+      if (p.hasData) {
+        if (p.profit > 0) {
+          rowClass = 'profit-row';
+        } else if (p.profit < 0) {
+          rowClass = 'loss-row';
+        } else {
+          rowClass = 'neutral-row';
+        }
+      }
+      
+      return `
+        <tr class="${rowClass}">
+          <td>${p.name}</td>
+          <td>${p.sku||'-'}</td>
+          <td><span class="badge ${p.status==='paused'?'muted':''}">${p.status||'active'}</span></td>
+          <td class="${p.profit > 0 ? 'number-positive' : p.profit < 0 ? 'number-negative' : ''}">
+            ${fmt(p.profit)} USD
+          </td>
+          <td>
+            <a class="btn" href="/product.html?id=${p.id}">Open</a>
+            <button class="btn outline act-toggle" data-id="${p.id}">${p.status==='active'?'Pause':'Run'}</button>
+            <button class="btn outline act-del" data-id="${p.id}">Delete</button>
+          </td>
+        </tr>
+      `;
+    }).join('') || `<tr><td colspan="5" class="muted">No products</td></tr>`;
+
+    tb.onclick = async (e)=>{
+      const id = e.target.dataset?.id; if (!id) return;
+      if (e.target.classList.contains('act-toggle')) {
+        const p = state.products.find(x=>x.id===id); const ns = p.status==='active'?'paused':'active';
+        await api(`/api/products/${id}/status`,{method:'POST', body: JSON.stringify({status:ns})});
+        await preload(); renderProductsTable(); renderCompactCountryStats(); renderAdvertisingOverview(); renderProductInfo();
+      }
+      if (e.target.classList.contains('act-del')) {
+        if (!confirm('Delete product and ALL its data?')) return;
+        await api(`/api/products/${id}`,{method:'DELETE'}); // server will cascade
+        await preload(); renderProductsTable(); renderCompactCountryStats(); renderAdvertisingOverview(); renderProductInfo(); renderCountryStockSpend(); renderCompactKpis();
+      }
+    };
+  });
 }
 
 /* ================================================================
@@ -694,6 +1112,12 @@ function renderPerformancePage() {
   // Add Remittance Entry
   bindRemittanceAdd();
   
+  // Add Orders Entry
+  bindOrdersAdd();
+
+  // Lifetime Product Costs
+  bindLifetimeProductCosts();
+
   // Remittance Report
   renderRemittanceReport();
 
@@ -713,50 +1137,93 @@ function renderPerformancePage() {
 
     const byC = {};
     list.forEach(r=>{
-      if (!byC[r.country]) byC[r.country] = {rev:0, ad:0, costChina:0, shipChina:0, interShip:0, pcs:0};
+      if (!byC[r.country]) byC[r.country] = {
+        rev:0, ad:0, costChina:0, shipChina:0, interShip:0, boxleo:0, pcs:0, orders:0
+      };
+      
       const product = state.products.find(p => p.id === r.productId) || {};
       const pieces = +r.pieces || 0;
-      const costChina = (+product.cost_china || 0) * pieces;
-      const shipChina = (+product.ship_china_to_kenya || 0) * pieces;
-      const interShip = (+r.extraPerPiece || 0) * pieces;
+      const orders = +r.orders || 0;
       
-      byC[r.country].rev += (+r.revenue || 0);
-      byC[r.country].ad  += (+r.adSpend || 0);
-      byC[r.country].costChina += costChina;
-      byC[r.country].shipChina += shipChina;
-      byC[r.country].interShip += interShip;
-      byC[r.country].pcs += pieces;
+      // Calculate actual costs from shipments
+      const shipments = (async () => {
+        const s = await api('/api/shipments');
+        return s.shipments.filter(x => 
+          x.productId === r.productId && 
+          x.toCountry === r.country && 
+          x.arrivedAt
+        );
+      })();
+      
+      shipments.then(productShipments => {
+        let totalProductCost = 0;
+        let totalShippingCost = 0;
+        let totalQuantity = 0;
+        
+        productShipments.forEach(shipment => {
+          if (shipment.chinaPurchaseCost) {
+            totalProductCost += shipment.chinaPurchaseCost;
+          }
+          totalShippingCost += shipment.shipCost || 0;
+          totalQuantity += shipment.qty || 0;
+        });
+        
+        const costPerPiece = totalQuantity > 0 ? totalProductCost / totalQuantity : 0;
+        const shipPerPiece = totalQuantity > 0 ? totalShippingCost / totalQuantity : 0;
+        
+        byC[r.country].rev += (+r.revenue || 0);
+        byC[r.country].ad  += (+r.adSpend || 0);
+        byC[r.country].costChina += costPerPiece * pieces;
+        byC[r.country].shipChina += shipPerPiece * pieces;
+        byC[r.country].boxleo += (+r.boxleoFees || 0);
+        byC[r.country].pcs += pieces;
+        byC[r.country].orders += orders;
+      });
     });
 
-    const tb = Q('#profitCountryBody'); 
-    let R=0, A=0, CC=0, SC=0, IS=0, P=0;
-    const rows = Object.entries(byC).map(([cc,v])=>{
-      const totalCost = v.costChina + v.shipChina + v.interShip;
-      const profit = v.rev - v.ad - totalCost;
-      R+=v.rev; A+=v.ad; CC+=v.costChina; SC+=v.shipChina; IS+=v.interShip; P+=profit;
+    // Wait for all async calculations
+    setTimeout(() => {
+      const tb = Q('#profitCountryBody'); 
+      let R=0, A=0, CC=0, SC=0, IS=0, BF=0, P=0, ORD=0, PCS=0;
+      const rows = Object.entries(byC).map(([cc,v])=>{
+        const totalCost = v.costChina + v.shipChina + v.boxleo;
+        const profit = v.rev - v.ad - totalCost;
+        const costPerOrder = v.orders > 0 ? v.ad / v.orders : 0;
+        const costPerPieceAd = v.pcs > 0 ? v.ad / v.pcs : 0;
+        const costPerPieceBoxleo = v.pcs > 0 ? v.boxleo / v.pcs : 0;
+        const deliveryRate = v.orders > 0 ? (v.pcs / v.orders) * 100 : 0;
+        
+        R+=v.rev; A+=v.ad; CC+=v.costChina; SC+=v.shipChina; BF+=v.boxleo; P+=profit; ORD+=v.orders; PCS+=v.pcs;
+        
+        return `<tr>
+          <td>${cc}</td>
+          <td>${fmt(v.rev)}</td>
+          <td>${fmt(v.ad)}</td>
+          <td>${fmt(v.costChina)}</td>
+          <td>${fmt(v.shipChina)}</td>
+          <td>${fmt(v.boxleo)}</td>
+          <td>${fmt(totalCost)}</td>
+          <td>${fmt(v.pcs)}</td>
+          <td>${fmt(v.orders)}</td>
+          <td>${fmt(deliveryRate)}%</td>
+          <td>${fmt(costPerOrder)}</td>
+          <td>${fmt(costPerPieceAd)}</td>
+          <td>${fmt(costPerPieceBoxleo)}</td>
+          <td class="${profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(profit)}</td>
+        </tr>`;
+      }).join('');
       
-      return `<tr>
-        <td>${cc}</td>
-        <td>${fmt(v.rev)}</td>
-        <td>${fmt(v.ad)}</td>
-        <td>${fmt(v.costChina)}</td>
-        <td>${fmt(v.shipChina)}</td>
-        <td>${fmt(v.interShip)}</td>
-        <td>${fmt(totalCost)}</td>
-        <td>${fmt(v.pcs)}</td>
-        <td class="${profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(profit)}</td>
-      </tr>`;
-    }).join('');
-    
-    tb.innerHTML = rows || `<tr><td colspan="9" class="muted">No data</td></tr>`;
-    Q('#pcRevT').textContent = fmt(R);
-    Q('#pcAdT').textContent = fmt(A);
-    Q('#pcCostChinaT').textContent = fmt(CC);
-    Q('#pcShipChinaT').textContent = fmt(SC);
-    Q('#pcInterShipT').textContent = fmt(IS);
-    Q('#pcTotalCostT').textContent = fmt(CC + SC + IS);
-    Q('#pcPiecesT').textContent = fmt(Object.values(byC).reduce((t,v)=>t+v.pcs,0));
-    Q('#pcProfitT').textContent = fmt(P);
+      tb.innerHTML = rows || `<tr><td colspan="14" class="muted">No data</td></tr>`;
+      Q('#pcRevT').textContent = fmt(R);
+      Q('#pcAdT').textContent = fmt(A);
+      Q('#pcCostChinaT').textContent = fmt(CC);
+      Q('#pcShipChinaT').textContent = fmt(SC);
+      Q('#pcBoxleoT').textContent = fmt(BF);
+      Q('#pcTotalCostT').textContent = fmt(CC + SC + BF);
+      Q('#pcPiecesT').textContent = fmt(PCS);
+      Q('#pcOrdersT').textContent = fmt(ORD);
+      Q('#pcProfitT').textContent = fmt(P);
+    }, 1000);
   });
 
   // Global Lifetime Product Performance
@@ -792,62 +1259,283 @@ function renderPerformancePage() {
     const byPKC = {}; // product-country buckets
     rem.forEach(r=>{
       const k = `${r.productId}|${r.country}`;
-      const prod = prodMap[r.productId]||{};
       const pieces = +r.pieces || 0;
-      const costChina = (+prod.cost_china || 0) * pieces;
-      const shipChina = (+prod.ship_china_to_kenya || 0) * pieces;
-      const interShip = (+r.extraPerPiece || 0) * pieces;
-      const totalCost = costChina + shipChina + interShip;
-
-      if (!byPKC[k]) byPKC[k] = { 
-        name: prod.name || r.productId, 
-        country: r.country, 
-        rev: 0, ad: 0, 
-        costChina: 0, shipChina: 0, interShip: 0,
-        totalCost: 0, pcs: 0, profit: 0 
-      };
+      const orders = +r.orders || 0;
       
-      byPKC[k].rev += (+r.revenue || 0);
-      byPKC[k].ad  += (+r.adSpend || 0);
-      byPKC[k].costChina += costChina;
-      byPKC[k].shipChina += shipChina;
-      byPKC[k].interShip += interShip;
-      byPKC[k].totalCost += totalCost;
-      byPKC[k].pcs += pieces;
+      // Calculate actual costs from shipments
+      const shipments = (async () => {
+        const s = await api('/api/shipments');
+        return s.shipments.filter(x => 
+          x.productId === r.productId && 
+          x.toCountry === r.country && 
+          x.arrivedAt
+        );
+      })();
+      
+      shipments.then(productShipments => {
+        let totalProductCost = 0;
+        let totalShippingCost = 0;
+        let totalQuantity = 0;
+        
+        productShipments.forEach(shipment => {
+          if (shipment.chinaPurchaseCost) {
+            totalProductCost += shipment.chinaPurchaseCost;
+          }
+          totalShippingCost += shipment.shipCost || 0;
+          totalQuantity += shipment.qty || 0;
+        });
+        
+        const costPerPiece = totalQuantity > 0 ? totalProductCost / totalQuantity : 0;
+        const shipPerPiece = totalQuantity > 0 ? totalShippingCost / totalQuantity : 0;
+        
+        if (!byPKC[k]) byPKC[k] = { 
+          name: prodMap[r.productId]?.name || r.productId, 
+          country: r.country, 
+          rev: 0, ad: 0, 
+          costChina: 0, shipChina: 0, boxleo: 0,
+          totalCost: 0, pcs: 0, orders: 0, profit: 0 
+        };
+        
+        byPKC[k].rev += (+r.revenue || 0);
+        byPKC[k].ad  += (+r.adSpend || 0);
+        byPKC[k].costChina += costPerPiece * pieces;
+        byPKC[k].shipChina += shipPerPiece * pieces;
+        byPKC[k].boxleo += (+r.boxleoFees || 0);
+        byPKC[k].totalCost = byPKC[k].costChina + byPKC[k].shipChina + byPKC[k].boxleo;
+        byPKC[k].pcs += pieces;
+        byPKC[k].orders += orders;
+      });
     });
     
-    Object.values(byPKC).forEach(v => v.profit = v.rev - v.ad - v.totalCost);
+    // Wait for async calculations
+    setTimeout(() => {
+      Object.values(byPKC).forEach(v => v.profit = v.rev - v.ad - v.totalCost);
 
-    const tb = Q('#lifetimeBody'); 
-    let R=0, A=0, CC=0, SC=0, IS=0, TC=0, P=0, PCS=0;
-    const rows = Object.values(byPKC).map(v=>{
-      R+=v.rev; A+=v.ad; CC+=v.costChina; SC+=v.shipChina; IS+=v.interShip; 
-      TC+=v.totalCost; P+=v.profit; PCS+=v.pcs;
+      const tb = Q('#lifetimeBody'); 
+      let R=0, A=0, CC=0, SC=0, BF=0, TC=0, P=0, PCS=0, ORD=0;
+      const rows = Object.values(byPKC).map(v=>{
+        const deliveryRate = v.orders > 0 ? (v.pcs / v.orders) * 100 : 0;
+        const costPerOrder = v.orders > 0 ? v.ad / v.orders : 0;
+        const costPerPieceAd = v.pcs > 0 ? v.ad / v.pcs : 0;
+        const costPerPieceBoxleo = v.pcs > 0 ? v.boxleo / v.pcs : 0;
+        
+        R+=v.rev; A+=v.ad; CC+=v.costChina; SC+=v.shipChina; BF+=v.boxleo; 
+        TC+=v.totalCost; P+=v.profit; PCS+=v.pcs; ORD+=v.orders;
+        
+        return `<tr>
+          <td>${v.name}</td>
+          <td>${v.country}</td>
+          <td>${fmt(v.rev)}</td>
+          <td>${fmt(v.ad)}</td>
+          <td>${fmt(v.costChina)}</td>
+          <td>${fmt(v.shipChina)}</td>
+          <td>${fmt(v.boxleo)}</td>
+          <td>${fmt(v.totalCost)}</td>
+          <td>${fmt(v.pcs)}</td>
+          <td>${fmt(v.orders)}</td>
+          <td>${fmt(deliveryRate)}%</td>
+          <td>${fmt(costPerOrder)}</td>
+          <td>${fmt(costPerPieceAd)}</td>
+          <td>${fmt(costPerPieceBoxleo)}</td>
+          <td class="${v.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(v.profit)}</td>
+        </tr>`;
+      }).join('');
       
-      return `<tr>
-        <td>${v.name}</td>
-        <td>${v.country}</td>
-        <td>${fmt(v.rev)}</td>
-        <td>${fmt(v.ad)}</td>
-        <td>${fmt(v.costChina)}</td>
-        <td>${fmt(v.shipChina)}</td>
-        <td>${fmt(v.interShip)}</td>
-        <td>${fmt(v.totalCost)}</td>
-        <td>${fmt(v.pcs)}</td>
-        <td class="${v.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(v.profit)}</td>
-      </tr>`;
-    }).join('');
-    
-    tb.innerHTML = rows || `<tr><td colspan="10" class="muted">No data</td></tr>`;
-    Q('#ltRevT').textContent = fmt(R);
-    Q('#ltAdT').textContent = fmt(A);
-    Q('#ltCostChinaT').textContent = fmt(CC);
-    Q('#ltShipChinaT').textContent = fmt(SC);
-    Q('#ltInterShipT').textContent = fmt(IS);
-    Q('#ltTotalCostT').textContent = fmt(TC);
-    Q('#ltPiecesT').textContent = fmt(PCS);
-    Q('#ltProfitT').textContent = fmt(P);
+      tb.innerHTML = rows || `<tr><td colspan="15" class="muted">No data</td></tr>`;
+      Q('#ltRevT').textContent = fmt(R);
+      Q('#ltAdT').textContent = fmt(A);
+      Q('#ltCostChinaT').textContent = fmt(CC);
+      Q('#ltShipChinaT').textContent = fmt(SC);
+      Q('#ltBoxleoT').textContent = fmt(BF);
+      Q('#ltTotalCostT').textContent = fmt(TC);
+      Q('#ltPiecesT').textContent = fmt(PCS);
+      Q('#ltOrdersT').textContent = fmt(ORD);
+      Q('#ltProfitT').textContent = fmt(P);
+    }, 1000);
   });
+}
+
+/* ================================================================
+   LIFETIME PRODUCT COSTS
+   ================================================================ */
+function bindLifetimeProductCosts() {
+  const btn = Q('#lifetimeCostRun');
+  if (!btn) return;
+  
+  btn.onclick = async () => {
+    const productId = Q('#lifetimeCostProduct')?.value || '';
+    const start = Q('#lifetimeCostStart')?.value;
+    const end = Q('#lifetimeCostEnd')?.value;
+    
+    if (!start || !end) return alert('Please select date range');
+    
+    try {
+      // Get all relevant data
+      const [remittances, shipments, influencers, adspend, orders] = await Promise.all([
+        api('/api/remittances'),
+        api('/api/shipments'),
+        api('/api/influencers/spend'),
+        api('/api/adspend'),
+        api('/api/orders')
+      ]);
+      
+      let filteredRemittances = remittances.remittances || [];
+      let filteredShipments = shipments.shipments || [];
+      let filteredInfluencers = influencers.spends || [];
+      let filteredAdspend = adspend.adSpends || [];
+      let filteredOrders = orders.orders || [];
+      
+      // Filter by product and date
+      if (productId) {
+        filteredRemittances = filteredRemittances.filter(r => r.productId === productId);
+        filteredShipments = filteredShipments.filter(s => s.productId === productId);
+        filteredInfluencers = filteredInfluencers.filter(i => i.productId === productId);
+        filteredAdspend = filteredAdspend.filter(a => a.productId === productId);
+        filteredOrders = filteredOrders.filter(o => o.productId === productId);
+      }
+      
+      if (start) {
+        filteredRemittances = filteredRemittances.filter(r => r.start >= start);
+        filteredInfluencers = filteredInfluencers.filter(i => i.date >= start);
+        filteredAdspend = filteredAdspend.filter(a => {
+          // Adspend doesn't have date, so we can't filter by date
+          return true;
+        });
+        filteredOrders = filteredOrders.filter(o => o.date >= start);
+      }
+      
+      if (end) {
+        filteredRemittances = filteredRemittances.filter(r => r.end <= end);
+        filteredInfluencers = filteredInfluencers.filter(i => i.date <= end);
+        filteredAdspend = filteredAdspend.filter(a => true); // Same as above
+        filteredOrders = filteredOrders.filter(o => o.date <= end);
+      }
+      
+      // Calculate totals
+      const totalProductCost = filteredShipments
+        .filter(s => s.chinaPurchaseCost)
+        .reduce((sum, s) => sum + (s.chinaPurchaseCost || 0), 0);
+      
+      const totalShippingChina = filteredShipments
+        .filter(s => s.fromCountry === 'china')
+        .reduce((sum, s) => sum + (s.shipCost || 0), 0);
+      
+      const totalShippingInter = filteredShipments
+        .filter(s => s.fromCountry !== 'china')
+        .reduce((sum, s) => sum + (s.shipCost || 0), 0);
+      
+      const totalInfluencers = filteredInfluencers.reduce((sum, i) => sum + (i.amount || 0), 0);
+      const totalAdspend = filteredAdspend.reduce((sum, a) => sum + (a.amount || 0), 0);
+      const totalBoxleo = filteredRemittances.reduce((sum, r) => sum + (r.boxleoFees || 0), 0);
+      
+      const totalRevenue = filteredRemittances.reduce((sum, r) => sum + (r.revenue || 0), 0);
+      const totalPieces = filteredRemittances.reduce((sum, r) => sum + (r.pieces || 0), 0);
+      const totalOrdersCount = filteredOrders.reduce((sum, o) => sum + (o.orders || 0), 0);
+      
+      const totalExpenses = totalProductCost + totalShippingChina + totalShippingInter + 
+                           totalInfluencers + totalAdspend + totalBoxleo;
+      const profit = totalRevenue - totalExpenses;
+      const deliveryRate = totalOrdersCount > 0 ? (totalPieces / totalOrdersCount) * 100 : 0;
+      
+      // Update the table
+      const tb = Q('#lifetimeCostBody');
+      tb.innerHTML = `
+        <tr>
+          <td>Product Costs from China</td>
+          <td>$${fmt(totalProductCost)}</td>
+        </tr>
+        <tr>
+          <td>Shipping from China to Kenya</td>
+          <td>$${fmt(totalShippingChina)}</td>
+        </tr>
+        <tr>
+          <td>Shipping across Countries</td>
+          <td>$${fmt(totalShippingInter)}</td>
+        </tr>
+        <tr>
+          <td>Influencers Costs</td>
+          <td>$${fmt(totalInfluencers)}</td>
+        </tr>
+        <tr>
+          <td>Advertising Costs</td>
+          <td>$${fmt(totalAdspend)}</td>
+        </tr>
+        <tr>
+          <td>Boxleo Delivery Fees</td>
+          <td>$${fmt(totalBoxleo)}</td>
+        </tr>
+        <tr class="totals">
+          <td><strong>Total Expenses</strong></td>
+          <td><strong>$${fmt(totalExpenses)}</strong></td>
+        </tr>
+        <tr>
+          <td>Total Revenue</td>
+          <td>$${fmt(totalRevenue)}</td>
+        </tr>
+        <tr>
+          <td>Delivered Pieces</td>
+          <td>${fmt(totalPieces)}</td>
+        </tr>
+        <tr>
+          <td>Total Orders</td>
+          <td>${fmt(totalOrdersCount)}</td>
+        </tr>
+        <tr>
+          <td>Delivery Rate</td>
+          <td>${fmt(deliveryRate)}%</td>
+        </tr>
+      `;
+      
+      // Update summary box
+      const summaryBox = Q('#lifetimeCostSummary');
+      summaryBox.className = `big-balance ${profit >= 0 ? 'profit-summary' : 'loss-summary'}`;
+      summaryBox.innerHTML = `
+        <div class="h">${profit >= 0 ? '✅ PROFIT' : '❌ LOSS'} Summary</div>
+        <div class="balance">${fmt(profit)} USD</div>
+        <div style="margin-top:10px;">
+          <div>Total Revenue: $${fmt(totalRevenue)}</div>
+          <div>Total Expenses: $${fmt(totalExpenses)}</div>
+          <div>Delivery Rate: ${fmt(deliveryRate)}%</div>
+        </div>
+      `;
+      
+    } catch (e) {
+      alert('Error calculating lifetime costs: ' + e.message);
+    }
+  };
+}
+
+/* ================================================================
+   ORDERS ENTRY
+   ================================================================ */
+function bindOrdersAdd() {
+  const btn = Q('#ordersAdd');
+  if (!btn) return;
+  
+  btn.onclick = async () => {
+    const payload = {
+      date: Q('#ordersDate')?.value,
+      productId: Q('#ordersProduct')?.value,
+      country: Q('#ordersCountry')?.value,
+      orders: +Q('#ordersCount')?.value || 0
+    };
+    
+    if (!payload.date || !payload.productId || !payload.country) {
+      return alert('Please fill all required fields: Date, Product, and Country');
+    }
+    
+    try {
+      await api('/api/orders', { method: 'POST', body: JSON.stringify(payload) });
+      alert('Orders entry added successfully!');
+      // Clear form
+      Q('#ordersDate').value = '';
+      Q('#ordersProduct').value = '';
+      Q('#ordersCountry').value = '';
+      Q('#ordersCount').value = '';
+    } catch (e) {
+      alert('Error adding orders: ' + e.message);
+    }
+  };
 }
 
 /* ================================================================
@@ -878,12 +1566,16 @@ function bindTopDeliveredProducts() {
           country: r.country,
           pieces: 0,
           revenue: 0,
-          adSpend: 0
+          adSpend: 0,
+          boxleoFees: 0,
+          orders: 0
         };
       }
       productStats[key].pieces += (+r.pieces || 0);
       productStats[key].revenue += (+r.revenue || 0);
       productStats[key].adSpend += (+r.adSpend || 0);
+      productStats[key].boxleoFees += (+r.boxleoFees || 0);
+      productStats[key].orders += (+r.orders || 0);
     });
     
     // Convert to array and sort by pieces (descending)
@@ -896,18 +1588,30 @@ function bindTopDeliveredProducts() {
     
     tb.innerHTML = sortedProducts.map((stat, index) => {
       const product = prodMap[stat.productId] || {};
-      const profit = stat.revenue - stat.adSpend;
+      const deliveryRate = stat.orders > 0 ? (stat.pieces / stat.orders) * 100 : 0;
+      const costPerOrder = stat.orders > 0 ? stat.adSpend / stat.orders : 0;
+      const costPerPieceAd = stat.pieces > 0 ? stat.adSpend / stat.pieces : 0;
+      const costPerPieceBoxleo = stat.pieces > 0 ? stat.boxleoFees / stat.pieces : 0;
+      
+      // Calculate actual profit (this would need more detailed cost calculation)
+      const profit = stat.revenue - stat.adSpend - stat.boxleoFees;
       
       return `<tr>
         <td>${index + 1}</td>
         <td>${product.name || stat.productId}</td>
         <td>${stat.country}</td>
         <td><strong>${fmt(stat.pieces)}</strong></td>
+        <td>${fmt(stat.orders)}</td>
+        <td>${fmt(deliveryRate)}%</td>
         <td>${fmt(stat.revenue)}</td>
         <td>${fmt(stat.adSpend)}</td>
+        <td>${fmt(stat.boxleoFees)}</td>
+        <td>${fmt(costPerOrder)}</td>
+        <td>${fmt(costPerPieceAd)}</td>
+        <td>${fmt(costPerPieceBoxleo)}</td>
         <td class="${profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(profit)}</td>
       </tr>`;
-    }).join('') || `<tr><td colspan="7" class="muted">No data for selected period</td></tr>`;
+    }).join('') || `<tr><td colspan="13" class="muted">No data for selected period</td></tr>`;
   };
 }
 
@@ -942,27 +1646,24 @@ function bindRemittanceAnalytics() {
           pieces: 0,
           revenue: 0,
           adSpend: 0,
-          costChina: 0,
-          shipChina: 0,
-          interShip: 0,
-          totalCost: 0
+          boxleoFees: 0,
+          orders: 0
         };
       }
       
-      const product = state.products.find(p => p.id === r.productId) || {};
-      const pieces = +r.pieces || 0;
-      
-      analytics[key].pieces += pieces;
+      analytics[key].pieces += (+r.pieces || 0);
       analytics[key].revenue += (+r.revenue || 0);
       analytics[key].adSpend += (+r.adSpend || 0);
-      analytics[key].costChina += (+product.cost_china || 0) * pieces;
-      analytics[key].shipChina += (+product.ship_china_to_kenya || 0) * pieces;
-      analytics[key].interShip += (+r.extraPerPiece || 0) * pieces;
+      analytics[key].boxleoFees += (+r.boxleoFees || 0);
+      analytics[key].orders += (+r.orders || 0);
     });
     
-    // Calculate total cost and profit for each entry
+    // Calculate delivery rates and costs
     Object.values(analytics).forEach(item => {
-      item.totalCost = item.costChina + item.shipChina + item.interShip;
+      item.deliveryRate = item.orders > 0 ? (item.pieces / item.orders) * 100 : 0;
+      item.costPerOrder = item.orders > 0 ? item.adSpend / item.orders : 0;
+      item.costPerPieceAd = item.pieces > 0 ? item.adSpend / item.pieces : 0;
+      item.costPerPieceBoxleo = item.pieces > 0 ? item.boxleoFees / item.pieces : 0;
     });
     
     // Sort by pieces (descending)
@@ -973,43 +1674,41 @@ function bindRemittanceAnalytics() {
     const tb = Q('#remAnalyticsBody');
     
     let totalPieces = 0, totalRevenue = 0, totalAdSpend = 0;
-    let totalCostChina = 0, totalShipChina = 0, totalInterShip = 0, totalTotalCost = 0, totalProfit = 0;
+    let totalBoxleoFees = 0, totalOrders = 0, totalProfit = 0;
     
     tb.innerHTML = sortedAnalytics.map(item => {
       const product = prodMap[item.productId] || {};
-      const profit = item.revenue - item.adSpend - item.totalCost;
+      const profit = item.revenue - item.adSpend - item.boxleoFees;
       
       totalPieces += item.pieces;
       totalRevenue += item.revenue;
       totalAdSpend += item.adSpend;
-      totalCostChina += item.costChina;
-      totalShipChina += item.shipChina;
-      totalInterShip += item.interShip;
-      totalTotalCost += item.totalCost;
+      totalBoxleoFees += item.boxleoFees;
+      totalOrders += item.orders;
       totalProfit += profit;
       
       return `<tr>
         <td>${product.name || item.productId}</td>
         <td>${item.country}</td>
         <td><strong>${fmt(item.pieces)}</strong></td>
+        <td>${fmt(item.orders)}</td>
+        <td>${fmt(item.deliveryRate)}%</td>
         <td>${fmt(item.revenue)}</td>
         <td>${fmt(item.adSpend)}</td>
-        <td>${fmt(item.costChina)}</td>
-        <td>${fmt(item.shipChina)}</td>
-        <td>${fmt(item.interShip)}</td>
-        <td>${fmt(item.totalCost)}</td>
+        <td>${fmt(item.boxleoFees)}</td>
+        <td>${fmt(item.costPerOrder)}</td>
+        <td>${fmt(item.costPerPieceAd)}</td>
+        <td>${fmt(item.costPerPieceBoxleo)}</td>
         <td class="${profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(profit)}</td>
       </tr>`;
-    }).join('') || `<tr><td colspan="10" class="muted">No data for selected period</td></tr>`;
+    }).join('') || `<tr><td colspan="12" class="muted">No data for selected period</td></tr>`;
     
     // Update totals
     Q('#remAnalyticsPiecesT').textContent = fmt(totalPieces);
     Q('#remAnalyticsRevenueT').textContent = fmt(totalRevenue);
     Q('#remAnalyticsAdSpendT').textContent = fmt(totalAdSpend);
-    Q('#remAnalyticsCostChinaT').textContent = fmt(totalCostChina);
-    Q('#remAnalyticsShipChinaT').textContent = fmt(totalShipChina);
-    Q('#remAnalyticsInterShipT').textContent = fmt(totalInterShip);
-    Q('#remAnalyticsTotalCostT').textContent = fmt(totalTotalCost);
+    Q('#remAnalyticsBoxleoT').textContent = fmt(totalBoxleoFees);
+    Q('#remAnalyticsOrdersT').textContent = fmt(totalOrders);
     Q('#remAnalyticsProfitT').textContent = fmt(totalProfit);
   };
 }
@@ -1031,7 +1730,7 @@ function bindRemittanceAdd() {
       pieces: +Q('#remAddPieces')?.value || 0,
       revenue: +Q('#remAddRevenue')?.value || 0,
       adSpend: +Q('#remAddAdSpend')?.value || 0,
-      extraPerPiece: +Q('#remAddExtra')?.value || 0
+      boxleoFees: +Q('#remAddBoxleo')?.value || 0
     };
     
     if (!payload.start || !payload.end || !payload.country || !payload.productId) {
@@ -1050,7 +1749,7 @@ function bindRemittanceAdd() {
       Q('#remAddPieces').value = '';
       Q('#remAddRevenue').value = '';
       Q('#remAddAdSpend').value = '';
-      Q('#remAddExtra').value = '';
+      Q('#remAddBoxleo').value = '';
       
       // Refresh the remittance report
       renderRemittanceReport();
@@ -1084,27 +1783,24 @@ function renderRemittanceReport() {
     rem.sort((a, b) => (b.pieces || 0) - (a.pieces || 0));
     
     const prodMap = Object.fromEntries(state.products.map(p => [p.id, p]));
-    let totalOrders = 0, totalPieces = 0, totalRevenue = 0, totalAdSpend = 0;
-    let totalCostChina = 0, totalShipChina = 0, totalInterShip = 0, totalTotalCost = 0, totalProfit = 0;
+    let totalOrders = 0, totalPieces = 0, totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0, totalProfit = 0;
     
     const tb = Q('#remittanceBody');
     tb.innerHTML = rem.map(r => {
       const product = prodMap[r.productId] || {};
       const pieces = +r.pieces || 0;
-      const costChina = (+product.cost_china || 0) * pieces;
-      const shipChina = (+product.ship_china_to_kenya || 0) * pieces;
-      const interShip = (+r.extraPerPiece || 0) * pieces;
-      const totalCost = costChina + shipChina + interShip;
-      const profit = (+r.revenue || 0) - (+r.adSpend || 0) - totalCost;
+      const orders = +r.orders || 0;
+      const deliveryRate = orders > 0 ? (pieces / orders) * 100 : 0;
+      const costPerOrder = orders > 0 ? (+r.adSpend || 0) / orders : 0;
+      const costPerPieceAd = pieces > 0 ? (+r.adSpend || 0) / pieces : 0;
+      const costPerPieceBoxleo = pieces > 0 ? (+r.boxleoFees || 0) / pieces : 0;
+      const profit = (+r.revenue || 0) - (+r.adSpend || 0) - (+r.boxleoFees || 0);
       
-      totalOrders += (+r.orders || 0);
+      totalOrders += orders;
       totalPieces += pieces;
       totalRevenue += (+r.revenue || 0);
       totalAdSpend += (+r.adSpend || 0);
-      totalCostChina += costChina;
-      totalShipChina += shipChina;
-      totalInterShip += interShip;
-      totalTotalCost += totalCost;
+      totalBoxleo += (+r.boxleoFees || 0);
       totalProfit += profit;
       
       return `<tr>
@@ -1113,25 +1809,23 @@ function renderRemittanceReport() {
         <td>${r.country}</td>
         <td>${fmt(r.orders)}</td>
         <td>${fmt(r.pieces)}</td>
+        <td>${fmt(deliveryRate)}%</td>
         <td>${fmt(r.revenue)}</td>
         <td>${fmt(r.adSpend)}</td>
-        <td>${fmt(costChina)}</td>
-        <td>${fmt(shipChina)}</td>
-        <td>${fmt(interShip)}</td>
-        <td>${fmt(totalCost)}</td>
+        <td>${fmt(r.boxleoFees)}</td>
+        <td>${fmt(costPerOrder)}</td>
+        <td>${fmt(costPerPieceAd)}</td>
+        <td>${fmt(costPerPieceBoxleo)}</td>
         <td class="${profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(profit)}</td>
         <td><button class="btn outline rem-del" data-id="${r.id}">Delete</button></td>
       </tr>`;
-    }).join('') || `<tr><td colspan="13" class="muted">No remittance data</td></tr>`;
+    }).join('') || `<tr><td colspan="14" class="muted">No remittance data</td></tr>`;
     
     Q('#remOrdersT').textContent = fmt(totalOrders);
     Q('#remPiecesT').textContent = fmt(totalPieces);
     Q('#remRevenueT').textContent = fmt(totalRevenue);
     Q('#remAdSpendT').textContent = fmt(totalAdSpend);
-    Q('#remCostChinaT').textContent = fmt(totalCostChina);
-    Q('#remShipChinaT').textContent = fmt(totalShipChina);
-    Q('#remInterShipT').textContent = fmt(totalInterShip);
-    Q('#remTotalCostT').textContent = fmt(totalTotalCost);
+    Q('#remBoxleoT').textContent = fmt(totalBoxleo);
     Q('#remProfitT').textContent = fmt(totalProfit);
     
     // Add delete functionality
@@ -1155,18 +1849,32 @@ function renderRemittanceReport() {
 function renderStockMovementPage() {
   // Stock Movement (create shipment) - China is available here
   const btn = Q('#mvAdd'); if (!btn) return;
+  
+  // Show/hide China purchase cost field based on from country selection
+  Q('#mvFrom')?.addEventListener('change', function() {
+    const chinaCostField = Q('#mvChinaCostGroup');
+    if (this.value === 'china') {
+      chinaCostField.style.display = 'flex';
+    } else {
+      chinaCostField.style.display = 'none';
+    }
+  });
+  
   btn.onclick = async ()=>{
+    const fromCountry = Q('#mvFrom')?.value;
     const payload = {
       productId: Q('#mvProduct')?.value,
-      fromCountry: Q('#mvFrom')?.value,
+      fromCountry: fromCountry,
       toCountry: Q('#mvTo')?.value,
       qty: +Q('#mvQty')?.value || 0,
       shipCost: +Q('#mvShip')?.value || 0,
+      chinaPurchaseCost: fromCountry === 'china' ? +Q('#mvChinaCost')?.value || 0 : 0,
       note: Q('#mvNote')?.value || '',
       departedAt: isoToday(),
       arrivedAt: null
     };
     if (!payload.productId || !payload.fromCountry || !payload.toCountry) return alert('Missing fields');
+    if (payload.fromCountry === 'china' && !payload.chinaPurchaseCost) return alert('Please enter China purchase cost');
     try{
       await api('/api/shipments',{method:'POST', body: JSON.stringify(payload)});
       await renderTransitTables();
@@ -1187,12 +1895,14 @@ async function renderTransitTables() {
 
   const row = sp => {
     const days = sp.arrivedAt ? Math.round((+new Date(sp.arrivedAt)-(+new Date(sp.departedAt)))/86400000) : '';
+    const chinaCost = sp.chinaPurchaseCost ? `$${fmt(sp.chinaPurchaseCost)}` : '-';
     return `<tr>
       <td>${sp.id}</td>
       <td>${prodMap[sp.productId]||sp.productId}</td>
       <td>${sp.fromCountry||sp.from} → ${sp.toCountry||sp.to}</td>
       <td>${fmt(sp.qty)}</td>
       <td>${fmt(sp.shipCost)}</td>
+      <td>${chinaCost}</td>
       <td>${sp.departedAt||''}</td>
       <td>${sp.arrivedAt||''}</td>
       <td>${days}</td>
@@ -1208,8 +1918,8 @@ async function renderTransitTables() {
   const ck = live.filter(sp => (sp.fromCountry||sp.from||'').toLowerCase()==='china' && (sp.toCountry||sp.to||'').toLowerCase()==='kenya');
   const ic = live.filter(sp => !ck.includes(sp));
 
-  if (tbl1) tbl1.innerHTML = ck.map(row).join('') || `<tr><td colspan="10" class="muted">No transit</td></tr>`;
-  if (tbl2) tbl2.innerHTML = ic.map(row).join('') || `<tr><td colspan="10" class="muted">No transit</td></tr>`;
+  if (tbl1) tbl1.innerHTML = ck.map(row).join('') || `<tr><td colspan="11" class="muted">No transit</td></tr>`;
+  if (tbl2) tbl2.innerHTML = ic.map(row).join('') || `<tr><td colspan="11" class="muted">No transit</td></tr>`;
 
   const host = Q('#stockMovement') || document;
   host.addEventListener('click', async (e)=>{
@@ -1228,8 +1938,9 @@ async function renderTransitTables() {
     if (e.target.classList.contains('act-edit')) {
       const qty = +prompt('New qty?', '0') || 0;
       const shipCost = +prompt('New shipping cost?', '0') || 0;
+      const chinaCost = +prompt('China purchase cost? (if applicable)', '0') || 0;
       const note = prompt('Note?', '') || '';
-      try { await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({ qty, shipCost, note })}); }
+      try { await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({ qty, shipCost, chinaPurchaseCost: chinaCost, note })}); }
       catch(err){ return alert(err.message); }
       await renderTransitTables();
     }
@@ -1369,14 +2080,26 @@ function renderSettingsPage() {
       const p = state.products.find(x=>x.id===sel.value);
       if (!p) return;
       Q('#epName').value = p.name||''; Q('#epSku').value = p.sku||'';
-      Q('#epCost').value = p.cost_china||0; Q('#epShip').value = p.ship_china_to_kenya||0;
+      // Populate selling prices for each country
+      state.countries.forEach(country => {
+        const priceInput = Q(`#epPrice_${country}`);
+        if (priceInput) {
+          priceInput.value = p.selling_prices?.[country] || '';
+        }
+      });
       Q('#epMB').value = p.margin_budget||0;
     };
     Q('#epSave')?.addEventListener('click', async ()=>{
       const id = sel.value; if (!id) return alert('Pick a product');
+      const selling_prices = {};
+      state.countries.forEach(country => {
+        const price = +Q(`#epPrice_${country}`)?.value || 0;
+        selling_prices[country] = price;
+      });
       const up = {
-        name: Q('#epName').value, sku: Q('#epSku').value,
-        cost_china:+Q('#epCost').value||0, ship_china_to_kenya:+Q('#epShip').value||0,
+        name: Q('#epName').value, 
+        sku: Q('#epSku').value,
+        selling_prices: selling_prices,
         margin_budget:+Q('#epMB').value||0
       };
       await api(`/api/products/${id}`,{method:'PUT', body: JSON.stringify(up)});
@@ -1437,8 +2160,10 @@ async function renderProductPage() {
 
   // Stock & Ad Spend by Country (this product only)
   await renderProductStockAd(product);
-  // Profit + Budget per country (manual budgets)
+  // Profit + Budget per country (auto-calculated)
   renderProductBudgets(product);
+  // Product Notes
+  renderProductNotes(product);
   // Transit tables
   await renderProductTransit(product);
   // Arrived shipments section
@@ -1517,27 +2242,111 @@ async function renderProductStockAd(product) {
 }
 
 function renderProductBudgets(product) {
-  const sel = Q('#pdPBCountry'), inp = Q('#pdPBValue'), btn = Q('#pdPBSave'), tb=Q('#pdPBBBody');
-  const map = product.budgets||{};
-  tb.innerHTML = state.countries.map(c=>`
-    <tr><td>${c}</td><td>${fmt(map[c]||0)}</td>
-    <td><button class="btn outline pb-clear" data-c="${c}">Clear</button></td></tr>
-  `).join('') || `<tr><td colspan="3" class="muted">No budgets yet</td></tr>`;
-
-  btn.onclick = async ()=>{
-    const c = sel.value; const v = +inp.value||0;
-    const up = { budgets: {...(product.budgets||{}), [c]: v } };
-    await api(`/api/products/${product.id}`,{method:'PUT', body: JSON.stringify(up)});
-    await renderProductPage();
+  const tb = Q('#pdPBBBody');
+  
+  const calculateBudgets = async () => {
+    const shipments = await api('/api/shipments');
+    const productShipments = shipments.shipments.filter(s => 
+      s.productId === product.id && s.arrivedAt
+    );
+    
+    const budgets = {};
+    
+    for (const country of state.countries) {
+      const sellingPrice = product.selling_prices?.[country] || 0;
+      
+      // Calculate average product cost for this country
+      const countryShipments = productShipments.filter(s => s.toCountry === country);
+      let totalCost = 0;
+      let totalQuantity = 0;
+      
+      countryShipments.forEach(shipment => {
+        if (shipment.chinaPurchaseCost && shipment.qty) {
+          const costPerPiece = shipment.chinaPurchaseCost / shipment.qty;
+          totalCost += costPerPiece * shipment.qty;
+          totalQuantity += shipment.qty;
+        }
+      });
+      
+      const avgProductCost = totalQuantity > 0 ? totalCost / totalQuantity : 0;
+      const profitAdBudget = sellingPrice - avgProductCost;
+      
+      budgets[country] = profitAdBudget;
+    }
+    
+    tb.innerHTML = state.countries.map(c=>`
+      <tr>
+        <td>${c}</td>
+        <td>$${fmt(product.selling_prices?.[c] || 0)}</td>
+        <td>$${fmt(budgets[c] || 0)}</td>
+      </tr>
+    `).join('') || `<tr><td colspan="3" class="muted">No data</td></tr>`;
   };
-  tb.onclick = async (e)=>{
-    if (e.target.classList.contains('pb-clear')) {
-      const c = e.target.dataset.c;
-      const up = { budgets: {...(product.budgets||{})} }; delete up.budgets[c];
-      await api(`/api/products/${product.id}`,{method:'PUT', body: JSON.stringify(up)});
-      await renderProductPage();
+  
+  calculateBudgets();
+}
+
+function renderProductNotes(product) {
+  const container = Q('#pdNotes');
+  if (!container) return;
+
+  const loadNotes = async () => {
+    try {
+      const res = await api(`/api/product-notes/${product.id}`);
+      const notes = res.notes || [];
+      
+      container.innerHTML = `
+        <div class="card">
+          <div class="h">📝 Product Testing Notes</div>
+          <div class="row wrap">
+            <select id="pdNoteCountry" class="input">
+              <option value="">Select country</option>
+              ${state.countries.map(c => `<option value="${c}">${c}</option>`).join('')}
+            </select>
+            <textarea id="pdNoteText" class="input" placeholder="Enter testing results and notes..." style="flex:1; height:80px;"></textarea>
+            <button id="pdNoteSave" class="btn">💾 Save Note</button>
+          </div>
+          
+          <div id="pdNotesList" style="margin-top:15px;">
+            ${notes.map(note => `
+              <div class="note-card">
+                <div class="note-header">
+                  <strong>${note.country}</strong>
+                  <span class="note-date">${new Date(note.updatedAt).toLocaleDateString()}</span>
+                </div>
+                <div class="note-content">${note.note}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+
+      Q('#pdNoteSave')?.addEventListener('click', async () => {
+        const country = Q('#pdNoteCountry')?.value;
+        const note = Q('#pdNoteText')?.value.trim();
+
+        if (!country || !note) return alert('Please select country and enter note');
+
+        try {
+          await api('/api/product-notes', {
+            method: 'POST',
+            body: JSON.stringify({ productId: product.id, country, note })
+          });
+          
+          Q('#pdNoteCountry').value = '';
+          Q('#pdNoteText').value = '';
+          await loadNotes();
+        } catch (e) {
+          alert('Failed to save note: ' + e.message);
+        }
+      });
+      
+    } catch (e) {
+      console.error('Failed to load product notes:', e);
     }
   };
+
+  loadNotes();
 }
 
 async function renderProductTransit(product) {
@@ -1545,18 +2354,22 @@ async function renderProductTransit(product) {
   const list = (s.shipments||[]).filter(x=>x.productId===product.id && !x.arrivedAt);
   const ck = list.filter(sp => (sp.fromCountry||sp.from||'').toLowerCase()==='china' && (sp.toCountry||sp.to||'').toLowerCase()==='kenya');
   const ic = list.filter(sp => !ck.includes(sp));
-  const row = sp => `<tr>
-    <td>${sp.id}</td><td>${sp.fromCountry||sp.from} → ${sp.toCountry||sp.to}</td>
-    <td>${fmt(sp.qty)}</td><td>${fmt(sp.shipCost)}</td>
-    <td>${sp.departedAt||''}</td><td>${sp.arrivedAt||''}</td>
-    <td>${sp.note||''}</td>
-    <td>
-      <button class="btn outline p-act-arr" data-id="${sp.id}">Arrived</button>
-      <button class="btn outline p-act-edit" data-id="${sp.id}">Edit</button>
-      <button class="btn outline p-act-del" data-id="${sp.id}">Delete</button>
-    </td></tr>`;
-  Q('#pdShipCKBody').innerHTML = ck.map(row).join('') || `<tr><td colspan="8" class="muted">No shipments</td></tr>`;
-  Q('#pdShipICBody').innerHTML = ic.map(row).join('') || `<tr><td colspan="8" class="muted">No shipments</td></tr>`;
+  const row = sp => {
+    const chinaCost = sp.chinaPurchaseCost ? `$${fmt(sp.chinaPurchaseCost)}` : '-';
+    return `<tr>
+      <td>${sp.id}</td><td>${sp.fromCountry||sp.from} → ${sp.toCountry||sp.to}</td>
+      <td>${fmt(sp.qty)}</td><td>${fmt(sp.shipCost)}</td>
+      <td>${chinaCost}</td>
+      <td>${sp.departedAt||''}</td><td>${sp.arrivedAt||''}</td>
+      <td>${sp.note||''}</td>
+      <td>
+        <button class="btn outline p-act-arr" data-id="${sp.id}">Arrived</button>
+        <button class="btn outline p-act-edit" data-id="${sp.id}">Edit</button>
+        <button class="btn outline p-act-del" data-id="${sp.id}">Delete</button>
+      </td></tr>`;
+  };
+  Q('#pdShipCKBody').innerHTML = ck.map(row).join('') || `<tr><td colspan="9" class="muted">No shipments</td></tr>`;
+  Q('#pdShipICBody').innerHTML = ic.map(row).join('') || `<tr><td colspan="9" class="muted">No shipments</td></tr>`;
 
   const host = Q('#product');
   host.addEventListener('click', async (e)=>{
@@ -1567,18 +2380,22 @@ async function renderProductTransit(product) {
       await renderProductTransit(product); 
       await renderProductArrivedShipments(product);
       await renderProductStockAd(product);
+      await renderProductBudgets(product);
     }
     if (e.target.classList.contains('p-act-edit')) {
       const qty = +prompt('New qty?', '0')||0;
       const shipCost = +prompt('New shipping cost?', '0')||0;
+      const chinaCost = +prompt('China purchase cost? (if applicable)', '0')||0;
       const note = prompt('Note?', '') || '';
-      await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({qty,shipCost,note})});
+      await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({qty,shipCost,chinaPurchaseCost:chinaCost,note})});
       await renderProductTransit(product);
+      await renderProductBudgets(product);
     }
     if (e.target.classList.contains('p-act-del')) {
       if (!confirm('Delete shipment?')) return;
       await api(`/api/shipments/${id}`,{method:'DELETE'});
       await renderProductTransit(product);
+      await renderProductBudgets(product);
     }
   }, { once:true });
 }
@@ -1589,11 +2406,13 @@ async function renderProductArrivedShipments(product) {
   
   const row = sp => {
     const days = sp.arrivedAt ? Math.round((+new Date(sp.arrivedAt)-(+new Date(sp.departedAt)))/86400000) : '';
+    const chinaCost = sp.chinaPurchaseCost ? `$${fmt(sp.chinaPurchaseCost)}` : '-';
     return `<tr>
       <td>${sp.id}</td>
       <td>${sp.fromCountry||sp.from} → ${sp.toCountry||sp.to}</td>
       <td>${fmt(sp.qty)}</td>
       <td>${fmt(sp.shipCost)}</td>
+      <td>${chinaCost}</td>
       <td>${sp.departedAt||''}</td>
       <td>${sp.arrivedAt||''}</td>
       <td>${days}</td>
@@ -1605,7 +2424,7 @@ async function renderProductArrivedShipments(product) {
     </tr>`;
   };
 
-  Q('#pdArrivedBody').innerHTML = arrived.map(row).join('') || `<tr><td colspan="9" class="muted">No arrived shipments</td></tr>`;
+  Q('#pdArrivedBody').innerHTML = arrived.map(row).join('') || `<tr><td colspan="10" class="muted">No arrived shipments</td></tr>`;
 
   const host = Q('#product');
   host.addEventListener('click', async (e)=>{
@@ -1614,15 +2433,18 @@ async function renderProductArrivedShipments(product) {
     if (e.target.classList.contains('p-arr-edit')) {
       const qty = +prompt('New qty?', '0')||0;
       const shipCost = +prompt('New shipping cost?', '0')||0;
+      const chinaCost = +prompt('China purchase cost? (if applicable)', '0')||0;
       const note = prompt('Note?', '') || '';
-      await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({qty,shipCost,note})});
+      await api(`/api/shipments/${id}`,{method:'PUT', body: JSON.stringify({qty,shipCost,chinaPurchaseCost:chinaCost,note})});
       await renderProductArrivedShipments(product);
+      await renderProductBudgets(product);
     }
     if (e.target.classList.contains('p-arr-del')) {
       if (!confirm('Delete shipment?')) return;
       await api(`/api/shipments/${id}`,{method:'DELETE'});
       await renderProductArrivedShipments(product);
       await renderProductStockAd(product);
+      await renderProductBudgets(product);
     }
   }, { once:true });
 }
@@ -1633,20 +2455,31 @@ async function renderProductRemittances(product) {
     const tb = Q('#pdRemittancesBody');
     if (!tb) return;
     
-    tb.innerHTML = (remittances.remittances||[]).map(r => `
-      <tr>
-        <td>${r.start} - ${r.end}</td>
-        <td>${r.country}</td>
-        <td>${fmt(r.orders)}</td>
-        <td>${fmt(r.pieces)}</td>
-        <td>${fmt(r.revenue)}</td>
-        <td>${fmt(r.adSpend)}</td>
-        <td>${fmt(r.extraPerPiece)}</td>
-        <td>
-          <button class="btn outline pd-rem-del" data-id="${r.id}">Delete</button>
-        </td>
-      </tr>
-    `).join('') || `<tr><td colspan="8" class="muted">No remittances for this product</td></tr>`;
+    tb.innerHTML = (remittances.remittances||[]).map(r => {
+      const deliveryRate = r.orders > 0 ? (r.pieces / r.orders) * 100 : 0;
+      const costPerOrder = r.orders > 0 ? r.adSpend / r.orders : 0;
+      const costPerPieceAd = r.pieces > 0 ? r.adSpend / r.pieces : 0;
+      const costPerPieceBoxleo = r.pieces > 0 ? r.boxleoFees / r.pieces : 0;
+      
+      return `
+        <tr>
+          <td>${r.start} - ${r.end}</td>
+          <td>${r.country}</td>
+          <td>${fmt(r.orders)}</td>
+          <td>${fmt(r.pieces)}</td>
+          <td>${fmt(deliveryRate)}%</td>
+          <td>${fmt(r.revenue)}</td>
+          <td>${fmt(r.adSpend)}</td>
+          <td>${fmt(r.boxleoFees)}</td>
+          <td>${fmt(costPerOrder)}</td>
+          <td>${fmt(costPerPieceAd)}</td>
+          <td>${fmt(costPerPieceBoxleo)}</td>
+          <td>
+            <button class="btn outline pd-rem-del" data-id="${r.id}">Delete</button>
+          </td>
+        </tr>
+      `;
+    }).join('') || `<tr><td colspan="12" class="muted">No remittances for this product</td></tr>`;
 
     // Add delete functionality
     tb.addEventListener('click', async (e)=>{
@@ -1688,27 +2521,88 @@ function bindProductLifetime(product) {
     if (s) rem = rem.filter(r=>r.start >= s);
     if (e) rem = rem.filter(r=>r.end   <= e);
     
-    const base = (+product.cost_china||0) + (+product.ship_china_to_kenya||0);
+    // Calculate actual costs from shipments
+    const shipments = await api('/api/shipments');
+    const productShipments = shipments.shipments.filter(s => 
+      s.productId === product.id && s.arrivedAt
+    );
+    
     const byC = {};
     rem.forEach(r=>{
-      const pcs=+r.pieces||0, extra=(+r.extraPerPiece||0)*pcs;
-      if (!byC[r.country]) byC[r.country]={rev:0,ad:0,ship:0,base:0,pcs:0,profit:0};
-      byC[r.country].rev += (+r.revenue||0);
-      byC[r.country].ad  += (+r.adSpend||0);
-      byC[r.country].ship+= extra;
-      byC[r.country].base+= base*pcs;
-      byC[r.country].pcs += pcs;
+      const country = r.country;
+      const pieces = +r.pieces || 0;
+      
+      if (!byC[country]) byC[country] = {rev:0, ad:0, costChina:0, shipChina:0, boxleo:0, pcs:0, orders:0, profit:0};
+      
+      // Calculate average costs for this country
+      const countryShipments = productShipments.filter(s => s.toCountry === country);
+      let totalProductCost = 0;
+      let totalShippingCost = 0;
+      let totalQuantity = 0;
+      
+      countryShipments.forEach(shipment => {
+        if (shipment.chinaPurchaseCost) {
+          totalProductCost += shipment.chinaPurchaseCost;
+        }
+        totalShippingCost += shipment.shipCost || 0;
+        totalQuantity += shipment.qty || 0;
+      });
+      
+      const costPerPiece = totalQuantity > 0 ? totalProductCost / totalQuantity : 0;
+      const shipPerPiece = totalQuantity > 0 ? totalShippingCost / totalQuantity : 0;
+      
+      byC[country].rev += (+r.revenue || 0);
+      byC[country].ad  += (+r.adSpend || 0);
+      byC[country].costChina += costPerPiece * pieces;
+      byC[country].shipChina += shipPerPiece * pieces;
+      byC[country].boxleo += (+r.boxleoFees || 0);
+      byC[country].pcs += pieces;
+      byC[country].orders += (+r.orders || 0);
     });
-    Object.values(byC).forEach(v=> v.profit = v.rev - v.ad - v.ship - v.base);
+    
+    Object.values(byC).forEach(v => {
+      v.totalCost = v.costChina + v.shipChina + v.boxleo;
+      v.profit = v.rev - v.ad - v.totalCost;
+    });
 
-    const tb = Q('#pdLPBody'); let R=0,A=0,S=0,B=0,P=0,PCS=0;
+    const tb = Q('#pdLPBody'); 
+    let R=0,A=0,CC=0,SC=0,BF=0,TC=0,P=0,PCS=0,ORD=0;
     tb.innerHTML = Object.entries(byC).map(([c,v])=>{
-      R+=v.rev;A+=v.ad;S+=v.ship;B+=v.base;P+=v.profit;PCS+=v.pcs;
-      return `<tr><td>${c}</td><td>${fmt(v.rev)}</td><td>${fmt(v.ad)}</td><td>${fmt(v.ship)}</td><td>${fmt(v.base)}</td><td>${fmt(v.pcs)}</td><td>${fmt(v.profit)}</td></tr>`;
-    }).join('') || `<tr><td colspan="7" class="muted">No data</td></tr>`;
-    Q('#pdLPRevT').textContent=fmt(R); Q('#pdLPAdT').textContent=fmt(A);
-    Q('#pdLPShipT').textContent=fmt(S); Q('#pdLPBaseT').textContent=fmt(B);
-    Q('#pdLPPcsT').textContent=fmt(PCS); Q('#pdLPProfitT').textContent=fmt(P);
+      const deliveryRate = v.orders > 0 ? (v.pcs / v.orders) * 100 : 0;
+      const costPerOrder = v.orders > 0 ? v.ad / v.orders : 0;
+      const costPerPieceAd = v.pcs > 0 ? v.ad / v.pcs : 0;
+      const costPerPieceBoxleo = v.pcs > 0 ? v.boxleo / v.pcs : 0;
+      
+      R+=v.rev;A+=v.ad;CC+=v.costChina;SC+=v.shipChina;BF+=v.boxleo;
+      TC+=v.totalCost;P+=v.profit;PCS+=v.pcs;ORD+=v.orders;
+      
+      return `<tr>
+        <td>${c}</td>
+        <td>${fmt(v.rev)}</td>
+        <td>${fmt(v.ad)}</td>
+        <td>${fmt(v.costChina)}</td>
+        <td>${fmt(v.shipChina)}</td>
+        <td>${fmt(v.boxleo)}</td>
+        <td>${fmt(v.totalCost)}</td>
+        <td>${fmt(v.pcs)}</td>
+        <td>${fmt(v.orders)}</td>
+        <td>${fmt(deliveryRate)}%</td>
+        <td>${fmt(costPerOrder)}</td>
+        <td>${fmt(costPerPieceAd)}</td>
+        <td>${fmt(costPerPieceBoxleo)}</td>
+        <td class="${v.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(v.profit)}</td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="14" class="muted">No data</td></tr>`;
+    
+    Q('#pdLPRevT').textContent=fmt(R); 
+    Q('#pdLPAdT').textContent=fmt(A);
+    Q('#pdLPCostChinaT').textContent=fmt(CC); 
+    Q('#pdLPShipChinaT').textContent=fmt(SC);
+    Q('#pdLPBoxleoT').textContent=fmt(BF);
+    Q('#pdLPTotalCostT').textContent=fmt(TC);
+    Q('#pdLPPcsT').textContent=fmt(PCS);
+    Q('#pdLPOrdersT').textContent=fmt(ORD);
+    Q('#pdLPProfitT').textContent=fmt(P);
   };
   Q('#pdLPRun')?.addEventListener('click', run);
   run();
@@ -1788,8 +2682,8 @@ function bindGlobalNav() {
       if (el) el.style.display = (id===v)?'':'none';
     });
     QA('.nav a').forEach(x=>x.classList.toggle('active', x===a));
-    if (v==='home') { renderCompactKpis(); renderCountryStockSpend(); }
-    if (v==='products') { renderCompactCountryStats(); renderAdvertisingOverview(); }
+    if (v==='home') { renderCompactKpis(); renderCountryStockSpend(); renderBrainstorming(); renderProductTestingNotes(); }
+    if (v==='products') { renderCompactCountryStats(); renderAdvertisingOverview(); renderProductInfo(); }
     if (v==='stockMovement') { renderStockMovementPage(); }
     if (v==='performance') { renderRemittanceReport(); }
   }));
