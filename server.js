@@ -33,7 +33,13 @@ function ensureDB() {
       deliveries: [],
       shipments: [],
       remittances: [],
-      finance: { categories: { debit: [], credit: [] }, entries: [] },
+      finance: {
+        categories: {
+          debit: [],
+          credit: []
+        },
+        entries: []
+      },
       influencers: [],
       influencerSpends: [],
       snapshots: []
@@ -49,81 +55,112 @@ function requireAuth(req, res, next) {
   return res.status(403).json({ error: 'Unauthorized' });
 }
 
-function calculateProductCosts(db, productId, country = null) {
+// Calculate product cost per piece including shipping
+function calculateProductCosts(db, productId, targetCountry = null) {
   const shipments = db.shipments || [];
-  let totalCost = 0;
   let totalPieces = 0;
+  let totalCost = 0;
+  let shippingCostPerPiece = {};
 
+  // First pass: calculate China costs and initial shipping
   shipments.forEach(shipment => {
     if (shipment.productId === productId && shipment.arrivedAt) {
-      if (!country || shipment.toCountry === country) {
-        const pieces = +shipment.qty || 0;
-        let cost = 0;
+      const pieces = +shipment.qty || 0;
+      
+      if (shipment.fromCountry === 'china') {
+        const chinaCostPerPiece = (+shipment.chinaCost || 0) / (pieces || 1);
+        const shippingCostPerPieceChina = (+shipment.shipCost || 0) / (pieces || 1);
         
-        if (shipment.fromCountry === 'china') {
-          cost = (+shipment.chinaCost || 0) + (+shipment.shipCost || 0);
-        } else {
-          cost = +shipment.shipCost || 0;
+        // Initialize cost for destination country
+        const dest = shipment.toCountry;
+        if (!shippingCostPerPiece[dest]) {
+          shippingCostPerPiece[dest] = {
+            chinaCost: chinaCostPerPiece,
+            shippingCost: shippingCostPerPieceChina,
+            totalCost: chinaCostPerPiece + shippingCostPerPieceChina
+          };
         }
         
-        totalCost += cost;
         totalPieces += pieces;
+        totalCost += (+shipment.chinaCost || 0) + (+shipment.shipCost || 0);
       }
     }
   });
 
+  // Second pass: calculate inter-country shipping costs
+  shipments.forEach(shipment => {
+    if (shipment.productId === productId && shipment.arrivedAt && shipment.fromCountry !== 'china') {
+      const pieces = +shipment.qty || 0;
+      const fromCountry = shipment.fromCountry;
+      const toCountry = shipment.toCountry;
+      
+      if (shippingCostPerPiece[fromCountry]) {
+        const additionalShippingCost = (+shipment.shipCost || 0) / (pieces || 1);
+        
+        shippingCostPerPiece[toCountry] = {
+          chinaCost: shippingCostPerPiece[fromCountry].chinaCost,
+          shippingCost: shippingCostPerPiece[fromCountry].shippingCost + additionalShippingCost,
+          totalCost: shippingCostPerPiece[fromCountry].totalCost + additionalShippingCost
+        };
+      }
+    }
+  });
+
+  if (targetCountry && shippingCostPerPiece[targetCountry]) {
+    return {
+      costPerPiece: shippingCostPerPiece[targetCountry].totalCost,
+      chinaCostPerPiece: shippingCostPerPiece[targetCountry].chinaCost,
+      shippingCostPerPiece: shippingCostPerPiece[targetCountry].shippingCost,
+      totalPieces,
+      totalCost
+    };
+  }
+
   return {
-    totalCost,
+    costPerPiece: totalPieces > 0 ? totalCost / totalPieces : 0,
+    chinaCostPerPiece: 0,
+    shippingCostPerPiece: 0,
     totalPieces,
-    costPerPiece: totalPieces > 0 ? totalCost / totalPieces : 0
+    totalCost
   };
 }
 
-function calculateDeliveryRate(db, productId, country, startDate, endDate) {
+// Calculate delivery rate from orders and remittances
+function calculateDeliveryRate(db, productId = null, country = null, startDate = null, endDate = null) {
   const orders = db.productOrders || [];
   const remittances = db.remittances || [];
 
-  const periodOrders = orders.filter(o =>
-    o.productId === productId &&
-    o.country === country &&
-    ((!startDate || o.date >= startDate) && (!endDate || o.date <= endDate))
-  );
+  let totalOrders = 0;
+  let totalDelivered = 0;
 
-  const periodRemittances = remittances.filter(r =>
-    r.productId === productId &&
-    r.country === country &&
-    ((!startDate || r.start >= startDate) && (!endDate || r.end <= endDate))
-  );
+  // Calculate total orders
+  orders.forEach(order => {
+    if ((!productId || order.productId === productId) &&
+        (!country || order.country === country) &&
+        (!startDate || order.startDate >= startDate) &&
+        (!endDate || order.endDate <= endDate)) {
+      totalOrders += (+order.orders || 0);
+    }
+  });
 
-  const totalOrders = periodOrders.reduce((sum, o) => sum + (+o.orders || 0), 0);
-  const totalDelivered = periodRemittances.reduce((sum, r) => sum + (+r.pieces || 0), 0);
+  // Calculate total delivered pieces
+  remittances.forEach(remittance => {
+    if ((!productId || remittance.productId === productId) &&
+        (!country || remittance.country === country) &&
+        (!startDate || remittance.start >= startDate) &&
+        (!endDate || remittance.end <= endDate)) {
+      totalDelivered += (+remittance.pieces || 0);
+    }
+  });
 
   return totalOrders > 0 ? (totalDelivered / totalOrders) * 100 : 0;
 }
 
-function calculateProfitMetrics(db, productId, country, startDate, endDate) {
+// Calculate comprehensive metrics
+function calculateProfitMetrics(db, productId = null, country = null, startDate = null, endDate = null) {
   const remittances = db.remittances || [];
-  const sellingPrices = db.productSellingPrices || [];
   const adSpends = db.adspend || [];
-
-  const periodRemittances = remittances.filter(r =>
-    (!productId || r.productId === productId) &&
-    (!country || r.country === country) &&
-    ((!startDate || r.start >= startDate) && (!endDate || r.end <= endDate))
-  );
-
-  const periodAdSpends = adSpends.filter(a =>
-    (!productId || a.productId === productId) &&
-    (!country || a.country === country) &&
-    ((!startDate || true) && (!endDate || true))
-  );
-
-  const sellingPrice = sellingPrices.find(sp =>
-    sp.productId === productId && sp.country === country
-  );
-
-  const productCosts = calculateProductCosts(db, productId, country);
-  const deliveryRate = calculateDeliveryRate(db, productId, country, startDate, endDate);
+  const sellingPrices = db.productSellingPrices || [];
 
   let totalRevenue = 0;
   let totalAdSpend = 0;
@@ -131,55 +168,71 @@ function calculateProfitMetrics(db, productId, country, startDate, endDate) {
   let totalPieces = 0;
   let totalOrders = 0;
 
-  periodRemittances.forEach(r => {
-    totalRevenue += +r.revenue || 0;
-    totalAdSpend += +r.adSpend || 0;
-    totalBoxleoFees += +r.boxleoFees || 0;
-    totalPieces += +r.pieces || 0;
-    totalOrders += +r.orders || 0;
+  // Calculate from remittances
+  remittances.forEach(remittance => {
+    if ((!productId || remittance.productId === productId) &&
+        (!country || remittance.country === country) &&
+        (!startDate || remittance.start >= startDate) &&
+        (!endDate || remittance.end <= endDate)) {
+      totalRevenue += +remittance.revenue || 0;
+      totalAdSpend += +remittance.adSpend || 0;
+      totalBoxleoFees += +remittance.boxleoFees || 0;
+      totalPieces += +remittance.pieces || 0;
+      totalOrders += +remittance.orders || 0;
+    }
   });
 
-  periodAdSpends.forEach(a => {
-    totalAdSpend += +a.amount || 0;
+  // Add ad spends
+  adSpends.forEach(ad => {
+    if ((!productId || ad.productId === productId) &&
+        (!country || ad.country === country) &&
+        (!startDate || true) && (!endDate || true)) {
+      totalAdSpend += +ad.amount || 0;
+    }
   });
 
+  // Calculate product costs
+  const productCosts = calculateProductCosts(db, productId, country);
   const totalProductCost = productCosts.costPerPiece * totalPieces;
-  const totalCost = totalProductCost + totalAdSpend + totalBoxleoFees;
-  const profit = totalRevenue - totalCost;
 
-  const costPerDeliveredOrder = totalOrders > 0 ? totalCost / totalOrders : 0;
-  const costPerDeliveredPiece = totalPieces > 0 ? totalCost / totalPieces : 0;
-  const costPerOrderAd = totalOrders > 0 ? totalAdSpend / totalOrders : 0;
-  const costPerPieceAd = totalPieces > 0 ? totalAdSpend / totalPieces : 0;
+  // Calculate shipping costs
+  const totalShippingCost = productCosts.shippingCostPerPiece * totalPieces;
+
+  const totalCost = totalProductCost + totalAdSpend + totalBoxleoFees + totalShippingCost;
+  const profit = totalRevenue - totalCost;
+  const deliveryRate = calculateDeliveryRate(db, productId, country, startDate, endDate);
+
+  // Calculate rates
+  const costPerOrder = totalOrders > 0 ? totalCost / totalOrders : 0;
+  const costPerPiece = totalPieces > 0 ? totalCost / totalPieces : 0;
+  const adCostPerOrder = totalOrders > 0 ? totalAdSpend / totalOrders : 0;
+  const adCostPerPiece = totalPieces > 0 ? totalAdSpend / totalPieces : 0;
   const boxleoPerOrder = totalOrders > 0 ? totalBoxleoFees / totalOrders : 0;
   const boxleoPerPiece = totalPieces > 0 ? totalBoxleoFees / totalPieces : 0;
-
-  const availableForProfitAndAds = sellingPrice ? sellingPrice.price - productCosts.costPerPiece : 0;
-  const maxCostPerLead = deliveryRate > 0 ? availableForProfitAndAds * (deliveryRate / 100) : 0;
 
   return {
     totalRevenue,
     totalAdSpend,
     totalBoxleoFees,
     totalProductCost,
+    totalShippingCost,
     totalCost,
     profit,
     totalPieces,
     totalOrders,
     deliveryRate,
-    costPerDeliveredOrder,
-    costPerDeliveredPiece,
-    costPerOrderAd,
-    costPerPieceAd,
+    costPerOrder,
+    costPerPiece,
+    adCostPerOrder,
+    adCostPerPiece,
     boxleoPerOrder,
     boxleoPerPiece,
-    availableForProfitAndAds,
-    maxCostPerLead,
     isProfitable: profit > 0,
     hasData: totalPieces > 0
   };
 }
 
+// Authentication
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
@@ -194,11 +247,13 @@ app.post('/api/auth', (req, res) => {
   return res.status(403).json({ error: 'Wrong password' });
 });
 
+// Meta data
 app.get('/api/meta', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ countries: db.countries || [] });
 });
 
+// Countries
 app.get('/api/countries', requireAuth, (req, res) => {
   const db = loadDB(); res.json({ countries: db.countries || [] });
 });
@@ -217,6 +272,7 @@ app.delete('/api/countries/:name', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true, countries: db.countries });
 });
 
+// Products
 app.get('/api/products', requireAuth, (req, res) => {
   const db = loadDB();
   const products = (db.products || []).map(product => {
@@ -273,6 +329,7 @@ app.delete('/api/products/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// Product Prices
 app.get('/api/products/:id/prices', requireAuth, (req, res) => {
   const db = loadDB();
   const prices = (db.productSellingPrices || []).filter(sp => sp.productId === req.params.id);
@@ -302,6 +359,7 @@ app.post('/api/products/:id/prices', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
+// Product Notes
 app.get('/api/products/:id/notes', requireAuth, (req, res) => {
   const db = loadDB();
   const notes = (db.productNotes || []).filter(n => n.productId === req.params.id);
@@ -340,6 +398,7 @@ app.delete('/api/products/notes/:id', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
+// Product Orders
 app.get('/api/product-orders', requireAuth, (req, res) => {
   const db = loadDB();
   const { productId, country, start, end } = req.query || {};
@@ -347,8 +406,8 @@ app.get('/api/product-orders', requireAuth, (req, res) => {
 
   if (productId) orders = orders.filter(o => o.productId === productId);
   if (country) orders = orders.filter(o => o.country === country);
-  if (start) orders = orders.filter(o => o.date >= start);
-  if (end) orders = orders.filter(o => o.date <= end);
+  if (start) orders = orders.filter(o => o.startDate >= start);
+  if (end) orders = orders.filter(o => o.endDate <= end);
 
   res.json({ orders });
 });
@@ -370,6 +429,7 @@ app.post('/api/product-orders', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
+// Brainstorming
 app.get('/api/brainstorming', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ ideas: db.brainstorming || [] });
@@ -399,6 +459,7 @@ app.delete('/api/brainstorming/:id', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
+// Tested Products
 app.get('/api/tested-products', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ testedProducts: db.testedProducts || [] });
@@ -459,47 +520,21 @@ app.delete('/api/tested-products/:id', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
+// Product Costs Analysis
 app.get('/api/product-costs-analysis', requireAuth, (req, res) => {
   const db = loadDB();
   const { productId, start, end } = req.query || {};
 
   const metrics = calculateProfitMetrics(db, productId, null, start, end);
-  const shipments = (db.shipments || []).filter(s =>
-    s.productId === productId &&
-    (!start || s.departedAt >= start) &&
-    (!end || s.departedAt <= end)
-  );
-
-  const influencerSpends = (db.influencerSpends || []).filter(is =>
-    is.productId === productId &&
-    (!start || is.date >= start) &&
-    (!end || is.date <= end)
-  );
-
-  const totalInfluencerCost = influencerSpends.reduce((sum, is) => sum + (+is.amount || 0), 0);
-  
-  const chinaShipments = shipments.filter(s => s.fromCountry === 'china');
-  const interShipments = shipments.filter(s => s.fromCountry !== 'china');
-  
-  const totalChinaCost = chinaShipments.reduce((sum, s) => sum + (+s.chinaCost || 0), 0);
-  const totalChinaShipping = chinaShipments.reduce((sum, s) => sum + (+s.shipCost || 0), 0);
-  const totalInterShipping = interShipments.reduce((sum, s) => sum + (+s.shipCost || 0), 0);
-
-  const totalExpenses = totalChinaCost + totalChinaShipping + totalInterShipping + totalInfluencerCost + metrics.totalProductCost;
-  const netProfit = metrics.totalRevenue - totalExpenses - metrics.totalAdSpend - metrics.totalBoxleoFees;
+  const deliveryRate = calculateDeliveryRate(db, productId, null, start, end);
 
   res.json({
     ...metrics,
-    totalInfluencerCost,
-    totalChinaCost,
-    totalChinaShipping,
-    totalInterShipping,
-    totalExpenses,
-    netProfit,
-    isNetProfitable: netProfit > 0
+    deliveryRate
   });
 });
 
+// Ad Spend
 app.get('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB(); res.json({ adSpends: db.adspend || [] });
 });
@@ -514,6 +549,7 @@ app.post('/api/adspend', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
+// Deliveries
 app.get('/api/deliveries', requireAuth, (req, res) => {
   const db = loadDB(); res.json({ deliveries: db.deliveries || [] });
 });
@@ -526,6 +562,7 @@ app.post('/api/deliveries', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
+// Shipments
 app.get('/api/shipments', requireAuth, (req, res) => {
   const db = loadDB(); res.json({ shipments: db.shipments || [] });
 });
@@ -566,6 +603,7 @@ app.delete('/api/shipments/:id', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
+// Remittances
 app.get('/api/remittances', requireAuth, (req, res) => {
   const db = loadDB(); let list = db.remittances || [];
   const { start, end, country, productId } = req.query || {};
@@ -599,6 +637,7 @@ app.delete('/api/remittances/:id', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
+// Finance Categories
 app.get('/api/finance/categories', requireAuth, (req, res) => {
   const db = loadDB(); res.json(db.finance?.categories || { debit: [], credit: [] });
 });
@@ -620,6 +659,7 @@ app.delete('/api/finance/categories', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true, categories: db.finance.categories });
 });
 
+// Finance Entries
 app.get('/api/finance/entries', requireAuth, (req, res) => {
   const db = loadDB(); let list = db.finance?.entries || [];
   const { start, end, category, type } = req.query || {};
@@ -663,6 +703,7 @@ app.delete('/api/finance/entries/:id', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
+// Influencers
 app.get('/api/influencers', requireAuth, (req, res) => {
   const db = loadDB(); res.json({ influencers: db.influencers || [] });
 });
@@ -680,6 +721,7 @@ app.delete('/api/influencers/:id', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
+// Influencer Spend
 app.get('/api/influencers/spend', requireAuth, (req, res) => {
   const db = loadDB(); res.json({ spends: db.influencerSpends || [] });
 });
@@ -697,30 +739,39 @@ app.delete('/api/influencers/spend/:id', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
+// Analytics
 app.get('/api/analytics/remittance', requireAuth, (req, res) => {
   const db = loadDB();
   const { start, end, country, productId } = req.query || {};
 
-  let remittances = db.remittances || [];
-  if (start) remittances = remittances.filter(r => r.start >= start);
-  if (end) remittances = remittances.filter(r => r.end <= end);
-  if (country) remittances = remittances.filter(r => r.country === country);
-  if (productId) remittances = remittances.filter(r => r.productId === productId);
-
-  const analytics = {};
-  remittances.forEach(r => {
-    const key = `${r.productId}|${r.country}`;
-    if (!analytics[key]) {
-      const metrics = calculateProfitMetrics(db, r.productId, r.country, start, end);
-      analytics[key] = {
-        productId: r.productId,
-        country: r.country,
+  let analytics = [];
+  
+  if (productId) {
+    // Single product analysis
+    const metrics = calculateProfitMetrics(db, productId, country, start, end);
+    analytics = [{
+      productId,
+      country: country || 'All',
+      ...metrics
+    }];
+  } else {
+    // Multiple products analysis
+    const products = db.products || [];
+    analytics = products.map(product => {
+      const metrics = calculateProfitMetrics(db, product.id, country, start, end);
+      return {
+        productId: product.id,
+        productName: product.name,
+        country: country || 'All',
         ...metrics
       };
-    }
-  });
+    }).filter(item => item.hasData);
+  }
 
-  res.json({ analytics: Object.values(analytics) });
+  // Sort by pieces delivered (top delivered first)
+  analytics.sort((a, b) => b.totalPieces - a.totalPieces);
+
+  res.json({ analytics });
 });
 
 app.get('/api/analytics/profit-by-country', requireAuth, (req, res) => {
@@ -732,7 +783,7 @@ app.get('/api/analytics/profit-by-country', requireAuth, (req, res) => {
 
   countries.forEach(c => {
     const metrics = calculateProfitMetrics(db, null, c, start, end);
-    if (metrics.totalPieces > 0) {
+    if (metrics.totalPieces > 0 || metrics.totalRevenue > 0) {
       analytics[c] = metrics;
     }
   });
@@ -740,6 +791,50 @@ app.get('/api/analytics/profit-by-country', requireAuth, (req, res) => {
   res.json({ analytics });
 });
 
+// Snapshots
+app.get('/api/snapshots', requireAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ snapshots: db.snapshots || [] });
+});
+
+app.post('/api/snapshots', requireAuth, async (req, res) => {
+  try {
+    const db = loadDB();
+    const { name } = req.body || {};
+    
+    await fs.ensureDir(SNAPSHOT_DIR);
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const snapshotName = name || `Manual-${stamp}`;
+    const snapshotFile = path.join(SNAPSHOT_DIR, `${stamp}-${snapshotName.replace(/\s+/g, '_')}.json`);
+    
+    await fs.copy(DATA_FILE, snapshotFile);
+    
+    const snapshotEntry = {
+      id: uuidv4(),
+      name: snapshotName,
+      file: snapshotFile,
+      createdAt: new Date().toISOString(),
+      kind: 'manual'
+    };
+    
+    db.snapshots = db.snapshots || [];
+    db.snapshots.unshift(snapshotEntry);
+    saveDB(db);
+    
+    res.json({ ok: true, snapshot: snapshotEntry });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/snapshots/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  db.snapshots = (db.snapshots || []).filter(s => s.id !== req.params.id);
+  saveDB(db);
+  res.json({ ok: true });
+});
+
+// Routes
 app.get('/product.html', (req, res) => res.sendFile(path.join(ROOT, 'product.html')));
 app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
 
