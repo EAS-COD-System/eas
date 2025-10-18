@@ -51,6 +51,7 @@
           <div class="section">
             <h2>Daily Advertising Spend</h2>
             <div class="card">
+              <div class="h">Add Daily Advertising Spend</div>
               <div class="row wrap">
                 <select id="adPlatform" class="input">
                   <option value="facebook">Facebook</option>
@@ -302,22 +303,19 @@
               <table class="table">
                 <thead>
                   <tr>
-                    <th>Product</th>
+                    <th>Product Name</th>
                     <th>Country</th>
                     <th>Orders</th>
                     <th>Pieces</th>
                     <th>Revenue</th>
-                    <th>Ad Spend</th>
+                    <th>Advertising Spend</th>
                     <th>Boxleo Fees</th>
-                    <th>Product Cost</th>
-                    <th>Total Cost</th>
-                    <th>Delivery Rate</th>
-                    <th>Cost/Order</th>
-                    <th>Cost/Piece</th>
-                    <th>Ad Cost/Order</th>
-                    <th>Ad Cost/Piece</th>
-                    <th>Boxleo/Order</th>
-                    <th>Boxleo/Piece</th>
+                    <th>Total Product Cost</th>
+                    <th>Total Shipping Cost</th>
+                    <th>Boxleo fee/Order</th>
+                    <th>Boxleo fee/Piece</th>
+                    <th>Ads/Order</th>
+                    <th>Ads/Piece</th>
                     <th>Profit</th>
                   </tr>
                 </thead>
@@ -331,14 +329,11 @@
                     <th id="remAnalyticsAdSpendT">0</th>
                     <th id="remAnalyticsBoxleoT">0</th>
                     <th id="remAnalyticsProductCostT">0</th>
-                    <th id="remAnalyticsTotalCostT">0</th>
-                    <th id="remAnalyticsDeliveryRateT">0%</th>
-                    <th id="remAnalyticsCostOrderT">0</th>
-                    <th id="remAnalyticsCostPieceT">0</th>
-                    <th id="remAnalyticsAdOrderT">0</th>
-                    <th id="remAnalyticsAdPieceT">0</th>
+                    <th id="remAnalyticsShippingCostT">0</th>
                     <th id="remAnalyticsBoxleoOrderT">0</th>
                     <th id="remAnalyticsBoxleoPieceT">0</th>
+                    <th id="remAnalyticsAdOrderT">0</th>
+                    <th id="remAnalyticsAdPieceT">0</th>
                     <th id="remAnalyticsProfitT">0</th>
                   </tr>
                 </tfoot>
@@ -374,15 +369,11 @@
                   <tr>
                     <th>Country</th>
                     <th>Revenue</th>
-                    <th>Ad Spend</th>
-                    <th>Boxleo Fees</th>
-                    <th>Product Cost</th>
-                    <th>Total Cost</th>
-                    <th>Orders</th>
-                    <th>Pieces</th>
+                    <th>Total Advertising Spend</th>
+                    <th>Total Product Cost</th>
+                    <th>Total Shipping Cost</th>
+                    <th>Total Boxleo Fees</th>
                     <th>Delivery Rate</th>
-                    <th>Cost/Order</th>
-                    <th>Cost/Piece</th>
                     <th>Profit</th>
                   </tr>
                 </thead>
@@ -392,14 +383,10 @@
                     <th>Totals</th>
                     <th id="pcRevT">0</th>
                     <th id="pcAdT">0</th>
-                    <th id="pcBoxleoT">0</th>
                     <th id="pcProductCostT">0</th>
-                    <th id="pcTotalCostT">0</th>
-                    <th id="pcOrdersT">0</th>
-                    <th id="pcPiecesT">0</th>
+                    <th id="pcShippingCostT">0</th>
+                    <th id="pcBoxleoT">0</th>
                     <th id="pcDeliveryRateT">0%</th>
-                    <th id="pcCostOrderT">0</th>
-                    <th id="pcCostPieceT">0</th>
                     <th id="pcProfitT">0</th>
                   </tr>
                 </tfoot>
@@ -428,68 +415,6 @@
             </div>
           </div>
 
-          <!-- Remittance Report -->
-          <div class="card">
-            <div class="h">📋 Entries</div>
-            <div class="row wrap">
-              <select id="remRange" class="input date-range-select">
-                <option value="8days">Last 8 days</option>
-                <option value="15days">Last 15 days</option>
-                <option value="1month">Last 1 month</option>
-                <option value="2months">Last 2 months</option>
-                <option value="6months">Last 6 months</option>
-                <option value="1year">Last 1 year</option>
-                <option value="2years">Last 2 years</option>
-                <option value="lifetime">Lifetime</option>
-                <option value="custom">Custom range</option>
-              </select>
-              <div class="custom-range" style="display: none;">
-                <input type="date" class="input custom-start"/>
-                <input type="date" class="input custom-end"/>
-              </div>
-              <select id="remCountry" class="input"><option value="">All countries</option></select>
-              <select id="remProduct" class="input"><option value="">All products</option></select>
-              <button id="remRun" class="btn">📊 Generate Report</button>
-            </div>
-            <div class="table-scroll">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>Period</th>
-                    <th>Product</th>
-                    <th>Country</th>
-                    <th>Orders</th>
-                    <th>Pieces</th>
-                    <th>Revenue</th>
-                    <th>Ad Spend</th>
-                    <th>Boxleo Fees</th>
-                    <th>Product Cost</th>
-                    <th>Total Cost</th>
-                    <th>Delivery Rate</th>
-                    <th>Profit</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="remittanceBody"></tbody>
-                <tfoot>
-                  <tr class="totals">
-                    <th colspan="3">Totals</th>
-                    <th id="remOrdersT">0</th>
-                    <th id="remPiecesT">0</th>
-                    <th id="remRevenueT">0</th>
-                    <th id="remAdSpendT">0</th>
-                    <th id="remBoxleoT">0</th>
-                    <th id="remProductCostT">0</th>
-                    <th id="remTotalCostT">0</th>
-                    <th id="remDeliveryRateT">0%</th>
-                    <th id="remProfitT">0</th>
-                    <th></th>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-
         </section>
 
         <!-- STOCK MOVEMENT -->
@@ -500,10 +425,16 @@
           <div class="card">
             <div class="h">🚚 Create Stock Movement</div>
             <div class="row wrap">
-              <select id="mvFrom" class="input"></select>
+              <select id="mvFrom" class="input">
+                <option value="">From Country...</option>
+              </select>
               <span>→</span>
-              <select id="mvTo" class="input"></select>
-              <select id="mvProduct" class="input"></select>
+              <select id="mvTo" class="input">
+                <option value="">To Country...</option>
+              </select>
+              <select id="mvProduct" class="input">
+                <option value="">Select Product...</option>
+              </select>
               <input id="mvQty" type="number" class="input" placeholder="Quantity" min="0"/>
               <input id="mvShip" type="number" class="input" placeholder="Shipping Cost (USD)" min="0" step="0.01"/>
               <div id="chinaCostField" style="display: none;">
