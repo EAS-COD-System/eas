@@ -6,6 +6,7 @@
   "deliveries": [],
   "shipments": [],
   "remittances": [],
+  "orders": [],
   "finance": {
     "categories": {
       "debit": [],
@@ -15,5 +16,8 @@
   },
   "influencers": [],
   "influencerSpends": [],
-  "snapshots": []
+  "snapshots": [],
+  "productNotes": [],
+  "productTesting": [],
+  "brainstorming": []
 }
