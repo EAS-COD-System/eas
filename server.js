@@ -11,14 +11,17 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const ROOT = __dirname;
-const DATA_FILE = '/opt/render/project/src/data/db.json';
+const DATA_FILE = path.join(ROOT, 'db.json');
 const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
 
 /* ---------------- middleware ---------------- */
 app.use(morgan('dev'));
 app.use(bodyParser.json({ limit:'1mb' }));
 app.use(cookieParser());
-app.use('/public', express.static(path.join(ROOT,'public')));
+
+// FIX: Correct static file serving
+app.use('/public', express.static(path.join(ROOT, 'public')));
+app.use(express.static(ROOT)); // Serve static files from root for HTML files
 
 /* ---------------- helpers ---------------- */
 function ensureDB() {
