@@ -454,6 +454,14 @@ h4 {
   margin-bottom: 24px;
 }
 
+.big-balance.profit-summary {
+  background: var(--gradient-success);
+}
+
+.big-balance.loss-summary {
+  background: var(--gradient-danger);
+}
+
 .big-balance .h {
   color: rgba(255, 255, 255, 0.9);
   font-size: 1.1rem;
@@ -646,6 +654,23 @@ select.input {
   text-align: center;
   padding: 30px;
   font-style: italic;
+}
+
+/* ---------- Product Table Row Colors ---------- */
+.profit-row {
+  background: rgba(5, 150, 105, 0.05) !important;
+}
+
+.loss-row {
+  background: rgba(220, 38, 38, 0.05) !important;
+}
+
+.neutral-row {
+  background: rgba(217, 119, 6, 0.05) !important;
+}
+
+.profit-row:hover, .loss-row:hover, .neutral-row:hover {
+  background: var(--bg-hover) !important;
 }
 
 /* ---------- PRODUCT PAGE SPECIFIC FIXES ---------- */
@@ -859,6 +884,162 @@ select.input {
   color: white;
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+/* ---------- Brainstorming Styles ---------- */
+.idea-card {
+  background: var(--bg-card-light);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  transition: all var(--transition-fast);
+}
+
+.idea-card:hover {
+  border-color: var(--primary);
+  transform: translateX(2px);
+}
+
+.idea-card.high {
+  border-left: 4px solid var(--danger);
+}
+
+.idea-card.medium {
+  border-left: 4px solid var(--warning);
+}
+
+.idea-card.low {
+  border-left: 4px solid var(--success);
+}
+
+.idea-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.idea-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.idea-meta {
+  display: flex;
+  gap: 6px;
+}
+
+.idea-description {
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.idea-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.idea-status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  font-size: 0.8rem;
+}
+
+/* ---------- Product Testing Styles ---------- */
+.test-card {
+  background: var(--bg-card-light);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.test-header {
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.test-details {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.test-details span {
+  background: var(--bg-card);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+
+.test-analysis {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- Product Notes Styles ---------- */
+.notes-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.note-card {
+  background: var(--bg-card-light);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.note-country {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.note-date {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.note-content {
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* ---------- Product Analysis Styles ---------- */
+.product-analysis {
+  margin-top: 15px;
+}
+
+.analysis-section {
+  margin-bottom: 20px;
+}
+
+.analysis-section h5 {
+  color: var(--text-primary);
+  margin-bottom: 10px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border);
 }
 
 /* ---------- Utilities ---------- */
