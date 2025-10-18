@@ -143,23 +143,30 @@ async function preload() {
 function fillCommonSelects() {
   const countrySelects = ['#adCountry', '#rCountry', '#pdAdCountry', '#pdRCountry',
     '#pdInfCountry', '#pdInfFilterCountry', '#pcCountry', '#remCountry', '#remAddCountry',
-    '#topDelCountry', '#remAnalyticsCountry', '#spCountry', '#poCountry', '#pdNoteCountry'];
+    '#topDelCountry', '#remAnalyticsCountry', '#spCountry', '#poCountry', '#pdNoteCountry',
+    '#mvFrom', '#mvTo'];
 
   countrySelects.forEach(sel => QA(sel).forEach(el => {
     if (sel === '#pcCountry' || sel === '#remCountry' || sel === '#topDelCountry' || sel === '#remAnalyticsCountry') {
       el.innerHTML = `<option value="">All countries</option>` +
         state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
-    } else if (sel === '#mvFrom' || sel === '#pdMvFrom') {
-      el.innerHTML = `<option value="china">china</option>` +
+    } else if (sel === '#mvFrom') {
+      el.innerHTML = `<option value="">From Country...</option>` +
+        `<option value="china">china</option>` +
+        state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
+    } else if (sel === '#mvTo') {
+      el.innerHTML = `<option value="">To Country...</option>` +
         state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
     } else {
-      el.innerHTML = state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
+      el.innerHTML = `<option value="">Select country...</option>` +
+        state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
     }
   }));
 
   const productInputs = ['#mvProduct', '#adProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct', '#pcaProduct'];
   productInputs.forEach(sel => QA(sel).forEach(el => {
-    el.innerHTML = state.productsActive.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+    el.innerHTML = `<option value="">Select Product...</option>` +
+      state.productsActive.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
   }));
 
   const productFilters = ['#remProduct', '#remAnalyticsProduct', '#productInfoSelect'];
@@ -627,7 +634,6 @@ function initTestedProducts() {
                 <span class="stat-badge">CPL: $${fmt(country.costPerLead)}</span>
                 <span class="stat-badge">Confirmation: ${fmt(country.confirmationRate)}%</span>
                 <span class="stat-badge">Price: $${fmt(country.sellingPrice)}</span>
-                <span class="stat-badge">Max Budget: $${fmt(country.sellingPrice * (country.confirmationRate / 100))}</span>
               </div>
             </div>
           `).join('')}
@@ -906,6 +912,7 @@ function renderProductInfoSection() {
                   <th>Country</th>
                   <th>Selling Price</th>
                   <th>Product Cost</th>
+                  <th>Shipping Cost</th>
                   <th>Available for Profit & Ads</th>
                   <th>Delivery Rate</th>
                   <th>Max Cost Per Lead</th>
@@ -920,7 +927,8 @@ function renderProductInfoSection() {
 
       const sellingPrice = price ? price.price : 0;
       const productCost = countryMetrics ? countryMetrics.totalProductCost / (countryMetrics.totalPieces || 1) : 0;
-      const availableForProfitAndAds = sellingPrice - productCost;
+      const shippingCost = countryMetrics ? countryMetrics.totalShippingCost / (countryMetrics.totalPieces || 1) : 0;
+      const availableForProfitAndAds = sellingPrice - productCost - shippingCost;
       const deliveryRate = countryMetrics ? countryMetrics.deliveryRate : 0;
       const maxCPL = deliveryRate > 0 ? availableForProfitAndAds * (deliveryRate / 100) : 0;
 
@@ -929,6 +937,7 @@ function renderProductInfoSection() {
           <td>${country}</td>
           <td>$${fmt(sellingPrice)}</td>
           <td>$${fmt(productCost)}</td>
+          <td>$${fmt(shippingCost)}</td>
           <td class="${availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(availableForProfitAndAds)}</td>
           <td>${fmt(deliveryRate)}%</td>
           <td>$${fmt(maxCPL)}</td>
@@ -955,7 +964,6 @@ function renderPerformancePage() {
   bindRemittanceAnalytics();
   bindProfitByCountry();
   bindRemittanceAdd();
-  bindRemittanceReport();
 }
 
 function bindProductOrders() {
@@ -1010,14 +1018,14 @@ function renderProductCostsAnalysis(analysis) {
   const container = Q('#pcaResults');
   if (!container) return;
 
-  const profitClass = analysis.netProfit >= 0 ? 'number-positive' : 'number-negative';
-  const bgClass = analysis.netProfit >= 0 ? 'profit-bg' : 'loss-bg';
+  const profitClass = analysis.profit >= 0 ? 'number-positive' : 'number-negative';
+  const bgClass = analysis.profit >= 0 ? 'profit-bg' : 'loss-bg';
 
   container.innerHTML = `
     <div class="costs-analysis-summary ${bgClass}">
       <div class="summary-header">
         <h3>📊 Product Costs Analysis Summary</h3>
-        <div class="net-profit ${profitClass}">Net Profit: $${fmt(analysis.netProfit)}</div>
+        <div class="net-profit ${profitClass}">Net Profit: $${fmt(analysis.profit)}</div>
       </div>
       
       <div class="table-scroll">
@@ -1034,44 +1042,38 @@ function renderProductCostsAnalysis(analysis) {
             <tr>
               <td><strong>Total Revenue</strong></td>
               <td class="number-positive">$${fmt(analysis.totalRevenue)}</td>
-              <td><strong>Total Expenses</strong></td>
-              <td class="number-negative">$${fmt(analysis.totalExpenses)}</td>
+              <td><strong>Total Cost</strong></td>
+              <td class="number-negative">$${fmt(analysis.totalCost)}</td>
             </tr>
             <tr>
               <td>Product Costs</td>
               <td>$${fmt(analysis.totalProductCost)}</td>
-              <td>China Product Cost</td>
-              <td>$${fmt(analysis.totalChinaCost)}</td>
+              <td>Shipping Costs</td>
+              <td>$${fmt(analysis.totalShippingCost)}</td>
             </tr>
             <tr>
-              <td>China Shipping</td>
-              <td>$${fmt(analysis.totalChinaShipping)}</td>
-              <td>Inter-country Shipping</td>
-              <td>$${fmt(analysis.totalInterShipping)}</td>
-            </tr>
-            <tr>
-              <td>Influencer Costs</td>
-              <td>$${fmt(analysis.totalInfluencerCost)}</td>
               <td>Advertising Spend</td>
               <td>$${fmt(analysis.totalAdSpend)}</td>
-            </tr>
-            <tr>
               <td>Boxleo Fees</td>
               <td>$${fmt(analysis.totalBoxleoFees)}</td>
+            </tr>
+            <tr>
               <td><strong>Delivered Pieces</strong></td>
               <td>${fmt(analysis.totalPieces)}</td>
-            </tr>
-            <tr>
               <td><strong>Total Orders</strong></td>
               <td>${fmt(analysis.totalOrders)}</td>
-              <td><strong>Delivery Rate</strong></td>
-              <td>${fmt(analysis.deliveryRate)}%</td>
             </tr>
             <tr>
+              <td><strong>Delivery Rate</strong></td>
+              <td>${fmt(analysis.deliveryRate)}%</td>
               <td><strong>Cost per Piece</strong></td>
-              <td>$${fmt(analysis.costPerDeliveredPiece)}</td>
+              <td>$${fmt(analysis.costPerPiece)}</td>
+            </tr>
+            <tr>
               <td><strong>Cost per Order</strong></td>
-              <td>$${fmt(analysis.costPerDeliveredOrder)}</td>
+              <td>$${fmt(analysis.costPerOrder)}</td>
+              <td><strong>Ad Cost per Order</strong></td>
+              <td>$${fmt(analysis.adCostPerOrder)}</td>
             </tr>
           </tbody>
         </table>
@@ -1108,7 +1110,7 @@ function renderRemittanceAnalytics(analytics) {
   if (!tb) return;
 
   let totalPieces = 0, totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
-  let totalProductCost = 0, totalTotalCost = 0, totalProfit = 0, totalOrders = 0;
+  let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0;
 
   analytics.sort((a, b) => b.pieces - a.pieces);
 
@@ -1120,7 +1122,7 @@ function renderRemittanceAnalytics(analytics) {
     totalAdSpend += item.totalAdSpend;
     totalBoxleo += item.totalBoxleoFees;
     totalProductCost += item.totalProductCost;
-    totalTotalCost += item.totalCost;
+    totalShippingCost += item.totalShippingCost;
     totalProfit += item.profit;
     totalOrders += item.totalOrders;
 
@@ -1133,17 +1135,14 @@ function renderRemittanceAnalytics(analytics) {
       <td>${fmt(item.totalAdSpend)}</td>
       <td>${fmt(item.totalBoxleoFees)}</td>
       <td>${fmt(item.totalProductCost)}</td>
-      <td>${fmt(item.totalCost)}</td>
-      <td>${fmt(item.deliveryRate)}%</td>
-      <td>${fmt(item.costPerDeliveredOrder)}</td>
-      <td>${fmt(item.costPerDeliveredPiece)}</td>
-      <td>${fmt(item.costPerOrderAd)}</td>
-      <td>${fmt(item.costPerPieceAd)}</td>
+      <td>${fmt(item.totalShippingCost)}</td>
       <td>${fmt(item.boxleoPerOrder)}</td>
       <td>${fmt(item.boxleoPerPiece)}</td>
+      <td>${fmt(item.adCostPerOrder)}</td>
+      <td>${fmt(item.adCostPerPiece)}</td>
       <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(item.profit)}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="17" class="muted">No data for selected period</td></tr>`;
+  }).join('') || `<tr><td colspan="14" class="muted">No data for selected period</td></tr>`;
 
   Q('#remAnalyticsOrdersT').textContent = fmt(totalOrders);
   Q('#remAnalyticsPiecesT').textContent = fmt(totalPieces);
@@ -1151,14 +1150,11 @@ function renderRemittanceAnalytics(analytics) {
   Q('#remAnalyticsAdSpendT').textContent = fmt(totalAdSpend);
   Q('#remAnalyticsBoxleoT').textContent = fmt(totalBoxleo);
   Q('#remAnalyticsProductCostT').textContent = fmt(totalProductCost);
-  Q('#remAnalyticsTotalCostT').textContent = fmt(totalTotalCost);
-  Q('#remAnalyticsDeliveryRateT').textContent = fmt(totalOrders > 0 ? (totalPieces / totalOrders * 100) : 0) + '%';
-  Q('#remAnalyticsCostOrderT').textContent = fmt(totalOrders > 0 ? totalTotalCost / totalOrders : 0);
-  Q('#remAnalyticsCostPieceT').textContent = fmt(totalPieces > 0 ? totalTotalCost / totalPieces : 0);
-  Q('#remAnalyticsAdOrderT').textContent = fmt(totalOrders > 0 ? totalAdSpend / totalOrders : 0);
-  Q('#remAnalyticsAdPieceT').textContent = fmt(totalPieces > 0 ? totalAdSpend / totalPieces : 0);
+  Q('#remAnalyticsShippingCostT').textContent = fmt(totalShippingCost);
   Q('#remAnalyticsBoxleoOrderT').textContent = fmt(totalOrders > 0 ? totalBoxleo / totalOrders : 0);
   Q('#remAnalyticsBoxleoPieceT').textContent = fmt(totalPieces > 0 ? totalBoxleo / totalPieces : 0);
+  Q('#remAnalyticsAdOrderT').textContent = fmt(totalOrders > 0 ? totalAdSpend / totalOrders : 0);
+  Q('#remAnalyticsAdPieceT').textContent = fmt(totalPieces > 0 ? totalAdSpend / totalPieces : 0);
   Q('#remAnalyticsProfitT').textContent = fmt(totalProfit);
 }
 
@@ -1188,44 +1184,38 @@ function renderProfitByCountry(analytics) {
   if (!tb) return;
 
   let totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
-  let totalProductCost = 0, totalTotalCost = 0, totalPieces = 0, totalProfit = 0, totalOrders = 0;
+  let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0, totalPieces = 0;
 
   tb.innerHTML = Object.entries(analytics).map(([country, metrics]) => {
     totalRevenue += metrics.totalRevenue;
     totalAdSpend += metrics.totalAdSpend;
     totalBoxleo += metrics.totalBoxleoFees;
     totalProductCost += metrics.totalProductCost;
-    totalTotalCost += metrics.totalCost;
-    totalPieces += metrics.totalPieces;
+    totalShippingCost += metrics.totalShippingCost;
     totalProfit += metrics.profit;
     totalOrders += metrics.totalOrders;
+    totalPieces += metrics.totalPieces;
 
     return `<tr>
       <td>${country}</td>
       <td>${fmt(metrics.totalRevenue)}</td>
       <td>${fmt(metrics.totalAdSpend)}</td>
-      <td>${fmt(metrics.totalBoxleoFees)}</td>
       <td>${fmt(metrics.totalProductCost)}</td>
-      <td>${fmt(metrics.totalCost)}</td>
-      <td>${fmt(metrics.totalOrders)}</td>
-      <td>${fmt(metrics.totalPieces)}</td>
+      <td>${fmt(metrics.totalShippingCost)}</td>
+      <td>${fmt(metrics.totalBoxleoFees)}</td>
       <td>${fmt(metrics.deliveryRate)}%</td>
-      <td>${fmt(metrics.costPerDeliveredOrder)}</td>
-      <td>${fmt(metrics.costPerDeliveredPiece)}</td>
       <td class="${metrics.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(metrics.profit)}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="12" class="muted">No data</td></tr>`;
+  }).join('') || `<tr><td colspan="8" class="muted">No data</td></tr>`;
+
+  const totalDeliveryRate = totalOrders > 0 ? (totalPieces / totalOrders * 100) : 0;
 
   Q('#pcRevT').textContent = fmt(totalRevenue);
   Q('#pcAdT').textContent = fmt(totalAdSpend);
-  Q('#pcBoxleoT').textContent = fmt(totalBoxleo);
   Q('#pcProductCostT').textContent = fmt(totalProductCost);
-  Q('#pcTotalCostT').textContent = fmt(totalTotalCost);
-  Q('#pcOrdersT').textContent = fmt(totalOrders);
-  Q('#pcPiecesT').textContent = fmt(totalPieces);
-  Q('#pcDeliveryRateT').textContent = fmt(totalOrders > 0 ? (totalPieces / totalOrders * 100) : 0) + '%';
-  Q('#pcCostOrderT').textContent = fmt(totalOrders > 0 ? totalTotalCost / totalOrders : 0);
-  Q('#pcCostPieceT').textContent = fmt(totalPieces > 0 ? totalTotalCost / totalPieces : 0);
+  Q('#pcShippingCostT').textContent = fmt(totalShippingCost);
+  Q('#pcBoxleoT').textContent = fmt(totalBoxleo);
+  Q('#pcDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%';
   Q('#pcProfitT').textContent = fmt(totalProfit);
 }
 
@@ -1258,106 +1248,21 @@ function bindRemittanceAdd() {
       Q('#remAddRevenue').value = '';
       Q('#remAddAdSpend').value = '';
       Q('#remAddBoxleo').value = '';
-
-      renderRemittanceReport();
     } catch (e) {
       alert('Error adding remittance: ' + e.message);
     }
   };
 }
 
-function bindRemittanceReport() {
-  const btn = Q('#remRun');
-  if (!btn) return;
-
-  btn.onclick = renderRemittanceReport;
-}
-
-async function renderRemittanceReport() {
-  const dateRange = getDateRange(Q('#remRun').closest('.row'));
-  const country = Q('#remCountry')?.value || '';
-  const productId = Q('#remProduct')?.value || '';
-
-  let rem = await api('/api/remittances?' + new URLSearchParams({
-    ...dateRange,
-    country,
-    productId
-  }));
-
-  rem = rem.remittances || [];
-
-  rem.sort((a, b) => (b.pieces || 0) - (a.pieces || 0));
-
-  const prodMap = Object.fromEntries(state.products.map(p => [p.id, p]));
-  let totalOrders = 0, totalPieces = 0, totalRevenue = 0, totalAdSpend = 0;
-  let totalBoxleo = 0, totalProductCost = 0, totalTotalCost = 0, totalProfit = 0;
-
-  const tb = Q('#remittanceBody');
-  tb.innerHTML = rem.map(r => {
-    const product = prodMap[r.productId] || {};
-    const productCosts = calculateProductCosts({ shipments: [], remittances: [] }, r.productId, r.country);
-    const costPerPiece = productCosts.costPerPiece;
-    const productCost = costPerPiece * (+r.pieces || 0);
-    const totalCost = productCost + (+r.adSpend || 0) + (+r.boxleoFees || 0);
-    const profit = (+r.revenue || 0) - totalCost;
-    const deliveryRate = (+r.orders || 0) > 0 ? ((+r.pieces || 0) / (+r.orders || 0)) * 100 : 0;
-
-    totalOrders += (+r.orders || 0);
-    totalPieces += (+r.pieces || 0);
-    totalRevenue += (+r.revenue || 0);
-    totalAdSpend += (+r.adSpend || 0);
-    totalBoxleo += (+r.boxleoFees || 0);
-    totalProductCost += productCost;
-    totalTotalCost += totalCost;
-    totalProfit += profit;
-
-    return `<tr>
-      <td>${r.start} - ${r.end}</td>
-      <td>${product.name || r.productId}</td>
-      <td>${r.country}</td>
-      <td>${fmt(r.orders)}</td>
-      <td>${fmt(r.pieces)}</td>
-      <td>${fmt(r.revenue)}</td>
-      <td>${fmt(r.adSpend)}</td>
-      <td>${fmt(r.boxleoFees)}</td>
-      <td>${fmt(productCost)}</td>
-      <td>${fmt(totalCost)}</td>
-      <td>${fmt(deliveryRate)}%</td>
-      <td class="${profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(profit)}</td>
-      <td><button class="btn outline rem-del" data-id="${r.id}">Delete</button></td>
-    </tr>`;
-  }).join('') || `<tr><td colspan="13" class="muted">No remittance data</td></tr>`;
-
-  Q('#remOrdersT').textContent = fmt(totalOrders);
-  Q('#remPiecesT').textContent = fmt(totalPieces);
-  Q('#remRevenueT').textContent = fmt(totalRevenue);
-  Q('#remAdSpendT').textContent = fmt(totalAdSpend);
-  Q('#remBoxleoT').textContent = fmt(totalBoxleo);
-  Q('#remProductCostT').textContent = fmt(totalProductCost);
-  Q('#remTotalCostT').textContent = fmt(totalTotalCost);
-  Q('#remDeliveryRateT').textContent = fmt(totalOrders > 0 ? (totalPieces / totalOrders * 100) : 0) + '%';
-  Q('#remProfitT').textContent = fmt(totalProfit);
-
-  tb.addEventListener('click', async (e) => {
-    if (e.target.classList.contains('rem-del')) {
-      if (!confirm('Delete this remittance entry?')) return;
-      try {
-        await api(`/api/remittances/${e.target.dataset.id}`, { method: 'DELETE' });
-        renderRemittanceReport();
-      } catch (err) {
-        alert('Error deleting remittance: ' + err.message);
-      }
-    }
-  });
-}
-
 function renderStockMovementPage() {
+  // Handle China cost field visibility
   Q('#mvFrom')?.addEventListener('change', function () {
     const chinaField = Q('#chinaCostField');
     if (this.value === 'china') {
       chinaField.style.display = 'block';
     } else {
       chinaField.style.display = 'none';
+      Q('#mvChinaCost').value = '';
     }
   });
 
@@ -1384,6 +1289,11 @@ function renderStockMovementPage() {
       await api('/api/shipments', { method: 'POST', body: JSON.stringify(payload) });
       await renderTransitTables();
       alert('Shipment created');
+      // Reset form
+      Q('#mvQty').value = '';
+      Q('#mvShip').value = '';
+      Q('#mvChinaCost').value = '';
+      Q('#mvNote').value = '';
     } catch (e) { alert(e.message); }
   };
 
@@ -1455,7 +1365,7 @@ async function renderTransitTables() {
       catch (err) { return alert(err.message); }
       await renderTransitTables();
     }
-  }, { once: true });
+  });
 }
 
 function renderFinancePage() {
@@ -1531,7 +1441,7 @@ async function runFinancePeriod() {
       await api(`/api/finance/entries/${e.target.dataset.id}`, { method: 'DELETE' });
       await runFinancePeriod();
     }
-  }, { once: true });
+  });
 }
 
 async function runFinanceCategorySearch() {
@@ -1593,7 +1503,6 @@ function renderSettingsPage() {
       <tr>
         <td>${s.name}</td><td>${s.file.replace(/^.*data\\?\\/, '')}</td>
         <td>
-          <button class="btn outline ss-push" data-file="${s.file}">Push</button>
           <button class="btn outline ss-del" data-id="${s.id}">Delete</button>
         </td>
       </tr>`).join('') || `<tr><td colspan="3" class="muted">No snapshots</td></tr>`;
@@ -1608,11 +1517,6 @@ function renderSettingsPage() {
   });
 
   listBox?.addEventListener('click', async (e) => {
-    if (e.target.classList.contains('ss-push')) {
-      await api('/api/snapshots/restore', { method: 'POST', body: JSON.stringify({ file: e.target.dataset.file }) });
-      alert('Pushed snapshot to system. (Snapshot kept)');
-      location.reload();
-    }
     if (e.target.classList.contains('ss-del')) {
       if (!confirm('Delete this snapshot?')) return;
       await api(`/api/snapshots/${e.target.dataset.id}`, { method: 'DELETE' });
@@ -1720,10 +1624,11 @@ function renderProductBudgets(product) {
       <td>$0.00</td>
       <td>$0.00</td>
       <td>$0.00</td>
+      <td>$0.00</td>
       <td>0%</td>
       <td>$0.00</td>
     </tr>
-  `).join('') || `<tr><td colspan="6" class="muted">No data available</td></tr>`;
+  `).join('') || `<tr><td colspan="7" class="muted">No data available</td></tr>`;
 }
 
 async function renderProductTransit(product) {
@@ -1772,7 +1677,7 @@ async function renderProductTransit(product) {
       await api(`/api/shipments/${id}`, { method: 'DELETE' });
       await renderProductTransit(product);
     }
-  }, { once: true });
+  });
 }
 
 async function renderProductArrivedShipments(product) {
@@ -1818,7 +1723,7 @@ async function renderProductArrivedShipments(product) {
       await renderProductArrivedShipments(product);
       await renderProductStockAd(product);
     }
-  }, { once: true });
+  });
 }
 
 async function renderProductRemittances(product) {
@@ -1883,7 +1788,7 @@ function renderProductLifetime(analytics) {
     totalAdSpend += item.totalAdSpend;
     totalBoxleo += item.totalBoxleoFees;
     totalProductCost += item.totalProductCost;
-    totalShipCost += 0;
+    totalShipCost += item.totalShippingCost;
     totalTotalCost += item.totalCost;
     totalPieces += item.totalPieces;
     totalProfit += item.profit;
@@ -1895,7 +1800,7 @@ function renderProductLifetime(analytics) {
       <td>${fmt(item.totalAdSpend)}</td>
       <td>${fmt(item.totalBoxleoFees)}</td>
       <td>${fmt(item.totalProductCost)}</td>
-      <td>${fmt(0)}</td>
+      <td>${fmt(item.totalShippingCost)}</td>
       <td>${fmt(item.totalCost)}</td>
       <td>${fmt(item.totalOrders)}</td>
       <td>${fmt(item.totalPieces)}</td>
@@ -1950,7 +1855,7 @@ async function refreshInfluencers(product) {
   const infs = await api('/api/influencers');
   const spends = await api('/api/influencers/spend');
   const sel = Q('#pdInfSelect');
-  sel.innerHTML = (infs.influencers || []).map(i => `<option value="${i.id}">${i.name}</option>`).join('') || '<option value="">No influencers</option>';
+  sel.innerHTML = `<option value="">Select influencer...</option>` + (infs.influencers || []).map(i => `<option value="${i.id}">${i.name}</option>`).join('') || '<option value="">No influencers</option>';
 
   const dateRange = getDateRange(Q('#pdInfRun').closest('.row'));
   const c = Q('#pdInfFilterCountry')?.value || '';
@@ -2037,7 +1942,7 @@ function bindGlobalNav() {
     if (v === 'home') { renderCompactKpis(); renderCountryStockSpend(); }
     if (v === 'products') { renderCompactCountryStats(); renderAdvertisingOverview(); }
     if (v === 'stockMovement') { renderStockMovementPage(); }
-    if (v === 'performance') { renderRemittanceReport(); }
+    if (v === 'performance') { bindProductCostsAnalysis(); }
   }));
 }
 
