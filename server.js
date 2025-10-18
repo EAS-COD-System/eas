@@ -1,4 +1,4 @@
-// server.js – EAS Tracker backend - Render Compatible
+// server.js – EAS Tracker backend - Enhanced Version
 const express = require('express');
 const fs = require('fs-extra');
 const path = require('path');
@@ -11,15 +11,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const ROOT = __dirname;
-
-// Render-compatible file paths
-const DATA_FILE = process.env.NODE_ENV === 'production' 
-  ? '/opt/render/project/src/data/db.json'
-  : path.join(ROOT, 'data', 'db.json');
-
-const SNAPSHOT_DIR = process.env.NODE_ENV === 'production'
-  ? path.join(ROOT, 'data', 'snapshots')
-  : path.join(ROOT, 'data', 'snapshots');
+const DATA_FILE = '/opt/render/project/src/data/db.json';
+const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
 
 /* ---------------- middleware ---------------- */
 app.use(morgan('dev'));
@@ -28,16 +21,7 @@ app.use(cookieParser());
 app.use('/public', express.static(path.join(ROOT,'public')));
 
 /* ---------------- helpers ---------------- */
-function ensureDataDirs() {
-  const dataDir = path.dirname(DATA_FILE);
-  if (!fs.existsSync(dataDir)) {
-    fs.ensureDirSync(dataDir);
-  }
-  ensureSnapDir();
-}
-
 function ensureDB() {
-  ensureDataDirs();
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeJsonSync(DATA_FILE, {
       password: 'eastafricashop',
@@ -48,17 +32,16 @@ function ensureDB() {
       shipments: [],
       remittances: [],
       orders: [],
+      productNotes: [],
+      testedProducts: [],
+      brainstorming: [],
       finance: { categories: { debit:[], credit:[] }, entries: [] },
       influencers: [],
       influencerSpends: [],
-      snapshots: [],
-      productNotes: [],
-      productTesting: [],
-      brainstorming: []
+      snapshots: []
     }, { spaces: 2 });
   }
 }
-
 function loadDB(){ ensureDB(); return fs.readJsonSync(DATA_FILE); }
 function saveDB(db){ fs.writeJsonSync(DATA_FILE, db, { spaces:2 }); }
 function ensureSnapDir(){ fs.ensureDirSync(SNAPSHOT_DIR); }
@@ -76,7 +59,6 @@ app.post('/api/auth', (req,res)=>{
     return res.json({ ok:true });
   }
   if (password && password === db.password) {
-    // VERY long lived cookie
     res.cookie('auth','1', { httpOnly:true, sameSite:'Lax', secure:process.env.NODE_ENV==='production', path:'/', maxAge: 365*24*60*60*1000 });
     return res.json({ ok:true });
   }
@@ -147,7 +129,6 @@ app.post('/api/products/:id/status', requireAuth, (req,res)=>{
   p.status = req.body.status||'active'; saveDB(db); res.json({ ok:true, product:p });
 });
 app.delete('/api/products/:id', requireAuth, (req,res)=>{
-  // cascade delete: adspend, shipments, remittances, influencer spends
   const db = loadDB();
   const id = req.params.id;
   db.products = (db.products||[]).filter(p=>p.id!==id);
@@ -169,7 +150,7 @@ app.get('/api/product-notes/:productId', requireAuth, (req,res)=>{
 app.post('/api/product-notes', requireAuth, (req,res)=>{
   const db = loadDB(); db.productNotes = db.productNotes||[];
   const { productId, country, note } = req.body||{};
-  if (!productId) return res.status(400).json({ error:'Missing productId' });
+  if (!productId || !country) return res.status(400).json({ error:'Missing fields' });
   
   const existing = db.productNotes.find(n=>n.productId===productId && n.country===country);
   if (existing) {
@@ -185,28 +166,26 @@ app.post('/api/product-notes', requireAuth, (req,res)=>{
       updatedAt: new Date().toISOString()
     });
   }
-  saveDB(db);
-  res.json({ ok:true });
+  saveDB(db); res.json({ ok:true });
 });
 
-/* ---------------- product testing ---------------- */
-app.get('/api/product-testing', requireAuth, (req,res)=>{
-  const db = loadDB();
-  res.json({ testing: db.productTesting||[] });
+/* ---------------- tested products ---------------- */
+app.get('/api/tested-products', requireAuth, (req,res)=>{
+  const db = loadDB(); res.json({ testedProducts: db.testedProducts||[] });
 });
-app.post('/api/product-testing', requireAuth, (req,res)=>{
-  const db = loadDB(); db.productTesting = db.productTesting||[];
+app.post('/api/tested-products', requireAuth, (req,res)=>{
+  const db = loadDB(); db.testedProducts = db.testedProducts||[];
   const { productName, country, costPerLead, confirmationRate, sellingPrice } = req.body||{};
-  if (!productName) return res.status(400).json({ error:'Missing product name' });
+  if (!productName || !country) return res.status(400).json({ error:'Missing fields' });
   
-  const existing = db.productTesting.find(t=>t.productName===productName && t.country===country);
+  const existing = db.testedProducts.find(t=>t.productName===productName && t.country===country);
   if (existing) {
     existing.costPerLead = +costPerLead||0;
     existing.confirmationRate = +confirmationRate||0;
     existing.sellingPrice = +sellingPrice||0;
     existing.updatedAt = new Date().toISOString();
   } else {
-    db.productTesting.push({
+    db.testedProducts.push({
       id: uuidv4(),
       productName,
       country,
@@ -217,20 +196,12 @@ app.post('/api/product-testing', requireAuth, (req,res)=>{
       updatedAt: new Date().toISOString()
     });
   }
-  saveDB(db);
-  res.json({ ok:true });
-});
-app.delete('/api/product-testing/:id', requireAuth, (req,res)=>{
-  const db = loadDB();
-  db.productTesting = (db.productTesting||[]).filter(t=>t.id!==req.params.id);
-  saveDB(db);
-  res.json({ ok:true });
+  saveDB(db); res.json({ ok:true });
 });
 
 /* ---------------- brainstorming ---------------- */
 app.get('/api/brainstorming', requireAuth, (req,res)=>{
-  const db = loadDB();
-  res.json({ ideas: db.brainstorming||[] });
+  const db = loadDB(); res.json({ ideas: db.brainstorming||[] });
 });
 app.post('/api/brainstorming', requireAuth, (req,res)=>{
   const db = loadDB(); db.brainstorming = db.brainstorming||[];
@@ -248,8 +219,7 @@ app.post('/api/brainstorming', requireAuth, (req,res)=>{
     updatedAt: new Date().toISOString()
   };
   db.brainstorming.push(idea);
-  saveDB(db);
-  res.json({ ok:true, idea });
+  saveDB(db); res.json({ ok:true, idea });
 });
 app.put('/api/brainstorming/:id', requireAuth, (req,res)=>{
   const db = loadDB();
@@ -264,47 +234,32 @@ app.put('/api/brainstorming/:id', requireAuth, (req,res)=>{
   if (up.status!==undefined) idea.status=up.status;
   idea.updatedAt = new Date().toISOString();
   
-  saveDB(db);
-  res.json({ ok:true, idea });
+  saveDB(db); res.json({ ok:true, idea });
 });
 app.delete('/api/brainstorming/:id', requireAuth, (req,res)=>{
-  const db = loadDB();
-  db.brainstorming = (db.brainstorming||[]).filter(i=>i.id!==req.params.id);
-  saveDB(db);
-  res.json({ ok:true });
+  const db = loadDB(); db.brainstorming = (db.brainstorming||[]).filter(i=>i.id!==req.params.id);
+  saveDB(db); res.json({ ok:true });
 });
 
 /* ---------------- orders ---------------- */
 app.get('/api/orders', requireAuth, (req,res)=>{
-  const db = loadDB(); 
-  let orders = db.orders||[];
-  const { start, end, productId } = req.query||{};
-  if (start) orders = orders.filter(o=>o.date>=start);
-  if (end) orders = orders.filter(o=>o.date<=end);
-  if (productId) orders = orders.filter(o=>o.productId===productId);
-  res.json({ orders });
+  const db = loadDB(); res.json({ orders: db.orders||[] });
 });
 app.post('/api/orders', requireAuth, (req,res)=>{
   const db = loadDB(); db.orders = db.orders||[];
-  const { date, productId, country, orders: orderCount } = req.body||{};
-  if (!date || !productId || !country) return res.status(400).json({ error:'Missing fields' });
+  const { productId, startDate, endDate, ordersCount } = req.body||{};
+  if (!productId || !startDate || !endDate) return res.status(400).json({ error:'Missing fields' });
   
   const order = {
     id: uuidv4(),
-    date,
     productId,
-    country,
-    orders: +orderCount||0
+    startDate,
+    endDate,
+    ordersCount: +ordersCount||0,
+    createdAt: new Date().toISOString()
   };
   db.orders.push(order);
-  saveDB(db);
-  res.json({ ok:true, order });
-});
-app.delete('/api/orders/:id', requireAuth, (req,res)=>{
-  const db = loadDB();
-  db.orders = (db.orders||[]).filter(o=>o.id!==req.params.id);
-  saveDB(db);
-  res.json({ ok:true });
+  saveDB(db); res.json({ ok:true, order });
 });
 
 /* ---------------- adspend (replace current) ---------------- */
@@ -346,7 +301,7 @@ app.post('/api/shipments', requireAuth, (req,res)=>{
     toCountry: req.body.toCountry || req.body.to,
     qty: +req.body.qty||0,
     shipCost: +req.body.shipCost||0,
-    chinaPurchaseCost: req.body.fromCountry === 'china' ? +req.body.chinaPurchaseCost||0 : 0,
+    purchaseCost: req.body.fromCountry === 'china' ? +req.body.purchaseCost||0 : 0,
     note: req.body.note || '',
     departedAt: req.body.departedAt || new Date().toISOString().slice(0,10),
     arrivedAt: req.body.arrivedAt || null
@@ -360,7 +315,7 @@ app.put('/api/shipments/:id', requireAuth, (req,res)=>{
   const up = req.body||{};
   if (up.qty!==undefined) s.qty=+up.qty||0;
   if (up.shipCost!==undefined) s.shipCost=+up.shipCost||0;
-  if (up.chinaPurchaseCost!==undefined) s.chinaPurchaseCost=+up.chinaPurchaseCost||0;
+  if (up.purchaseCost!==undefined) s.purchaseCost=+up.purchaseCost||0;
   if (up.note!==undefined) s.note=up.note;
   if (up.departedAt!==undefined) s.departedAt=up.departedAt;
   if (up.arrivedAt!==undefined) s.arrivedAt=up.arrivedAt;
@@ -389,7 +344,7 @@ app.post('/api/remittances', requireAuth, (req,res)=>{
     country:req.body.country, productId:req.body.productId,
     orders:+req.body.orders||0, pieces:+req.body.pieces||0,
     revenue:+req.body.revenue||0, adSpend:+req.body.adSpend||0,
-    boxleoFees:+req.body.boxleoFees||0
+    boxleoCost:+req.body.boxleoCost||0
   };
   if (!r.start||!r.end||!r.country||!r.productId) return res.status(400).json({ error:'Missing fields' });
   db.remittances.push(r); saveDB(db); res.json({ ok:true, remittance:r });
@@ -526,13 +481,8 @@ app.delete('/api/snapshots/:id', requireAuth, async (req,res)=>{
 app.get('/product.html', (req,res)=> res.sendFile(path.join(ROOT,'product.html')));
 app.get('/', (req,res)=> res.sendFile(path.join(ROOT,'index.html')));
 
-/* ---------------- health check ---------------- */
-app.get('/health', (req,res)=> res.json({ status:'OK', timestamp: new Date().toISOString() }));
-
 /* ---------------- start ---------------- */
 app.listen(PORT, ()=> {
-  console.log('✅ EAS Tracker listening on', PORT);
-  console.log('Environment:', process.env.NODE_ENV || 'development');
-  console.log('DB File:', DATA_FILE);
-  console.log('Snapshot Dir:', SNAPSHOT_DIR);
+  console.log('✅ EAS Tracker Enhanced Version listening on', PORT);
+  console.log('DB:', DATA_FILE);
 });
