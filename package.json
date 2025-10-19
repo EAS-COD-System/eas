@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "build": "echo 'No build step required'",
     "snapshot": "node snapshot.js",
     "snapshot:create": "node snapshot.js create",
     "snapshot:list": "node snapshot.js list"
