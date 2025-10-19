@@ -187,6 +187,44 @@ function fillCommonSelects() {
   });
 }
 
+function calculateDateRange(range) {
+  const now = new Date();
+  const start = new Date();
+  
+  switch(range) {
+    case '8days':
+      start.setDate(now.getDate() - 8);
+      break;
+    case '15days':
+      start.setDate(now.getDate() - 15);
+      break;
+    case '1month':
+      start.setMonth(now.getMonth() - 1);
+      break;
+    case '2months':
+      start.setMonth(now.getMonth() - 2);
+      break;
+    case '6months':
+      start.setMonth(now.getMonth() - 6);
+      break;
+    case '1year':
+      start.setFullYear(now.getFullYear() - 1);
+      break;
+    case '2years':
+      start.setFullYear(now.getFullYear() - 2);
+      break;
+    case 'lifetime':
+      return { start: '2000-01-01', end: '2100-01-01' };
+    default:
+      return {};
+  }
+  
+  return {
+    start: start.toISOString().slice(0, 10),
+    end: now.toISOString().slice(0, 10)
+  };
+}
+
 function initDateRangeSelectors() {
   QA('.date-range-select').forEach(select => {
     const container = select.closest('.row');
@@ -197,6 +235,14 @@ function initDateRangeSelectors() {
         customRange.style.display = 'flex';
       } else {
         customRange.style.display = 'none';
+        // Auto-fill date range for predefined options
+        const dateRange = calculateDateRange(this.value);
+        if (dateRange.start && dateRange.end) {
+          const startInput = container.querySelector('.custom-start');
+          const endInput = container.querySelector('.custom-end');
+          if (startInput) startInput.value = dateRange.start;
+          if (endInput) endInput.value = dateRange.end;
+        }
       }
     });
   });
@@ -214,7 +260,11 @@ function getDateRange(container) {
     };
   }
 
-  return { range: select.value };
+  const dateRange = calculateDateRange(select.value);
+  return {
+    start: dateRange.start,
+    end: dateRange.end
+  };
 }
 
 function renderDashboardPage() {
@@ -898,6 +948,7 @@ function renderProductInfoSection() {
     }
   };
 }
+
 function renderProductInfoResults(productInfo) {
   const container = Q('#productInfoResults');
   if (!container) return;
@@ -1055,14 +1106,8 @@ function renderProductCostsAnalysis(analysis) {
             </tr>
             <tr>
               <td>Product Cost China (Period)</td>
-              <td>$${fmt(analysis.periodProductChinaCost)}</td>
-              <td>Shipping Costs (Period)</td>
-              <td>$${fmt(analysis.periodShippingCost)}</td>
-            </tr>
-            <tr>
-              <td>Product Cost China (Delivered)</td>
               <td>$${fmt(analysis.totalProductChinaCost)}</td>
-              <td>Shipping Costs (Delivered)</td>
+              <td>Shipping Costs (Period)</td>
               <td>$${fmt(analysis.totalShippingCost)}</td>
             </tr>
             <tr>
@@ -1125,145 +1170,6 @@ function bindRemittanceAnalytics() {
   };
 }
 
-function renderRemittanceAnalytics(analytics) {
-  const tb = Q('#remAnalyticsBody');
-  if (!tb) return;
-
-  let totalPieces = 0, totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
-  let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0, totalDeliveredOrders = 0;
-
-  analytics.sort((a, b) => b.totalDeliveredPieces - a.totalDeliveredPieces);
-
-  tb.innerHTML = analytics.map(item => {
-    const product = state.products.find(p => p.id === item.productId) || { name: item.productId };
-
-    totalPieces += item.totalDeliveredPieces;
-    totalRevenue += item.totalRevenue;
-    totalAdSpend += item.totalAdSpend;
-    totalBoxleo += item.totalBoxleoFees;
-    totalProductCost += item.totalProductChinaCost;
-    totalShippingCost += item.totalShippingCost;
-    totalProfit += item.profit;
-    totalOrders += item.totalOrders;
-    totalDeliveredOrders += item.totalDeliveredOrders;
-
-    return `<tr>
-      <td>${product.name}</td>
-      <td>${item.country}</td>
-      <td><strong>${fmt(item.totalOrders)}</strong></td>
-      <td><strong>${fmt(item.totalDeliveredOrders)}</strong></td>
-      <td><strong>${fmt(item.totalDeliveredPieces)}</strong></td>
-      <td>${fmt(item.totalRevenue)}</td>
-      <td>${fmt(item.totalAdSpend)}</td>
-      <td>${fmt(item.totalBoxleoFees)}</td>
-      <td>${fmt(item.totalProductChinaCost)}</td>
-      <td>${fmt(item.totalShippingCost)}</td>
-      <td>${fmt(item.deliveryRate)}%</td>
-      <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(item.profit)}</td>
-    </tr>`;
-  }).join('') || `<tr><td colspan="12" class="muted">No data for selected period</td></tr>`;
-
-  const totalDeliveryRate = totalOrders > 0 ? (totalDeliveredOrders / totalOrders) * 100 : 0;
-
-  Q('#remAnalyticsOrdersT').textContent = fmt(totalOrders);
-  Q('#remAnalyticsDeliveredOrdersT').textContent = fmt(totalDeliveredOrders);
-  Q('#remAnalyticsDeliveredPiecesT').textContent = fmt(totalPieces);
-  Q('#remAnalyticsRevenueT').textContent = fmt(totalRevenue);
-  Q('#remAnalyticsAdSpendT').textContent = fmt(totalAdSpend);
-  Q('#remAnalyticsBoxleoT').textContent = fmt(totalBoxleo);
-  Q('#remAnalyticsProductCostT').textContent = fmt(totalProductCost);
-  Q('#remAnalyticsShippingCostT').textContent = fmt(totalShippingCost);
-  Q('#remAnalyticsDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%';
-  Q('#remAnalyticsProfitT').textContent = fmt(totalProfit);
-}
-
-function bindProfitByCountry() {
-  const btn = Q('#pcRun');
-  if (!btn) return;
-
-  btn.onclick = async () => {
-    const dateRange = getDateRange(btn.closest('.row'));
-    const country = Q('#pcCountry')?.value || '';
-
-    try {
-      const analytics = await api('/api/analytics/profit-by-country?' + new URLSearchParams({
-        ...dateRange,
-        country
-      }));
-
-      renderProfitByCountry(analytics.analytics);
-    } catch (e) {
-      alert('Error calculating profit: ' + e.message);
-    }
-  };
-}
-
-function renderProfitByCountry(analytics) {
-  const tb = Q('#profitCountryBody');
-  if (!tb) return;
-
-  let totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
-  let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0, totalDeliveredOrders = 0, totalPieces = 0;
-
-  tb.innerHTML = Object.entries(analytics).map(([country, metrics]) => {
-    totalRevenue += metrics.totalRevenue;
-    totalAdSpend += metrics.totalAdSpend;
-    totalBoxleo += metrics.totalBoxleoFees;
-    totalProductCost += metrics.totalProductChinaCost;
-    totalShippingCost += metrics.totalShippingCost;
-    totalProfit += metrics.profit;
-    totalOrders += metrics.totalOrders;
-    totalDeliveredOrders += metrics.totalDeliveredOrders;
-    totalPieces += metrics.totalDeliveredPieces;
-
-    return `<tr>
-      <td>${country}</td>
-      <td>${fmt(metrics.totalOrders)}</td>
-      <td>${fmt(metrics.totalDeliveredOrders)}</td>
-      <td>${fmt(metrics.totalDeliveredPieces)}</td>
-      <td>${fmt(metrics.totalRevenue)}</td>
-      <td>${fmt(metrics.totalAdSpend)}</td>
-      <td>${fmt(metrics.totalProductChinaCost)}</td>
-      <td>${fmt(metrics.totalShippingCost)}</td>
-      <td>${fmt(metrics.totalBoxleoFees)}</td>
-      <td>${fmt(metrics.deliveryRate)}%</td>
-      <td class="${metrics.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(metrics.profit)}</td>
-    </tr>`;
-  }).join('') || `<tr><td colspan="11" class="muted">No data</td></tr>`;
-
-  const totalDeliveryRate = totalOrders > 0 ? (totalDeliveredOrders / totalOrders) * 100 : 0;
-
-  Q('#pcOrdersT').textContent = fmt(totalOrders);
-  Q('#pcDeliveredOrdersT').textContent = fmt(totalDeliveredOrders);
-  Q('#pcDeliveredPiecesT').textContent = fmt(totalPieces);
-  Q('#pcRevT').textContent = fmt(totalRevenue);
-  Q('#pcAdT').textContent = fmt(totalAdSpend);
-  Q('#pcProductCostT').textContent = fmt(totalProductCost);
-  Q('#pcShippingCostT').textContent = fmt(totalShippingCost);
-  Q('#pcBoxleoT').textContent = fmt(totalBoxleo);
-  Q('#pcDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%';
-  Q('#pcProfitT').textContent = fmt(totalProfit);
-}function bindRemittanceAnalytics() {
-  const btn = Q('#remAnalyticsRun');
-  if (!btn) return;
-
-  btn.onclick = async () => {
-    const dateRange = getDateRange(btn.closest('.row'));
-    const country = Q('#remAnalyticsCountry')?.value || '';
-    const productId = Q('#remAnalyticsProduct')?.value || '';
-
-    try {
-      const analytics = await api('/api/analytics/remittance?' + new URLSearchParams({
-        ...dateRange,
-        country,
-        productId
-      }));
-renderRemittanceAnalytics(analytics.analytics);
-} catch (e) {
-  alert('Error generating analytics: ' + e.message);
-      }
-   };
-}
 function renderRemittanceAnalytics(analytics) {
   const tb = Q('#remAnalyticsBody');
   if (!tb) return;
@@ -1337,6 +1243,27 @@ function renderRemittanceAnalytics(analytics) {
   Q('#remAnalyticsAdPieceT').textContent = '$' + fmt(avgAdCostPerPiece);
   Q('#remAnalyticsAOVT').textContent = '$' + fmt(avgAOV);
   Q('#remAnalyticsProfitT').textContent = fmt(totalProfit);
+}
+
+function bindProfitByCountry() {
+  const btn = Q('#pcRun');
+  if (!btn) return;
+
+  btn.onclick = async () => {
+    const dateRange = getDateRange(btn.closest('.row'));
+    const country = Q('#pcCountry')?.value || '';
+
+    try {
+      const analytics = await api('/api/analytics/profit-by-country?' + new URLSearchParams({
+        ...dateRange,
+        country
+      }));
+
+      renderProfitByCountry(analytics.analytics);
+    } catch (e) {
+      alert('Error calculating profit: ' + e.message);
+    }
+  };
 }
 
 function renderProfitByCountry(analytics) {
