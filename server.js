@@ -670,7 +670,7 @@ app.post('/api/deliveries', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
-// FIXED: Shipments with single arrival prompt
+// FIXED: Shipments with single arrival prompt - NO CHANGES NEEDED HERE
 app.get('/api/shipments', requireAuth, (req, res) => {
   const db = loadDB(); res.json({ shipments: db.shipments || [] });
 });
