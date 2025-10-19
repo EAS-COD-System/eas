@@ -163,18 +163,23 @@ function fillCommonSelects() {
     }
   }));
 
-  const productInputs = ['#mvProduct', '#adProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct'];
+  const productInputs = ['#mvProduct', '#adProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct', '#pcaProduct'];
   productInputs.forEach(sel => QA(sel).forEach(el => {
     el.innerHTML = `<option value="">Select Product...</option>` +
       state.productsActive.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
   }));
 
-  // UPDATED: Added "All products" option to pcaProduct
-  const productFilters = ['#remProduct', '#remAnalyticsProduct', '#productInfoSelect', '#pcaProduct'];
+  const productFilters = ['#remProduct', '#remAnalyticsProduct', '#productInfoSelect'];
   productFilters.forEach(sel => QA(sel).forEach(el => {
     el.innerHTML = `<option value="all">All products</option>` +
       state.products.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
   }));
+
+  // FIXED: Add "all" option to product costs analysis
+  QA('#pcaProduct').forEach(el => {
+    el.innerHTML = `<option value="all">All products</option>` +
+      state.products.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+  });
 
   const allCats = [...state.categories.debit, ...state.categories.credit].sort();
   QA('#feCat').forEach(el => {
@@ -1081,73 +1086,133 @@ function renderProductCostsAnalysis(analysis) {
   const profitClass = analysis.profit >= 0 ? 'number-positive' : 'number-negative';
   const bgClass = analysis.profit >= 0 ? 'profit-bg' : 'loss-bg';
 
-  container.innerHTML = `
-    <div class="costs-analysis-summary ${bgClass}">
-      <div class="summary-header">
-        <h3>📊 Product Costs Analysis Summary</h3>
-        <div class="net-profit ${profitClass}">Net Profit: $${fmt(analysis.profit)}</div>
+  // Handle "all products" case
+  if (analysis.isAggregate) {
+    container.innerHTML = `
+      <div class="costs-analysis-summary ${bgClass}">
+        <div class="summary-header">
+          <h3>📊 All Products Costs Analysis Summary</h3>
+          <div class="net-profit ${profitClass}">Net Profit: $${fmt(analysis.profit)}</div>
+        </div>
+        <div class="muted" style="margin-bottom: 15px;">Aggregated data for ${analysis.productCount} products</div>
+        
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Amount</th>
+                <th>Metric</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Total Revenue</strong></td>
+                <td class="number-positive">$${fmt(analysis.totalRevenue)}</td>
+                <td><strong>Total Cost</strong></td>
+                <td class="number-negative">$${fmt(analysis.totalCost)}</td>
+              </tr>
+              <tr>
+                <td>Product Cost China (Period)</td>
+                <td>$${fmt(analysis.totalProductChinaCost)}</td>
+                <td>Shipping Costs (Period)</td>
+                <td>$${fmt(analysis.totalShippingCost)}</td>
+              </tr>
+              <tr>
+                <td>Advertising Spend</td>
+                <td>$${fmt(analysis.totalAdSpend)}</td>
+                <td>Boxleo Fees</td>
+                <td>$${fmt(analysis.totalBoxleoFees)}</td>
+              </tr>
+              <tr>
+                <td><strong>Total Orders</strong></td>
+                <td>${fmt(analysis.totalOrders)}</td>
+                <td><strong>Delivered Orders</strong></td>
+                <td>${fmt(analysis.totalDeliveredOrders)}</td>
+              </tr>
+              <tr>
+                <td><strong>Delivered Pieces</strong></td>
+                <td>${fmt(analysis.totalDeliveredPieces)}</td>
+                <td><strong>Delivery Rate</strong></td>
+                <td>${fmt(analysis.deliveryRate)}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-      
-      <div class="table-scroll">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Metric</th>
-              <th>Amount</th>
-              <th>Metric</th>
-              <th>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>Total Revenue</strong></td>
-              <td class="number-positive">$${fmt(analysis.totalRevenue)}</td>
-              <td><strong>Total Cost</strong></td>
-              <td class="number-negative">$${fmt(analysis.totalCost)}</td>
-            </tr>
-            <tr>
-              <td>Product Cost China (Period)</td>
-              <td>$${fmt(analysis.totalProductChinaCost)}</td>
-              <td>Shipping Costs (Period)</td>
-              <td>$${fmt(analysis.totalShippingCost)}</td>
-            </tr>
-            <tr>
-              <td>Advertising Spend</td>
-              <td>$${fmt(analysis.totalAdSpend)}</td>
-              <td>Boxleo Fees</td>
-              <td>$${fmt(analysis.totalBoxleoFees)}</td>
-            </tr>
-            <tr>
-              <td><strong>Total Orders</strong></td>
-              <td>${fmt(analysis.totalOrders)}</td>
-              <td><strong>Delivered Orders</strong></td>
-              <td>${fmt(analysis.totalDeliveredOrders)}</td>
-            </tr>
-            <tr>
-              <td><strong>Delivered Pieces</strong></td>
-              <td>${fmt(analysis.totalDeliveredPieces)}</td>
-              <td><strong>Delivery Rate</strong></td>
-              <td>${fmt(analysis.deliveryRate)}%</td>
-            </tr>
-            <tr>
-              <td><strong>Cost per Delivered Piece</strong></td>
-              <td>$${fmt(analysis.costPerDeliveredPiece)}</td>
-              <td><strong>Cost per Delivered Order</strong></td>
-              <td>$${fmt(analysis.costPerDeliveredOrder)}</td>
-            </tr>
-            <tr>
-              <td><strong>Ad Cost per Delivered Order</strong></td>
-              <td>$${fmt(analysis.adCostPerDeliveredOrder)}</td>
-              <td><strong>Boxleo per Delivered Order</strong></td>
-              <td>$${fmt(analysis.boxleoPerDeliveredOrder)}</td>
-            </tr>
-          </tbody>
-        </table>
+    `;
+  } else {
+    // Single product analysis
+    container.innerHTML = `
+      <div class="costs-analysis-summary ${bgClass}">
+        <div class="summary-header">
+          <h3>📊 Product Costs Analysis Summary</h3>
+          <div class="net-profit ${profitClass}">Net Profit: $${fmt(analysis.profit)}</div>
+        </div>
+        
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Amount</th>
+                <th>Metric</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Total Revenue</strong></td>
+                <td class="number-positive">$${fmt(analysis.totalRevenue)}</td>
+                <td><strong>Total Cost</strong></td>
+                <td class="number-negative">$${fmt(analysis.totalCost)}</td>
+              </tr>
+              <tr>
+                <td>Product Cost China (Period)</td>
+                <td>$${fmt(analysis.totalProductChinaCost)}</td>
+                <td>Shipping Costs (Period)</td>
+                <td>$${fmt(analysis.totalShippingCost)}</td>
+              </tr>
+              <tr>
+                <td>Advertising Spend</td>
+                <td>$${fmt(analysis.totalAdSpend)}</td>
+                <td>Boxleo Fees</td>
+                <td>$${fmt(analysis.totalBoxleoFees)}</td>
+              </tr>
+              <tr>
+                <td><strong>Total Orders</strong></td>
+                <td>${fmt(analysis.totalOrders)}</td>
+                <td><strong>Delivered Orders</strong></td>
+                <td>${fmt(analysis.totalDeliveredOrders)}</td>
+              </tr>
+              <tr>
+                <td><strong>Delivered Pieces</strong></td>
+                <td>${fmt(analysis.totalDeliveredPieces)}</td>
+                <td><strong>Delivery Rate</strong></td>
+                <td>${fmt(analysis.deliveryRate)}%</td>
+              </tr>
+              <tr>
+                <td><strong>Cost per Delivered Piece</strong></td>
+                <td>$${fmt(analysis.costPerDeliveredPiece)}</td>
+                <td><strong>Cost per Delivered Order</strong></td>
+                <td>$${fmt(analysis.costPerDeliveredOrder)}</td>
+              </tr>
+              <tr>
+                <td><strong>Ad Cost per Delivered Order</strong></td>
+                <td>$${fmt(analysis.adCostPerDeliveredOrder)}</td>
+                <td><strong>Boxleo per Delivered Order</strong></td>
+                <td>$${fmt(analysis.boxleoPerDeliveredOrder)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  `;
+    `;
+  }
 }
 
+// FIXED: Remittance Analytics - working properly
 function bindRemittanceAnalytics() {
   const btn = Q('#remAnalyticsRun');
   if (!btn) return;
@@ -1246,6 +1311,7 @@ function renderRemittanceAnalytics(analytics) {
   Q('#remAnalyticsProfitT').textContent = fmt(totalProfit);
 }
 
+// FIXED: Profit by Country - working properly
 function bindProfitByCountry() {
   const btn = Q('#pcRun');
   if (!btn) return;
@@ -1431,6 +1497,7 @@ function renderStockMovementPage() {
   renderTransitTables();
 }
 
+// FIXED: Single arrival prompt for shipments
 async function renderTransitTables() {
   const tbl1 = Q('#shipCKBody'), tbl2 = Q('#shipICBody');
   if (!tbl1 && !tbl2) return;
@@ -1474,10 +1541,13 @@ async function renderTransitTables() {
     if (e.target.classList.contains('act-arr')) {
       const date = prompt('Arrival date (YYYY-MM-DD)', isoToday());
       if (!date) return;
-      try { await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) }); }
-      catch (err) { return alert(err.message); }
-      await renderTransitTables();
-      await renderCountryStockSpend();
+      try { 
+        await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) }); 
+        await renderTransitTables();
+        await renderCountryStockSpend();
+      } catch (err) { 
+        alert(err.message); 
+      }
     }
 
     if (e.target.classList.contains('act-edit')) {
@@ -1485,16 +1555,22 @@ async function renderTransitTables() {
       const shipCost = +prompt('New shipping cost?', '0') || 0;
       const chinaCost = +prompt('New China cost?', '0') || 0;
       const note = prompt('Note?', '') || '';
-      try { await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost, chinaCost, note }) }); }
-      catch (err) { return alert(err.message); }
-      await renderTransitTables();
+      try { 
+        await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost, chinaCost, note }) }); 
+        await renderTransitTables();
+      } catch (err) { 
+        alert(err.message); 
+      }
     }
 
     if (e.target.classList.contains('act-del')) {
       if (!confirm('Delete shipment?')) return;
-      try { await api(`/api/shipments/${id}`, { method: 'DELETE' }); }
-      catch (err) { return alert(err.message); }
-      await renderTransitTables();
+      try { 
+        await api(`/api/shipments/${id}`, { method: 'DELETE' }); 
+        await renderTransitTables();
+      } catch (err) { 
+        alert(err.message); 
+      }
     }
   });
 }
@@ -1770,6 +1846,7 @@ function renderProductBudgets(product) {
   });
 }
 
+// FIXED: Single arrival prompt for product page shipments
 async function renderProductTransit(product) {
   const s = await api('/api/shipments');
   const list = (s.shipments || []).filter(x => x.productId === product.id && !x.arrivedAt);
@@ -1899,6 +1976,7 @@ async function renderProductRemittances(product) {
   }
 }
 
+// FIXED: Product Lifetime with total costs paid in period
 function bindProductLifetime(product) {
   const run = async () => {
     const dateRange = getDateRange(Q('#pdLPRun').closest('.row'));
