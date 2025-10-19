@@ -13,10 +13,6 @@ const ROOT = __dirname;
 const DATA_FILE = path.join(ROOT, 'db.json');
 const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
 
-// Ensure data directory exists
-fs.ensureDirSync(path.dirname(DATA_FILE));
-fs.ensureDirSync(SNAPSHOT_DIR);
-
 app.use(morgan('dev'));
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(cookieParser());
@@ -135,6 +131,31 @@ function calculateProductCosts(db, productId, targetCountry = null) {
   };
 }
 
+// NEW: Calculate total costs paid in period (not just cost of sold pieces)
+function calculatePeriodCosts(db, productId = null, startDate = null, endDate = null) {
+  const shipments = db.shipments || [];
+  
+  let totalChinaCostPaid = 0;
+  let totalShippingCostPaid = 0;
+  
+  shipments.forEach(shipment => {
+    if ((!productId || shipment.productId === productId) &&
+        shipment.arrivedAt &&
+        (!startDate || shipment.arrivedAt >= startDate) &&
+        (!endDate || shipment.arrivedAt <= endDate)) {
+      
+      totalChinaCostPaid += (+shipment.chinaCost || 0);
+      totalShippingCostPaid += (+shipment.shipCost || 0);
+    }
+  });
+  
+  return {
+    totalChinaCostPaid,
+    totalShippingCostPaid,
+    totalCostPaid: totalChinaCostPaid + totalShippingCostPaid
+  };
+}
+
 // FIXED: Enhanced delivery rate calculation using product orders and delivered orders
 function calculateDeliveryRate(db, productId = null, country = null, startDate = null, endDate = null) {
   const productOrders = db.productOrders || [];
@@ -172,31 +193,7 @@ function calculateDeliveryRate(db, productId = null, country = null, startDate =
   };
 }
 
-// NEW: Calculate total product costs for a period (all costs, not just for sold pieces)
-function calculateTotalProductCostsForPeriod(db, productId = null, startDate = null, endDate = null) {
-  const shipments = db.shipments || [];
-  
-  let totalChinaCost = 0;
-  let totalShippingCost = 0;
-
-  shipments.forEach(shipment => {
-    if ((!productId || shipment.productId === productId) &&
-        shipment.arrivedAt &&
-        (!startDate || shipment.arrivedAt >= startDate) &&
-        (!endDate || shipment.arrivedAt <= endDate)) {
-      
-      totalChinaCost += (+shipment.chinaCost || 0);
-      totalShippingCost += (+shipment.shipCost || 0);
-    }
-  });
-
-  return {
-    totalChinaCost,
-    totalShippingCost
-  };
-}
-
-// Enhanced profit metrics with all the new calculations
+// FIXED: Enhanced profit metrics with period costs (what we actually paid)
 function calculateProfitMetrics(db, productId = null, country = null, startDate = null, endDate = null) {
   const remittances = db.remittances || [];
   const adSpends = db.adspend || [];
@@ -230,13 +227,10 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
     }
   });
 
-  // Calculate product costs based on delivered pieces (not orders)
-  const productCosts = calculateProductCosts(db, productId, country);
-  const totalProductChinaCost = (productCosts.chinaCostPerPiece || 0) * totalDeliveredPieces;
-  const totalShippingCost = (productCosts.shippingCostPerPiece || 0) * totalDeliveredPieces;
-
-  // NEW: Calculate total costs paid in the period (all costs, not just for sold pieces)
-  const periodCosts = calculateTotalProductCostsForPeriod(db, productId, startDate, endDate);
+  // FIXED: Use period costs (what we actually paid) instead of cost of sold pieces
+  const periodCosts = calculatePeriodCosts(db, productId, startDate, endDate);
+  const totalProductChinaCost = periodCosts.totalChinaCostPaid;
+  const totalShippingCost = periodCosts.totalShippingCostPaid;
 
   const totalCost = totalProductChinaCost + totalShippingCost + totalAdSpend + totalBoxleoFees;
   const profit = totalRevenue - totalCost;
@@ -271,10 +265,7 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
     boxleoPerDeliveredPiece,
     averageOrderValue,
     isProfitable: profit > 0,
-    hasData: totalDeliveredPieces > 0 || totalRevenue > 0,
-    // NEW: Add period costs (all costs paid in the period)
-    periodChinaCost: periodCosts.totalChinaCost,
-    periodShippingCost: periodCosts.totalShippingCost
+    hasData: totalDeliveredPieces > 0 || totalRevenue > 0
   };
 }
 
@@ -600,7 +591,7 @@ app.delete('/api/tested-products/:id', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
-// Product Costs Analysis - UPDATED with period costs
+// FIXED: Product Costs Analysis with period costs
 app.get('/api/product-costs-analysis', requireAuth, (req, res) => {
   const db = loadDB();
   const { productId, start, end } = req.query || {};
@@ -864,7 +855,7 @@ app.delete('/api/influencers/spend/:id', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
-// Enhanced Analytics - FIXED
+// FIXED: Enhanced Analytics with proper cost calculations
 app.get('/api/analytics/remittance', requireAuth, (req, res) => {
   const db = loadDB();
   const { start, end, country, productId } = req.query || {};
@@ -915,7 +906,7 @@ app.get('/api/analytics/remittance', requireAuth, (req, res) => {
   res.json({ analytics });
 });
 
-// Profit by Country - FIXED
+// FIXED: Profit by Country with proper calculations
 app.get('/api/analytics/profit-by-country', requireAuth, (req, res) => {
   const db = loadDB();
   const { start, end, country } = req.query || {};
@@ -1022,14 +1013,6 @@ app.delete('/api/snapshots/:id', requireAuth, (req, res) => {
 // Routes
 app.get('/product.html', (req, res) => res.sendFile(path.join(ROOT, 'product.html')));
 app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
-
-// Add catch-all route for SPA
-app.get('*', (req, res) => {
-  if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ error: 'API endpoint not found' });
-  }
-  res.sendFile(path.join(ROOT, 'index.html'));
-});
 
 app.listen(PORT, () => {
   console.log('✅ EAS Tracker listening on', PORT);
