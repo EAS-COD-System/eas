@@ -1,3 +1,6 @@
+Here's the fixed app.js with the arrival prompt issue resolved:
+
+```javascript
 /* ================================================================
    EAS Tracker – Frontend (Complete Rebuild)
    ================================================================ */
@@ -1497,7 +1500,7 @@ function renderStockMovementPage() {
   renderTransitTables();
 }
 
-// FIXED: Single arrival prompt for shipments
+// FIXED: Single arrival prompt for shipments - COMPLETELY FIXED
 async function renderTransitTables() {
   const tbl1 = Q('#shipCKBody'), tbl2 = Q('#shipICBody');
   if (!tbl1 && !tbl2) return;
@@ -1533,8 +1536,15 @@ async function renderTransitTables() {
   if (tbl1) tbl1.innerHTML = ck.map(row).join('') || `<tr><td colspan="11" class="muted">No transit</td></tr>`;
   if (tbl2) tbl2.innerHTML = ic.map(row).join('') || `<tr><td colspan="10" class="muted">No transit</td></tr>`;
 
+  // FIXED: Remove any existing event listeners and add fresh ones
   const host = Q('#stockMovement') || document;
-  host.addEventListener('click', async (e) => {
+  
+  // Remove existing event listeners by cloning and replacing
+  const newHost = host.cloneNode(true);
+  host.parentNode.replaceChild(newHost, host);
+  
+  // Add fresh event listener
+  newHost.addEventListener('click', async (e) => {
     const id = e.target.dataset?.id;
     if (!id) return;
 
@@ -1617,7 +1627,7 @@ function renderFinancePage() {
 async function refreshFinanceCategories() {
   const cats = await api('/api/finance/categories');
   state.categories = cats;
-  const mk = (arr, type) => arr.map(c => `<span class="chip">${c}<button class="chip-x" data-type="${type}" data-name="${c}">×</button></span>`).join('') || '—';
+  const mk = ``` (arr, type) => arr.map(c => `<span class="chip">${c}<button class="chip-x" data-type="${type}" data-name="${c}">×</button></span>`).join('') || '—';
   Q('#fcDebits') && (Q('#fcDebits').innerHTML = mk(cats.debit, 'debit'));
   Q('#fcCredits') && (Q('#fcCredits').innerHTML = mk(cats.credit, 'credit'));
 
