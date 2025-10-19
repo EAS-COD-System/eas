@@ -1023,6 +1023,13 @@ function renderPerformancePage() {
   bindRemittanceAnalytics();
   bindProfitByCountry();
   bindRemittanceAdd();
+  
+  // FIXED: Initialize performance section with default data
+  setTimeout(() => {
+    if (Q('#pcaRun')) Q('#pcaRun').click();
+    if (Q('#remAnalyticsRun')) Q('#remAnalyticsRun').click();
+    if (Q('#pcRun')) Q('#pcRun').click();
+  }, 500);
 }
 
 function bindProductOrders() {
@@ -2313,7 +2320,17 @@ function bindGlobalNav() {
     if (v === 'home') { renderCompactKpis(); renderCountryStockSpend(); }
     if (v === 'products') { renderCompactCountryStats(); renderAdvertisingOverview(); }
     if (v === 'stockMovement') { renderStockMovementPage(); }
-    if (v === 'performance') { bindProductCostsAnalysis(); }
+    if (v === 'performance') { 
+      bindProductCostsAnalysis(); 
+      bindRemittanceAnalytics();
+      bindProfitByCountry();
+      // Auto-run analytics when performance tab is opened
+      setTimeout(() => {
+        if (Q('#pcaRun')) Q('#pcaRun').click();
+        if (Q('#remAnalyticsRun')) Q('#remAnalyticsRun').click();
+        if (Q('#pcRun')) Q('#pcRun').click();
+      }, 300);
+    }
   }));
 }
 
