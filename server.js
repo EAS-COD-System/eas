@@ -157,6 +157,42 @@ function calculateProductCosts(db, productId, targetCountry = null) {
   };
 }
 
+// FIXED: Enhanced cost calculation for specific period - uses actual costs paid in period
+function calculateProductCostsForPeriod(db, productId, startDate = null, endDate = null) {
+  const shipments = db.shipments || [];
+  
+  // Filter shipments by period and product
+  const periodShipments = shipments.filter(s => 
+    s.productId === productId && 
+    s.arrivedAt &&
+    (!startDate || s.arrivedAt >= startDate) &&
+    (!endDate || s.arrivedAt <= endDate)
+  );
+
+  let totalChinaCost = 0;
+  let totalShippingCost = 0;
+  let totalPieces = 0;
+
+  // Calculate total costs and pieces for the period
+  periodShipments.forEach(shipment => {
+    const pieces = +shipment.qty || 0;
+    const chinaCost = +shipment.chinaCost || 0;
+    const shippingCost = +shipment.shipCost || 0;
+
+    totalPieces += pieces;
+    totalChinaCost += chinaCost;
+    totalShippingCost += shippingCost;
+  });
+
+  return {
+    totalChinaCost,
+    totalShippingCost,
+    totalPieces,
+    chinaCostPerPiece: totalPieces > 0 ? totalChinaCost / totalPieces : 0,
+    shippingCostPerPiece: totalPieces > 0 ? totalShippingCost / totalPieces : 0
+  };
+}
+
 // FIXED: Delivery rate calculation
 function calculateDeliveryRate(db, productId = null, country = null, startDate = null, endDate = null) {
   const productOrders = db.productOrders || [];
@@ -231,7 +267,8 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
   let totalShippingCost = 0;
 
   if (productId) {
-    const productCosts = calculateProductCosts(db, productId, country);
+    // For specific period, use actual costs paid in that period
+    const productCosts = calculateProductCostsForPeriod(db, productId, startDate, endDate);
     
     if (totalDeliveredPieces > 0) {
       if (country) {
@@ -240,7 +277,7 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
         totalProductChinaCost = totalDeliveredPieces * (countryCosts.chinaCostPerPiece || 0);
         totalShippingCost = totalDeliveredPieces * (countryCosts.shippingCostPerPiece || 0);
       } else {
-        // For all countries, use weighted average
+        // For all countries, use weighted average from period
         totalProductChinaCost = totalDeliveredPieces * (productCosts.chinaCostPerPiece || 0);
         totalShippingCost = totalDeliveredPieces * (productCosts.shippingCostPerPiece || 0);
       }
@@ -249,7 +286,7 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
     // For all products in a country
     const products = db.products || [];
     products.forEach(product => {
-      const productCosts = calculateProductCosts(db, product.id, country);
+      const productCosts = calculateProductCostsForPeriod(db, product.id, startDate, endDate);
       const productRemittances = remittances.filter(r => 
         r.productId === product.id &&
         (!country || r.country === country) &&
@@ -478,7 +515,7 @@ app.delete('/api/products/notes/:id', requireAuth, (req, res) => {
 // Product Orders with duplicate check
 app.get('/api/product-orders', requireAuth, (req, res) => {
   const db = loadDB();
-  const { productId, country, start, end } = req.query || {};
+  const { productId, country, start, end, page = 1, limit = 8 } = req.query || {};
   let orders = db.productOrders || [];
 
   if (productId) orders = orders.filter(o => o.productId === productId);
@@ -486,7 +523,25 @@ app.get('/api/product-orders', requireAuth, (req, res) => {
   if (start) orders = orders.filter(o => o.startDate >= start);
   if (end) orders = orders.filter(o => o.endDate <= end);
 
-  res.json({ orders });
+  // Sort by date (newest first)
+  orders.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+
+  // Pagination
+  const startIndex = (page - 1) * limit;
+  const endIndex = startIndex + parseInt(limit);
+  const paginatedOrders = orders.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(orders.length / limit);
+
+  res.json({ 
+    orders: paginatedOrders,
+    pagination: {
+      currentPage: parseInt(page),
+      totalPages,
+      totalItems: orders.length,
+      hasNextPage: endIndex < orders.length,
+      hasPrevPage: startIndex > 0
+    }
+  });
 });
 
 app.post('/api/product-orders', requireAuth, (req, res) => {
@@ -537,6 +592,12 @@ app.post('/api/product-orders/force', requireAuth, (req, res) => {
     orders: +orders || 0
   });
 
+  saveDB(db); res.json({ ok: true });
+});
+
+app.delete('/api/product-orders/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  db.productOrders = (db.productOrders || []).filter(o => o.id !== req.params.id);
   saveDB(db); res.json({ ok: true });
 });
 
@@ -762,15 +823,34 @@ app.delete('/api/shipments/:id', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
-// Remittances with duplicate checking
+// Remittances with duplicate checking and pagination
 app.get('/api/remittances', requireAuth, (req, res) => {
   const db = loadDB(); let list = db.remittances || [];
-  const { start, end, country, productId } = req.query || {};
+  const { start, end, country, productId, page = 1, limit = 8 } = req.query || {};
   if (start) list = list.filter(r => r.start >= start);
   if (end) list = list.filter(r => r.end <= end);
   if (country) list = list.filter(r => r.country === country);
   if (productId) list = list.filter(r => r.productId === productId);
-  res.json({ remittances: list });
+
+  // Sort by date (newest first)
+  list.sort((a, b) => new Date(b.start) - new Date(a.start));
+
+  // Pagination
+  const startIndex = (page - 1) * limit;
+  const endIndex = startIndex + parseInt(limit);
+  const paginatedList = list.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(list.length / limit);
+
+  res.json({ 
+    remittances: paginatedList,
+    pagination: {
+      currentPage: parseInt(page),
+      totalPages,
+      totalItems: list.length,
+      hasNextPage: endIndex < list.length,
+      hasPrevPage: startIndex > 0
+    }
+  });
 });
 
 app.post('/api/remittances', requireAuth, (req, res) => {
