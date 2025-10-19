@@ -160,67 +160,67 @@
     </div>
 
     <!-- Lifetime Performance -->
-    <div class="section">
-      <h3>Lifetime (This Product)</h3>
-      <div class="card">
-        <div class="row wrap">
-          <select id="pdLPRange" class="input date-range-select">
-            <option value="8days">Last 8 days</option>
-            <option value="15days">Last 15 days</option>
-            <option value="1month">Last 1 month</option>
-            <option value="2months">Last 2 months</option>
-            <option value="6months">Last 6 months</option>
-            <option value="1year">Last 1 year</option>
-            <option value="2years">Last 2 years</option>
-            <option value="lifetime">Lifetime</option>
-            <option value="custom">Custom range</option>
-          </select>
-          <div class="custom-range" style="display: none;">
-            <input type="date" class="input custom-start"/>
-            <input type="date" class="input custom-end"/>
-          </div>
-          <button id="pdLPRun" class="btn">Run</button>
-        </div>
-        <div class="table-scroll">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Country</th>
-                <th>Revenue</th>
-                <th>Ad Spend</th>
-                <th>Boxleo Fees</th>
-                <th>Product Cost China</th>
-                <th>Shipping</th>
-                <th>Total Cost</th>
-                <th>Orders</th>
-                <th>Delivered Orders</th>
-                <th>Delivered Pieces</th>
-                <th>Delivery Rate</th>
-                <th>Profit</th>
-              </tr>
-            </thead>
-            <tbody id="pdLPBody"></tbody>
-            <tfoot>
-              <tr class="totals">
-                <th>Totals</th>
-                <th id="pdLPRevT">0</th>
-                <th id="pdLPAdT">0</th>
-                <th id="pdLPBoxleoT">0</th>
-                <th id="pdLPProductCostT">0</th>
-                <th id="pdLPShipT">0</th>
-                <th id="pdLPTotalCostT">0</th>
-                <th id="pdLPOrdersT">0</th>
-                <th id="pdLPDeliveredOrdersT">0</th>
-                <th id="pdLPDeliveredPiecesT">0</th>
-                <th id="pdLPDeliveryRateT">0%</th>
-                <th id="pdLPProfitT">0</th>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+  <!-- Update the Lifetime Performance table headers -->
+<div class="section">
+  <h3>Lifetime (This Product)</h3>
+  <div class="card">
+    <div class="row wrap">
+      <select id="pdLPRange" class="input date-range-select">
+        <option value="8days">Last 8 days</option>
+        <option value="15days">Last 15 days</option>
+        <option value="1month">Last 1 month</option>
+        <option value="2months">Last 2 months</option>
+        <option value="6months">Last 6 months</option>
+        <option value="1year">Last 1 year</option>
+        <option value="2years">Last 2 years</option>
+        <option value="lifetime">Lifetime</option>
+        <option value="custom">Custom range</option>
+      </select>
+      <div class="custom-range" style="display: none;">
+        <input type="date" class="input custom-start"/>
+        <input type="date" class="input custom-end"/>
       </div>
+      <button id="pdLPRun" class="btn">Run</button>
     </div>
-
+    <div class="table-scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Country</th>
+            <th>Revenue</th>
+            <th>Ad Spend</th>
+            <th>Boxleo Fees</th>
+            <th>Product Cost China (Period)</th>
+            <th>Shipping Cost (Period)</th>
+            <th>Total Cost</th>
+            <th>Orders</th>
+            <th>Delivered Orders</th>
+            <th>Delivered Pieces</th>
+            <th>Delivery Rate</th>
+            <th>Profit</th>
+          </tr>
+        </thead>
+        <tbody id="pdLPBody"></tbody>
+        <tfoot>
+          <tr class="totals">
+            <th>Totals</th>
+            <th id="pdLPRevT">0</th>
+            <th id="pdLPAdT">0</th>
+            <th id="pdLPBoxleoT">0</th>
+            <th id="pdLPProductCostT">$0</th>
+            <th id="pdLPShipT">$0</th>
+            <th id="pdLPTotalCostT">0</th>
+            <th id="pdLPOrdersT">0</th>
+            <th id="pdLPDeliveredOrdersT">0</th>
+            <th id="pdLPDeliveredPiecesT">0</th>
+            <th id="pdLPDeliveryRateT">0%</th>
+            <th id="pdLPProfitT">0</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
     <!-- Influencer Spend -->
     <div class="section">
       <h3>Influencer Spend</h3>
