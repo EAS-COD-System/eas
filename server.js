@@ -245,48 +245,6 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
   };
 }
 
-// Enhanced Product Info with correct cost calculations per piece
-app.get('/api/product-info/:id', requireAuth, (req, res) => {
-  const db = loadDB();
-  const productId = req.params.id;
-  const product = db.products.find(p => p.id === productId);
-  
-  if (!product) return res.status(404).json({ error: 'Product not found' });
-
-  const prices = db.productSellingPrices.filter(sp => sp.productId === productId);
-  const countries = db.countries.filter(c => c !== 'china');
-  
-  const analysis = countries.map(country => {
-    const price = prices.find(p => p.country === country);
-    const productCosts = calculateProductCosts(db, productId, country);
-    const deliveryData = calculateDeliveryRate(db, productId, country, '2000-01-01', '2100-01-01');
-    
-    const sellingPrice = price ? price.price : 0;
-    const productCostChina = productCosts.chinaCostPerPiece || 0; // Cost to buy from China for 1 piece
-    const shippingCost = productCosts.shippingCostPerPiece || 0; // Shipping cost for 1 piece
-    const totalProductCost = productCostChina + shippingCost;
-    const availableForProfitAndAds = sellingPrice - totalProductCost;
-    const deliveryRate = deliveryData.deliveryRate || 0;
-    const maxCPL = deliveryRate > 0 ? availableForProfitAndAds * (deliveryRate / 100) : 0;
-
-    return {
-      country,
-      sellingPrice,
-      maxCPL,
-      productCostChina,
-      shippingCost,
-      totalProductCost,
-      availableForProfitAndAds,
-      deliveryRate
-    };
-  });
-
-  res.json({
-    product,
-    prices: prices,
-    costAnalysis: analysis
-  });
-});
 // Authentication
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
