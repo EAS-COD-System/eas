@@ -131,37 +131,48 @@ function calculateProductCosts(db, productId, targetCountry = null) {
   };
 }
 
-// Enhanced delivery rate calculation using delivered pieces
+// FIXED: Enhanced delivery rate calculation using product orders and delivered orders
 function calculateDeliveryRate(db, productId = null, country = null, startDate = null, endDate = null) {
+  const productOrders = db.productOrders || [];
   const remittances = db.remittances || [];
 
   let totalOrders = 0;
-  let totalDeliveredPieces = 0;
   let totalDeliveredOrders = 0;
 
+  // Calculate total orders from product orders tracking
+  productOrders.forEach(order => {
+    if ((!productId || order.productId === productId) &&
+        (!country || order.country === country) &&
+        (!startDate || order.startDate >= startDate) &&
+        (!endDate || order.endDate <= endDate)) {
+      totalOrders += (+order.orders || 0);
+    }
+  });
+
+  // Calculate total delivered orders from remittances
   remittances.forEach(remittance => {
     if ((!productId || remittance.productId === productId) &&
         (!country || remittance.country === country) &&
         (!startDate || remittance.start >= startDate) &&
         (!endDate || remittance.end <= endDate)) {
-      totalOrders += (+remittance.orders || 0);
-      totalDeliveredPieces += (+remittance.pieces || 0);
-      totalDeliveredOrders += (+remittance.orders || 0); // Assuming orders in remittances are delivered orders
+      totalDeliveredOrders += (+remittance.orders || 0);
     }
   });
 
+  const deliveryRate = totalOrders > 0 ? (totalDeliveredOrders / totalOrders) * 100 : 0;
+
   return {
-    deliveryRate: totalOrders > 0 ? (totalDeliveredPieces / totalOrders) * 100 : 0,
+    deliveryRate,
     totalOrders,
-    totalDeliveredPieces,
     totalDeliveredOrders
   };
 }
 
-// Enhanced profit metrics with delivered-based calculations
+// FIXED: Enhanced profit metrics with period-based cost calculations
 function calculateProfitMetrics(db, productId = null, country = null, startDate = null, endDate = null) {
   const remittances = db.remittances || [];
   const adSpends = db.adspend || [];
+  const shipments = db.shipments || [];
 
   let totalRevenue = 0;
   let totalAdSpend = 0;
@@ -192,12 +203,33 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
     }
   });
 
-  // Calculate product costs based on delivered pieces
-  const productCosts = calculateProductCosts(db, productId, country);
-  const totalProductChinaCost = (productCosts.chinaCostPerPiece || 0) * totalDeliveredPieces;
-  const totalShippingCost = (productCosts.shippingCostPerPiece || 0) * totalDeliveredPieces;
+  // FIXED: Calculate product costs based on shipments in the selected period
+  let periodProductChinaCost = 0;
+  let periodShippingCost = 0;
+  let periodTotalPieces = 0;
 
-  const totalCost = totalProductChinaCost + totalShippingCost + totalAdSpend + totalBoxleoFees;
+  shipments.forEach(shipment => {
+    if ((!productId || shipment.productId === productId) &&
+        shipment.arrivedAt &&
+        (!startDate || shipment.arrivedAt >= startDate) &&
+        (!endDate || shipment.arrivedAt <= endDate)) {
+      
+      if (shipment.fromCountry === 'china') {
+        periodProductChinaCost += +shipment.chinaCost || 0;
+      }
+      periodShippingCost += +shipment.shipCost || 0;
+      periodTotalPieces += +shipment.qty || 0;
+    }
+  });
+
+  // Calculate cost per piece for the delivered pieces
+  const productCostPerPiece = periodTotalPieces > 0 ? periodProductChinaCost / periodTotalPieces : 0;
+  const shippingCostPerPiece = periodTotalPieces > 0 ? periodShippingCost / periodTotalPieces : 0;
+
+  const totalProductChinaCostForDelivered = productCostPerPiece * totalDeliveredPieces;
+  const totalShippingCostForDelivered = shippingCostPerPiece * totalDeliveredPieces;
+
+  const totalCost = totalProductChinaCostForDelivered + totalShippingCostForDelivered + totalAdSpend + totalBoxleoFees;
   const profit = totalRevenue - totalCost;
   const deliveryData = calculateDeliveryRate(db, productId, country, startDate, endDate);
 
@@ -213,8 +245,8 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
     totalRevenue,
     totalAdSpend,
     totalBoxleoFees,
-    totalProductChinaCost,
-    totalShippingCost,
+    totalProductChinaCost: totalProductChinaCostForDelivered,
+    totalShippingCost: totalShippingCostForDelivered,
     totalCost,
     profit,
     totalDeliveredPieces,
@@ -228,10 +260,56 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
     boxleoPerDeliveredOrder,
     boxleoPerDeliveredPiece,
     isProfitable: profit > 0,
-    hasData: totalDeliveredPieces > 0
+    hasData: totalDeliveredPieces > 0 || totalRevenue > 0,
+    // Additional data for period-based analysis
+    periodProductChinaCost,
+    periodShippingCost,
+    periodTotalPieces
   };
 }
 
+// FIXED: Enhanced Product Info with correct column order
+app.get('/api/product-info/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  const productId = req.params.id;
+  const product = db.products.find(p => p.id === productId);
+  
+  if (!product) return res.status(404).json({ error: 'Product not found' });
+
+  const prices = db.productSellingPrices.filter(sp => sp.productId === productId);
+  const countries = db.countries.filter(c => c !== 'china');
+  
+  const analysis = countries.map(country => {
+    const price = prices.find(p => p.country === country);
+    const productCosts = calculateProductCosts(db, productId, country);
+    const deliveryData = calculateDeliveryRate(db, productId, country, '2000-01-01', '2100-01-01');
+    
+    const sellingPrice = price ? price.price : 0;
+    const productCostChina = productCosts.chinaCostPerPiece || 0;
+    const shippingCost = productCosts.shippingCostPerPiece || 0;
+    const totalProductCost = productCostChina + shippingCost;
+    const availableForProfitAndAds = sellingPrice - totalProductCost;
+    const deliveryRate = deliveryData.deliveryRate || 0;
+    const maxCPL = deliveryRate > 0 ? availableForProfitAndAds * (deliveryRate / 100) : 0;
+
+    return {
+      country,
+      sellingPrice,
+      maxCPL, // Moved to second position
+      productCostChina,
+      shippingCost,
+      totalProductCost,
+      availableForProfitAndAds,
+      deliveryRate
+    };
+  });
+
+  res.json({
+    product,
+    prices: prices,
+    costAnalysis: analysis
+  });
+});
 // Authentication
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
