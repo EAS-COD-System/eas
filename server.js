@@ -13,6 +13,10 @@ const ROOT = __dirname;
 const DATA_FILE = path.join(ROOT, 'db.json');
 const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
 
+// Ensure data directory exists
+fs.ensureDirSync(path.dirname(DATA_FILE));
+fs.ensureDirSync(SNAPSHOT_DIR);
+
 app.use(morgan('dev'));
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(cookieParser());
@@ -1018,6 +1022,14 @@ app.delete('/api/snapshots/:id', requireAuth, (req, res) => {
 // Routes
 app.get('/product.html', (req, res) => res.sendFile(path.join(ROOT, 'product.html')));
 app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
+
+// Add catch-all route for SPA
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+  res.sendFile(path.join(ROOT, 'index.html'));
+});
 
 app.listen(PORT, () => {
   console.log('✅ EAS Tracker listening on', PORT);
