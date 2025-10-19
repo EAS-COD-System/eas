@@ -224,7 +224,7 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
 
   // Calculate all the rates
   const costPerDeliveredOrder = totalDeliveredOrders > 0 ? totalCost / totalDeliveredOrders : 0;
-  const costPerDeliveredPiece = totalDeliveredPieces > 0 ? totalCost / totalDeliveredPieces : 0;
+  const costPerDeliveredPiece = totalDeliveredOrders > 0 ? totalCost / totalDeliveredPieces : 0;
   const adCostPerDeliveredOrder = totalDeliveredOrders > 0 ? totalAdSpend / totalDeliveredOrders : 0;
   const adCostPerDeliveredPiece = totalDeliveredPieces > 0 ? totalAdSpend / totalDeliveredPieces : 0;
   const boxleoPerDeliveredOrder = totalDeliveredOrders > 0 ? totalBoxleoFees / totalDeliveredOrders : 0;
@@ -670,7 +670,7 @@ app.post('/api/deliveries', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
-// FIXED: Shipments with single arrival prompt - NO CHANGES NEEDED HERE
+// FIXED: Shipments with single arrival prompt
 app.get('/api/shipments', requireAuth, (req, res) => {
   const db = loadDB(); res.json({ shipments: db.shipments || [] });
 });
