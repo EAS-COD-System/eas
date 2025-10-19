@@ -136,16 +136,16 @@
             <div id="todoList" class="todo-list"></div>
           </div>
 
-          <!-- Tested Products Section -->
+          <div class="section">
+            <h2>Weekly To-Do</h2>
+            <div id="weeklyWrap" class="weeks"></div>
+          </div>
+           <!-- Tested Products Section -->
           <div class="section">
             <h2>🧪 Notes for Tested Products</h2>
             <div id="testedProductsSection"></div>
           </div>
 
-          <div class="section">
-            <h2>Weekly To-Do</h2>
-            <div id="weeklyWrap" class="weeks"></div>
-          </div>
         </section>
 
         <!-- PRODUCTS -->
@@ -227,52 +227,7 @@
         <!-- PERFORMANCE -->
         <section id="performance" style="display:none">
           <h2>Performance Analytics</h2>
-
-          <!-- Product Orders Tracking -->
-          <div class="card">
-            <div class="h">📦 Product Orders Tracking</div>
-            <div class="row wrap">
-              <select id="poProduct" class="input">
-                <option value="">Select product...</option>
-              </select>
-              <select id="poCountry" class="input">
-                <option value="">Select country...</option>
-              </select>
-              <input id="poStartDate" type="date" class="input" placeholder="Start Date"/>
-              <input id="poEndDate" type="date" class="input" placeholder="End Date"/>
-              <input id="poOrders" type="number" class="input" placeholder="Orders" min="0"/>
-              <button id="poSave" class="btn">💾 Save Orders</button>
-            </div>
-          </div>
-
-          <!-- Product Costs Analysis -->
-          <div class="card">
-            <div class="h">💰 Lifetime Product Costs Analysis</div>
-            <div class="row wrap">
-              <select id="pcaProduct" class="input">
-                <option value="all">All products</option>
-              </select>
-              <select id="pcaRange" class="input date-range-select">
-                <option value="8days">Last 8 days</option>
-                <option value="15days">Last 15 days</option>
-                <option value="1month">Last 1 month</option>
-                <option value="2months">Last 2 months</option>
-                <option value="6months">Last 6 months</option>
-                <option value="1year">Last 1 year</option>
-                <option value="2years">Last 2 years</option>
-                <option value="lifetime">Lifetime</option>
-                <option value="custom">Custom range</option>
-              </select>
-              <div class="custom-range" style="display: none;">
-                <input type="date" class="input custom-start"/>
-                <input type="date" class="input custom-end"/>
-              </div>
-              <button id="pcaRun" class="btn">📊 Generate Analysis</button>
-            </div>
-            <div id="pcaResults"></div>
-          </div>
-
-          <!-- Remittance Analytics -->
+       <!-- Remittance Analytics -->
           <div class="card">
             <div class="h">📈 Remittance Analytics (🏆 Filtered By Top Delivered)</div>
             <div class="row wrap">
@@ -346,6 +301,32 @@
               </table>
             </div>
           </div>
+          <!-- Product Costs Analysis -->
+          <div class="card">
+            <div class="h">💰 Lifetime Product Costs Analysis</div>
+            <div class="row wrap">
+              <select id="pcaProduct" class="input">
+                <option value="all">All products</option>
+              </select>
+              <select id="pcaRange" class="input date-range-select">
+                <option value="8days">Last 8 days</option>
+                <option value="15days">Last 15 days</option>
+                <option value="1month">Last 1 month</option>
+                <option value="2months">Last 2 months</option>
+                <option value="6months">Last 6 months</option>
+                <option value="1year">Last 1 year</option>
+                <option value="2years">Last 2 years</option>
+                <option value="lifetime">Lifetime</option>
+                <option value="custom">Custom range</option>
+              </select>
+              <div class="custom-range" style="display: none;">
+                <input type="date" class="input custom-start"/>
+                <input type="date" class="input custom-end"/>
+              </div>
+              <button id="pcaRun" class="btn">📊 Generate Analysis</button>
+            </div>
+            <div id="pcaResults"></div>
+          </div>
 
           <!-- Profit by Country -->
           <div class="card">
@@ -415,7 +396,23 @@
               </table>
             </div>
           </div>
-
+    <!-- Product Orders Tracking -->
+          <div class="card">
+            <div class="h">📦 Product Orders Tracking</div>
+            <div class="row wrap">
+              <select id="poProduct" class="input">
+                <option value="">Select product...</option>
+              </select>
+              <select id="poCountry" class="input">
+                <option value="">Select country...</option>
+              </select>
+              <input id="poStartDate" type="date" class="input" placeholder="Start Date"/>
+              <input id="poEndDate" type="date" class="input" placeholder="End Date"/>
+              <input id="poOrders" type="number" class="input" placeholder="Orders" min="0"/>
+              <button id="poSave" class="btn">💾 Save Orders</button>
+            </div>
+          </div>
+          
           <!-- Add Remittance Entry -->
           <div class="card">
             <div class="h">➕ Add Remittance Entry</div>
@@ -436,6 +433,7 @@
               <button id="remAddSave" class="btn">💾 Save Remittance</button>
             </div>
           </div>
+    
 
         </section>
 
