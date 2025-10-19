@@ -279,6 +279,9 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
   const boxleoPerDeliveredPiece = totalDeliveredPieces > 0 ? totalBoxleoFees / totalDeliveredPieces : 0;
   const averageOrderValue = totalDeliveredOrders > 0 ? totalRevenue / totalDeliveredOrders : 0;
 
+  // FIXED: Ensure hasData is properly calculated
+  const hasData = totalDeliveredPieces > 0 || totalRevenue > 0 || totalAdSpend > 0;
+  
   return {
     totalRevenue,
     totalAdSpend,
@@ -299,7 +302,7 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
     boxleoPerDeliveredPiece,
     averageOrderValue,
     isProfitable: profit > 0,
-    hasData: totalDeliveredPieces > 0 || totalRevenue > 0
+    hasData: hasData
   };
 }
 
@@ -347,7 +350,10 @@ app.delete('/api/countries/:name', requireAuth, (req, res) => {
 app.get('/api/products', requireAuth, (req, res) => {
   const db = loadDB();
   const products = (db.products || []).map(product => {
+    // FIXED: Use lifetime data to determine profitability for product list
     const metrics = calculateProfitMetrics(db, product.id, null, '2000-01-01', '2100-01-01');
+    
+    // FIXED: Ensure isProfitable and hasData are properly set
     return {
       ...product,
       isProfitable: metrics.isProfitable,
