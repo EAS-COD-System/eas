@@ -168,7 +168,7 @@ function calculateDeliveryRate(db, productId = null, country = null, startDate =
   };
 }
 
-// FIXED: Enhanced profit metrics with period-based cost calculations
+// Enhanced profit metrics with all the new calculations
 function calculateProfitMetrics(db, productId = null, country = null, startDate = null, endDate = null) {
   const remittances = db.remittances || [];
   const adSpends = db.adspend || [];
@@ -203,50 +203,30 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
     }
   });
 
-  // FIXED: Calculate product costs based on shipments in the selected period
-  let periodProductChinaCost = 0;
-  let periodShippingCost = 0;
-  let periodTotalPieces = 0;
+  // Calculate product costs based on delivered pieces (not orders)
+  const productCosts = calculateProductCosts(db, productId, country);
+  const totalProductChinaCost = (productCosts.chinaCostPerPiece || 0) * totalDeliveredPieces;
+  const totalShippingCost = (productCosts.shippingCostPerPiece || 0) * totalDeliveredPieces;
 
-  shipments.forEach(shipment => {
-    if ((!productId || shipment.productId === productId) &&
-        shipment.arrivedAt &&
-        (!startDate || shipment.arrivedAt >= startDate) &&
-        (!endDate || shipment.arrivedAt <= endDate)) {
-      
-      if (shipment.fromCountry === 'china') {
-        periodProductChinaCost += +shipment.chinaCost || 0;
-      }
-      periodShippingCost += +shipment.shipCost || 0;
-      periodTotalPieces += +shipment.qty || 0;
-    }
-  });
-
-  // Calculate cost per piece for the delivered pieces
-  const productCostPerPiece = periodTotalPieces > 0 ? periodProductChinaCost / periodTotalPieces : 0;
-  const shippingCostPerPiece = periodTotalPieces > 0 ? periodShippingCost / periodTotalPieces : 0;
-
-  const totalProductChinaCostForDelivered = productCostPerPiece * totalDeliveredPieces;
-  const totalShippingCostForDelivered = shippingCostPerPiece * totalDeliveredPieces;
-
-  const totalCost = totalProductChinaCostForDelivered + totalShippingCostForDelivered + totalAdSpend + totalBoxleoFees;
+  const totalCost = totalProductChinaCost + totalShippingCost + totalAdSpend + totalBoxleoFees;
   const profit = totalRevenue - totalCost;
   const deliveryData = calculateDeliveryRate(db, productId, country, startDate, endDate);
 
-  // Calculate rates based on delivered orders and pieces
+  // Calculate all the rates
   const costPerDeliveredOrder = totalDeliveredOrders > 0 ? totalCost / totalDeliveredOrders : 0;
   const costPerDeliveredPiece = totalDeliveredPieces > 0 ? totalCost / totalDeliveredPieces : 0;
   const adCostPerDeliveredOrder = totalDeliveredOrders > 0 ? totalAdSpend / totalDeliveredOrders : 0;
   const adCostPerDeliveredPiece = totalDeliveredPieces > 0 ? totalAdSpend / totalDeliveredPieces : 0;
   const boxleoPerDeliveredOrder = totalDeliveredOrders > 0 ? totalBoxleoFees / totalDeliveredOrders : 0;
   const boxleoPerDeliveredPiece = totalDeliveredPieces > 0 ? totalBoxleoFees / totalDeliveredPieces : 0;
+  const averageOrderValue = totalDeliveredOrders > 0 ? totalRevenue / totalDeliveredOrders : 0;
 
   return {
     totalRevenue,
     totalAdSpend,
     totalBoxleoFees,
-    totalProductChinaCost: totalProductChinaCostForDelivered,
-    totalShippingCost: totalShippingCostForDelivered,
+    totalProductChinaCost,
+    totalShippingCost,
     totalCost,
     profit,
     totalDeliveredPieces,
@@ -259,16 +239,13 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
     adCostPerDeliveredPiece,
     boxleoPerDeliveredOrder,
     boxleoPerDeliveredPiece,
+    averageOrderValue,
     isProfitable: profit > 0,
-    hasData: totalDeliveredPieces > 0 || totalRevenue > 0,
-    // Additional data for period-based analysis
-    periodProductChinaCost,
-    periodShippingCost,
-    periodTotalPieces
+    hasData: totalDeliveredPieces > 0 || totalRevenue > 0
   };
 }
 
-// FIXED: Enhanced Product Info with correct column order
+// Enhanced Product Info with correct cost calculations per piece
 app.get('/api/product-info/:id', requireAuth, (req, res) => {
   const db = loadDB();
   const productId = req.params.id;
@@ -285,8 +262,8 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
     const deliveryData = calculateDeliveryRate(db, productId, country, '2000-01-01', '2100-01-01');
     
     const sellingPrice = price ? price.price : 0;
-    const productCostChina = productCosts.chinaCostPerPiece || 0;
-    const shippingCost = productCosts.shippingCostPerPiece || 0;
+    const productCostChina = productCosts.chinaCostPerPiece || 0; // Cost to buy from China for 1 piece
+    const shippingCost = productCosts.shippingCostPerPiece || 0; // Shipping cost for 1 piece
     const totalProductCost = productCostChina + shippingCost;
     const availableForProfitAndAds = sellingPrice - totalProductCost;
     const deliveryRate = deliveryData.deliveryRate || 0;
@@ -295,7 +272,7 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
     return {
       country,
       sellingPrice,
-      maxCPL, // Moved to second position
+      maxCPL,
       productCostChina,
       shippingCost,
       totalProductCost,
