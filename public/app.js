@@ -923,6 +923,7 @@ function renderProductsTable() {
     </tr>
   `}).join('') || `<tr><td colspan="4" class="muted">No products</td></tr>`;
 
+  // FIXED: Use event delegation to prevent multiple event listeners
   tb.onclick = async (e) => {
     const id = e.target.dataset?.id; if (!id) return;
     if (e.target.classList.contains('act-toggle')) {
@@ -1497,7 +1498,7 @@ function renderStockMovementPage() {
   renderTransitTables();
 }
 
-// FIXED: Single arrival prompt for shipments - COMPLETELY REWRITTEN
+// FIXED: Single arrival prompt for shipments - NO DUPLICATE PROMPTS
 async function renderTransitTables() {
   const tbl1 = Q('#shipCKBody'), tbl2 = Q('#shipICBody');
   if (!tbl1 && !tbl2) return;
@@ -1533,19 +1534,18 @@ async function renderTransitTables() {
   if (tbl1) tbl1.innerHTML = ck.map(row).join('') || `<tr><td colspan="11" class="muted">No transit</td></tr>`;
   if (tbl2) tbl2.innerHTML = ic.map(row).join('') || `<tr><td colspan="10" class="muted">No transit</td></tr>`;
 
-  // FIXED: Use event delegation with proper cleanup to prevent multiple handlers
+  // FIXED: Use proper event delegation to prevent multiple prompts
   const host = Q('#stockMovement') || document;
   
-  // Remove any existing event listeners by cloning and replacing
-  const newHost = host.cloneNode(true);
-  host.parentNode.replaceChild(newHost, host);
+  // Remove any existing event listeners to prevent duplication
+  host.removeEventListener('click', handleShipmentActions);
   
-  // Add fresh event listener
-  newHost.addEventListener('click', handleTransitActions);
+  // Add single event listener
+  host.addEventListener('click', handleShipmentActions);
 }
 
-// FIXED: Separate function for handling transit actions
-async function handleTransitActions(e) {
+// FIXED: Single event handler for shipment actions
+async function handleShipmentActions(e) {
   const id = e.target.dataset?.id;
   if (!id) return;
 
@@ -1583,7 +1583,6 @@ async function handleTransitActions(e) {
       alert(err.message); 
     }
   }
-});
 }
 
 function renderFinancePage() {
@@ -1857,7 +1856,7 @@ function renderProductBudgets(product) {
   });
 }
 
-// FIXED: Single arrival prompt for product page shipments - COMPLETELY REWRITTEN
+// FIXED: Single arrival prompt for product page shipments - NO DUPLICATE PROMPTS
 async function renderProductTransit(product) {
   const s = await api('/api/shipments');
   const list = (s.shipments || []).filter(x => x.productId === product.id && !x.arrivedAt);
@@ -1881,29 +1880,26 @@ async function renderProductTransit(product) {
   Q('#pdShipCKBody').innerHTML = ck.map(row).join('') || `<tr><td colspan="8" class="muted">No shipments</td></tr>`;
   Q('#pdShipICBody').innerHTML = ic.map(row).join('') || `<tr><td colspan="7" class="muted">No shipments</td></tr>`;
 
-  // FIXED: Use event delegation with proper cleanup for product page
+  // FIXED: Use proper event delegation to prevent multiple prompts
   const host = Q('#product');
   
-  // Remove any existing product transit event listeners
-  const newHost = host.cloneNode(true);
-  host.parentNode.replaceChild(newHost, host);
+  // Remove any existing event listeners to prevent duplication
+  host.removeEventListener('click', handleProductShipmentActions);
   
-  // Add fresh event listener for product transit actions
-  newHost.addEventListener('click', (e) => handleProductTransitActions(e, product));
+  // Add single event listener
+  host.addEventListener('click', handleProductShipmentActions);
 }
 
-// FIXED: Separate function for handling product transit actions
-async function handleProductTransitActions(e, product) {
-  const id = e.target.dataset?.id; 
-  if (!id) return;
+// FIXED: Single event handler for product shipment actions
+async function handleProductShipmentActions(e) {
+  const id = e.target.dataset?.id; if (!id) return;
   
   if (e.target.classList.contains('p-act-arr')) {
-    const date = prompt('Arrival date (YYYY-MM-DD)', isoToday()); 
-    if (!date) return;
+    const date = prompt('Arrival date (YYYY-MM-DD)', isoToday()); if (!date) return;
     await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) });
-    await renderProductTransit(product);
-    await renderProductArrivedShipments(product);
-    await renderProductStockAd(product);
+    await renderProductTransit(state.products.find(p => p.id === state.productId));
+    await renderProductArrivedShipments(state.products.find(p => p.id === state.productId));
+    await renderProductStockAd(state.products.find(p => p.id === state.productId));
   }
   
   if (e.target.classList.contains('p-act-edit')) {
@@ -1912,15 +1908,14 @@ async function handleProductTransitActions(e, product) {
     const chinaCost = +prompt('New China cost?', '0') || 0;
     const note = prompt('Note?', '') || '';
     await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost, chinaCost, note }) });
-    await renderProductTransit(product);
+    await renderProductTransit(state.products.find(p => p.id === state.productId));
   }
   
   if (e.target.classList.contains('p-act-del')) {
     if (!confirm('Delete shipment?')) return;
     await api(`/api/shipments/${id}`, { method: 'DELETE' });
-    await renderProductTransit(product);
+    await renderProductTransit(state.products.find(p => p.id === state.productId));
   }
-});
 }
 
 async function renderProductArrivedShipments(product) {
@@ -1948,25 +1943,35 @@ async function renderProductArrivedShipments(product) {
 
   Q('#pdArrivedBody').innerHTML = arrived.map(row).join('') || `<tr><td colspan="10" class="muted">No arrived shipments</td></tr>`;
 
+  // FIXED: Use proper event delegation for arrived shipments
   const host = Q('#product');
-  host.addEventListener('click', async (e) => {
-    const id = e.target.dataset?.id; if (!id) return;
+  
+  // Remove any existing event listeners to prevent duplication
+  host.removeEventListener('click', handleArrivedShipmentActions);
+  
+  // Add single event listener
+  host.addEventListener('click', handleArrivedShipmentActions);
+}
 
-    if (e.target.classList.contains('p-arr-edit')) {
-      const qty = +prompt('New qty?', '0') || 0;
-      const shipCost = +prompt('New shipping cost?', '0') || 0;
-      const chinaCost = +prompt('New China cost?', '0') || 0;
-      const note = prompt('Note?', '') || '';
-      await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost, chinaCost, note }) });
-      await renderProductArrivedShipments(product);
-    }
-    if (e.target.classList.contains('p-arr-del')) {
-      if (!confirm('Delete shipment?')) return;
-      await api(`/api/shipments/${id}`, { method: 'DELETE' });
-      await renderProductArrivedShipments(product);
-      await renderProductStockAd(product);
-    }
-  });
+// FIXED: Single event handler for arrived shipment actions
+async function handleArrivedShipmentActions(e) {
+  const id = e.target.dataset?.id; if (!id) return;
+
+  if (e.target.classList.contains('p-arr-edit')) {
+    const qty = +prompt('New qty?', '0') || 0;
+    const shipCost = +prompt('New shipping cost?', '0') || 0;
+    const chinaCost = +prompt('New China cost?', '0') || 0;
+    const note = prompt('Note?', '') || '';
+    await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost, chinaCost, note }) });
+    await renderProductArrivedShipments(state.products.find(p => p.id === state.productId));
+  }
+  
+  if (e.target.classList.contains('p-arr-del')) {
+    if (!confirm('Delete shipment?')) return;
+    await api(`/api/shipments/${id}`, { method: 'DELETE' });
+    await renderProductArrivedShipments(state.products.find(p => p.id === state.productId));
+    await renderProductStockAd(state.products.find(p => p.id === state.productId));
+  }
 }
 
 async function renderProductRemittances(product) {
@@ -1990,16 +1995,21 @@ async function renderProductRemittances(product) {
       </tr>
     `).join('') || `<tr><td colspan="8" class="muted">No remittances for this product</td></tr>`;
 
-    tb.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('pd-rem-del')) {
-        if (!confirm('Delete this remittance entry?')) return;
-        await api(`/api/remittances/${e.target.dataset.id}`, { method: 'DELETE' });
-        await renderProductRemittances(product);
-        bindProductLifetime(product);
-      }
-    });
+    // FIXED: Use proper event delegation for remittance deletions
+    tb.removeEventListener('click', handleRemittanceDeletions);
+    tb.addEventListener('click', handleRemittanceDeletions);
   } catch (e) {
     console.error('Failed to load product remittances:', e);
+  }
+}
+
+// FIXED: Single event handler for remittance deletions
+async function handleRemittanceDeletions(e) {
+  if (e.target.classList.contains('pd-rem-del')) {
+    if (!confirm('Delete this remittance entry?')) return;
+    await api(`/api/remittances/${e.target.dataset.id}`, { method: 'DELETE' });
+    await renderProductRemittances(state.products.find(p => p.id === state.productId));
+    bindProductLifetime(state.products.find(p => p.id === state.productId));
   }
 }
 
@@ -2121,12 +2131,17 @@ async function refreshInfluencers(product) {
   }).join('') || `<tr><td colspan="6" class="muted">No spends</td></tr>`;
   Q('#pdInfTotal').textContent = fmt(total);
 
-  Q('#pdInfBody').onclick = async (e) => {
-    if (e.target.classList.contains('inf-del')) {
-      await api(`/api/influencers/spend/${e.target.dataset.id}`, { method: 'DELETE' });
-      await refreshInfluencers(product);
-    }
-  };
+  // FIXED: Use proper event delegation for influencer deletions
+  Q('#pdInfBody').removeEventListener('click', handleInfluencerDeletions);
+  Q('#pdInfBody').addEventListener('click', handleInfluencerDeletions);
+}
+
+// FIXED: Single event handler for influencer deletions
+async function handleInfluencerDeletions(e) {
+  if (e.target.classList.contains('inf-del')) {
+    await api(`/api/influencers/spend/${e.target.dataset.id}`, { method: 'DELETE' });
+    await refreshInfluencers(state.products.find(p => p.id === state.productId));
+  }
 }
 
 function bindProductNotes(product) {
@@ -2168,13 +2183,18 @@ async function loadProductNotes(product) {
     </div>
   `).join('') || '<div class="muted">No notes yet. Add your first note above.</div>';
 
-  container.addEventListener('click', async (e) => {
-    if (e.target.classList.contains('note-del')) {
-      if (!confirm('Delete this note?')) return;
-      await api(`/api/products/notes/${e.target.dataset.id}`, { method: 'DELETE' });
-      loadProductNotes(product);
-    }
-  });
+  // FIXED: Use proper event delegation for note deletions
+  container.removeEventListener('click', handleNoteDeletions);
+  container.addEventListener('click', handleNoteDeletions);
+}
+
+// FIXED: Single event handler for note deletions
+async function handleNoteDeletions(e) {
+  if (e.target.classList.contains('note-del')) {
+    if (!confirm('Delete this note?')) return;
+    await api(`/api/products/notes/${e.target.dataset.id}`, { method: 'DELETE' });
+    loadProductNotes(state.products.find(p => p.id === state.productId));
+  }
 }
 
 function bindGlobalNav() {
