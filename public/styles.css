@@ -1191,6 +1191,51 @@ select.input {
   align-items: center;
 }
 
+/* ---------- Pagination Styles ---------- */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+.pagination-btn {
+  padding: 8px 12px;
+  background: var(--bg-card-light);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.85rem;
+  transition: all var(--transition-fast);
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.pagination-info {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0 10px;
+}
+
 /* ---------- Utilities ---------- */
 .hide { display: none !important; }
 .muted { color: var(--text-muted); }
