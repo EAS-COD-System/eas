@@ -245,33 +245,32 @@
             </div>
           </div>
 
-          <!-- Product Costs Analysis -->
-          <div class="card">
-            <div class="h">💰 Lifetime Product Costs Analysis</div>
-            <div class="row wrap">
-              <select id="pcaProduct" class="input">
-                <option value="all">All products</option>
-              </select>
-              <select id="pcaRange" class="input date-range-select">
-                <option value="8days">Last 8 days</option>
-                <option value="15days">Last 15 days</option>
-                <option value="1month">Last 1 month</option>
-                <option value="2months">Last 2 months</option>
-                <option value="6months">Last 6 months</option>
-                <option value="1year">Last 1 year</option>
-                <option value="2years">Last 2 years</option>
-                <option value="lifetime">Lifetime</option>
-                <option value="custom">Custom range</option>
-              </select>
-              <div class="custom-range" style="display: none;">
-                <input type="date" class="input custom-start"/>
-                <input type="date" class="input custom-end"/>
-              </div>
-              <button id="pcaRun" class="btn">📊 Generate Analysis</button>
-            </div>
-            <div id="pcaResults"></div>
-          </div>
-
+<!-- In the PERFORMANCE section, update the Product Costs Analysis card -->
+<div class="card">
+  <div class="h">💰 Lifetime Product Costs Analysis</div>
+  <div class="row wrap">
+    <select id="pcaProduct" class="input">
+      <option value="all">All products</option>
+    </select>
+    <select id="pcaRange" class="input date-range-select">
+      <option value="8days">Last 8 days</option>
+      <option value="15days">Last 15 days</option>
+      <option value="1month">Last 1 month</option>
+      <option value="2months">Last 2 months</option>
+      <option value="6months">Last 6 months</option>
+      <option value="1year">Last 1 year</option>
+      <option value="2years">Last 2 years</option>
+      <option value="lifetime">Lifetime</option>
+      <option value="custom">Custom range</option>
+    </select>
+    <div class="custom-range" style="display: none;">
+      <input type="date" class="input custom-start"/>
+      <input type="date" class="input custom-end"/>
+    </div>
+    <button id="pcaRun" class="btn">📊 Generate Analysis</button>
+  </div>
+  <div id="pcaResults"></div>
+</div>
           <!-- Remittance Analytics -->
           <div class="card">
             <div class="h">📈 Remittance Analytics (🏆 Filtered By Top Delivered)</div>
