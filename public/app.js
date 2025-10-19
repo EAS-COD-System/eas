@@ -1497,7 +1497,7 @@ function renderStockMovementPage() {
   renderTransitTables();
 }
 
-// FIXED: Single arrival prompt for shipments
+// FIXED: Single arrival prompt for shipments - COMPLETELY REWRITTEN
 async function renderTransitTables() {
   const tbl1 = Q('#shipCKBody'), tbl2 = Q('#shipICBody');
   if (!tbl1 && !tbl2) return;
@@ -1533,46 +1533,57 @@ async function renderTransitTables() {
   if (tbl1) tbl1.innerHTML = ck.map(row).join('') || `<tr><td colspan="11" class="muted">No transit</td></tr>`;
   if (tbl2) tbl2.innerHTML = ic.map(row).join('') || `<tr><td colspan="10" class="muted">No transit</td></tr>`;
 
+  // FIXED: Use event delegation with proper cleanup to prevent multiple handlers
   const host = Q('#stockMovement') || document;
-  host.addEventListener('click', async (e) => {
-    const id = e.target.dataset?.id;
-    if (!id) return;
+  
+  // Remove any existing event listeners by cloning and replacing
+  const newHost = host.cloneNode(true);
+  host.parentNode.replaceChild(newHost, host);
+  
+  // Add fresh event listener
+  newHost.addEventListener('click', handleTransitActions);
+}
 
-    if (e.target.classList.contains('act-arr')) {
-      const date = prompt('Arrival date (YYYY-MM-DD)', isoToday());
-      if (!date) return;
-      try { 
-        await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) }); 
-        await renderTransitTables();
-        await renderCountryStockSpend();
-      } catch (err) { 
-        alert(err.message); 
-      }
-    }
+// FIXED: Separate function for handling transit actions
+async function handleTransitActions(e) {
+  const id = e.target.dataset?.id;
+  if (!id) return;
 
-    if (e.target.classList.contains('act-edit')) {
-      const qty = +prompt('New qty?', '0') || 0;
-      const shipCost = +prompt('New shipping cost?', '0') || 0;
-      const chinaCost = +prompt('New China cost?', '0') || 0;
-      const note = prompt('Note?', '') || '';
-      try { 
-        await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost, chinaCost, note }) }); 
-        await renderTransitTables();
-      } catch (err) { 
-        alert(err.message); 
-      }
+  if (e.target.classList.contains('act-arr')) {
+    const date = prompt('Arrival date (YYYY-MM-DD)', isoToday());
+    if (!date) return;
+    try { 
+      await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) }); 
+      await renderTransitTables();
+      await renderCountryStockSpend();
+    } catch (err) { 
+      alert(err.message); 
     }
+  }
 
-    if (e.target.classList.contains('act-del')) {
-      if (!confirm('Delete shipment?')) return;
-      try { 
-        await api(`/api/shipments/${id}`, { method: 'DELETE' }); 
-        await renderTransitTables();
-      } catch (err) { 
-        alert(err.message); 
-      }
+  if (e.target.classList.contains('act-edit')) {
+    const qty = +prompt('New qty?', '0') || 0;
+    const shipCost = +prompt('New shipping cost?', '0') || 0;
+    const chinaCost = +prompt('New China cost?', '0') || 0;
+    const note = prompt('Note?', '') || '';
+    try { 
+      await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost, chinaCost, note }) }); 
+      await renderTransitTables();
+    } catch (err) { 
+      alert(err.message); 
     }
-  });
+  }
+
+  if (e.target.classList.contains('act-del')) {
+    if (!confirm('Delete shipment?')) return;
+    try { 
+      await api(`/api/shipments/${id}`, { method: 'DELETE' }); 
+      await renderTransitTables();
+    } catch (err) { 
+      alert(err.message); 
+    }
+  }
+});
 }
 
 function renderFinancePage() {
@@ -1846,7 +1857,7 @@ function renderProductBudgets(product) {
   });
 }
 
-// FIXED: Single arrival prompt for product page shipments
+// FIXED: Single arrival prompt for product page shipments - COMPLETELY REWRITTEN
 async function renderProductTransit(product) {
   const s = await api('/api/shipments');
   const list = (s.shipments || []).filter(x => x.productId === product.id && !x.arrivedAt);
@@ -1870,30 +1881,46 @@ async function renderProductTransit(product) {
   Q('#pdShipCKBody').innerHTML = ck.map(row).join('') || `<tr><td colspan="8" class="muted">No shipments</td></tr>`;
   Q('#pdShipICBody').innerHTML = ic.map(row).join('') || `<tr><td colspan="7" class="muted">No shipments</td></tr>`;
 
+  // FIXED: Use event delegation with proper cleanup for product page
   const host = Q('#product');
-  host.addEventListener('click', async (e) => {
-    const id = e.target.dataset?.id; if (!id) return;
-    if (e.target.classList.contains('p-act-arr')) {
-      const date = prompt('Arrival date (YYYY-MM-DD)', isoToday()); if (!date) return;
-      await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) });
-      await renderProductTransit(product);
-      await renderProductArrivedShipments(product);
-      await renderProductStockAd(product);
-    }
-    if (e.target.classList.contains('p-act-edit')) {
-      const qty = +prompt('New qty?', '0') || 0;
-      const shipCost = +prompt('New shipping cost?', '0') || 0;
-      const chinaCost = +prompt('New China cost?', '0') || 0;
-      const note = prompt('Note?', '') || '';
-      await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost, chinaCost, note }) });
-      await renderProductTransit(product);
-    }
-    if (e.target.classList.contains('p-act-del')) {
-      if (!confirm('Delete shipment?')) return;
-      await api(`/api/shipments/${id}`, { method: 'DELETE' });
-      await renderProductTransit(product);
-    }
-  });
+  
+  // Remove any existing product transit event listeners
+  const newHost = host.cloneNode(true);
+  host.parentNode.replaceChild(newHost, host);
+  
+  // Add fresh event listener for product transit actions
+  newHost.addEventListener('click', (e) => handleProductTransitActions(e, product));
+}
+
+// FIXED: Separate function for handling product transit actions
+async function handleProductTransitActions(e, product) {
+  const id = e.target.dataset?.id; 
+  if (!id) return;
+  
+  if (e.target.classList.contains('p-act-arr')) {
+    const date = prompt('Arrival date (YYYY-MM-DD)', isoToday()); 
+    if (!date) return;
+    await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) });
+    await renderProductTransit(product);
+    await renderProductArrivedShipments(product);
+    await renderProductStockAd(product);
+  }
+  
+  if (e.target.classList.contains('p-act-edit')) {
+    const qty = +prompt('New qty?', '0') || 0;
+    const shipCost = +prompt('New shipping cost?', '0') || 0;
+    const chinaCost = +prompt('New China cost?', '0') || 0;
+    const note = prompt('Note?', '') || '';
+    await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost, chinaCost, note }) });
+    await renderProductTransit(product);
+  }
+  
+  if (e.target.classList.contains('p-act-del')) {
+    if (!confirm('Delete shipment?')) return;
+    await api(`/api/shipments/${id}`, { method: 'DELETE' });
+    await renderProductTransit(product);
+  }
+});
 }
 
 async function renderProductArrivedShipments(product) {
