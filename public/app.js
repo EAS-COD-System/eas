@@ -163,13 +163,14 @@ function fillCommonSelects() {
     }
   }));
 
-  const productInputs = ['#mvProduct', '#adProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct', '#pcaProduct'];
+  const productInputs = ['#mvProduct', '#adProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct'];
   productInputs.forEach(sel => QA(sel).forEach(el => {
     el.innerHTML = `<option value="">Select Product...</option>` +
       state.productsActive.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
   }));
 
-  const productFilters = ['#remProduct', '#remAnalyticsProduct', '#productInfoSelect'];
+  // UPDATED: Added "All products" option to pcaProduct
+  const productFilters = ['#remProduct', '#remAnalyticsProduct', '#productInfoSelect', '#pcaProduct'];
   productFilters.forEach(sel => QA(sel).forEach(el => {
     el.innerHTML = `<option value="all">All products</option>` +
       state.products.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
@@ -1106,9 +1107,9 @@ function renderProductCostsAnalysis(analysis) {
             </tr>
             <tr>
               <td>Product Cost China (Period)</td>
-              <td>$${fmt(analysis.periodChinaCost || 0)}</td>
+              <td>$${fmt(analysis.totalProductChinaCost)}</td>
               <td>Shipping Costs (Period)</td>
-              <td>$${fmt(analysis.periodShippingCost || 0)}</td>
+              <td>$${fmt(analysis.totalShippingCost)}</td>
             </tr>
             <tr>
               <td>Advertising Spend</td>
@@ -1177,7 +1178,6 @@ function renderRemittanceAnalytics(analytics) {
   let totalPieces = 0, totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
   let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0, totalDeliveredOrders = 0;
   let totalBoxleoPerOrder = 0, totalBoxleoPerPiece = 0, totalAdCostPerOrder = 0, totalAdCostPerPiece = 0, totalAOV = 0;
-  let totalPeriodChinaCost = 0, totalPeriodShippingCost = 0;
   let itemCount = 0;
 
   analytics.sort((a, b) => b.totalDeliveredPieces - a.totalDeliveredPieces);
@@ -1199,8 +1199,6 @@ function renderRemittanceAnalytics(analytics) {
     totalAdCostPerOrder += item.adCostPerDeliveredOrder;
     totalAdCostPerPiece += item.adCostPerDeliveredPiece;
     totalAOV += item.averageOrderValue;
-    totalPeriodChinaCost += item.periodChinaCost || 0;
-    totalPeriodShippingCost += item.periodShippingCost || 0;
     itemCount++;
 
     return `<tr>
@@ -1212,8 +1210,8 @@ function renderRemittanceAnalytics(analytics) {
       <td>${fmt(item.totalRevenue)}</td>
       <td>${fmt(item.totalAdSpend)}</td>
       <td>${fmt(item.totalBoxleoFees)}</td>
-      <td>$${fmt(item.periodChinaCost || 0)}</td>
-      <td>$${fmt(item.periodShippingCost || 0)}</td>
+      <td>${fmt(item.totalProductChinaCost)}</td>
+      <td>${fmt(item.totalShippingCost)}</td>
       <td>${fmt(item.deliveryRate)}%</td>
       <td>$${fmt(item.boxleoPerDeliveredOrder)}</td>
       <td>$${fmt(item.boxleoPerDeliveredPiece)}</td>
@@ -1237,8 +1235,8 @@ function renderRemittanceAnalytics(analytics) {
   Q('#remAnalyticsRevenueT').textContent = fmt(totalRevenue);
   Q('#remAnalyticsAdSpendT').textContent = fmt(totalAdSpend);
   Q('#remAnalyticsBoxleoT').textContent = fmt(totalBoxleo);
-  Q('#remAnalyticsProductCostT').textContent = '$' + fmt(totalPeriodChinaCost);
-  Q('#remAnalyticsShippingCostT').textContent = '$' + fmt(totalPeriodShippingCost);
+  Q('#remAnalyticsProductCostT').textContent = fmt(totalProductCost);
+  Q('#remAnalyticsShippingCostT').textContent = fmt(totalShippingCost);
   Q('#remAnalyticsDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%';
   Q('#remAnalyticsBoxleoOrderT').textContent = '$' + fmt(avgBoxleoPerOrder);
   Q('#remAnalyticsBoxleoPieceT').textContent = '$' + fmt(avgBoxleoPerPiece);
@@ -1276,7 +1274,6 @@ function renderProfitByCountry(analytics) {
   let totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
   let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0, totalDeliveredOrders = 0, totalPieces = 0;
   let totalBoxleoPerOrder = 0, totalBoxleoPerPiece = 0, totalAdCostPerOrder = 0, totalAdCostPerPiece = 0, totalAOV = 0;
-  let totalPeriodChinaCost = 0, totalPeriodShippingCost = 0;
   let itemCount = 0;
 
   tb.innerHTML = Object.entries(analytics).map(([country, metrics]) => {
@@ -1294,8 +1291,6 @@ function renderProfitByCountry(analytics) {
     totalAdCostPerOrder += metrics.adCostPerDeliveredOrder;
     totalAdCostPerPiece += metrics.adCostPerDeliveredPiece;
     totalAOV += metrics.averageOrderValue;
-    totalPeriodChinaCost += metrics.periodChinaCost || 0;
-    totalPeriodShippingCost += metrics.periodShippingCost || 0;
     itemCount++;
 
     return `<tr>
@@ -1305,8 +1300,8 @@ function renderProfitByCountry(analytics) {
       <td>${fmt(metrics.totalDeliveredPieces)}</td>
       <td>${fmt(metrics.totalRevenue)}</td>
       <td>${fmt(metrics.totalAdSpend)}</td>
-      <td>$${fmt(metrics.periodChinaCost || 0)}</td>
-      <td>$${fmt(metrics.periodShippingCost || 0)}</td>
+      <td>${fmt(metrics.totalProductChinaCost)}</td>
+      <td>${fmt(metrics.totalShippingCost)}</td>
       <td>${fmt(metrics.totalBoxleoFees)}</td>
       <td>${fmt(metrics.deliveryRate)}%</td>
       <td>$${fmt(metrics.boxleoPerDeliveredOrder)}</td>
@@ -1330,8 +1325,8 @@ function renderProfitByCountry(analytics) {
   Q('#pcDeliveredPiecesT').textContent = fmt(totalPieces);
   Q('#pcRevT').textContent = fmt(totalRevenue);
   Q('#pcAdT').textContent = fmt(totalAdSpend);
-  Q('#pcProductCostT').textContent = '$' + fmt(totalPeriodChinaCost);
-  Q('#pcShippingCostT').textContent = '$' + fmt(totalPeriodShippingCost);
+  Q('#pcProductCostT').textContent = fmt(totalProductCost);
+  Q('#pcShippingCostT').textContent = fmt(totalShippingCost);
   Q('#pcBoxleoT').textContent = fmt(totalBoxleo);
   Q('#pcDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%';
   Q('#pcBoxleoOrderT').textContent = '$' + fmt(avgBoxleoPerOrder);
@@ -1870,73 +1865,6 @@ async function renderProductArrivedShipments(product) {
   });
 }
 
-function bindProductLifetime(product) {
-  const run = async () => {
-    const dateRange = getDateRange(Q('#pdLPRun').closest('.row'));
-
-    const analytics = await api('/api/analytics/remittance?' + new URLSearchParams({
-      productId: product.id,
-      ...dateRange
-    }));
-
-    renderProductLifetime(analytics.analytics);
-  };
-
-  Q('#pdLPRun')?.addEventListener('click', run);
-  run();
-}
-
-function renderProductLifetime(analytics) {
-  const tb = Q('#pdLPBody');
-  if (!tb) return;
-
-  let totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
-  let totalProductCost = 0, totalShipCost = 0, totalTotalCost = 0, totalPieces = 0, totalProfit = 0, totalOrders = 0, totalDeliveredOrders = 0;
-  let totalPeriodChinaCost = 0, totalPeriodShippingCost = 0;
-
-  tb.innerHTML = analytics.map(item => {
-    totalRevenue += item.totalRevenue;
-    totalAdSpend += item.totalAdSpend;
-    totalBoxleo += item.totalBoxleoFees;
-    totalProductCost += item.totalProductChinaCost;
-    totalShipCost += item.totalShippingCost;
-    totalTotalCost += item.totalCost;
-    totalPieces += item.totalDeliveredPieces;
-    totalProfit += item.profit;
-    totalOrders += item.totalOrders;
-    totalDeliveredOrders += item.totalDeliveredOrders;
-    totalPeriodChinaCost += item.periodChinaCost || 0;
-    totalPeriodShippingCost += item.periodShippingCost || 0;
-
-    return `<tr>
-      <td>${item.country}</td>
-      <td>${fmt(item.totalRevenue)}</td>
-      <td>${fmt(item.totalAdSpend)}</td>
-      <td>${fmt(item.totalBoxleoFees)}</td>
-      <td>$${fmt(item.periodChinaCost || 0)}</td>
-      <td>$${fmt(item.periodShippingCost || 0)}</td>
-      <td>${fmt(item.totalCost)}</td>
-      <td>${fmt(item.totalOrders)}</td>
-      <td>${fmt(item.totalDeliveredOrders)}</td>
-      <td>${fmt(item.totalDeliveredPieces)}</td>
-      <td>${fmt(item.deliveryRate)}%</td>
-      <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(item.profit)}</td>
-    </tr>`;
-  }).join('') || `<tr><td colspan="12" class="muted">No data</td></tr>`;
-
-  Q('#pdLPRevT').textContent = fmt(totalRevenue);
-  Q('#pdLPAdT').textContent = fmt(totalAdSpend);
-  Q('#pdLPBoxleoT').textContent = fmt(totalBoxleo);
-  Q('#pdLPProductCostT').textContent = '$' + fmt(totalPeriodChinaCost);
-  Q('#pdLPShipT').textContent = '$' + fmt(totalPeriodShippingCost);
-  Q('#pdLPTotalCostT').textContent = fmt(totalTotalCost);
-  Q('#pdLPOrdersT').textContent = fmt(totalOrders);
-  Q('#pdLPDeliveredOrdersT').textContent = fmt(totalDeliveredOrders);
-  Q('#pdLPDeliveredPiecesT').textContent = fmt(totalPieces);
-  Q('#pdLPDeliveryRateT').textContent = fmt(totalOrders > 0 ? (totalPieces / totalOrders * 100) : 0) + '%';
-  Q('#pdLPProfitT').textContent = fmt(totalProfit);
-}
-
 async function renderProductRemittances(product) {
   try {
     const remittances = await api('/api/remittances?productId=' + product.id);
@@ -1969,6 +1897,70 @@ async function renderProductRemittances(product) {
   } catch (e) {
     console.error('Failed to load product remittances:', e);
   }
+}
+
+function bindProductLifetime(product) {
+  const run = async () => {
+    const dateRange = getDateRange(Q('#pdLPRun').closest('.row'));
+
+    const analytics = await api('/api/analytics/remittance?' + new URLSearchParams({
+      productId: product.id,
+      ...dateRange
+    }));
+
+    renderProductLifetime(analytics.analytics);
+  };
+
+  Q('#pdLPRun')?.addEventListener('click', run);
+  run();
+}
+
+function renderProductLifetime(analytics) {
+  const tb = Q('#pdLPBody');
+  if (!tb) return;
+
+  let totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
+  let totalProductCost = 0, totalShipCost = 0, totalTotalCost = 0, totalPieces = 0, totalProfit = 0, totalOrders = 0, totalDeliveredOrders = 0;
+
+  tb.innerHTML = analytics.map(item => {
+    totalRevenue += item.totalRevenue;
+    totalAdSpend += item.totalAdSpend;
+    totalBoxleo += item.totalBoxleoFees;
+    totalProductCost += item.totalProductChinaCost;
+    totalShipCost += item.totalShippingCost;
+    totalTotalCost += item.totalCost;
+    totalPieces += item.totalDeliveredPieces;
+    totalProfit += item.profit;
+    totalOrders += item.totalOrders;
+    totalDeliveredOrders += item.totalDeliveredOrders;
+
+    return `<tr>
+      <td>${item.country}</td>
+      <td>${fmt(item.totalRevenue)}</td>
+      <td>${fmt(item.totalAdSpend)}</td>
+      <td>${fmt(item.totalBoxleoFees)}</td>
+      <td>${fmt(item.totalProductChinaCost)}</td>
+      <td>${fmt(item.totalShippingCost)}</td>
+      <td>${fmt(item.totalCost)}</td>
+      <td>${fmt(item.totalOrders)}</td>
+      <td>${fmt(item.totalDeliveredOrders)}</td>
+      <td>${fmt(item.totalDeliveredPieces)}</td>
+      <td>${fmt(item.deliveryRate)}%</td>
+      <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(item.profit)}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="12" class="muted">No data</td></tr>`;
+
+  Q('#pdLPRevT').textContent = fmt(totalRevenue);
+  Q('#pdLPAdT').textContent = fmt(totalAdSpend);
+  Q('#pdLPBoxleoT').textContent = fmt(totalBoxleo);
+  Q('#pdLPProductCostT').textContent = fmt(totalProductCost);
+  Q('#pdLPShipT').textContent = fmt(totalShipCost);
+  Q('#pdLPTotalCostT').textContent = fmt(totalTotalCost);
+  Q('#pdLPOrdersT').textContent = fmt(totalOrders);
+  Q('#pdLPDeliveredOrdersT').textContent = fmt(totalDeliveredOrders);
+  Q('#pdLPDeliveredPiecesT').textContent = fmt(totalPieces);
+  Q('#pdLPDeliveryRateT').textContent = fmt(totalOrders > 0 ? (totalPieces / totalOrders * 100) : 0) + '%';
+  Q('#pdLPProfitT').textContent = fmt(totalProfit);
 }
 
 async function bindInfluencers(product) {
