@@ -30,7 +30,9 @@ const state = {
   productNotes: [],
   productSellingPrices: [],
   brainstorming: [],
-  testedProducts: []
+  testedProducts: [],
+  currentStoreOrdersPage: 1,
+  currentRemittancesPage: 1
 };
 
 async function boot() {
@@ -1761,6 +1763,7 @@ async function renderProductPage() {
   await renderProductTransit(product);
   await renderProductArrivedShipments(product);
   bindProductLifetime(product);
+  await renderProductStoreOrders(product);
   await renderProductRemittances(product);
   await bindInfluencers(product);
   bindProductNotes(product);
@@ -1974,9 +1977,57 @@ async function handleArrivedShipmentActions(e) {
   }
 }
 
-async function renderProductRemittances(product) {
+// NEW: Store Orders section with pagination
+async function renderProductStoreOrders(product) {
+  await loadProductStoreOrders(product, state.currentStoreOrdersPage);
+}
+
+async function loadProductStoreOrders(product, page = 1) {
   try {
-    const remittances = await api('/api/remittances?productId=' + product.id);
+    const orders = await api(`/api/product-orders?productId=${product.id}&page=${page}&limit=8`);
+    const tb = Q('#pdStoreOrdersBody');
+    if (!tb) return;
+
+    tb.innerHTML = (orders.orders || []).map(order => `
+      <tr>
+        <td>${order.startDate} - ${order.endDate}</td>
+        <td>${order.country}</td>
+        <td>${fmt(order.orders)}</td>
+        <td>
+          <button class="btn outline pd-store-order-del" data-id="${order.id}">Delete</button>
+        </td>
+      </tr>
+    `).join('') || `<tr><td colspan="4" class="muted">No store orders for this product</td></tr>`;
+
+    // Render pagination
+    renderPagination('pdStoreOrdersPagination', orders.pagination, 'storeOrders');
+
+    // FIXED: Use proper event delegation for store order deletions
+    tb.removeEventListener('click', handleStoreOrderDeletions);
+    tb.addEventListener('click', handleStoreOrderDeletions);
+  } catch (e) {
+    console.error('Failed to load product store orders:', e);
+  }
+}
+
+// FIXED: Single event handler for store order deletions
+async function handleStoreOrderDeletions(e) {
+  if (e.target.classList.contains('pd-store-order-del')) {
+    if (!confirm('Delete this store order entry?')) return;
+    await api(`/api/product-orders/${e.target.dataset.id}`, { method: 'DELETE' });
+    await renderProductStoreOrders(state.products.find(p => p.id === state.productId));
+    bindProductLifetime(state.products.find(p => p.id === state.productId));
+  }
+}
+
+// FIXED: Remittances with pagination
+async function renderProductRemittances(product) {
+  await loadProductRemittances(product, state.currentRemittancesPage);
+}
+
+async function loadProductRemittances(product, page = 1) {
+  try {
+    const remittances = await api(`/api/remittances?productId=${product.id}&page=${page}&limit=8`);
     const tb = Q('#pdRemittancesBody');
     if (!tb) return;
 
@@ -1995,6 +2046,9 @@ async function renderProductRemittances(product) {
       </tr>
     `).join('') || `<tr><td colspan="8" class="muted">No remittances for this product</td></tr>`;
 
+    // Render pagination
+    renderPagination('pdRemittancesPagination', remittances.pagination, 'remittances');
+
     // FIXED: Use proper event delegation for remittance deletions
     tb.removeEventListener('click', handleRemittanceDeletions);
     tb.addEventListener('click', handleRemittanceDeletions);
@@ -2011,6 +2065,56 @@ async function handleRemittanceDeletions(e) {
     await renderProductRemittances(state.products.find(p => p.id === state.productId));
     bindProductLifetime(state.products.find(p => p.id === state.productId));
   }
+}
+
+// NEW: Pagination renderer
+function renderPagination(containerId, pagination, type) {
+  const container = Q(`#${containerId}`);
+  if (!container || !pagination) return;
+
+  const { currentPage, totalPages, totalItems, hasNextPage, hasPrevPage } = pagination;
+
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+
+  let html = '';
+
+  // Previous button
+  html += `<button class="pagination-btn" ${!hasPrevPage ? 'disabled' : ''} data-page="${currentPage - 1}" data-type="${type}">◀ Previous</button>`;
+
+  // Page numbers
+  const startPage = Math.max(1, currentPage - 2);
+  const endPage = Math.min(totalPages, startPage + 4);
+
+  for (let i = startPage; i <= endPage; i++) {
+    html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}" data-type="${type}">${i}</button>`;
+  }
+
+  // Next button
+  html += `<button class="pagination-btn" ${!hasNextPage ? 'disabled' : ''} data-page="${currentPage + 1}" data-type="${type}">Next ▶</button>`;
+
+  // Page info
+  html += `<span class="pagination-info">Page ${currentPage} of ${totalPages} (${totalItems} items)</span>`;
+
+  container.innerHTML = html;
+
+  // Add event listeners for pagination buttons
+  container.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
+      const page = parseInt(e.target.dataset.page);
+      const type = e.target.dataset.type;
+
+      if (type === 'storeOrders') {
+        state.currentStoreOrdersPage = page;
+        await loadProductStoreOrders(state.products.find(p => p.id === state.productId), page);
+      } else if (type === 'remittances') {
+        state.currentRemittancesPage = page;
+        await loadProductRemittances(state.products.find(p => p.id === state.productId), page);
+      }
+    }
+  });
 }
 
 // FIXED: Product Lifetime with total costs paid in period
