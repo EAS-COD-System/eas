@@ -76,16 +76,14 @@ async function createStartupBackup() {
     
     if (!existingBackup) {
       const snapshotFileName = `auto-daily-${today}.json`;
-      const snapshotFile = path.join(SNAPSHOT_DIR, snapshotFileName);
       
       // Create the actual snapshot file
-      await fs.copy(DATA_FILE, snapshotFile);
+      await fs.copy(DATA_FILE, path.join(SNAPSHOT_DIR, snapshotFileName));
       
       const backupEntry = {
         id: uuidv4(),
         name: backupName,
-        file: snapshotFileName, // Store just filename, not full path
-        fullPath: snapshotFile, // Store full path separately
+        file: snapshotFileName, // STORE ONLY FILENAME
         createdAt: new Date().toISOString(),
         kind: 'auto-daily'
       };
@@ -128,16 +126,14 @@ async function checkAndCreateDailyBackup() {
     // If no backup for today, create one
     if (!existingBackup) {
       const snapshotFileName = `auto-daily-${today}.json`;
-      const snapshotFile = path.join(SNAPSHOT_DIR, snapshotFileName);
       
       // Create the actual snapshot file
-      await fs.copy(DATA_FILE, snapshotFile);
+      await fs.copy(DATA_FILE, path.join(SNAPSHOT_DIR, snapshotFileName));
       
       const backupEntry = {
         id: uuidv4(),
         name: dailyBackupName,
-        file: snapshotFileName, // Store just filename, not full path
-        fullPath: snapshotFile, // Store full path separately
+        file: snapshotFileName, // STORE ONLY FILENAME
         createdAt: new Date().toISOString(),
         kind: 'auto-daily'
       };
@@ -1357,52 +1353,32 @@ app.get('/api/backup/list', requireAuth, async (req, res) => {
   }
 });
 
-// FIXED: Push Snapshot to System - ENHANCED VERSION with proper path handling
+// FIXED: Push Snapshot to System - SIMPLE AND RELIABLE
 app.post('/api/backup/push-snapshot', requireAuth, async (req, res) => {
   try {
     const { snapshotFile } = req.body || {};
     
     if (!snapshotFile) {
-      return res.status(400).json({ error: 'Snapshot file path required' });
+      return res.status(400).json({ error: 'Snapshot file required' });
     }
 
-    // Handle both full paths and just filenames
-    let actualFilePath = snapshotFile;
+    // Clean the filename - remove any path components and spaces
+    const cleanFileName = path.basename(snapshotFile).replace(/\s+/g, '');
+    const actualFilePath = path.join(SNAPSHOT_DIR, cleanFileName);
     
-    // Clean up the path - remove any extra spaces
-    actualFilePath = actualFilePath.replace(/\s+/g, '');
-    
-    // If it's just a filename (not a full path), construct the full path
-    if (!actualFilePath.includes(SNAPSHOT_DIR) && !actualFilePath.startsWith('/')) {
-      actualFilePath = path.join(SNAPSHOT_DIR, actualFilePath);
-    }
-    
-    // Ensure the path is properly normalized
-    actualFilePath = path.normalize(actualFilePath);
-    
-    console.log(`🔍 Looking for snapshot file at: ${actualFilePath}`);
+    console.log(`🔍 Looking for: ${cleanFileName}`);
+    console.log(`📁 Full path: ${actualFilePath}`);
     
     // Check if file exists
     if (!fs.existsSync(actualFilePath)) {
-      console.log(`❌ File not found: ${actualFilePath}`);
+      // List available files for debugging
+      const availableFiles = await fs.readdir(SNAPSHOT_DIR);
+      console.log(`📂 Available files: ${availableFiles.join(', ')}`);
       
-      // Try alternative path construction
-      const alternativePath = path.join(SNAPSHOT_DIR, path.basename(actualFilePath));
-      console.log(`🔍 Trying alternative path: ${alternativePath}`);
-      
-      if (fs.existsSync(alternativePath)) {
-        actualFilePath = alternativePath;
-        console.log(`✅ Found file at alternative path: ${actualFilePath}`);
-      } else {
-        // List available files for debugging
-        const availableFiles = await fs.readdir(SNAPSHOT_DIR);
-        console.log(`📁 Available snapshot files: ${availableFiles.join(', ')}`);
-        
-        return res.status(404).json({ 
-          error: `Snapshot file not found: ${path.basename(snapshotFile)}`,
-          availableFiles: availableFiles
-        });
-      }
+      return res.status(404).json({ 
+        error: `Snapshot file not found: ${cleanFileName}`,
+        availableFiles: availableFiles
+      });
     }
 
     // Read the snapshot file
@@ -1411,11 +1387,11 @@ app.post('/api/backup/push-snapshot', requireAuth, async (req, res) => {
     // Write it to the current database file
     await fs.writeJson(DATA_FILE, snapshotData, { spaces: 2 });
     
-    console.log(`✅ Snapshot pushed to system: ${path.basename(actualFilePath)}`);
+    console.log(`✅ Snapshot pushed to system: ${cleanFileName}`);
     res.json({ 
       ok: true, 
       message: 'Snapshot pushed successfully',
-      snapshotFile: path.basename(actualFilePath)
+      snapshotFile: cleanFileName
     });
     
   } catch (error) {
@@ -1438,16 +1414,14 @@ app.post('/api/snapshots', requireAuth, async (req, res) => {
     await fs.ensureDir(SNAPSHOT_DIR);
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     const snapshotName = name || `Manual-${stamp}`;
-    const snapshotFileName = `${stamp}-${snapshotName.replace(/\s+/g, '_')}.json`;
-    const snapshotFile = path.join(SNAPSHOT_DIR, snapshotFileName);
+    const snapshotFileName = `${stamp}-${snapshotName.replace(/\s+/g, '-')}.json`;
     
-    await fs.copy(DATA_FILE, snapshotFile);
+    await fs.copy(DATA_FILE, path.join(SNAPSHOT_DIR, snapshotFileName));
     
     const snapshotEntry = {
       id: uuidv4(),
       name: snapshotName,
-      file: snapshotFileName, // Store just filename
-      fullPath: snapshotFile, // Store full path separately
+      file: snapshotFileName, // STORE ONLY FILENAME
       createdAt: new Date().toISOString(),
       kind: 'manual'
     };
