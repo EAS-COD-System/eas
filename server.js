@@ -63,7 +63,7 @@ function requireAuth(req, res, next) {
 }
 
 // ======== STARTUP BACKUP FUNCTION ========
-function createStartupBackup() {
+async function createStartupBackup() {
   try {
     const db = loadDB();
     const today = new Date().toISOString().slice(0, 10);
@@ -75,10 +75,15 @@ function createStartupBackup() {
     );
     
     if (!existingBackup) {
+      const snapshotFile = path.join(SNAPSHOT_DIR, `auto-daily-${today}.json`);
+      
+      // Create the actual snapshot file
+      await fs.copy(DATA_FILE, snapshotFile);
+      
       const backupEntry = {
         id: uuidv4(),
         name: backupName,
-        file: `auto-daily-${today}.json`,
+        file: snapshotFile, // Store FULL path
         createdAt: new Date().toISOString(),
         kind: 'auto-daily'
       };
@@ -106,7 +111,7 @@ function createStartupBackup() {
 }
 
 // ======== DAILY AUTO-BACKUP SYSTEM ========
-function checkAndCreateDailyBackup() {
+async function checkAndCreateDailyBackup() {
   try {
     const db = loadDB();
     const now = new Date();
@@ -120,10 +125,15 @@ function checkAndCreateDailyBackup() {
     
     // If no backup for today, create one
     if (!existingBackup) {
+      const snapshotFile = path.join(SNAPSHOT_DIR, `auto-daily-${today}.json`);
+      
+      // Create the actual snapshot file
+      await fs.copy(DATA_FILE, snapshotFile);
+      
       const backupEntry = {
         id: uuidv4(),
         name: dailyBackupName,
-        file: `auto-daily-${today}.json`,
+        file: snapshotFile, // Store FULL path
         createdAt: new Date().toISOString(),
         kind: 'auto-daily'
       };
@@ -150,7 +160,6 @@ function checkAndCreateDailyBackup() {
     console.error('❌ Auto-backup error:', error.message);
   }
 }
-
 // FIXED: Enhanced product cost calculation with proper hierarchical shipping
 function calculateProductCosts(db, productId, targetCountry = null) {
   const shipments = db.shipments || [];
