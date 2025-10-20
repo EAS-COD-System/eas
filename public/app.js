@@ -165,23 +165,33 @@ function fillCommonSelects() {
     }
   }));
 
-  const productInputs = ['#mvProduct', '#adProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct', '#pcaProduct'];
-  productInputs.forEach(sel => QA(sel).forEach(el => {
+  // FIXED: Sections that should show ONLY ACTIVE products (newest first)
+  const activeProductInputs = ['#mvProduct', '#adProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct'];
+  activeProductInputs.forEach(sel => QA(sel).forEach(el => {
+    // Get active products sorted by creation date (newest first)
+    const activeProducts = state.products
+      .filter(p => p.status === 'active')
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    
     el.innerHTML = `<option value="">Select Product...</option>` +
-      state.productsActive.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+      activeProducts.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
   }));
 
-  const productFilters = ['#remProduct', '#remAnalyticsProduct', '#productInfoSelect'];
-  productFilters.forEach(sel => QA(sel).forEach(el => {
-    el.innerHTML = `<option value="all">All products</option>` +
-      state.products.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+  // FIXED: Sections that should show ALL products but sorted with newest first
+  const allProductsNewestFirst = ['#pcaProduct', '#remAnalyticsProduct', '#productInfoSelect', '#remProduct'];
+  allProductsNewestFirst.forEach(sel => QA(sel).forEach(el => {
+    // Get all products sorted by creation date (newest first)
+    const allProductsSorted = state.products
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    
+    if (sel === '#pcaProduct' || sel === '#remAnalyticsProduct') {
+      el.innerHTML = `<option value="all">All products</option>` +
+        allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+    } else {
+      el.innerHTML = `<option value="all">All products</option>` +
+        allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+    }
   }));
-
-  // FIXED: Add "all" option to product costs analysis
-  QA('#pcaProduct').forEach(el => {
-    el.innerHTML = `<option value="all">All products</option>` +
-      state.products.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
-  });
 
   const allCats = [...state.categories.debit, ...state.categories.credit].sort();
   QA('#feCat').forEach(el => {
@@ -194,6 +204,7 @@ function fillCommonSelects() {
       allCats.map(c => `<option>${c}</option>`).join('');
   });
 }
+
 
 function calculateDateRange(range) {
   const now = new Date();
