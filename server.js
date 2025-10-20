@@ -483,7 +483,7 @@ app.delete('/api/countries/:name', requireAuth, (req, res) => {
 });
 
 // Products
-app.get('/api/products', requireAuth, (req, res) => {
+app.get('/api/products', requireAuth, (req, res) => { checkAndCreateDailyBackup();
   const db = loadDB();
   const products = (db.products || []).map(product => {
     // FIXED: Use lifetime data to determine profitability for product list
@@ -1250,6 +1250,59 @@ app.get('/api/backup/list', requireAuth, async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+// ==================== DAILY AUTO-BACKUP SYSTEM ====================
+// Add this function to server.js
+function checkAndCreateDailyBackup() {
+  try {
+    const db = loadDB();
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10); // Gets YYYY-MM-DD
+    const dailyBackupName = `Daily-${today}`;
+    
+    // Check if today's backup already exists
+    const existingBackup = db.snapshots.find(snap => 
+      snap.name && snap.name.startsWith('Daily-') && snap.name.includes(today)
+    );
+    
+    // If no backup for today, create one
+    if (!existingBackup) {
+      const backupEntry = {
+        id: uuidv4(),
+        name: dailyBackupName,
+        file: `auto-daily-${today}.json`,
+        createdAt: new Date().toISOString(),
+        kind: 'auto-daily'
+      };
+      
+      // Add to beginning of snapshots list
+      db.snapshots.unshift(backupEntry);
+      
+      // Remove daily backups older than 7 days
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      db.snapshots = db.snapshots.filter(snapshot => {
+        if (snapshot.name && snapshot.name.startsWith('Daily-')) {
+          const snapshotDate = new Date(snapshot.createdAt);
+          return snapshotDate >= sevenDaysAgo;
+        }
+        return true; // Keep all manual snapshots (non-daily ones)
+      });
+      
+      saveDB(db);
+      console.log(`✅ Auto-created daily backup: ${dailyBackupName}`);
+    }
+  } catch (error) {
+    console.error('❌ Auto-backup error:', error.message);
+  }
+}
+
+// Add this line to your most frequently used endpoint
+app.get('/api/products', requireAuth, (req, res) => {
+  checkAndCreateDailyBackup(); // ← ADD THIS LINE
+  const pr = await api('/api/products'); // Your existing code continues...
+  // ... rest of your existing /api/products code
 });
 // Snapshots
 app.get('/api/snapshots', requireAuth, (req, res) => {
