@@ -2344,5 +2344,40 @@ function bindGlobalNav() {
     }
   }));
 }
-
+// Add this function to handle the daily backup button
+function setupDailyBackupButton() {
+  const button = Q('#createDailyBackup');
+  if (button) {
+    button.onclick = async () => {
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const backupName = `Daily-${today}`;
+        
+        // Check if today's backup already exists
+        const snapshots = await api('/api/snapshots');
+        const existingBackup = snapshots.snapshots.find(snap => 
+          snap.name && snap.name.includes(today)
+        );
+        
+        if (existingBackup) {
+          alert(`✅ Today's backup already exists: ${backupName}`);
+          refreshSnaps(); // Refresh the snapshot list
+          return;
+        }
+        
+        // Create the backup
+        await api('/api/snapshots', {
+          method: 'POST',
+          body: JSON.stringify({ name: backupName })
+        });
+        
+        alert(`✅ Daily backup created: ${backupName}`);
+        refreshSnaps(); // Refresh the snapshot list
+        
+      } catch (error) {
+        alert('❌ Failed to create backup: ' + error.message);
+      }
+    };
+  }
+}
 boot();
