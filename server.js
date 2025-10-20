@@ -1393,8 +1393,3 @@ app.listen(PORT, () => {
   console.log('✅ EAS Tracker listening on', PORT);
   console.log('DB:', DATA_FILE);
 });
-
-app.listen(PORT, () => {
-  console.log('✅ EAS Tracker listening on', PORT);
-  console.log('DB:', DATA_FILE);
-});
