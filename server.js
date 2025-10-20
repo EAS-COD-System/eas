@@ -1352,40 +1352,108 @@ app.get('/api/backup/list', requireAuth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
-// FIXED: Push Snapshot to System - SIMPLE AND RELIABLE
+// DEBUG: Check snapshot directory status
+app.get('/api/debug/snapshots', requireAuth, async (req, res) => {
+  try {
+    const db = loadDB();
+    
+    const snapshotDirExists = fs.existsSync(SNAPSHOT_DIR);
+    let filesInDir = [];
+    
+    if (snapshotDirExists) {
+      filesInDir = await fs.readdir(SNAPSHOT_DIR);
+    }
+    
+    res.json({
+      snapshotDirectory: SNAPSHOT_DIR,
+      directoryExists: snapshotDirExists,
+      filesInDirectory: filesInDir,
+      snapshotsInDB: db.snapshots || [],
+      dataFile: DATA_FILE,
+      dataFileExists: fs.existsSync(DATA_FILE)
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+// DEBUG: Push Snapshot to System - WITH EXTENSIVE DEBUGGING
 app.post('/api/backup/push-snapshot', requireAuth, async (req, res) => {
   try {
     const { snapshotFile } = req.body || {};
+    
+    console.log('📦 PUSH SNAPSHOT REQUEST RECEIVED');
+    console.log('📥 Received snapshotFile:', snapshotFile);
     
     if (!snapshotFile) {
       return res.status(400).json({ error: 'Snapshot file required' });
     }
 
-    // Clean the filename - remove any path components and spaces
+    // Clean the filename
     const cleanFileName = path.basename(snapshotFile).replace(/\s+/g, '');
     const actualFilePath = path.join(SNAPSHOT_DIR, cleanFileName);
     
-    console.log(`🔍 Looking for: ${cleanFileName}`);
-    console.log(`📁 Full path: ${actualFilePath}`);
+    console.log('🔧 After cleaning:');
+    console.log('   Clean filename:', cleanFileName);
+    console.log('   Full path:', actualFilePath);
+    console.log('   SNAPSHOT_DIR:', SNAPSHOT_DIR);
     
+    // Check if SNAPSHOT_DIR exists
+    const snapshotDirExists = fs.existsSync(SNAPSHOT_DIR);
+    console.log('📁 Snapshot directory exists:', snapshotDirExists);
+    
+    if (!snapshotDirExists) {
+      console.log('❌ Snapshot directory does not exist!');
+      return res.status(500).json({ error: 'Snapshot directory not found' });
+    }
+
+    // List ALL files in snapshot directory
+    let availableFiles = [];
+    try {
+      availableFiles = await fs.readdir(SNAPSHOT_DIR);
+      console.log('📂 All files in snapshot directory:', availableFiles);
+    } catch (readError) {
+      console.log('❌ Error reading snapshot directory:', readError.message);
+    }
+
     // Check if file exists
-    if (!fs.existsSync(actualFilePath)) {
-      // List available files for debugging
-      const availableFiles = await fs.readdir(SNAPSHOT_DIR);
-      console.log(`📂 Available files: ${availableFiles.join(', ')}`);
+    const fileExists = fs.existsSync(actualFilePath);
+    console.log('🔍 File exists check:', fileExists);
+    
+    if (!fileExists) {
+      console.log('❌ File not found at path:', actualFilePath);
+      
+      // Try to find the file with different variations
+      console.log('🔄 Trying to find file with different approaches:');
+      
+      // Look for files that contain the filename
+      const matchingFiles = availableFiles.filter(f => f.includes(cleanFileName));
+      console.log('   Files containing the name:', matchingFiles);
+      
+      // Look for files that start with auto-daily
+      const autoDailyFiles = availableFiles.filter(f => f.startsWith('auto-daily'));
+      console.log('   All auto-daily files:', autoDailyFiles);
       
       return res.status(404).json({ 
         error: `Snapshot file not found: ${cleanFileName}`,
-        availableFiles: availableFiles
+        details: {
+          requestedFile: cleanFileName,
+          availableFiles: availableFiles,
+          matchingFiles: matchingFiles,
+          autoDailyFiles: autoDailyFiles,
+          snapshotDirectory: SNAPSHOT_DIR
+        }
       });
     }
 
+    console.log('✅ File found! Proceeding with push...');
+    
     // Read the snapshot file
     const snapshotData = await fs.readJson(actualFilePath);
+    console.log('📖 Snapshot data read successfully');
     
     // Write it to the current database file
     await fs.writeJson(DATA_FILE, snapshotData, { spaces: 2 });
+    console.log('💾 Database updated successfully');
     
     console.log(`✅ Snapshot pushed to system: ${cleanFileName}`);
     res.json({ 
@@ -1396,10 +1464,10 @@ app.post('/api/backup/push-snapshot', requireAuth, async (req, res) => {
     
   } catch (error) {
     console.error('❌ Push snapshot error:', error.message);
+    console.error('Stack trace:', error.stack);
     res.status(500).json({ error: error.message });
   }
 });
-
 // Snapshots
 app.get('/api/snapshots', requireAuth, (req, res) => {
   const db = loadDB();
