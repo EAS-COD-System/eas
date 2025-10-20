@@ -10,8 +10,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const ROOT = __dirname;
-const DATA_FILE = path.join(ROOT, 'db.json');
-const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
+const DATA_FILE = process.env.RENDER ? '/opt/render/project/src/data/db.json' : path.join(ROOT, 'db.json');
+const SNAPSHOT_DIR = process.env.RENDER ? '/opt/render/project/src/data/snapshots' : path.join(ROOT, 'data', 'snapshots');
 
 app.use(morgan('dev'));
 app.use(bodyParser.json({ limit: '1mb' }));
