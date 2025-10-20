@@ -630,17 +630,15 @@
             </div>
           </div>
 
-      <!-- Manual Save & Restore -->
+     <!-- Manual Save & Restore -->
 <div class="card">
   <div class="h">💾 Manual Save &amp; Restore</div>
   <div class="row wrap">
     <input id="snapName" class="input" placeholder="Name this snapshot"/>
     <button id="snapSave" class="btn">📸 Save Current System</button>
-    <!-- ADD THIS BUTTON -->
     <button id="createDailyBackup" class="btn" style="background: var(--accent-teal);">📅 Create Daily Backup</button>
   </div>
   
-  <!-- ADD THIS INFO BOX -->
   <div class="card" style="background: var(--primary-50); border: 1px solid var(--primary); margin-top: 10px;">
     <div style="display: flex; align-items: center; gap: 10px;">
       <span style="font-size: 1.2rem;">💡</span>
@@ -660,11 +658,10 @@
           <th>Name</th>
           <th>File</th>
           <th>Date</th>
-          <th style="width: 180px;">Actions</th>
+          <th style="width: 200px;">Actions</th>
         </tr>
       </thead>
       <tbody id="snapList">
-        <!-- Snapshots will be loaded here dynamically -->
         <tr>
           <td colspan="4" class="muted" style="text-align: center;">Loading snapshots...</td>
         </tr>
