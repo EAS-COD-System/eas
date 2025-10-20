@@ -630,7 +630,7 @@
             </div>
           </div>
 
-          <!-- Manual Save & Restore -->
+      <!-- Manual Save & Restore -->
 <div class="card">
   <div class="h">💾 Manual Save &amp; Restore</div>
   <div class="row wrap">
@@ -660,14 +660,18 @@
           <th>Name</th>
           <th>File</th>
           <th>Date</th>
-          <th>Actions</th>
+          <th style="width: 180px;">Actions</th>
         </tr>
       </thead>
-      <tbody id="snapList"></tbody>
+      <tbody id="snapList">
+        <!-- Snapshots will be loaded here dynamically -->
+        <tr>
+          <td colspan="4" class="muted" style="text-align: center;">Loading snapshots...</td>
+        </tr>
+      </tbody>
     </table>
   </div>
-</div>
-        </section>
+</div>        </section>
 
       </div>
     </div>
