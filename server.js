@@ -806,7 +806,7 @@ app.post('/api/brainstorming', requireAuth, (req, res) => {
     id: uuidv4(),
     title,
     description: description || '',
-    category: category || 'general',
+        category: category || 'general',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
