@@ -1376,6 +1376,47 @@ app.get('/api/debug/snapshots', requireAuth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// FIX: Force create the missing daily backup file
+app.post('/api/debug/fix-daily-backup', requireAuth, async (req, res) => {
+  try {
+    const db = loadDB();
+    const today = new Date().toISOString().slice(0, 10);
+    const snapshotFileName = `auto-daily-${today}.json`;
+    const snapshotFilePath = path.join(SNAPSHOT_DIR, snapshotFileName);
+    
+    console.log('🔧 FIXING DAILY BACKUP FILE...');
+    console.log('📁 Target file:', snapshotFilePath);
+    
+    // Check if file exists
+    const fileExistsBefore = fs.existsSync(snapshotFilePath);
+    console.log('📊 File exists before fix:', fileExistsBefore);
+    
+    // Force create the file
+    await fs.copy(DATA_FILE, snapshotFilePath);
+    console.log('✅ File created/overwritten');
+    
+    // Verify file was created
+    const fileExistsAfter = fs.existsSync(snapshotFilePath);
+    console.log('📊 File exists after fix:', fileExistsAfter);
+    
+    // List files to confirm
+    const filesInDir = await fs.readdir(SNAPSHOT_DIR);
+    const autoDailyFiles = filesInDir.filter(f => f.startsWith('auto-daily'));
+    
+    res.json({
+      message: 'Daily backup file fixed',
+      fileCreated: snapshotFileName,
+      fileExistsBefore: fileExistsBefore,
+      fileExistsAfter: fileExistsAfter,
+      allAutoDailyFiles: autoDailyFiles,
+      allFilesInDir: filesInDir
+    });
+    
+  } catch (error) {
+    console.error('❌ Fix backup error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
 // DEBUG: Push Snapshot to System - WITH EXTENSIVE DEBUGGING
 app.post('/api/backup/push-snapshot', requireAuth, async (req, res) => {
   try {
