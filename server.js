@@ -1386,34 +1386,53 @@ app.get('/api/debug/fix-daily-backup', requireAuth, async (req, res) => {
     
     console.log('🔧 FIXING DAILY BACKUP FILE...');
     console.log('📁 Target file:', snapshotFilePath);
+    console.log('📊 DATA_FILE exists:', fs.existsSync(DATA_FILE));
+    console.log('📁 SNAPSHOT_DIR exists:', fs.existsSync(SNAPSHOT_DIR));
     
     // Check if file exists
     const fileExistsBefore = fs.existsSync(snapshotFilePath);
     console.log('📊 File exists before fix:', fileExistsBefore);
     
-    // Force create the file
-    await fs.copy(DATA_FILE, snapshotFilePath);
-    console.log('✅ File created/overwritten');
+    // List files before
+    const filesBefore = await fs.readdir(SNAPSHOT_DIR);
+    console.log('📂 Files before fix:', filesBefore);
+    
+    try {
+      // Force create the file with error handling
+      console.log('🔄 Attempting to copy file...');
+      await fs.copy(DATA_FILE, snapshotFilePath);
+      console.log('✅ File copy completed');
+    } catch (copyError) {
+      console.error('❌ File copy failed:', copyError.message);
+      throw copyError;
+    }
     
     // Verify file was created
     const fileExistsAfter = fs.existsSync(snapshotFilePath);
     console.log('📊 File exists after fix:', fileExistsAfter);
     
-    // List files to confirm
-    const filesInDir = await fs.readdir(SNAPSHOT_DIR);
-    const autoDailyFiles = filesInDir.filter(f => f.startsWith('auto-daily'));
+    // List files after to confirm
+    const filesAfter = await fs.readdir(SNAPSHOT_DIR);
+    console.log('📂 Files after fix:', filesAfter);
+    
+    const autoDailyFiles = filesAfter.filter(f => f.startsWith('auto-daily'));
     
     res.json({
-      message: 'Daily backup file fixed',
+      message: 'Daily backup file fix attempted',
       fileCreated: snapshotFileName,
       fileExistsBefore: fileExistsBefore,
       fileExistsAfter: fileExistsAfter,
       allAutoDailyFiles: autoDailyFiles,
-      allFilesInDir: filesInDir
+      allFilesInDir: filesAfter,
+      filesBefore: filesBefore,
+      filesAfter: filesAfter,
+      dataFileExists: fs.existsSync(DATA_FILE),
+      snapshotDirExists: fs.existsSync(SNAPSHOT_DIR)
     });
     
   } catch (error) {
     console.error('❌ Fix backup error:', error.message);
+    console.error('Stack trace:', error.stack);
     res.status(500).json({ error: error.message });
   }
 });
