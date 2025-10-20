@@ -10,24 +10,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const ROOT = __dirname;
-
-// Always write app data under /data on Render (persistent disk), else local ./data
-const PERSIST_DIR = process.env.RENDER ? '/data' : path.join(ROOT, 'data');
-const DATA_FILE    = path.join(PERSIST_DIR, 'db.json');
-const SNAPSHOT_DIR = path.join(PERSIST_DIR, 'snapshots');
-
-// Make sure folders exist
-fs.ensureDirSync(PERSIST_DIR);
-fs.ensureDirSync(SNAPSHOT_DIR);
-
-// One-time migration if you had old files under /opt/... (ephemeral)
-if (process.env.RENDER) {
-  const OLD_DIR = '/opt/render/project/src/data';
-  const OLD_FILE = path.join(OLD_DIR, 'db.json');
-  if (fs.existsSync(OLD_FILE) && !fs.existsSync(DATA_FILE)) {
-    fs.copySync(OLD_FILE, DATA_FILE); // migrate once
-  }
-}
+const DATA_FILE = path.join(ROOT, 'db.json');
+const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
 
 app.use(morgan('dev'));
 app.use(bodyParser.json({ limit: '1mb' }));
@@ -177,12 +161,12 @@ function calculateProductCosts(db, productId, targetCountry = null) {
 function calculateProductCostsForPeriod(db, productId, startDate = null, endDate = null) {
   const shipments = db.shipments || [];
   
-  // Filter shipments by period and product - use departedAt date for cost allocation
+  // Filter shipments by period and product
   const periodShipments = shipments.filter(s => 
     s.productId === productId && 
-    s.departedAt &&
-    (!startDate || s.departedAt >= startDate) &&
-    (!endDate || s.departedAt <= endDate)
+    s.arrivedAt &&
+    (!startDate || s.arrivedAt >= startDate) &&
+    (!endDate || s.arrivedAt <= endDate)
   );
 
   let totalChinaCost = 0;
@@ -244,7 +228,7 @@ function calculateDeliveryRate(db, productId = null, country = null, startDate =
   };
 }
 
-// FIXED: Profit metrics with proper cost allocation - RESTORED ORIGINAL FUNCTION
+// FIXED: Profit metrics with proper cost allocation based on delivered pieces
 function calculateProfitMetrics(db, productId = null, country = null, startDate = null, endDate = null) {
   const remittances = db.remittances || [];
   const adSpends = db.adspend || [];
@@ -514,7 +498,8 @@ app.post('/api/products', requireAuth, (req, res) => {
     id: uuidv4(),
     status: 'active',
     name: req.body.name || '',
-    sku: req.body.sku || ''
+    sku: req.body.sku || '',
+    createdAt: new Date().toISOString()
   };
   if (!p.name) return res.status(400).json({ error: 'Name required' });
   db.products.push(p); saveDB(db); res.json({ ok: true, product: p });
@@ -1282,6 +1267,5 @@ app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
 
 app.listen(PORT, () => {
   console.log('✅ EAS Tracker listening on', PORT);
-  console.log('DB path:', DATA_FILE);
-  console.log('Snapshots dir:', SNAPSHOT_DIR);
+  console.log('DB:', DATA_FILE);
 });
