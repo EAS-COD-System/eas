@@ -61,8 +61,8 @@ function requireAuth(req, res, next) {
   if (req.cookies.auth === '1') return next();
   return res.status(403).json({ error: 'Unauthorized' });
 }
-// ======== ADD THE BACKUP FUNCTION RIGHT AFTER requireAuth ========
-// ADD THIS FUNCTION:
+
+// ======== STARTUP BACKUP FUNCTION ========
 function createStartupBackup() {
   try {
     const db = loadDB();
@@ -104,7 +104,53 @@ function createStartupBackup() {
     console.error('❌ Startup backup error:', error.message);
   }
 }
-// ======== END OF BACKUP FUNCTION ========
+
+// ======== DAILY AUTO-BACKUP SYSTEM ========
+function checkAndCreateDailyBackup() {
+  try {
+    const db = loadDB();
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    const dailyBackupName = `Daily-${today}`;
+    
+    // Check if today's backup already exists
+    const existingBackup = db.snapshots.find(snap => 
+      snap.name && snap.name.startsWith('Daily-') && snap.name.includes(today)
+    );
+    
+    // If no backup for today, create one
+    if (!existingBackup) {
+      const backupEntry = {
+        id: uuidv4(),
+        name: dailyBackupName,
+        file: `auto-daily-${today}.json`,
+        createdAt: new Date().toISOString(),
+        kind: 'auto-daily'
+      };
+      
+      // Add to beginning of snapshots list
+      db.snapshots.unshift(backupEntry);
+      
+      // Remove daily backups older than 7 days
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      db.snapshots = db.snapshots.filter(snapshot => {
+        if (snapshot.name && snapshot.name.startsWith('Daily-')) {
+          const snapshotDate = new Date(snapshot.createdAt);
+          return snapshotDate >= sevenDaysAgo;
+        }
+        return true; // Keep all manual snapshots (non-daily ones)
+      });
+      
+      saveDB(db);
+      console.log(`✅ Auto-created daily backup: ${dailyBackupName}`);
+    }
+  } catch (error) {
+    console.error('❌ Auto-backup error:', error.message);
+  }
+}
+
 // FIXED: Enhanced product cost calculation with proper hierarchical shipping
 function calculateProductCosts(db, productId, targetCountry = null) {
   const shipments = db.shipments || [];
@@ -526,7 +572,8 @@ app.delete('/api/countries/:name', requireAuth, (req, res) => {
 });
 
 // Products
-app.get('/api/products', requireAuth, (req, res) => { checkAndCreateDailyBackup();
+app.get('/api/products', requireAuth, (req, res) => { 
+  checkAndCreateDailyBackup();
   const db = loadDB();
   const products = (db.products || []).map(product => {
     // FIXED: Use lifetime data to determine profitability for product list
@@ -1267,6 +1314,7 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
     costAnalysis: analysis
   });
 });
+
 // Backup Management
 app.post('/api/backup/create', requireAuth, async (req, res) => {
   try {
@@ -1294,52 +1342,7 @@ app.get('/api/backup/list', requireAuth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-// ==================== DAILY AUTO-BACKUP SYSTEM ====================
-// Add this function to server.js (put it with your other functions)
-function checkAndCreateDailyBackup() {
-  try {
-    const db = loadDB();
-    const now = new Date();
-    const today = now.toISOString().slice(0, 10); // Gets YYYY-MM-DD
-    const dailyBackupName = `Daily-${today}`;
-    
-    // Check if today's backup already exists
-    const existingBackup = db.snapshots.find(snap => 
-      snap.name && snap.name.startsWith('Daily-') && snap.name.includes(today)
-    );
-    
-    // If no backup for today, create one
-    if (!existingBackup) {
-      const backupEntry = {
-        id: uuidv4(),
-        name: dailyBackupName,
-        file: `auto-daily-${today}.json`,
-        createdAt: new Date().toISOString(),
-        kind: 'auto-daily'
-      };
-      
-      // Add to beginning of snapshots list
-      db.snapshots.unshift(backupEntry);
-      
-      // Remove daily backups older than 7 days
-      const sevenDaysAgo = new Date(now);
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      
-      db.snapshots = db.snapshots.filter(snapshot => {
-        if (snapshot.name && snapshot.name.startsWith('Daily-')) {
-          const snapshotDate = new Date(snapshot.createdAt);
-          return snapshotDate >= sevenDaysAgo;
-        }
-        return true; // Keep all manual snapshots (non-daily ones)
-      });
-      
-      saveDB(db);
-      console.log(`✅ Auto-created daily backup: ${dailyBackupName}`);
-    }
-  } catch (error) {
-    console.error('❌ Auto-backup error:', error.message);
-  }
-}
+
 // Snapshots
 app.get('/api/snapshots', requireAuth, (req, res) => {
   const db = loadDB();
@@ -1386,7 +1389,8 @@ app.delete('/api/snapshots/:id', requireAuth, (req, res) => {
 // Routes
 app.get('/product.html', (req, res) => res.sendFile(path.join(ROOT, 'product.html')));
 app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
-// ======== ADD THIS LINE RIGHT BEFORE app.listen ========
+
+// ======== FIXED: Only ONE app.listen call ========
 createStartupBackup();
 
 app.listen(PORT, () => {
