@@ -61,7 +61,50 @@ function requireAuth(req, res, next) {
   if (req.cookies.auth === '1') return next();
   return res.status(403).json({ error: 'Unauthorized' });
 }
-
+// ======== ADD THE BACKUP FUNCTION RIGHT AFTER requireAuth ========
+// ADD THIS FUNCTION:
+function createStartupBackup() {
+  try {
+    const db = loadDB();
+    const today = new Date().toISOString().slice(0, 10);
+    const backupName = `Daily-${today}`;
+    
+    // Check if today's backup exists
+    const existingBackup = db.snapshots.find(snap => 
+      snap.name && snap.name.includes(today)
+    );
+    
+    if (!existingBackup) {
+      const backupEntry = {
+        id: uuidv4(),
+        name: backupName,
+        file: `auto-daily-${today}.json`,
+        createdAt: new Date().toISOString(),
+        kind: 'auto-daily'
+      };
+      
+      db.snapshots.unshift(backupEntry);
+      
+      // Clean up old backups (keep 7 days)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      db.snapshots = db.snapshots.filter(snapshot => {
+        if (snapshot.name && snapshot.name.startsWith('Daily-')) {
+          const snapshotDate = new Date(snapshot.createdAt);
+          return snapshotDate >= sevenDaysAgo;
+        }
+        return true; // Keep manual snapshots
+      });
+      
+      saveDB(db);
+      console.log(`✅ Auto-created startup backup: ${backupName}`);
+    }
+  } catch (error) {
+    console.error('❌ Startup backup error:', error.message);
+  }
+}
+// ======== END OF BACKUP FUNCTION ========
 // FIXED: Enhanced product cost calculation with proper hierarchical shipping
 function calculateProductCosts(db, productId, targetCountry = null) {
   const shipments = db.shipments || [];
@@ -1343,6 +1386,13 @@ app.delete('/api/snapshots/:id', requireAuth, (req, res) => {
 // Routes
 app.get('/product.html', (req, res) => res.sendFile(path.join(ROOT, 'product.html')));
 app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
+// ======== ADD THIS LINE RIGHT BEFORE app.listen ========
+createStartupBackup();
+
+app.listen(PORT, () => {
+  console.log('✅ EAS Tracker listening on', PORT);
+  console.log('DB:', DATA_FILE);
+});
 
 app.listen(PORT, () => {
   console.log('✅ EAS Tracker listening on', PORT);
