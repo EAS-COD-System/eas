@@ -20,15 +20,6 @@ const SNAPSHOT_DIR = path.join(PERSIST_DIR, 'snapshots');
 fs.ensureDirSync(PERSIST_DIR);
 fs.ensureDirSync(SNAPSHOT_DIR);
 
-// One-time migration if you had old files under /opt/... (ephemeral)
-if (process.env.RENDER) {
-  const OLD_DIR = '/opt/render/project/src/data';
-  const OLD_FILE = path.join(OLD_DIR, 'db.json');
-  if (fs.existsSync(OLD_FILE) && !fs.existsSync(DATA_FILE)) {
-    fs.copySync(OLD_FILE, DATA_FILE); // migrate once
-  }
-};
-
 app.use(morgan('dev'));
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(cookieParser());
