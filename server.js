@@ -1224,7 +1224,33 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
     costAnalysis: analysis
   });
 });
+// Backup Management
+app.post('/api/backup/create', requireAuth, async (req, res) => {
+  try {
+    const { createBackup } = require('./backup');
+    const backupId = await createBackup();
+    res.json({ ok: true, backupId, message: 'Backup created successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
+app.get('/api/backup/list', requireAuth, async (req, res) => {
+  try {
+    const { listBackups } = require('./backup');
+    // This would need to be adapted to return the list properly
+    const backupDir = path.join(ROOT, 'data', 'backups');
+    const files = await fs.readdir(backupDir);
+    const backups = files.filter(f => f.endsWith('.json')).map(file => ({
+      name: file,
+      path: path.join(backupDir, file)
+    }));
+    
+    res.json({ backups });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 // Snapshots
 app.get('/api/snapshots', requireAuth, (req, res) => {
   const db = loadDB();
