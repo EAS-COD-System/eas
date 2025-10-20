@@ -1315,122 +1315,182 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
   });
 });
 
-// Backup Management
-app.post('/api/backup/create', requireAuth, async (req, res) => {
-  try {
-    const { createBackup } = require('./backup');
-    const backupId = await createBackup();
-    res.json({ ok: true, backupId, message: 'Backup created successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/api/backup/list', requireAuth, async (req, res) => {
-  try {
-    const { listBackups } = require('./backup');
-    // This would need to be adapted to return the list properly
-    const backupDir = path.join(ROOT, 'data', 'backups');
-    const files = await fs.readdir(backupDir);
-    const backups = files.filter(f => f.endsWith('.json')).map(file => ({
-      name: file,
-      path: path.join(backupDir, file)
-    }));
-    
-    res.json({ backups });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // FIXED: Push Snapshot to System - ENHANCED VERSION
-app.post('/api/backup/push-snapshot', requireAuth, async (req, res) => {
+app.post('/api/backup/push-snapshotup/push-snapshot', requireAuth, async (req,', requireAuth, async ( res) => {
   try {
-    const { snapshotFile } = req.body || {};
+    const { snapshotFilereq, res) => {
+  try {
+    const { snapshotFile } = req.body } = req.body || {};
+ || {};
     
+       
     if (!snapshotFile) {
-      return res.status(400).json({ error: 'Snapshot file path required' });
+      return res if (!snapshotFile) {
+     .status(400).json({ return res.status(400).json({ error: 'Snapshot error: 'Snapshot file path required' });
     }
 
-    // Handle both full paths and just filenames
+    file path required' });
+    }
+
+    // Handle both full // Handle both full paths and just paths and just filenames filenames
     let actualFilePath = snapshotFile;
     
-    // If it's just a filename (not a full path), construct the full path
-    if (!snapshotFile.includes(SNAPSHOT_DIR) && !snapshotFile.startsWith('/')) {
-      actualFilePath = path.join(SNAPSHOT_DIR, snapshotFile);
+
+    let actualFilePath = snapshotFile;
+    
+    //    // If it's just If it's just a filename a filename (not a full (not a full path), path), construct the full path
+    if (!snapshot construct the full path
+    if (!snapshotFile.includes(SNAFile.includes(SNAPSHPSHOT_DIR) &&OT_DIR) && !snapshotFile.startsWith('/')) !snapshotFile.startsWith('/')) {
+      actualFilePath {
+      actualFilePath = path = path.join(SNAPS.join(SNAPSHOTHOT_DIR, snapshotFile_DIR, snapshotFile);
+    }
+    
+    // Check if file exists);
     }
     
     // Check if file exists
-    if (!fs.existsSync(actualFilePath)) {
-      return res.status(404).json({ error: `Snapshot file not found: ${actualFilePath}` });
+    if (!
+    if (!fs.existsfs.existsSync(Sync(actualFilePath)) {
+      return res.statusactualFilePath)) {
+      return res.status(404).json(404).json({ error: `({ error: `Snapshot fileSnapshot file not found: ${actual not found: ${actualFilePath}` });
     }
 
-    // Read the snapshot file
-    const snapshotData = await fs.readJson(actualFilePath);
+    // ReadFilePath}` });
+    }
+
+ the snapshot file
+    const snapshotData = await fs.read    // Read the snapshot file
+    const snapshotData = await fs.readJson(actualJson(actualFilePath);
+    
+    // Write it to the currentFilePath);
     
     // Write it to the current database file
-    await fs.writeJson(DATA_FILE, snapshotData, { spaces: 2 });
+    await fs database file
+    await fs.writeJson(DATA_FILE, snapshot.writeJson(DATA_FILE,Data, { spaces: snapshotData, { spaces: 2 });
     
-    console.log(`✅ Snapshot pushed to system: ${actualFilePath}`);
-    res.json({ ok: true, message: 'Snapshot pushed successfully' });
+    console 2 });
+    
+    console.log(`✅ Sn.log(`✅ Snapshot pushedapshot pushed to system: ${actualFilePath}`);
+    res to system: ${actualFilePath}`);
+    res.json({ ok:.json({ ok: true, message: 'Snapshot true, message: 'Snapshot pushed successfully' });
+    
+  } pushed successfully' });
     
   } catch (error) {
-    console.error('❌ Push snapshot error:', error.message);
-    res.status(500).json({ error: error.message });
+    console catch (error) {
+    console.error('❌.error('❌ Push snapshot error:', error.message Push snapshot error:', error.message);
+    res.status(500);
+    res.status(500).).json({ error: errorjson({ error: error.message });
+  }
+});
+
+//.message });
   }
 });
 
 // Snapshots
-app.get('/api/snapshots', requireAuth, (req, res) => {
+app.get('/ Snapshots
+app.get('/apiapi/snapshots', requireAuth/snapshots', requireAuth, (req, res, (req,) => {
+  const db res) => {
   const db = loadDB();
-  res.json({ snapshots: db.snapshots || [] });
+  res = loadDB();
+  res.json({ snapshots: db.s.json({ snapshots: dbnapshots || [] });
 });
 
-app.post('/api/snapshots', requireAuth, async (req, res) => {
+.snapshots || [] });
+});
+
+app.post('/api/sapp.post('/api/snapshots', requireAuth, async (napshots', requireAuth, async (req, resreq, res)) => {
   try {
     const db = loadDB();
-    const { name } = req.body || {};
+ => {
+  try {
+    const db = loadDB();
+       const { name } = const { name } = req.body req.body || {};
+ || {};
     
-    await fs.ensureDir(SNAPSHOT_DIR);
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const snapshotName = name || `Manual-${stamp}`;
-    const snapshotFile = path.join(SNAPSHOT_DIR, `${stamp}-${snapshotName.replace(/\s+/g, '_')}.json`);
+    await fs.ensureDir(S    
+    await fs.ensureNAPSHOT_DIR);
+    const stamp = new DateDir(SNAPSHOT_DIR);
+    const stamp = new Date().to().toISOString().replaceISOString().replace(/[:.]/g, '-');
+    const(/[:.]/g, '-');
+    const snapshotName = name snapshotName = name || `Manual- || `Manual-${stamp}`;
+    const snapshot${stamp}`;
+    const snapshotFile = path.joinFile = path.join(SNA(SNAPSHOT_DIRPSHOT_DIR, `${, `${stamp}-${stamp}-${snapshotName.replace(/\s+/g,snapshotName.replace(/\s+/g, '_')}.json`);
     
-    await fs.copy(DATA_FILE, snapshotFile);
+    await '_')}.json`);
+    
+ fs.copy(DATA_FILE,    await fs.copy(DATA_FILE, snapshotFile);
+    
+    const snapshotFile);
     
     const snapshotEntry = {
+      id: uuidv4 snapshotEntry = {
       id: uuidv4(),
-      name: snapshotName,
+(),
+      name: snapshotName      name: snapshotName,
       file: snapshotFile,
-      createdAt: new Date().toISOString(),
-      kind: 'manual'
+     ,
+      file: snapshotFile,
+      createdAt: createdAt: new Date().toISOString(),
+      kind new Date().toISOString(),
+      kind: ': 'manual'
+    };
+manual'
     };
     
+    db.snapshots = db.s    
     db.snapshots = db.snapshots || [];
-    db.snapshots.unshift(snapshotEntry);
+napshots || [];
+    db    db.snapshots.un.snapshots.unshift(snapshotEntry);
+    saveshift(snapshotEntry);
     saveDB(db);
     
-    res.json({ ok: true, snapshot: snapshotEntry });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+DB(db);
+    
+    res    res.json({ ok:.json({ ok: true, snapshot: snapshotEntry });
+  } true, snapshot: snapshotEntry });
+  } catch (error) catch (error) {
+    res {
+    res.status(500).json({ error:.status(500).json({ error.message error: error.message });
   }
 });
 
-app.delete('/api/snapshots/:id', requireAuth, (req, res) => {
+app.delete('/api });
+  }
+});
+
+app.delete('/api/snapshots/:id', requireAuth/snapshots/:id', requireAuth, (req,, (req, res) res) => {
+  const => {
   const db = loadDB();
-  db.snapshots = (db.snapshots || []).filter(s => s.id !== req.params.id);
+  db.s db = loadDB();
+ napshots = (db.snap db.snapshots = (db.snapshots || []).filtershots || []).filter(s => s.id !== req.params.id(s => s.id !== req.params.id);
+  saveDB);
   saveDB(db);
+(db);
   res.json({ ok: true });
 });
 
-// Routes
-app.get('/product.html', (req, res) => res.sendFile(path.join(ROOT, 'product.html')));
-app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
+  res.json({ ok: true });
+});
 
-// ======== FIXED: Only ONE app.listen call ========
+//// Routes
+app.get('/product Routes
+app.get('/product.html', (req, res.html', (req, res) => res.sendFile(path) => res.sendFile(path.join.join(ROOT, '(ROOT, 'productproduct.html')));
+app.get('/', (req, res) =>.html')));
+app.get('/', (req, res) => res res.sendFile(path.join(.sendFile(path.join(ROOT, 'index.html')));
+
+//ROOT, 'index.html')));
+
+// ======== F ======== FIXEDIXED: Only ONE app: Only ONE app.listen call.listen call ========
+createStart ========
 createStartupBackup();
 
+appupBackup();
+
 app.listen(PORT, () => {
-  console.log('✅ EAS Tracker listening on', PORT);
+  console.log('✅.listen(PORT, () => {
+  console.log('✅ E EAS Tracker listening onAS Tracker listening on', PORT', PORT);
+  console.log('DB);
   console.log('DB:', DATA_FILE);
 });
