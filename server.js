@@ -1376,8 +1376,8 @@ app.get('/api/debug/snapshots', requireAuth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-// FIX: Force create the missing daily backup file
-app.post('/api/debug/fix-daily-backup', requireAuth, async (req, res) => {
+// FIX: Force create the missing daily backup file (GET version for browser)
+app.get('/api/debug/fix-daily-backup', requireAuth, async (req, res) => {
   try {
     const db = loadDB();
     const today = new Date().toISOString().slice(0, 10);
