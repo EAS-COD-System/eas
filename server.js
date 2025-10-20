@@ -581,8 +581,8 @@ app.delete('/api/countries/:name', requireAuth, (req, res) => {
 });
 
 // Products
-app.get('/api/products', requireAuth, (req, res) => { 
-  checkAndCreateDailyBackup();
+app.get('/api/products', requireAuth, async (req, res) => { 
+  await checkAndCreateDailyBackup();
   const db = loadDB();
   const products = (db.products || []).map(product => {
     // FIXED: Use lifetime data to determine profitability for product list
@@ -1437,9 +1437,8 @@ app.get('/product.html', (req, res) => res.sendFile(path.join(ROOT, 'product.htm
 app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
 
 // ======== FIXED: Only ONE app.listen call ========
-createStartupBackup();
-
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+  await createStartupBackup();
   console.log('✅ EAS Tracker listening on', PORT);
   console.log('DB:', DATA_FILE);
 });
