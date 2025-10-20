@@ -1343,6 +1343,30 @@ app.get('/api/backup/list', requireAuth, async (req, res) => {
   }
 });
 
+// NEW: Push Snapshot to System
+app.post('/api/backup/push-snapshot', requireAuth, async (req, res) => {
+  try {
+    const { snapshotFile } = req.body || {};
+    
+    if (!snapshotFile) {
+      return res.status(400).json({ error: 'Snapshot file path required' });
+    }
+
+    // Read the snapshot file
+    const snapshotData = await fs.readJson(snapshotFile);
+    
+    // Write it to the current database file
+    await fs.writeJson(DATA_FILE, snapshotData, { spaces: 2 });
+    
+    console.log(`✅ Snapshot pushed to system: ${snapshotFile}`);
+    res.json({ ok: true, message: 'Snapshot pushed successfully' });
+    
+  } catch (error) {
+    console.error('❌ Push snapshot error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Snapshots
 app.get('/api/snapshots', requireAuth, (req, res) => {
   const db = loadDB();
