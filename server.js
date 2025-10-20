@@ -10,8 +10,24 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const ROOT = __dirname;
-const DATA_FILE = path.join(ROOT, 'db.json');
-const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
+
+// Always write app data under /data on Render (persistent disk), else local ./data
+const PERSIST_DIR = process.env.RENDER ? '/data' : path.join(ROOT, 'data');
+const DATA_FILE    = path.join(PERSIST_DIR, 'db.json');
+const SNAPSHOT_DIR = path.join(PERSIST_DIR, 'snapshots');
+
+// Make sure folders exist
+fs.ensureDirSync(PERSIST_DIR);
+fs.ensureDirSync(SNAPSHOT_DIR);
+
+// One-time migration if you had old files under /opt/... (ephemeral)
+if (process.env.RENDER) {
+  const OLD_DIR = '/opt/render/project/src/data';
+  const OLD_FILE = path.join(OLD_DIR, 'db.json');
+  if (fs.existsSync(OLD_FILE) && !fs.existsSync(DATA_FILE)) {
+    fs.copySync(OLD_FILE, DATA_FILE); // migrate once
+  }
+};
 
 app.use(morgan('dev'));
 app.use(bodyParser.json({ limit: '1mb' }));
