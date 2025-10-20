@@ -1739,11 +1739,14 @@ function renderSettingsPage() {
     const r = await api('/api/snapshots');
     listBox.innerHTML = (r.snapshots || []).map(s => `
       <tr>
-        <td>${s.name}</td><td>${s.file.replace(/^.*data\\?\\/, '')}</td>
-        <td>
+        <td>${s.name}</td>
+        <td>${s.file.replace(/^.*data\\?\\/, '')}</td>
+        <td>${new Date(s.createdAt).toLocaleDateString()}</td>
+        <td style="width: 200px;">
+          <button class="btn outline ss-push" data-file="${s.file}" data-id="${s.id}">Push</button>
           <button class="btn outline ss-del" data-id="${s.id}">Delete</button>
         </td>
-      </tr>`).join('') || `<tr><td colspan="3" class="muted">No snapshots</td></tr>`;
+      </tr>`).join('') || `<tr><td colspan="4" class="muted">No snapshots</td></tr>`;
   }
   refreshSnaps();
 
@@ -1755,6 +1758,20 @@ function renderSettingsPage() {
   });
 
   listBox?.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('ss-push')) {
+      if (!confirm('Push this snapshot to the system? This will replace current data.')) return;
+      try {
+        await api('/api/backup/push-snapshot', { 
+          method: 'POST', 
+          body: JSON.stringify({ snapshotFile: e.target.dataset.file }) 
+        });
+        alert('✅ Snapshot pushed successfully! System will reload.');
+        location.reload();
+      } catch (error) {
+        alert('❌ Failed to push snapshot: ' + error.message);
+      }
+    }
+    
     if (e.target.classList.contains('ss-del')) {
       if (!confirm('Delete this snapshot?')) return;
       await api(`/api/snapshots/${e.target.dataset.id}`, { method: 'DELETE' });
@@ -1762,7 +1779,6 @@ function renderSettingsPage() {
     }
   });
 }
-
 function renderCountryChips() {
   const box = Q('#ctyList'); if (!box) return;
   box.innerHTML = state.countries.map(c => `<span class="chip">${c}<button class="chip-x" data-name="${c}">×</button></span>`).join('') || '—';
