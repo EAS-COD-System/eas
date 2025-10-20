@@ -104,7 +104,8 @@ function createStartupBackup() {
     console.error('❌ Startup backup error:', error.message);
   }
 }
-// In checkAndCreateDailyBackup() and createStartupBackup() functions:
+
+// ======== DAILY AUTO-BACKUP SYSTEM ========
 function checkAndCreateDailyBackup() {
   try {
     const db = loadDB();
@@ -119,16 +120,10 @@ function checkAndCreateDailyBackup() {
     
     // If no backup for today, create one
     if (!existingBackup) {
-      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const snapshotFile = path.join(SNAPSHOT_DIR, `auto-daily-${today}.json`);
-      
-      // Create the actual snapshot file
-      await fs.copy(DATA_FILE, snapshotFile);
-      
       const backupEntry = {
         id: uuidv4(),
         name: dailyBackupName,
-        file: snapshotFile, // STORE FULL PATH
+        file: `auto-daily-${today}.json`,
         createdAt: new Date().toISOString(),
         kind: 'auto-daily'
       };
@@ -156,53 +151,6 @@ function checkAndCreateDailyBackup() {
   }
 }
 
-// Do the same for createStartupBackup():
-function createStartupBackup() {
-  try {
-    const db = loadDB();
-    const today = new Date().toISOString().slice(0, 10);
-    const backupName = `Daily-${today}`;
-    
-    // Check if today's backup exists
-    const existingBackup = db.snapshots.find(snap => 
-      snap.name && snap.name.includes(today)
-    );
-    
-    if (!existingBackup) {
-      const snapshotFile = path.join(SNAPSHOT_DIR, `auto-daily-${today}.json`);
-      
-      // Create the actual snapshot file
-      await fs.copy(DATA_FILE, snapshotFile);
-      
-      const backupEntry = {
-        id: uuidv4(),
-        name: backupName,
-        file: snapshotFile, // STORE FULL PATH
-        createdAt: new Date().toISOString(),
-        kind: 'auto-daily'
-      };
-      
-      db.snapshots.unshift(backupEntry);
-      
-      // Clean up old backups (keep 7 days)
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      
-      db.snapshots = db.snapshots.filter(snapshot => {
-        if (snapshot.name && snapshot.name.startsWith('Daily-')) {
-          const snapshotDate = new Date(snapshot.createdAt);
-          return snapshotDate >= sevenDaysAgo;
-        }
-        return true; // Keep manual snapshots
-      });
-      
-      saveDB(db);
-      console.log(`✅ Auto-created startup backup: ${backupName}`);
-    }
-  } catch (error) {
-    console.error('❌ Startup backup error:', error.message);
-  }
-}
 // FIXED: Enhanced product cost calculation with proper hierarchical shipping
 function calculateProductCosts(db, productId, targetCountry = null) {
   const shipments = db.shipments || [];
@@ -1395,7 +1343,7 @@ app.get('/api/backup/list', requireAuth, async (req, res) => {
   }
 });
 
-// NEW: Push Snapshot to System
+// FIXED: Push Snapshot to System - ENHANCED VERSION
 app.post('/api/backup/push-snapshot', requireAuth, async (req, res) => {
   try {
     const { snapshotFile } = req.body || {};
@@ -1404,13 +1352,26 @@ app.post('/api/backup/push-snapshot', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Snapshot file path required' });
     }
 
+    // Handle both full paths and just filenames
+    let actualFilePath = snapshotFile;
+    
+    // If it's just a filename (not a full path), construct the full path
+    if (!snapshotFile.includes(SNAPSHOT_DIR) && !snapshotFile.startsWith('/')) {
+      actualFilePath = path.join(SNAPSHOT_DIR, snapshotFile);
+    }
+    
+    // Check if file exists
+    if (!fs.existsSync(actualFilePath)) {
+      return res.status(404).json({ error: `Snapshot file not found: ${actualFilePath}` });
+    }
+
     // Read the snapshot file
-    const snapshotData = await fs.readJson(snapshotFile);
+    const snapshotData = await fs.readJson(actualFilePath);
     
     // Write it to the current database file
     await fs.writeJson(DATA_FILE, snapshotData, { spaces: 2 });
     
-    console.log(`✅ Snapshot pushed to system: ${snapshotFile}`);
+    console.log(`✅ Snapshot pushed to system: ${actualFilePath}`);
     res.json({ ok: true, message: 'Snapshot pushed successfully' });
     
   } catch (error) {
