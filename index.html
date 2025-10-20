@@ -631,25 +631,42 @@
           </div>
 
           <!-- Manual Save & Restore -->
-          <div class="card">
-            <div class="h">💾 Manual Save &amp; Restore</div>
-            <div class="row">
-              <input id="snapName" class="input" placeholder="Name this snapshot"/>
-              <button id="snapSave" class="btn">📸 Save Current System</button>
-            </div>
-            <div class="table-scroll" style="margin-top: 15px;">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>File</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="snapList"></tbody>
-              </table>
-            </div>
-          </div>
+<div class="card">
+  <div class="h">💾 Manual Save &amp; Restore</div>
+  <div class="row wrap">
+    <input id="snapName" class="input" placeholder="Name this snapshot"/>
+    <button id="snapSave" class="btn">📸 Save Current System</button>
+    <!-- ADD THIS BUTTON -->
+    <button id="createDailyBackup" class="btn" style="background: var(--accent-teal);">📅 Create Daily Backup</button>
+  </div>
+  
+  <!-- ADD THIS INFO BOX -->
+  <div class="card" style="background: var(--primary-50); border: 1px solid var(--primary); margin-top: 10px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="font-size: 1.2rem;">💡</span>
+      <div>
+        <strong>Auto-Daily Backups:</strong> 
+        <span style="color: var(--text-secondary); font-size: 0.9rem;">
+          System automatically keeps last 7 days. Manual snapshots are kept forever.
+        </span>
+      </div>
+    </div>
+  </div>
+  
+  <div class="table-scroll" style="margin-top: 15px;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>File</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="snapList"></tbody>
+    </table>
+  </div>
+</div>
         </section>
 
       </div>
