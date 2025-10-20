@@ -1252,7 +1252,7 @@ app.get('/api/backup/list', requireAuth, async (req, res) => {
   }
 });
 // ==================== DAILY AUTO-BACKUP SYSTEM ====================
-// Add this function to server.js
+// Add this function to server.js (put it with your other functions)
 function checkAndCreateDailyBackup() {
   try {
     const db = loadDB();
@@ -1297,13 +1297,6 @@ function checkAndCreateDailyBackup() {
     console.error('❌ Auto-backup error:', error.message);
   }
 }
-
-// Add this line to your most frequently used endpoint
-app.get('/api/products', requireAuth, (req, res) => {
-  checkAndCreateDailyBackup(); // ← ADD THIS LINE
-  const pr = await api('/api/products'); // Your existing code continues...
-  // ... rest of your existing /api/products code
-});
 // Snapshots
 app.get('/api/snapshots', requireAuth, (req, res) => {
   const db = loadDB();
