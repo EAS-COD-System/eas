@@ -60,6 +60,7 @@ async function boot() {
     renderFinancePage();
     renderSettingsPage();
   }
+   setupDailyBackupButton();
 }
 
 Q('#loginBtn')?.addEventListener('click', async () => {
