@@ -1,5 +1,5 @@
 /* ================================================================
-   EAS Tracker – Frontend (Complete Rebuild)
+   EAS Tracker – Frontend (Enhanced Version)
    ================================================================ */
 
 const Q = (s, r = document) => r.querySelector(s);
@@ -32,7 +32,8 @@ const state = {
   brainstorming: [],
   testedProducts: [],
   currentStoreOrdersPage: 1,
-  currentRemittancesPage: 1
+  currentRemittancesPage: 1,
+  currentRefundsPage: 1
 };
 
 async function boot() {
@@ -60,7 +61,7 @@ async function boot() {
     renderFinancePage();
     renderSettingsPage();
   }
-   setupDailyBackupButton();
+  setupDailyBackupButton();
 }
 
 Q('#loginBtn')?.addEventListener('click', async () => {
@@ -147,7 +148,7 @@ function fillCommonSelects() {
   const countrySelects = ['#adCountry', '#rCountry', '#pdAdCountry', '#pdRCountry',
     '#pdInfCountry', '#pdInfFilterCountry', '#pcCountry', '#remCountry', '#remAddCountry',
     '#topDelCountry', '#remAnalyticsCountry', '#spCountry', '#poCountry', '#pdNoteCountry',
-    '#mvFrom', '#mvTo'];
+    '#mvFrom', '#mvTo', '#refundCountry'];
 
   countrySelects.forEach(sel => QA(sel).forEach(el => {
     if (sel === '#pcCountry' || sel === '#remCountry' || sel === '#topDelCountry' || sel === '#remAnalyticsCountry') {
@@ -167,7 +168,7 @@ function fillCommonSelects() {
   }));
 
   // FIXED: Sections that should show ONLY ACTIVE products (newest first)
-  const activeProductInputs = ['#mvProduct', '#adProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct'];
+  const activeProductInputs = ['#mvProduct', '#adProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct', '#refundProduct'];
   activeProductInputs.forEach(sel => QA(sel).forEach(el => {
     // Get active products sorted by creation date (newest first)
     const activeProducts = state.products
@@ -288,7 +289,7 @@ function getDateRange(container) {
 }
 
 function renderDashboardPage() {
-  renderCompactKpis();
+  renderEnhancedKpis();
   renderCountryStockSpend();
   bindDailyAdSpend();
   renderWeeklyDelivered();
@@ -297,15 +298,22 @@ function renderDashboardPage() {
   initTestedProducts();
 }
 
-async function renderCompactKpis() {
+async function renderEnhancedKpis() {
   Q('#kpiProducts') && (Q('#kpiProducts').textContent = state.products.length);
   Q('#kpiCountries') && (Q('#kpiCountries').textContent = state.countries.length);
 
   try {
-    const s = await api('/api/shipments');
-    const live = (s.shipments || []).filter(x => !x.arrivedAt).length;
-    Q('#kpiTransit') && (Q('#kpiTransit').textContent = live);
-  } catch { Q('#kpiTransit') && (Q('#kpiTransit').textContent = '—'); }
+    const overview = await api('/api/dashboard/overview');
+    Q('#kpiTransitChina') && (Q('#kpiTransitChina').textContent = fmt(overview.transitFromChina));
+    Q('#kpiTransitBetween') && (Q('#kpiTransitBetween').textContent = fmt(overview.transitBetweenCountries));
+    Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = fmt(overview.activeStock));
+    Q('#kpiInactiveStock') && (Q('#kpiInactiveStock').textContent = fmt(overview.inactiveStock));
+  } catch {
+    Q('#kpiTransitChina') && (Q('#kpiTransitChina').textContent = '—');
+    Q('#kpiTransitBetween') && (Q('#kpiTransitBetween').textContent = '—');
+    Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = '—');
+    Q('#kpiInactiveStock') && (Q('#kpiInactiveStock').textContent = '—');
+  }
 
   try {
     const a = await api('/api/adspend');
@@ -321,80 +329,38 @@ async function renderCountryStockSpend() {
   const body = Q('#stockByCountryBody'); if (!body) return;
   body.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
 
-  const per = {};
-  state.countries.forEach(c => {
-    per[c] = {
-      stock: 0,
-      facebook: 0,
-      tiktok: 0,
-      google: 0,
-      totalAd: 0
-    };
-  });
-
   try {
-    const s = await api('/api/shipments');
-    (s.shipments || []).filter(x => x.arrivedAt).forEach(sp => {
-      const to = sp.toCountry || sp.to, from = sp.fromCountry || sp.from, qty = (+sp.qty || 0);
-      if (to && state.countries.includes(to)) {
-        per[to] = per[to] || { stock: 0, facebook: 0, tiktok: 0, google: 0, totalAd: 0 };
-        per[to].stock += qty;
-      }
-      if (from && state.countries.includes(from)) {
-        per[from] = per[from] || { stock: 0, facebook: 0, tiktok: 0, google: 0, totalAd: 0 };
-        per[from].stock -= qty;
-      }
-    });
-  } catch { }
+    const stockData = await api('/api/stock-by-country');
+    const per = stockData.stockByCountry || {};
 
-  try {
-    const r = await api('/api/remittances');
-    (r.remittances || []).forEach(x => {
-      if (state.countries.includes(x.country)) {
-        per[x.country] = per[x.country] || { stock: 0, facebook: 0, tiktok: 0, google: 0, totalAd: 0 };
-        per[x.country].stock -= (+x.pieces || 0);
-      }
-    });
-  } catch { }
+    let st = 0, fb = 0, tt = 0, gg = 0, totalAd = 0;
+    const rows = Object.entries(per).map(([c, v]) => {
+      st += v.stock;
+      fb += v.facebook;
+      tt += v.tiktok;
+      gg += v.google;
+      totalAd += v.totalAd;
 
-  try {
-    const a = await api('/api/adspend');
-    (a.adSpends || []).forEach(x => {
-      if (state.countries.includes(x.country)) {
-        per[x.country] = per[x.country] || { stock: 0, facebook: 0, tiktok: 0, google: 0, totalAd: 0 };
-        const amount = +x.amount || 0;
-        if (x.platform === 'facebook') per[x.country].facebook += amount;
-        else if (x.platform === 'tiktok') per[x.country].tiktok += amount;
-        else if (x.platform === 'google') per[x.country].google += amount;
-        per[x.country].totalAd += amount;
-      }
-    });
-  } catch { }
+      return `<tr>
+        <td>${c}</td>
+        <td>${fmt(v.stock)}</td>
+        <td>${fmt(v.facebook)}</td>
+        <td>${fmt(v.tiktok)}</td>
+        <td>${fmt(v.google)}</td>
+        <td>${fmt(v.totalAd)}</td>
+      </tr>`;
+    }).join('');
 
-  let st = 0, fb = 0, tt = 0, gg = 0, totalAd = 0;
-  const rows = Object.entries(per).map(([c, v]) => {
-    st += v.stock;
-    fb += v.facebook;
-    tt += v.tiktok;
-    gg += v.google;
-    totalAd += v.totalAd;
-
-    return `<tr>
-      <td>${c}</td>
-      <td>${fmt(v.stock)}</td>
-      <td>${fmt(v.facebook)}</td>
-      <td>${fmt(v.tiktok)}</td>
-      <td>${fmt(v.google)}</td>
-      <td>${fmt(v.totalAd)}</td>
-    </tr>`;
-  }).join('');
-
-  body.innerHTML = rows || `<tr><td colspan="6" class="muted">No data</td></tr>`;
-  Q('#stockTotal') && (Q('#stockTotal').textContent = fmt(st));
-  Q('#fbTotal') && (Q('#fbTotal').textContent = fmt(fb));
-  Q('#ttTotal') && (Q('#ttTotal').textContent = fmt(tt));
-  Q('#ggTotal') && (Q('#ggTotal').textContent = fmt(gg));
-  Q('#adTotal') && (Q('#adTotal').textContent = fmt(totalAd));
+    body.innerHTML = rows || `<tr><td colspan="6" class="muted">No data</td></tr>`;
+    Q('#stockTotal') && (Q('#stockTotal').textContent = fmt(st));
+    Q('#fbTotal') && (Q('#fbTotal').textContent = fmt(fb));
+    Q('#ttTotal') && (Q('#ttTotal').textContent = fmt(tt));
+    Q('#ggTotal') && (Q('#ggTotal').textContent = fmt(gg));
+    Q('#adTotal') && (Q('#adTotal').textContent = fmt(totalAd));
+  } catch (error) {
+    body.innerHTML = `<tr><td colspan="6" class="muted">Error loading data</td></tr>`;
+    console.error('Error loading stock data:', error);
+  }
 }
 
 function bindDailyAdSpend() {
@@ -411,9 +377,43 @@ function bindDailyAdSpend() {
     try {
       await api('/api/adspend', { method: 'POST', body: JSON.stringify(payload) });
       await renderCountryStockSpend();
-      await renderCompactKpis();
+      await renderEnhancedKpis();
       alert('Ad spend saved');
     } catch (e) { alert(e.message); }
+  };
+}
+
+// Refunds Management
+function bindRefundsManagement() {
+  const btn = Q('#refundSave');
+  if (!btn) return;
+
+  btn.onclick = async () => {
+    const payload = {
+      date: Q('#refundDate')?.value,
+      country: Q('#refundCountry')?.value,
+      productId: Q('#refundProduct')?.value,
+      ordersRefunded: +Q('#refundOrders')?.value || 0,
+      piecesRefunded: +Q('#refundPieces')?.value || 0,
+      amount: +Q('#refundAmount')?.value || 0,
+      reason: Q('#refundReason')?.value || ''
+    };
+
+    if (!payload.date || !payload.country || !payload.productId) {
+      return alert('Please fill all required fields: Date, Country, and Product');
+    }
+
+    try {
+      await api('/api/refunds', { method: 'POST', body: JSON.stringify(payload) });
+      alert('Refund entry added successfully!');
+      // Clear form
+      Q('#refundOrders').value = '';
+      Q('#refundPieces').value = '';
+      Q('#refundAmount').value = '';
+      Q('#refundReason').value = '';
+    } catch (e) {
+      alert('Error adding refund: ' + e.message);
+    }
   };
 }
 
@@ -912,6 +912,7 @@ function renderAdvertisingOverview() {
   }).catch(console.error);
 }
 
+// Enhanced Products Table with Stock Information
 function renderProductsTable() {
   const tb = Q('#productsTable tbody'); if (!tb) return;
   tb.innerHTML = state.products.map(p => {
@@ -924,31 +925,38 @@ function renderProductsTable() {
       rowClass = 'loss-row';
     }
 
+    const stockByCountry = p.stockByCountry || {};
+    const countries = ['kenya', 'tanzania', 'uganda', 'zambia', 'zimbabwe'];
+
     return `
     <tr class="${rowClass}">
       <td>${p.name}</td>
       <td>${p.sku || '-'}</td>
       <td><span class="badge ${p.status === 'paused' ? 'muted' : ''}">${p.status || 'active'}</span></td>
+      ${countries.map(country => `<td>${fmt(stockByCountry[country] || 0)}</td>`).join('')}
+      <td>${fmt(p.transitPieces || 0)}</td>
+      <td>${fmt(p.totalIncludingTransit || 0)}</td>
       <td>
         <a class="btn" href="/product.html?id=${p.id}">Open</a>
         <button class="btn outline act-toggle" data-id="${p.id}">${p.status === 'active' ? 'Pause' : 'Run'}</button>
         <button class="btn outline act-del" data-id="${p.id}">Delete</button>
       </td>
     </tr>
-  `}).join('') || `<tr><td colspan="4" class="muted">No products</td></tr>`;
+  `}).join('') || `<tr><td colspan="12" class="muted">No products</td></tr>`;
 
-  // FIXED: Use event delegation to prevent multiple event listeners
   tb.onclick = async (e) => {
     const id = e.target.dataset?.id; if (!id) return;
     if (e.target.classList.contains('act-toggle')) {
       const p = state.products.find(x => x.id === id); const ns = p.status === 'active' ? 'paused' : 'active';
       await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: ns }) });
       await preload(); renderProductsTable(); renderCompactCountryStats(); renderAdvertisingOverview();
+      await renderCountryStockSpend(); await renderEnhancedKpis();
     }
     if (e.target.classList.contains('act-del')) {
       if (!confirm('Delete product and ALL its data?')) return;
       await api(`/api/products/${id}`, { method: 'DELETE' });
-      await preload(); renderProductsTable(); renderCompactCountryStats(); renderAdvertisingOverview(); renderCountryStockSpend(); renderCompactKpis();
+      await preload(); renderProductsTable(); renderCompactCountryStats(); renderAdvertisingOverview(); 
+      await renderCountryStockSpend(); await renderEnhancedKpis();
     }
   };
 }
@@ -1035,6 +1043,7 @@ function renderPerformancePage() {
   bindRemittanceAnalytics();
   bindProfitByCountry();
   bindRemittanceAdd();
+  bindRefundsManagement();
   
   // FIXED: Initialize performance section with default data
   setTimeout(() => {
@@ -1258,14 +1267,14 @@ function bindRemittanceAnalytics() {
   };
 }
 
+// Enhanced Remittance Analytics with Refunds and Influencer Spend
 function renderRemittanceAnalytics(analytics) {
   const tb = Q('#remAnalyticsBody');
   if (!tb) return;
 
   let totalPieces = 0, totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
   let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0, totalDeliveredOrders = 0;
-  let totalBoxleoPerOrder = 0, totalBoxleoPerPiece = 0, totalAdCostPerOrder = 0, totalAdCostPerPiece = 0, totalAOV = 0;
-  let itemCount = 0;
+  let totalRefunds = 0, totalInfluencer = 0;
 
   analytics.sort((a, b) => b.totalDeliveredPieces - a.totalDeliveredPieces);
 
@@ -1281,12 +1290,8 @@ function renderRemittanceAnalytics(analytics) {
     totalProfit += item.profit;
     totalOrders += item.totalOrders;
     totalDeliveredOrders += item.totalDeliveredOrders;
-    totalBoxleoPerOrder += item.boxleoPerDeliveredOrder;
-    totalBoxleoPerPiece += item.boxleoPerDeliveredPiece;
-    totalAdCostPerOrder += item.adCostPerDeliveredOrder;
-    totalAdCostPerPiece += item.adCostPerDeliveredPiece;
-    totalAOV += item.averageOrderValue;
-    itemCount++;
+    totalRefunds += item.totalRefundAmount;
+    totalInfluencer += item.totalInfluencerSpend;
 
     return `<tr>
       <td>${product.name}</td>
@@ -1295,41 +1300,30 @@ function renderRemittanceAnalytics(analytics) {
       <td><strong>${fmt(item.totalDeliveredOrders)}</strong></td>
       <td><strong>${fmt(item.totalDeliveredPieces)}</strong></td>
       <td>${fmt(item.totalRevenue)}</td>
+      <td class="number-negative">${fmt(item.totalRefundAmount)}</td>
       <td>${fmt(item.totalAdSpend)}</td>
+      <td>${fmt(item.totalInfluencerSpend)}</td>
       <td>${fmt(item.totalBoxleoFees)}</td>
       <td>${fmt(item.totalProductChinaCost)}</td>
       <td>${fmt(item.totalShippingCost)}</td>
       <td>${fmt(item.deliveryRate)}%</td>
-      <td>$${fmt(item.boxleoPerDeliveredOrder)}</td>
-      <td>$${fmt(item.boxleoPerDeliveredPiece)}</td>
-      <td>$${fmt(item.adCostPerDeliveredOrder)}</td>
-      <td>$${fmt(item.adCostPerDeliveredPiece)}</td>
-      <td>$${fmt(item.averageOrderValue)}</td>
       <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(item.profit)}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="17" class="muted">No data for selected period</td></tr>`;
+  }).join('') || `<tr><td colspan="14" class="muted">No data for selected period</td></tr>`;
 
   const totalDeliveryRate = totalOrders > 0 ? (totalDeliveredOrders / totalOrders) * 100 : 0;
-  const avgBoxleoPerOrder = itemCount > 0 ? totalBoxleoPerOrder / itemCount : 0;
-  const avgBoxleoPerPiece = itemCount > 0 ? totalBoxleoPerPiece / itemCount : 0;
-  const avgAdCostPerOrder = itemCount > 0 ? totalAdCostPerOrder / itemCount : 0;
-  const avgAdCostPerPiece = itemCount > 0 ? totalAdCostPerPiece / itemCount : 0;
-  const avgAOV = itemCount > 0 ? totalAOV / itemCount : 0;
 
   Q('#remAnalyticsOrdersT').textContent = fmt(totalOrders);
   Q('#remAnalyticsDeliveredOrdersT').textContent = fmt(totalDeliveredOrders);
   Q('#remAnalyticsDeliveredPiecesT').textContent = fmt(totalPieces);
   Q('#remAnalyticsRevenueT').textContent = fmt(totalRevenue);
+  Q('#remAnalyticsRefundsT').textContent = fmt(totalRefunds);
   Q('#remAnalyticsAdSpendT').textContent = fmt(totalAdSpend);
+  Q('#remAnalyticsInfluencerT').textContent = fmt(totalInfluencer);
   Q('#remAnalyticsBoxleoT').textContent = fmt(totalBoxleo);
   Q('#remAnalyticsProductCostT').textContent = fmt(totalProductCost);
   Q('#remAnalyticsShippingCostT').textContent = fmt(totalShippingCost);
   Q('#remAnalyticsDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%';
-  Q('#remAnalyticsBoxleoOrderT').textContent = '$' + fmt(avgBoxleoPerOrder);
-  Q('#remAnalyticsBoxleoPieceT').textContent = '$' + fmt(avgBoxleoPerPiece);
-  Q('#remAnalyticsAdOrderT').textContent = '$' + fmt(avgAdCostPerOrder);
-  Q('#remAnalyticsAdPieceT').textContent = '$' + fmt(avgAdCostPerPiece);
-  Q('#remAnalyticsAOVT').textContent = '$' + fmt(avgAOV);
   Q('#remAnalyticsProfitT').textContent = fmt(totalProfit);
 }
 
@@ -1519,7 +1513,7 @@ function renderStockMovementPage() {
   renderTransitTables();
 }
 
-// FIXED: Single arrival prompt for shipments - NO DUPLICATE PROMPTS
+// Enhanced Shipment Management with Payment Tracking
 async function renderTransitTables() {
   const tbl1 = Q('#shipCKBody'), tbl2 = Q('#shipICBody');
   if (!tbl1 && !tbl2) return;
@@ -1529,21 +1523,23 @@ async function renderTransitTables() {
   const prodMap = Object.fromEntries(state.products.map(p => [p.id, p.name]));
 
   const row = sp => {
-    const days = sp.arrivedAt ? Math.round((+new Date(sp.arrivedAt) - (+new Date(sp.departedAt))) / 86400000) : '';
+    const status = sp.paidAt ? 'Paid' : 'Pending';
+    const statusClass = sp.paidAt ? 'badge success' : 'badge warning';
     return `<tr>
       <td>${sp.id}</td>
       <td>${prodMap[sp.productId] || sp.productId}</td>
       <td>${sp.fromCountry || sp.from} → ${sp.toCountry || sp.to}</td>
       <td>${fmt(sp.qty)}</td>
-      <td>${fmt(sp.shipCost)}</td>
+      <td>${fmt(sp.estimatedCost)}</td>
+      <td>${sp.paidAt ? fmt(sp.shipCost) : '-'}</td>
       <td>${sp.fromCountry === 'china' ? fmt(sp.chinaCost) : '-'}</td>
       <td>${sp.departedAt || ''}</td>
       <td>${sp.arrivedAt || ''}</td>
-      <td>${days}</td>
-      <td>${sp.note || ''}</td>
+      <td><span class="${statusClass}">${status}</span></td>
       <td>
+        ${!sp.paidAt ? `<button class="btn outline act-pay" data-id="${sp.id}">Mark Paid</button>` : ''}
         <button class="btn outline act-arr" data-id="${sp.id}">Arrived</button>
-        <button class="btn outline act-edit" data-id="${sp.id}">Edit</button>
+        ${!sp.paidAt ? `<button class="btn outline act-edit" data-id="${sp.id}">Edit</button>` : ''}
         <button class="btn outline act-del" data-id="${sp.id}">Delete</button>
       </td>
     </tr>`;
@@ -1555,20 +1551,25 @@ async function renderTransitTables() {
   if (tbl1) tbl1.innerHTML = ck.map(row).join('') || `<tr><td colspan="11" class="muted">No transit</td></tr>`;
   if (tbl2) tbl2.innerHTML = ic.map(row).join('') || `<tr><td colspan="10" class="muted">No transit</td></tr>`;
 
-  // FIXED: Use proper event delegation to prevent multiple prompts
   const host = Q('#stockMovement') || document;
-  
-  // Remove any existing event listeners to prevent duplication
   host.removeEventListener('click', handleShipmentActions);
-  
-  // Add single event listener
   host.addEventListener('click', handleShipmentActions);
 }
 
-// FIXED: Single event handler for shipment actions
+// Enhanced Shipment Actions with Payment Tracking
 async function handleShipmentActions(e) {
   const id = e.target.dataset?.id;
   if (!id) return;
+
+  if (e.target.classList.contains('act-pay')) {
+    const finalCost = +prompt('Final shipping cost paid?', '0') || 0;
+    try { 
+      await api(`/api/shipments/${id}/pay`, { method: 'POST', body: JSON.stringify({ finalCost }) }); 
+      await renderTransitTables();
+    } catch (err) { 
+      alert(err.message); 
+    }
+  }
 
   if (e.target.classList.contains('act-arr')) {
     const date = prompt('Arrival date (YYYY-MM-DD)', isoToday());
@@ -1577,6 +1578,7 @@ async function handleShipmentActions(e) {
       await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) }); 
       await renderTransitTables();
       await renderCountryStockSpend();
+      await renderEnhancedKpis();
     } catch (err) { 
       alert(err.message); 
     }
@@ -1584,7 +1586,7 @@ async function handleShipmentActions(e) {
 
   if (e.target.classList.contains('act-edit')) {
     const qty = +prompt('New qty?', '0') || 0;
-    const shipCost = +prompt('New shipping cost?', '0') || 0;
+    const shipCost = +prompt('New estimated shipping cost?', '0') || 0;
     const chinaCost = +prompt('New China cost?', '0') || 0;
     const note = prompt('Note?', '') || '';
     try { 
@@ -1779,6 +1781,7 @@ function renderSettingsPage() {
     }
   });
 }
+
 function renderCountryChips() {
   const box = Q('#ctyList'); if (!box) return;
   box.innerHTML = state.countries.map(c => `<span class="chip">${c}<button class="chip-x" data-name="${c}">×</button></span>`).join('') || '—';
@@ -1800,6 +1803,7 @@ async function renderProductPage() {
   bindProductLifetime(product);
   await renderProductStoreOrders(product);
   await renderProductRemittances(product);
+  await renderProductRefunds(product);
   await bindInfluencers(product);
   bindProductNotes(product);
 }
@@ -1894,43 +1898,51 @@ function renderProductBudgets(product) {
   });
 }
 
-// FIXED: Single arrival prompt for product page shipments - NO DUPLICATE PROMPTS
+// Enhanced Product Transit with Payment Tracking
 async function renderProductTransit(product) {
   const s = await api('/api/shipments');
   const list = (s.shipments || []).filter(x => x.productId === product.id && !x.arrivedAt);
   const ck = list.filter(sp => (sp.fromCountry || sp.from || '').toLowerCase() === 'china' && (sp.toCountry || sp.to || '').toLowerCase() === 'kenya');
   const ic = list.filter(sp => !ck.includes(sp));
 
-  const row = sp => `<tr>
-    <td>${sp.id}</td>
-    <td>${sp.fromCountry || sp.from} → ${sp.toCountry || sp.to}</td>
-    <td>${fmt(sp.qty)}</td>
-    <td>${fmt(sp.shipCost)}</td>
-    <td>${sp.fromCountry === 'china' ? fmt(sp.chinaCost) : '-'}</td>
-    <td>${sp.departedAt || ''}</td>
-    <td>${sp.arrivedAt || ''}</td>
-    <td>
-      <button class="btn outline p-act-arr" data-id="${sp.id}">Arrived</button>
-      <button class="btn outline p-act-edit" data-id="${sp.id}">Edit</button>
-      <button class="btn outline p-act-del" data-id="${sp.id}">Delete</button>
-    </td></tr>`;
+  const row = sp => {
+    const status = sp.paidAt ? 'Paid' : 'Pending';
+    const statusClass = sp.paidAt ? 'badge success' : 'badge warning';
+    return `<tr>
+      <td>${sp.id}</td>
+      <td>${sp.fromCountry || sp.from} → ${sp.toCountry || sp.to}</td>
+      <td>${fmt(sp.qty)}</td>
+      <td>${fmt(sp.estimatedCost)}</td>
+      <td>${sp.paidAt ? fmt(sp.shipCost) : '-'}</td>
+      <td>${sp.fromCountry === 'china' ? fmt(sp.chinaCost) : '-'}</td>
+      <td>${sp.departedAt || ''}</td>
+      <td>${sp.arrivedAt || ''}</td>
+      <td><span class="${statusClass}">${status}</span></td>
+      <td>
+        ${!sp.paidAt ? `<button class="btn outline p-act-pay" data-id="${sp.id}">Mark Paid</button>` : ''}
+        <button class="btn outline p-act-arr" data-id="${sp.id}">Arrived</button>
+        ${!sp.paidAt ? `<button class="btn outline p-act-edit" data-id="${sp.id}">Edit</button>` : ''}
+        <button class="btn outline p-act-del" data-id="${sp.id}">Delete</button>
+      </td></tr>`;
+  };
 
-  Q('#pdShipCKBody').innerHTML = ck.map(row).join('') || `<tr><td colspan="8" class="muted">No shipments</td></tr>`;
-  Q('#pdShipICBody').innerHTML = ic.map(row).join('') || `<tr><td colspan="7" class="muted">No shipments</td></tr>`;
+  Q('#pdShipCKBody').innerHTML = ck.map(row).join('') || `<tr><td colspan="10" class="muted">No shipments</td></tr>`;
+  Q('#pdShipICBody').innerHTML = ic.map(row).join('') || `<tr><td colspan="9" class="muted">No shipments</td></tr>`;
 
-  // FIXED: Use proper event delegation to prevent multiple prompts
   const host = Q('#product');
-  
-  // Remove any existing event listeners to prevent duplication
   host.removeEventListener('click', handleProductShipmentActions);
-  
-  // Add single event listener
   host.addEventListener('click', handleProductShipmentActions);
 }
 
-// FIXED: Single event handler for product shipment actions
+// Enhanced Product Shipment Actions with Payment Tracking
 async function handleProductShipmentActions(e) {
   const id = e.target.dataset?.id; if (!id) return;
+  
+  if (e.target.classList.contains('p-act-pay')) {
+    const finalCost = +prompt('Final shipping cost paid?', '0') || 0;
+    await api(`/api/shipments/${id}/pay`, { method: 'POST', body: JSON.stringify({ finalCost }) });
+    await renderProductTransit(state.products.find(p => p.id === state.productId));
+  }
   
   if (e.target.classList.contains('p-act-arr')) {
     const date = prompt('Arrival date (YYYY-MM-DD)', isoToday()); if (!date) return;
@@ -1942,7 +1954,7 @@ async function handleProductShipmentActions(e) {
   
   if (e.target.classList.contains('p-act-edit')) {
     const qty = +prompt('New qty?', '0') || 0;
-    const shipCost = +prompt('New shipping cost?', '0') || 0;
+    const shipCost = +prompt('New estimated shipping cost?', '0') || 0;
     const chinaCost = +prompt('New China cost?', '0') || 0;
     const note = prompt('Note?', '') || '';
     await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ qty, shipCost, chinaCost, note }) });
@@ -2102,6 +2114,49 @@ async function handleRemittanceDeletions(e) {
   }
 }
 
+// Product Refunds Section
+async function renderProductRefunds(product) {
+  await loadProductRefunds(product, state.currentRefundsPage);
+}
+
+async function loadProductRefunds(product, page = 1) {
+  try {
+    const refunds = await api(`/api/refunds?productId=${product.id}&page=${page}&limit=8`);
+    const tb = Q('#pdRefundsBody');
+    if (!tb) return;
+
+    tb.innerHTML = (refunds.refunds || []).map(r => `
+      <tr>
+        <td>${r.date}</td>
+        <td>${r.country}</td>
+        <td>${fmt(r.ordersRefunded)}</td>
+        <td>${fmt(r.piecesRefunded)}</td>
+        <td>${fmt(r.amount)}</td>
+        <td>${r.reason || ''}</td>
+        <td>
+          <button class="btn outline pd-refund-del" data-id="${r.id}">Delete</button>
+        </td>
+      </tr>
+    `).join('') || `<tr><td colspan="7" class="muted">No refunds for this product</td></tr>`;
+
+    renderPagination('pdRefundsPagination', refunds.pagination, 'refunds');
+
+    tb.removeEventListener('click', handleRefundDeletions);
+    tb.addEventListener('click', handleRefundDeletions);
+  } catch (e) {
+    console.error('Failed to load product refunds:', e);
+  }
+}
+
+async function handleRefundDeletions(e) {
+  if (e.target.classList.contains('pd-refund-del')) {
+    if (!confirm('Delete this refund entry?')) return;
+    await api(`/api/refunds/${e.target.dataset.id}`, { method: 'DELETE' });
+    await renderProductRefunds(state.products.find(p => p.id === state.productId));
+    bindProductLifetime(state.products.find(p => p.id === state.productId));
+  }
+}
+
 // NEW: Pagination renderer
 function renderPagination(containerId, pagination, type) {
   const container = Q(`#${containerId}`);
@@ -2147,12 +2202,15 @@ function renderPagination(containerId, pagination, type) {
       } else if (type === 'remittances') {
         state.currentRemittancesPage = page;
         await loadProductRemittances(state.products.find(p => p.id === state.productId), page);
+      } else if (type === 'refunds') {
+        state.currentRefundsPage = page;
+        await loadProductRefunds(state.products.find(p => p.id === state.productId), page);
       }
     }
   });
 }
 
-// FIXED: Product Lifetime with total costs paid in period
+// Enhanced Product Lifetime with Refunds and Influencer Spend
 function bindProductLifetime(product) {
   const run = async () => {
     const dateRange = getDateRange(Q('#pdLPRun').closest('.row'));
@@ -2173,13 +2231,15 @@ function renderProductLifetime(analytics) {
   const tb = Q('#pdLPBody');
   if (!tb) return;
 
-  let totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
+  let totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0, totalRefunds = 0, totalInfluencer = 0;
   let totalProductCost = 0, totalShipCost = 0, totalTotalCost = 0, totalPieces = 0, totalProfit = 0, totalOrders = 0, totalDeliveredOrders = 0;
 
   tb.innerHTML = analytics.map(item => {
     totalRevenue += item.totalRevenue;
     totalAdSpend += item.totalAdSpend;
     totalBoxleo += item.totalBoxleoFees;
+    totalRefunds += item.totalRefundAmount;
+    totalInfluencer += item.totalInfluencerSpend;
     totalProductCost += item.totalProductChinaCost;
     totalShipCost += item.totalShippingCost;
     totalTotalCost += item.totalCost;
@@ -2191,7 +2251,9 @@ function renderProductLifetime(analytics) {
     return `<tr>
       <td>${item.country}</td>
       <td>${fmt(item.totalRevenue)}</td>
+      <td class="number-negative">${fmt(item.totalRefundAmount)}</td>
       <td>${fmt(item.totalAdSpend)}</td>
+      <td>${fmt(item.totalInfluencerSpend)}</td>
       <td>${fmt(item.totalBoxleoFees)}</td>
       <td>${fmt(item.totalProductChinaCost)}</td>
       <td>${fmt(item.totalShippingCost)}</td>
@@ -2202,10 +2264,12 @@ function renderProductLifetime(analytics) {
       <td>${fmt(item.deliveryRate)}%</td>
       <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(item.profit)}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="12" class="muted">No data</td></tr>`;
+  }).join('') || `<tr><td colspan="14" class="muted">No data</td></tr>`;
 
   Q('#pdLPRevT').textContent = fmt(totalRevenue);
+  Q('#pdLPRefundsT').textContent = fmt(totalRefunds);
   Q('#pdLPAdT').textContent = fmt(totalAdSpend);
+  Q('#pdLPInfluencerT').textContent = fmt(totalInfluencer);
   Q('#pdLPBoxleoT').textContent = fmt(totalBoxleo);
   Q('#pdLPProductCostT').textContent = fmt(totalProductCost);
   Q('#pdLPShipT').textContent = fmt(totalShipCost);
@@ -2213,7 +2277,7 @@ function renderProductLifetime(analytics) {
   Q('#pdLPOrdersT').textContent = fmt(totalOrders);
   Q('#pdLPDeliveredOrdersT').textContent = fmt(totalDeliveredOrders);
   Q('#pdLPDeliveredPiecesT').textContent = fmt(totalPieces);
-  Q('#pdLPDeliveryRateT').textContent = fmt(totalOrders > 0 ? (totalPieces / totalOrders * 100) : 0) + '%';
+  Q('#pdLPDeliveryRateT').textContent = fmt(totalOrders > 0 ? (totalDeliveredOrders / totalOrders * 100) : 0) + '%';
   Q('#pdLPProfitT').textContent = fmt(totalProfit);
 }
 
@@ -2345,13 +2409,14 @@ function bindGlobalNav() {
       if (el) el.style.display = (id === v) ? '' : 'none';
     });
     QA('.nav a').forEach(x => x.classList.toggle('active', x === a));
-    if (v === 'home') { renderCompactKpis(); renderCountryStockSpend(); }
+    if (v === 'home') { renderEnhancedKpis(); renderCountryStockSpend(); }
     if (v === 'products') { renderCompactCountryStats(); renderAdvertisingOverview(); }
     if (v === 'stockMovement') { renderStockMovementPage(); }
     if (v === 'performance') { 
       bindProductCostsAnalysis(); 
       bindRemittanceAnalytics();
       bindProfitByCountry();
+      bindRefundsManagement();
       // Auto-run analytics when performance tab is opened
       setTimeout(() => {
         if (Q('#pcaRun')) Q('#pcaRun').click();
@@ -2361,6 +2426,7 @@ function bindGlobalNav() {
     }
   }));
 }
+
 // Add this function to handle the daily backup button
 function setupDailyBackupButton() {
   const button = Q('#createDailyBackup');
@@ -2397,4 +2463,5 @@ function setupDailyBackupButton() {
     };
   }
 }
+
 boot();
