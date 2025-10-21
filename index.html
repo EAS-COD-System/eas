@@ -40,11 +40,26 @@
           <div class="section">
             <h2>Business Overview</h2>
             <div class="kpis-compact">
-              <div class="kpi-compact"><div class="label">Products</div><div id="kpiProducts">0</div></div>
-              <div class="kpi-compact"><div class="label">Countries</div><div id="kpiCountries">0</div></div>
-              <div class="kpi-compact"><div class="label">Transit Shipments</div><div id="kpiTransit">0</div></div>
-              <div class="kpi-compact"><div class="label">Total Ad Spend</div><div id="kpiAdSpend">0 USD</div></div>
-              <div class="kpi-compact"><div class="label">Weekly Delivered</div><div id="kpiDelivered">0</div></div>
+              <div class="kpi-compact">
+                <div class="label">Transit from China</div>
+                <div id="kpiTransitChina">0</div>
+              </div>
+              <div class="kpi-compact">
+                <div class="label">Transit between Countries</div>
+                <div id="kpiTransitBetween">0</div>
+              </div>
+              <div class="kpi-compact">
+                <div class="label">Active Products Stock</div>
+                <div id="kpiActiveStock">0</div>
+              </div>
+              <div class="kpi-compact">
+                <div class="label">Inactive Products Stock</div>
+                <div id="kpiInactiveStock">0</div>
+              </div>
+              <div class="kpi-compact">
+                <div class="label">Total Ad Spend</div>
+                <div id="kpiAdSpend">0 USD</div>
+              </div>
             </div>
           </div>
 
@@ -67,7 +82,7 @@
           </div>
 
           <div class="section">
-            <h2>Total Stock &amp; Ad Spend by Country</h2>
+            <h2>Total Stock &amp; Ad Spend by Country (Active Products Only)</h2>
             <div class="table-scroll">
               <table class="table">
                 <thead>
@@ -140,7 +155,8 @@
             <h2>Weekly To-Do</h2>
             <div id="weeklyWrap" class="weeks"></div>
           </div>
-           <!-- Tested Products Section -->
+
+          <!-- Tested Products Section -->
           <div class="section">
             <h2>🧪 Notes for Tested Products</h2>
             <div id="testedProductsSection"></div>
@@ -198,7 +214,7 @@
             </div>
           </div>
 
-          <!-- Products Table -->
+          <!-- Products Table with Enhanced Stock Information -->
           <div class="section">
             <h2>📦 All Products</h2>
             <div class="table-scroll">
@@ -208,6 +224,13 @@
                     <th>Name</th>
                     <th>SKU</th>
                     <th>Status</th>
+                    <th>Kenya Stock</th>
+                    <th>Tanzania Stock</th>
+                    <th>Uganda Stock</th>
+                    <th>Zambia Stock</th>
+                    <th>Zimbabwe Stock</th>
+                    <th>Transit Pieces</th>
+                    <th>Total Pieces</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -227,7 +250,8 @@
         <!-- PERFORMANCE -->
         <section id="performance" style="display:none">
           <h2>Performance Analytics</h2>
-       <!-- Remittance Analytics -->
+
+          <!-- Remittance Analytics -->
           <div class="card">
             <div class="h">📈 Remittance Analytics (🏆 Filtered By Top Delivered)</div>
             <div class="row wrap">
@@ -264,16 +288,13 @@
                     <th>Delivered Orders</th>
                     <th>Delivered Pieces</th>
                     <th>Revenue</th>
-                    <th>Advertising Spend</th>
+                    <th>Refunds</th>
+                    <th>Ad Spend</th>
+                    <th>Influencer Spend</th>
                     <th>Boxleo Fees</th>
                     <th>Product Cost China</th>
-                    <th>Total Shipping Cost</th>
+                    <th>Shipping</th>
                     <th>Delivery Rate</th>
-                    <th>Boxleo/Order</th>
-                    <th>Boxleo/Piece</th>
-                    <th>Ad Cost/Order</th>
-                    <th>Ad Cost/Piece</th>
-                    <th>Avg Order Value</th>
                     <th>Profit</th>
                   </tr>
                 </thead>
@@ -285,22 +306,39 @@
                     <th id="remAnalyticsDeliveredOrdersT">0</th>
                     <th id="remAnalyticsDeliveredPiecesT">0</th>
                     <th id="remAnalyticsRevenueT">0</th>
+                    <th id="remAnalyticsRefundsT">0</th>
                     <th id="remAnalyticsAdSpendT">0</th>
+                    <th id="remAnalyticsInfluencerT">0</th>
                     <th id="remAnalyticsBoxleoT">0</th>
                     <th id="remAnalyticsProductCostT">0</th>
                     <th id="remAnalyticsShippingCostT">0</th>
                     <th id="remAnalyticsDeliveryRateT">0%</th>
-                    <th id="remAnalyticsBoxleoOrderT">$0</th>
-                    <th id="remAnalyticsBoxleoPieceT">$0</th>
-                    <th id="remAnalyticsAdOrderT">$0</th>
-                    <th id="remAnalyticsAdPieceT">$0</th>
-                    <th id="remAnalyticsAOVT">$0</th>
                     <th id="remAnalyticsProfitT">0</th>
                   </tr>
                 </tfoot>
               </table>
             </div>
           </div>
+
+          <!-- Refunds Management -->
+          <div class="card">
+            <div class="h">💸 Refunds Management</div>
+            <div class="row wrap">
+              <input id="refundDate" type="date" class="input" placeholder="Date"/>
+              <select id="refundCountry" class="input">
+                <option value="">Select Country</option>
+              </select>
+              <select id="refundProduct" class="input">
+                <option value="">Select Product</option>
+              </select>
+              <input id="refundOrders" type="number" class="input" placeholder="Orders Refunded" min="0"/>
+              <input id="refundPieces" type="number" class="input" placeholder="Pieces Refunded" min="0"/>
+              <input id="refundAmount" type="number" class="input" placeholder="Amount (USD)" step="0.01"/>
+              <input id="refundReason" class="input" placeholder="Reason"/>
+              <button id="refundSave" class="btn">💾 Add Refund</button>
+            </div>
+          </div>
+
           <!-- Product Costs Analysis -->
           <div class="card">
             <div class="h">💰 Lifetime Product Costs Analysis</div>
@@ -359,16 +397,13 @@
                     <th>Delivered Orders</th>
                     <th>Delivered Pieces</th>
                     <th>Revenue</th>
-                    <th>Total Advertising Spend</th>
-                    <th>Product Cost China</th>
-                    <th>Total Shipping Cost</th>
-                    <th>Total Boxleo Fees</th>
+                    <th>Refunds</th>
+                    <th>Ad Spend</th>
+                    <th>Influencer Spend</th>
+                    <th>Product Cost</th>
+                    <th>Shipping</th>
+                    <th>Boxleo Fees</th>
                     <th>Delivery Rate</th>
-                    <th>Boxleo/Order</th>
-                    <th>Boxleo/Piece</th>
-                    <th>Ad Cost/Order</th>
-                    <th>Ad Cost/Piece</th>
-                    <th>Avg Order Value</th>
                     <th>Profit</th>
                   </tr>
                 </thead>
@@ -380,23 +415,21 @@
                     <th id="pcDeliveredOrdersT">0</th>
                     <th id="pcDeliveredPiecesT">0</th>
                     <th id="pcRevT">0</th>
+                    <th id="pcRefundsT">0</th>
                     <th id="pcAdT">0</th>
+                    <th id="pcInfluencerT">0</th>
                     <th id="pcProductCostT">0</th>
                     <th id="pcShippingCostT">0</th>
                     <th id="pcBoxleoT">0</th>
                     <th id="pcDeliveryRateT">0%</th>
-                    <th id="pcBoxleoOrderT">$0</th>
-                    <th id="pcBoxleoPieceT">$0</th>
-                    <th id="pcAdOrderT">$0</th>
-                    <th id="pcAdPieceT">$0</th>
-                    <th id="pcAOVT">$0</th>
                     <th id="pcProfitT">0</th>
                   </tr>
                 </tfoot>
               </table>
             </div>
           </div>
-    <!-- Product Orders Tracking -->
+
+          <!-- Product Orders Tracking -->
           <div class="card">
             <div class="h">📦 Product Orders Tracking</div>
             <div class="row wrap">
@@ -433,7 +466,6 @@
               <button id="remAddSave" class="btn">💾 Save Remittance</button>
             </div>
           </div>
-    
 
         </section>
 
@@ -456,7 +488,7 @@
                 <option value="">Select Product...</option>
               </select>
               <input id="mvQty" type="number" class="input" placeholder="Quantity" min="0"/>
-              <input id="mvShip" type="number" class="input" placeholder="Shipping Cost (USD)" min="0" step="0.01"/>
+              <input id="mvShip" type="number" class="input" placeholder="Estimated Shipping Cost (USD)" min="0" step="0.01"/>
               <div id="chinaCostField" style="display: none;">
                 <input id="mvChinaCost" type="number" class="input" placeholder="China Cost (USD)" min="0" step="0.01"/>
               </div>
@@ -476,12 +508,12 @@
                     <th>Product</th>
                     <th>Route</th>
                     <th>Qty</th>
-                    <th>Ship Cost</th>
+                    <th>Est. Cost</th>
+                    <th>Final Cost</th>
                     <th>China Cost</th>
                     <th>Departed</th>
                     <th>Arrived</th>
-                    <th>Days</th>
-                    <th>Note</th>
+                    <th>Status</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -500,11 +532,11 @@
                     <th>Product</th>
                     <th>Route</th>
                     <th>Qty</th>
-                    <th>Ship Cost</th>
+                    <th>Est. Cost</th>
+                    <th>Final Cost</th>
                     <th>Departed</th>
                     <th>Arrived</th>
-                    <th>Days</th>
-                    <th>Note</th>
+                    <th>Status</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -630,45 +662,46 @@
             </div>
           </div>
 
-     <!-- Manual Save & Restore -->
-<div class="card">
-  <div class="h">💾 Manual Save &amp; Restore</div>
-  <div class="row wrap">
-    <input id="snapName" class="input" placeholder="Name this snapshot"/>
-    <button id="snapSave" class="btn">📸 Save Current System</button>
-    <button id="createDailyBackup" class="btn" style="background: var(--accent-teal);">📅 Create Daily Backup</button>
-  </div>
-  
-  <div class="card" style="background: var(--primary-50); border: 1px solid var(--primary); margin-top: 10px;">
-    <div style="display: flex; align-items: center; gap: 10px;">
-      <span style="font-size: 1.2rem;">💡</span>
-      <div>
-        <strong>Auto-Daily Backups:</strong> 
-        <span style="color: var(--text-secondary); font-size: 0.9rem;">
-          System automatically keeps last 7 days. Manual snapshots are kept forever.
-        </span>
-      </div>
-    </div>
-  </div>
-  
-  <div class="table-scroll" style="margin-top: 15px;">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>File</th>
-          <th>Date</th>
-          <th style="width: 200px;">Actions</th>
-        </tr>
-      </thead>
-      <tbody id="snapList">
-        <tr>
-          <td colspan="4" class="muted" style="text-align: center;">Loading snapshots...</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>        </section>
+          <!-- Manual Save & Restore -->
+          <div class="card">
+            <div class="h">💾 Manual Save &amp; Restore</div>
+            <div class="row wrap">
+              <input id="snapName" class="input" placeholder="Name this snapshot"/>
+              <button id="snapSave" class="btn">📸 Save Current System</button>
+              <button id="createDailyBackup" class="btn" style="background: var(--accent-teal);">📅 Create Daily Backup</button>
+            </div>
+            
+            <div class="card" style="background: var(--primary-50); border: 1px solid var(--primary); margin-top: 10px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 1.2rem;">💡</span>
+                <div>
+                  <strong>Auto-Daily Backups:</strong> 
+                  <span style="color: var(--text-secondary); font-size: 0.9rem;">
+                    System automatically keeps last 7 days. Manual snapshots are kept forever.
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="table-scroll" style="margin-top: 15px;">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>File</th>
+                    <th>Date</th>
+                    <th style="width: 200px;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="snapList">
+                  <tr>
+                    <td colspan="4" class="muted" style="text-align: center;">Loading snapshots...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
 
       </div>
     </div>
