@@ -172,19 +172,14 @@ async function preload() {
   const cats = await api('/api/finance/categories');
   state.categories = cats || { debit: [], credit: [] };
 
-  // Load all shipments for stock calculation - MAKE SURE THIS WORKS
+  // Load all shipments for stock calculation - but don't fail if not available yet
   try {
     console.log('🔄 Preload: Loading shipments...');
     const shipments = await api('/api/shipments');
     state.allShipments = shipments.shipments || [];
     console.log('✅ Preload: Loaded', state.allShipments.length, 'shipments');
-    
-    // Debug: log first few shipments
-    if (state.allShipments.length > 0) {
-      console.log('📦 Sample shipments:', state.allShipments.slice(0, 3));
-    }
   } catch (error) {
-    console.error('❌ Preload: Failed to load shipments:', error);
+    console.log('⚠️ Preload: Could not load shipments yet, will load when needed');
     state.allShipments = [];
   }
 
