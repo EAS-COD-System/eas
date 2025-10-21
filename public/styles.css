@@ -821,6 +821,19 @@ select.input {
   color: var(--info);
 }
 
+/* Payment Status Badges */
+.badge.paid {
+  background: var(--success-light);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.badge.pending {
+  background: var(--warning-light);
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
 /* ---------- Advertising Overview ---------- */
 .country-section {
   margin-bottom: 18px;
@@ -1383,6 +1396,141 @@ select.input {
   font-weight: 500;
 }
 
+/* ---------- Enhanced CSS for refunds and payment tracking ---------- */
+
+/* Refund specific styles */
+.refund-amount {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.refund-row {
+  background: linear-gradient(90deg, rgba(220, 38, 38, 0.05) 0%, transparent 100%) !important;
+}
+
+/* Enhanced table headers for new columns */
+.table th.stock-column {
+  background: var(--accent-teal);
+}
+
+.table th.transit-column {
+  background: var(--accent-amber);
+}
+
+.table th.total-column {
+  background: var(--accent-blue);
+}
+
+/* Payment action buttons */
+.btn.payment {
+  background: var(--gradient-success);
+}
+
+.btn.payment.outline {
+  background: transparent;
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.btn.payment.outline:hover {
+  background: var(--success);
+  color: white;
+}
+
+/* Enhanced product table styling */
+.products-table {
+  font-size: 0.8rem;
+}
+
+.products-table th {
+  white-space: nowrap;
+  padding: 8px 6px;
+}
+
+.products-table td {
+  padding: 8px 6px;
+  text-align: center;
+}
+
+/* Stock number styling */
+.stock-number {
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+}
+
+.stock-number.positive {
+  color: var(--success);
+}
+
+.stock-number.negative {
+  color: var(--danger);
+}
+
+.stock-number.zero {
+  color: var(--text-muted);
+}
+
+/* Transit status indicators */
+.transit-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.transit-indicator.china {
+  background: var(--accent-orange);
+}
+
+.transit-indicator.intercountry {
+  background: var(--accent-blue);
+}
+
+/* Enhanced dashboard KPIs */
+.kpi-compact.transit-china::before {
+  background: var(--accent-orange);
+}
+
+.kpi-compact.transit-between::before {
+  background: var(--accent-blue);
+}
+
+.kpi-compact.active-stock::before {
+  background: var(--success);
+}
+
+.kpi-compact.inactive-stock::before {
+  background: var(--warning);
+}
+
+/* Refund form styling */
+.refund-form .input {
+  border-left: 3px solid var(--danger);
+}
+
+.refund-form .card {
+  border-left: 4px solid var(--danger);
+}
+
+/* Payment form styling */
+.payment-form .input {
+  border-left: 3px solid var(--success);
+}
+
+.payment-form .card {
+  border-left: 4px solid var(--success);
+}
+
+/* Enhanced analytics table */
+.analytics-table .refund-cell {
+  background: rgba(220, 38, 38, 0.05);
+}
+
+.analytics-table .influencer-cell {
+  background: rgba(139, 69, 19, 0.05);
+}
+
 /* ---------- Mobile Navigation Styles ---------- */
 @media (max-width: 1024px) {
   .nav {
@@ -1467,6 +1615,17 @@ select.input {
   
   .big-balance .balance {
     font-size: 2.5rem !important;
+  }
+  
+  /* Mobile optimizations for new columns */
+  .products-table th.stock-column,
+  .products-table td.stock-column {
+    display: none;
+  }
+  
+  .analytics-table .refund-cell,
+  .analytics-table .influencer-cell {
+    font-size: 0.7rem;
   }
   
   #main {
@@ -1605,6 +1764,17 @@ select.input {
   .nav, .btn { display: none; }
   .card { break-inside: avoid; }
   body { padding-top: 0; }
+  
+  .badge.paid,
+  .badge.pending {
+    background: white !important;
+    color: black !important;
+    border: 1px solid black !important;
+  }
+  
+  .refund-amount {
+    color: black !important;
+  }
 }
 
 /* ---------- Data Visualization Enhancements ---------- */
