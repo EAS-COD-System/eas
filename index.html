@@ -40,26 +40,14 @@
           <div class="section">
             <h2>Business Overview</h2>
             <div class="kpis-compact">
-              <div class="kpi-compact">
-                <div class="label">Transit from China</div>
-                <div id="kpiTransitChina">0</div>
-              </div>
-              <div class="kpi-compact">
-                <div class="label">Transit between Countries</div>
-                <div id="kpiTransitBetween">0</div>
-              </div>
-              <div class="kpi-compact">
-                <div class="label">Active Products Stock</div>
-                <div id="kpiActiveStock">0</div>
-              </div>
-              <div class="kpi-compact">
-                <div class="label">Inactive Products Stock</div>
-                <div id="kpiInactiveStock">0</div>
-              </div>
-              <div class="kpi-compact">
-                <div class="label">Total Ad Spend</div>
-                <div id="kpiAdSpend">0 USD</div>
-              </div>
+              <div class="kpi-compact"><div class="label">Products</div><div id="kpiProducts">0</div></div>
+              <div class="kpi-compact"><div class="label">Countries</div><div id="kpiCountries">0</div></div>
+              <div class="kpi-compact"><div class="label">China Transit Pieces</div><div id="kpiChinaTransit">0</div></div>
+              <div class="kpi-compact"><div class="label">Inter-country Transit</div><div id="kpiInterTransit">0</div></div>
+              <div class="kpi-compact"><div class="label">Active Stock</div><div id="kpiActiveStock">0</div></div>
+              <div class="kpi-compact"><div class="label">Inactive Stock</div><div id="kpiInactiveStock">0</div></div>
+              <div class="kpi-compact"><div class="label">Total Ad Spend</div><div id="kpiAdSpend">0 USD</div></div>
+              <div class="kpi-compact"><div class="label">Weekly Delivered</div><div id="kpiDelivered">0</div></div>
             </div>
           </div>
 
@@ -214,7 +202,7 @@
             </div>
           </div>
 
-          <!-- Products Table with Enhanced Stock Information -->
+          <!-- Products Table -->
           <div class="section">
             <h2>📦 All Products</h2>
             <div class="table-scroll">
@@ -224,12 +212,8 @@
                     <th>Name</th>
                     <th>SKU</th>
                     <th>Status</th>
-                    <th>Kenya Stock</th>
-                    <th>Tanzania Stock</th>
-                    <th>Uganda Stock</th>
-                    <th>Zambia Stock</th>
-                    <th>Zimbabwe Stock</th>
-                    <th>Transit Pieces</th>
+                    <th>Total Stock</th>
+                    <th>Total Transit</th>
                     <th>Total Pieces</th>
                     <th>Actions</th>
                   </tr>
@@ -286,15 +270,22 @@
                     <th>Country</th>
                     <th>Orders</th>
                     <th>Delivered Orders</th>
+                    <th>Refunded Orders</th>
                     <th>Delivered Pieces</th>
                     <th>Revenue</th>
-                    <th>Refunds</th>
-                    <th>Ad Spend</th>
+                    <th>Refunded Amount</th>
+                    <th>Advertising Spend</th>
                     <th>Influencer Spend</th>
                     <th>Boxleo Fees</th>
                     <th>Product Cost China</th>
-                    <th>Shipping</th>
+                    <th>Total Shipping Cost</th>
                     <th>Delivery Rate</th>
+                    <th>Boxleo/Order</th>
+                    <th>Boxleo/Piece</th>
+                    <th>Ad Cost/Order</th>
+                    <th>Ad Cost/Piece</th>
+                    <th>Influencer/Order</th>
+                    <th>Avg Order Value</th>
                     <th>Profit</th>
                   </tr>
                 </thead>
@@ -304,38 +295,26 @@
                     <th colspan="2">Totals</th>
                     <th id="remAnalyticsOrdersT">0</th>
                     <th id="remAnalyticsDeliveredOrdersT">0</th>
+                    <th id="remAnalyticsRefundedOrdersT">0</th>
                     <th id="remAnalyticsDeliveredPiecesT">0</th>
                     <th id="remAnalyticsRevenueT">0</th>
-                    <th id="remAnalyticsRefundsT">0</th>
+                    <th id="remAnalyticsRefundedAmountT">0</th>
                     <th id="remAnalyticsAdSpendT">0</th>
-                    <th id="remAnalyticsInfluencerT">0</th>
+                    <th id="remAnalyticsInfluencerSpendT">0</th>
                     <th id="remAnalyticsBoxleoT">0</th>
                     <th id="remAnalyticsProductCostT">0</th>
                     <th id="remAnalyticsShippingCostT">0</th>
                     <th id="remAnalyticsDeliveryRateT">0%</th>
+                    <th id="remAnalyticsBoxleoOrderT">$0</th>
+                    <th id="remAnalyticsBoxleoPieceT">$0</th>
+                    <th id="remAnalyticsAdOrderT">$0</th>
+                    <th id="remAnalyticsAdPieceT">$0</th>
+                    <th id="remAnalyticsInfluencerOrderT">$0</th>
+                    <th id="remAnalyticsAOVT">$0</th>
                     <th id="remAnalyticsProfitT">0</th>
                   </tr>
                 </tfoot>
               </table>
-            </div>
-          </div>
-
-          <!-- Refunds Management -->
-          <div class="card">
-            <div class="h">💸 Refunds Management</div>
-            <div class="row wrap">
-              <input id="refundDate" type="date" class="input" placeholder="Date"/>
-              <select id="refundCountry" class="input">
-                <option value="">Select Country</option>
-              </select>
-              <select id="refundProduct" class="input">
-                <option value="">Select Product</option>
-              </select>
-              <input id="refundOrders" type="number" class="input" placeholder="Orders Refunded" min="0"/>
-              <input id="refundPieces" type="number" class="input" placeholder="Pieces Refunded" min="0"/>
-              <input id="refundAmount" type="number" class="input" placeholder="Amount (USD)" step="0.01"/>
-              <input id="refundReason" class="input" placeholder="Reason"/>
-              <button id="refundSave" class="btn">💾 Add Refund</button>
             </div>
           </div>
 
@@ -395,15 +374,22 @@
                     <th>Country</th>
                     <th>Orders</th>
                     <th>Delivered Orders</th>
+                    <th>Refunded Orders</th>
                     <th>Delivered Pieces</th>
                     <th>Revenue</th>
-                    <th>Refunds</th>
-                    <th>Ad Spend</th>
+                    <th>Refunded Amount</th>
+                    <th>Total Advertising Spend</th>
                     <th>Influencer Spend</th>
-                    <th>Product Cost</th>
-                    <th>Shipping</th>
-                    <th>Boxleo Fees</th>
+                    <th>Product Cost China</th>
+                    <th>Total Shipping Cost</th>
+                    <th>Total Boxleo Fees</th>
                     <th>Delivery Rate</th>
+                    <th>Boxleo/Order</th>
+                    <th>Boxleo/Piece</th>
+                    <th>Ad Cost/Order</th>
+                    <th>Ad Cost/Piece</th>
+                    <th>Influencer/Order</th>
+                    <th>Avg Order Value</th>
                     <th>Profit</th>
                   </tr>
                 </thead>
@@ -413,15 +399,22 @@
                     <th>Totals</th>
                     <th id="pcOrdersT">0</th>
                     <th id="pcDeliveredOrdersT">0</th>
+                    <th id="pcRefundedOrdersT">0</th>
                     <th id="pcDeliveredPiecesT">0</th>
                     <th id="pcRevT">0</th>
-                    <th id="pcRefundsT">0</th>
+                    <th id="pcRefundedAmountT">0</th>
                     <th id="pcAdT">0</th>
-                    <th id="pcInfluencerT">0</th>
+                    <th id="pcInfluencerSpendT">0</th>
                     <th id="pcProductCostT">0</th>
                     <th id="pcShippingCostT">0</th>
                     <th id="pcBoxleoT">0</th>
                     <th id="pcDeliveryRateT">0%</th>
+                    <th id="pcBoxleoOrderT">$0</th>
+                    <th id="pcBoxleoPieceT">$0</th>
+                    <th id="pcAdOrderT">$0</th>
+                    <th id="pcAdPieceT">$0</th>
+                    <th id="pcInfluencerOrderT">$0</th>
+                    <th id="pcAOVT">$0</th>
                     <th id="pcProfitT">0</th>
                   </tr>
                 </tfoot>
@@ -467,6 +460,25 @@
             </div>
           </div>
 
+          <!-- Add Refund Entry -->
+          <div class="card">
+            <div class="h">💸 Add Refund Entry</div>
+            <div class="row wrap">
+              <input id="refundDate" type="date" class="input" placeholder="Date"/>
+              <select id="refundCountry" class="input">
+                <option value="">Select Country</option>
+              </select>
+              <select id="refundProduct" class="input">
+                <option value="">Select Product</option>
+              </select>
+              <input id="refundOrders" type="number" class="input" placeholder="Orders Refunded" min="0"/>
+              <input id="refundPieces" type="number" class="input" placeholder="Pieces Refunded" min="0"/>
+              <input id="refundAmount" type="number" class="input" placeholder="Amount Refunded (USD)" step="0.01"/>
+              <input id="refundReason" class="input" placeholder="Reason (optional)"/>
+              <button id="refundSave" class="btn">💾 Save Refund</button>
+            </div>
+          </div>
+
         </section>
 
         <!-- STOCK MOVEMENT -->
@@ -508,12 +520,13 @@
                     <th>Product</th>
                     <th>Route</th>
                     <th>Qty</th>
-                    <th>Est. Cost</th>
-                    <th>Final Cost</th>
+                    <th>Est. Ship Cost</th>
+                    <th>Final Ship Cost</th>
                     <th>China Cost</th>
                     <th>Departed</th>
                     <th>Arrived</th>
-                    <th>Status</th>
+                    <th>Payment Status</th>
+                    <th>Note</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -532,11 +545,12 @@
                     <th>Product</th>
                     <th>Route</th>
                     <th>Qty</th>
-                    <th>Est. Cost</th>
-                    <th>Final Cost</th>
+                    <th>Est. Ship Cost</th>
+                    <th>Final Ship Cost</th>
                     <th>Departed</th>
                     <th>Arrived</th>
-                    <th>Status</th>
+                    <th>Payment Status</th>
+                    <th>Note</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
