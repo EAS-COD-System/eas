@@ -270,10 +270,12 @@ function calculateStockByCountry(productId = null) {
     const quantity = shipment.qty || 0;
 
     if (shipment.arrivedAt) {
-      // Shipment has arrived: add to destination country
+      // Shipment has arrived: add to destination country ONLY
       if (stockByCountry[toCountry] !== undefined) {
         stockByCountry[toCountry] += quantity;
       }
+      // DO NOT subtract from source country when shipment arrives
+      // The subtraction already happened when the shipment was created/departed
     } else {
       // Shipment is in transit: subtract from source country
       if (stockByCountry[fromCountry] !== undefined && fromCountry !== 'china') {
@@ -284,7 +286,6 @@ function calculateStockByCountry(productId = null) {
 
   return stockByCountry;
 }
-
 function calculateDateRange(range) {
   const now = new Date();
   const start = new Date();
