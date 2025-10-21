@@ -51,7 +51,8 @@
         </table>
       </div>
     </div>
-  <!-- Product Notes Section -->
+
+    <!-- Product Notes Section -->
     <div class="section">
       <h3>📝 Product Notes & Testing Results</h3>
       <div class="card">
@@ -102,10 +103,12 @@
               <th>ID</th>
               <th>Route</th>
               <th>Qty</th>
-              <th>Ship Cost</th>
+              <th>Est. Cost</th>
+              <th>Final Cost</th>
               <th>China Cost</th>
               <th>Departed</th>
               <th>Arrived</th>
+              <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -123,9 +126,11 @@
               <th>ID</th>
               <th>Route</th>
               <th>Qty</th>
-              <th>Ship Cost</th>
+              <th>Est. Cost</th>
+              <th>Final Cost</th>
               <th>Departed</th>
               <th>Arrived</th>
+              <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -186,7 +191,9 @@
               <tr>
                 <th>Country</th>
                 <th>Revenue</th>
+                <th>Refunds</th>
                 <th>Ad Spend</th>
+                <th>Influencer Spend</th>
                 <th>Boxleo Fees</th>
                 <th>Product Cost China</th>
                 <th>Shipping</th>
@@ -203,7 +210,9 @@
               <tr class="totals">
                 <th>Totals</th>
                 <th id="pdLPRevT">0</th>
+                <th id="pdLPRefundsT">0</th>
                 <th id="pdLPAdT">0</th>
+                <th id="pdLPInfluencerT">0</th>
                 <th id="pdLPBoxleoT">0</th>
                 <th id="pdLPProductCostT">0</th>
                 <th id="pdLPShipT">0</th>
@@ -265,6 +274,32 @@
       </div>
       <!-- Pagination -->
       <div class="pagination" id="pdRemittancesPagination" style="margin-top: 15px;"></div>
+    </div>
+
+    <!-- Refunds Section -->
+    <div class="section">
+      <h3>💸 Refunds for This Product</h3>
+      <div class="card">
+        <div class="h">Refunds Tracking</div>
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Country</th>
+                <th>Orders Refunded</th>
+                <th>Pieces Refunded</th>
+                <th>Amount</th>
+                <th>Reason</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="pdRefundsBody"></tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <div class="pagination" id="pdRefundsPagination" style="margin-top: 15px;"></div>
+      </div>
     </div>
 
     <!-- Influencer Spend -->
