@@ -1026,31 +1026,13 @@ function renderProductInfoResults(productInfo) {
   const container = Q('#productInfoResults');
   if (!container) return;
 
-  const { product, costAnalysis, boxleoPerOrder, totalBoxleoFees, totalDeliveredOrders } = productInfo;
+  const { product, costAnalysis } = productInfo;
 
   let html = `
     <div class="product-info-results">
       <div class="product-info-header">
         <h3>${product.name} ${product.sku ? `(${product.sku})` : ''}</h3>
         <div class="product-status ${product.status}">${product.status}</div>
-      </div>
-      
-      <div class="card" style="background: var(--info-light); border-left: 4px solid var(--info); margin-bottom: 20px;">
-        <div class="h">📊 Boxleo Fees Analysis</div>
-        <div class="row" style="justify-content: space-between;">
-          <div>
-            <div style="font-size: 0.9rem; color: var(--text-muted);">Average Boxleo Fee per Order</div>
-            <div style="font-size: 1.5rem; font-weight: 700; color: var(--info);">$${fmt(boxleoPerOrder)}</div>
-          </div>
-          <div>
-            <div style="font-size: 0.9rem; color: var(--text-muted);">Total Boxleo Fees</div>
-            <div style="font-size: 1.2rem; font-weight: 600;">$${fmt(totalBoxleoFees)}</div>
-          </div>
-          <div>
-            <div style="font-size: 0.9rem; color: var(--text-muted);">Total Delivered Orders</div>
-            <div style="font-size: 1.2rem; font-weight: 600;">${fmt(totalDeliveredOrders)}</div>
-          </div>
-        </div>
       </div>
       
       <div class="profit-budgets-section">
@@ -1099,7 +1081,6 @@ function renderProductInfoResults(productInfo) {
 
   container.innerHTML = html;
 }
-
 // ======== PERFORMANCE PAGE ========
 function renderPerformancePage() {
   initDateRangeSelectors();
