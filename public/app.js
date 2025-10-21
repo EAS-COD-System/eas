@@ -172,19 +172,24 @@ async function preload() {
   const cats = await api('/api/finance/categories');
   state.categories = cats || { debit: [], credit: [] };
 
-  // Load all shipments for stock calculation
+  // Load all shipments for stock calculation - MAKE SURE THIS WORKS
   try {
+    console.log('🔄 Preload: Loading shipments...');
     const shipments = await api('/api/shipments');
     state.allShipments = shipments.shipments || [];
-    console.log('Loaded shipments:', state.allShipments.length);
+    console.log('✅ Preload: Loaded', state.allShipments.length, 'shipments');
+    
+    // Debug: log first few shipments
+    if (state.allShipments.length > 0) {
+      console.log('📦 Sample shipments:', state.allShipments.slice(0, 3));
+    }
   } catch (error) {
-    console.error('Failed to load shipments:', error);
+    console.error('❌ Preload: Failed to load shipments:', error);
     state.allShipments = [];
   }
 
   fillCommonSelects();
 }
-
 function fillCommonSelects() {
   const countrySelects = ['#adCountry', '#rCountry', '#pdAdCountry', '#pdRCountry',
     '#pdInfCountry', '#pdInfFilterCountry', '#pcCountry', '#remCountry', '#remAddCountry',
@@ -251,40 +256,78 @@ function fillCommonSelects() {
   });
 }
 
-// FIXED: Proper stock calculation function
-function calculateStockByCountry(productId = null) {
-  const stockByCountry = {};
-  
-  // Initialize all countries with 0 stock
-  state.countries.forEach(country => {
-    stockByCountry[country] = 0;
-  });
-
-  // Process all shipments to calculate current stock
-  state.allShipments.forEach(shipment => {
-    // If productId is specified, only count shipments for that product
-    if (productId && shipment.productId !== productId) return;
-
-    const fromCountry = shipment.fromCountry || shipment.from;
-    const toCountry = shipment.toCountry || shipment.to;
-    const quantity = shipment.qty || 0;
-
-    if (shipment.arrivedAt) {
-      // Shipment has arrived: add to destination country ONLY
-      if (stockByCountry[toCountry] !== undefined) {
-        stockByCountry[toCountry] += quantity;
-      }
-      // DO NOT subtract from source country when shipment arrives
-      // The subtraction already happened when the shipment was created/departed
-    } else {
-      // Shipment is in transit: subtract from source country
-      if (stockByCountry[fromCountry] !== undefined && fromCountry !== 'china') {
-        stockByCountry[fromCountry] -= quantity;
-      }
+// DEBUG VERSION: Let's see what's happening
+async function calculateStockByCountry(productId = null) {
+  try {
+    console.log('🔍 calculateStockByCountry called with productId:', productId);
+    
+    // Make sure we have shipments loaded
+    if (!state.allShipments || state.allShipments.length === 0) {
+      console.log('🔄 Loading shipments...');
+      const shipments = await api('/api/shipments');
+      state.allShipments = shipments.shipments || [];
+      console.log('📦 Loaded shipments:', state.allShipments.length);
     }
-  });
 
-  return stockByCountry;
+    console.log('📊 Processing', state.allShipments.length, 'shipments');
+    
+    const stockByCountry = {};
+    
+    // Initialize all countries with 0 stock
+    state.countries.forEach(country => {
+      stockByCountry[country] = 0;
+    });
+
+    console.log('🌍 Countries:', state.countries);
+
+    // Process each shipment
+    state.allShipments.forEach((shipment, index) => {
+      console.log(`📦 Shipment ${index + 1}:`, {
+        productId: shipment.productId,
+        from: shipment.fromCountry,
+        to: shipment.toCountry,
+        qty: shipment.qty,
+        arrived: shipment.arrivedAt,
+        match: productId ? shipment.productId === productId : 'all products'
+      });
+
+      // If productId is specified, only count shipments for that product
+      if (productId && shipment.productId !== productId) {
+        console.log('⏩ Skipping - product ID mismatch');
+        return;
+      }
+
+      const fromCountry = shipment.fromCountry || shipment.from;
+      const toCountry = shipment.toCountry || shipment.to;
+      const quantity = shipment.qty || 0;
+
+      console.log(`📍 Processing: ${fromCountry} → ${toCountry}, Qty: ${quantity}, Arrived: ${!!shipment.arrivedAt}`);
+
+      if (shipment.arrivedAt) {
+        // Shipment has arrived: add to destination country
+        if (stockByCountry[toCountry] !== undefined) {
+          stockByCountry[toCountry] += quantity;
+          console.log(`✅ Added ${quantity} to ${toCountry}, now: ${stockByCountry[toCountry]}`);
+        } else {
+          console.log(`❌ Destination country ${toCountry} not found`);
+        }
+      } else {
+        // Shipment is in transit: subtract from source country (except China)
+        if (stockByCountry[fromCountry] !== undefined && fromCountry !== 'china') {
+          stockByCountry[fromCountry] -= quantity;
+          console.log(`➖ Subtracted ${quantity} from ${fromCountry}, now: ${stockByCountry[fromCountry]}`);
+        } else {
+          console.log(`⏩ Skipping subtraction from ${fromCountry} (china or not found)`);
+        }
+      }
+    });
+
+    console.log('📈 Final stock by country:', stockByCountry);
+    return stockByCountry;
+  } catch (error) {
+    console.error('❌ Error calculating stock:', error);
+    return {};
+  }
 }
 function calculateDateRange(range) {
   const now = new Date();
