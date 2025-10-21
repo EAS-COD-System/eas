@@ -169,17 +169,6 @@ body {
   flex-shrink: 0 !important;
 }
 
-/* Mobile menu toggle button */
-.nav-toggle {
-  display: none !important;
-  background: none !important;
-  border: none !important;
-  font-size: 20px !important;
-  cursor: pointer !important;
-  padding: 8px !important;
-  color: #333 !important;
-}
-
 /* Main content starts below the fixed nav */
 #main {
   margin-top: 80px !important;
