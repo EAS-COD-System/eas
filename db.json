@@ -18,6 +18,7 @@
   "deliveries": [],
   "shipments": [],
   "remittances": [],
+  "refunds": [],
   "finance": {
     "categories": {
       "debit": [],
