@@ -870,7 +870,7 @@ function renderProductsPage() {
     if (!p.name) return alert('Name required');
     await api('/api/products', { method: 'POST', body: JSON.stringify(p) });
     await preload();
-    renderProductsTable();
+    renderProductsTable(); // ← Make sure this is called
     renderCompactCountryStats();
     renderAdvertisingOverview();
     alert('Product added');
@@ -893,7 +893,7 @@ function renderProductsPage() {
     alert('Selling price saved');
   });
 
-  renderProductsTable();
+  renderProductsTable(); // ← Make sure this is called here too
   renderProductInfoSection();
 }
 
@@ -1018,8 +1018,34 @@ function renderAdvertisingOverview() {
 }
 
 function renderProductsTable() {
-  const tb = Q('#productsTable tbody'); if (!tb) return;
+  const tb = Q('#productsTable tbody'); 
+  const thead = Q('#productsTable thead tr');
+  if (!tb || !thead) return;
+
+  // Build table header dynamically
+  let headerHTML = `
+    <th>Name</th>
+    <th>SKU</th>
+    <th>Status</th>
+    <th>Total Stock</th>
+    <th>Total Transit</th>
+    <th>Total Pieces</th>
+  `;
+
+  // Add country columns (except China)
+  state.countries.forEach(country => {
+    if (country !== 'china') {
+      headerHTML += `<th>${country.charAt(0).toUpperCase() + country.slice(1)} Stock</th>`;
+      headerHTML += `<th>${country.charAt(0).toUpperCase() + country.slice(1)} Ad Spend</th>`;
+    }
+  });
+
+  headerHTML += `<th>Actions</th>`;
   
+  // Set the header
+  thead.innerHTML = headerHTML;
+
+  // Build table rows
   tb.innerHTML = state.products.map(p => {
     let rowClass = '';
     if (!p.hasData) {
@@ -1030,59 +1056,63 @@ function renderProductsTable() {
       rowClass = 'loss-row';
     }
 
-    // Use server-side stock data
-    const kenyaStock = p.stockByCountry?.kenya || 0;
-    const kenyaAdSpend = p.adSpendByCountry?.kenya || 0;
-    const tanzaniaStock = p.stockByCountry?.tanzania || 0;
-    const tanzaniaAdSpend = p.adSpendByCountry?.tanzania || 0;
-    const ugandaStock = p.stockByCountry?.uganda || 0;
-    const ugandaAdSpend = p.adSpendByCountry?.uganda || 0;
-    const zambiaStock = p.stockByCountry?.zambia || 0;
-    const zambiaAdSpend = p.adSpendByCountry?.zambia || 0;
-    const zimbabweStock = p.stockByCountry?.zimbabwe || 0;
-    const zimbabweAdSpend = p.adSpendByCountry?.zimbabwe || 0;
+    // Start with static columns
+    let rowHTML = `
+      <tr class="${rowClass}">
+        <td>${p.name}</td>
+        <td>${p.sku || '-'}</td>
+        <td><span class="badge ${p.status === 'paused' ? 'muted' : ''}">${p.status || 'active'}</span></td>
+        <td>${fmt(p.totalStock || 0)}</td>
+        <td>${fmt(p.transitPieces || 0)}</td>
+        <td>${fmt(p.totalPiecesIncludingTransit || 0)}</td>
+    `;
 
-    return `
-    <tr class="${rowClass}">
-      <td>${p.name}</td>
-      <td>${p.sku || '-'}</td>
-      <td><span class="badge ${p.status === 'paused' ? 'muted' : ''}">${p.status || 'active'}</span></td>
-      <td>${fmt(p.totalStock || 0)}</td>
-      <td>${fmt(p.transitPieces || 0)}</td>
-      <td>${fmt(p.totalPiecesIncludingTransit || 0)}</td>
-      <td>${fmt(kenyaStock)}</td>
-      <td>${fmt(kenyaAdSpend)}</td>
-      <td>${fmt(tanzaniaStock)}</td>
-      <td>${fmt(tanzaniaAdSpend)}</td>
-      <td>${fmt(ugandaStock)}</td>
-      <td>${fmt(ugandaAdSpend)}</td>
-      <td>${fmt(zambiaStock)}</td>
-      <td>${fmt(zambiaAdSpend)}</td>
-      <td>${fmt(zimbabweStock)}</td>
-      <td>${fmt(zimbabweAdSpend)}</td>
-      <td>
-        <a class="btn" href="/product.html?id=${p.id}">Open</a>
-        <button class="btn outline act-toggle" data-id="${p.id}">${p.status === 'active' ? 'Pause' : 'Run'}</button>
-        <button class="btn outline act-del" data-id="${p.id}">Delete</button>
-      </td>
-    </tr>
-  `}).join('') || `<tr><td colspan="17" class="muted">No products</td></tr>`;
+    // Add dynamic country data (except China)
+    state.countries.forEach(country => {
+      if (country !== 'china') {
+        const stock = p.stockByCountry?.[country] || 0;
+        const adSpend = p.adSpendByCountry?.[country] || 0;
+        rowHTML += `
+          <td>${fmt(stock)}</td>
+          <td>${fmt(adSpend)}</td>
+        `;
+      }
+    });
 
+    // Add actions column
+    rowHTML += `
+        <td>
+          <a class="btn" href="/product.html?id=${p.id}">Open</a>
+          <button class="btn outline act-toggle" data-id="${p.id}">${p.status === 'active' ? 'Pause' : 'Run'}</button>
+          <button class="btn outline act-del" data-id="${p.id}">Delete</button>
+        </td>
+      </tr>
+    `;
+
+    return rowHTML;
+  }).join('') || `<tr><td colspan="${6 + (state.countries.length - 1) * 2 + 1}" class="muted">No products</td></tr>`;
+
+  // Add event listeners for actions
   tb.onclick = async (e) => {
-    const id = e.target.dataset?.id; if (!id) return;
+    const id = e.target.dataset?.id; 
+    if (!id) return;
+    
     if (e.target.classList.contains('act-toggle')) {
-      const p = state.products.find(x => x.id === id); const ns = p.status === 'active' ? 'paused' : 'active';
+      const p = state.products.find(x => x.id === id); 
+      const ns = p.status === 'active' ? 'paused' : 'active';
       await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: ns }) });
-      await preload(); renderProductsTable(); renderCompactCountryStats(); renderAdvertisingOverview();
+      await preload(); 
+      renderProductsTable(); 
     }
+    
     if (e.target.classList.contains('act-del')) {
       if (!confirm('Delete product and ALL its data?')) return;
       await api(`/api/products/${id}`, { method: 'DELETE' });
-      await preload(); renderProductsTable(); renderCompactCountryStats(); renderAdvertisingOverview(); renderCountryStockSpend(); renderCompactKpis();
+      await preload(); 
+      renderProductsTable(); 
     }
   };
 }
-
 function renderProductInfoSection() {
   const runBtn = Q('#productInfoRun');
   if (!runBtn) return;
