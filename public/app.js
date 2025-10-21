@@ -1365,7 +1365,6 @@ function renderRemittanceAnalytics(analytics) {
   const avgBoxleoPerPiece = itemCount > 0 ? totalBoxleoPerPiece / itemCount : 0;
   const avgAdCostPerOrder = itemCount > 0 ? totalAdCostPerOrder / itemCount : 0;
   const avgAdCostPerPiece = itemCount > 0 ? totalAdCostPerPiece / itemCount : 0;
-  const avgInfluencerPerOrder = itemCount > 0 ? totalInfluencerPerOrder / itemCount : 0;
   const avgAOV = itemCount > 0 ? totalAOV / itemCount : 0;
 
   Q('#remAnalyticsOrdersT').textContent = fmt(totalOrders);
@@ -1384,11 +1383,9 @@ function renderRemittanceAnalytics(analytics) {
   Q('#remAnalyticsBoxleoPieceT').textContent = '$' + fmt(avgBoxleoPerPiece);
   Q('#remAnalyticsAdOrderT').textContent = '$' + fmt(avgAdCostPerOrder);
   Q('#remAnalyticsAdPieceT').textContent = '$' + fmt(avgAdCostPerPiece);
-  Q('#remAnalyticsInfluencerOrderT').textContent = '$' + fmt(avgInfluencerPerOrder);
   Q('#remAnalyticsAOVT').textContent = '$' + fmt(avgAOV);
   Q('#remAnalyticsProfitT').textContent = fmt(totalProfit);
 }
-
 function bindProfitByCountry() {
   const btn = Q('#pcRun');
   if (!btn) return;
