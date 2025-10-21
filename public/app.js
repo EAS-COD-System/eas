@@ -1470,7 +1470,6 @@ function renderProfitByCountry(analytics) {
   const avgBoxleoPerPiece = itemCount > 0 ? totalBoxleoPerPiece / itemCount : 0;
   const avgAdCostPerOrder = itemCount > 0 ? totalAdCostPerOrder / itemCount : 0;
   const avgAdCostPerPiece = itemCount > 0 ? totalAdCostPerPiece / itemCount : 0;
-  const avgInfluencerPerOrder = itemCount > 0 ? totalInfluencerPerOrder / itemCount : 0;
   const avgAOV = itemCount > 0 ? totalAOV / itemCount : 0;
 
   Q('#pcOrdersT').textContent = fmt(totalOrders);
@@ -1489,7 +1488,6 @@ function renderProfitByCountry(analytics) {
   Q('#pcBoxleoPieceT').textContent = '$' + fmt(avgBoxleoPerPiece);
   Q('#pcAdOrderT').textContent = '$' + fmt(avgAdCostPerOrder);
   Q('#pcAdPieceT').textContent = '$' + fmt(avgAdCostPerPiece);
-  Q('#pcInfluencerOrderT').textContent = '$' + fmt(avgInfluencerPerOrder);
   Q('#pcAOVT').textContent = '$' + fmt(avgAOV);
   Q('#pcProfitT').textContent = fmt(totalProfit);
 }
