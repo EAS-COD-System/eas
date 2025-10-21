@@ -901,6 +901,7 @@ function renderAdvertisingOverview() {
 
 function renderProductsTable() {
   const tb = Q('#productsTable tbody'); if (!tb) return;
+  
   tb.innerHTML = state.products.map(p => {
     let rowClass = '';
     if (!p.hasData) {
@@ -911,6 +912,18 @@ function renderProductsTable() {
       rowClass = 'loss-row';
     }
 
+    // Get stock and ad spend by country
+    const kenyaStock = p.stockByCountry?.kenya || 0;
+    const kenyaAdSpend = p.adSpendByCountry?.kenya || 0;
+    const tanzaniaStock = p.stockByCountry?.tanzania || 0;
+    const tanzaniaAdSpend = p.adSpendByCountry?.tanzania || 0;
+    const ugandaStock = p.stockByCountry?.uganda || 0;
+    const ugandaAdSpend = p.adSpendByCountry?.uganda || 0;
+    const zambiaStock = p.stockByCountry?.zambia || 0;
+    const zambiaAdSpend = p.adSpendByCountry?.zambia || 0;
+    const zimbabweStock = p.stockByCountry?.zimbabwe || 0;
+    const zimbabweAdSpend = p.adSpendByCountry?.zimbabwe || 0;
+
     return `
     <tr class="${rowClass}">
       <td>${p.name}</td>
@@ -919,13 +932,23 @@ function renderProductsTable() {
       <td>${fmt(p.totalStock || 0)}</td>
       <td>${fmt(p.transitPieces || 0)}</td>
       <td>${fmt(p.totalPiecesIncludingTransit || 0)}</td>
+      <td>${fmt(kenyaStock)}</td>
+      <td>${fmt(kenyaAdSpend)}</td>
+      <td>${fmt(tanzaniaStock)}</td>
+      <td>${fmt(tanzaniaAdSpend)}</td>
+      <td>${fmt(ugandaStock)}</td>
+      <td>${fmt(ugandaAdSpend)}</td>
+      <td>${fmt(zambiaStock)}</td>
+      <td>${fmt(zambiaAdSpend)}</td>
+      <td>${fmt(zimbabweStock)}</td>
+      <td>${fmt(zimbabweAdSpend)}</td>
       <td>
         <a class="btn" href="/product.html?id=${p.id}">Open</a>
         <button class="btn outline act-toggle" data-id="${p.id}">${p.status === 'active' ? 'Pause' : 'Run'}</button>
         <button class="btn outline act-del" data-id="${p.id}">Delete</button>
       </td>
     </tr>
-  `}).join('') || `<tr><td colspan="7" class="muted">No products</td></tr>`;
+  `}).join('') || `<tr><td colspan="17" class="muted">No products</td></tr>`;
 
   tb.onclick = async (e) => {
     const id = e.target.dataset?.id; if (!id) return;
@@ -963,13 +986,31 @@ function renderProductInfoResults(productInfo) {
   const container = Q('#productInfoResults');
   if (!container) return;
 
-  const { product, costAnalysis } = productInfo;
+  const { product, costAnalysis, boxleoPerOrder, totalBoxleoFees, totalDeliveredOrders } = productInfo;
 
   let html = `
     <div class="product-info-results">
       <div class="product-info-header">
         <h3>${product.name} ${product.sku ? `(${product.sku})` : ''}</h3>
         <div class="product-status ${product.status}">${product.status}</div>
+      </div>
+      
+      <div class="card" style="background: var(--info-light); border-left: 4px solid var(--info); margin-bottom: 20px;">
+        <div class="h">📊 Boxleo Fees Analysis</div>
+        <div class="row" style="justify-content: space-between;">
+          <div>
+            <div style="font-size: 0.9rem; color: var(--text-muted);">Average Boxleo Fee per Order</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--info);">$${fmt(boxleoPerOrder)}</div>
+          </div>
+          <div>
+            <div style="font-size: 0.9rem; color: var(--text-muted);">Total Boxleo Fees</div>
+            <div style="font-size: 1.2rem; font-weight: 600;">$${fmt(totalBoxleoFees)}</div>
+          </div>
+          <div>
+            <div style="font-size: 0.9rem; color: var(--text-muted);">Total Delivered Orders</div>
+            <div style="font-size: 1.2rem; font-weight: 600;">${fmt(totalDeliveredOrders)}</div>
+          </div>
+        </div>
       </div>
       
       <div class="profit-budgets-section">
@@ -1885,7 +1926,7 @@ async function renderProductStockAd(product) {
   const tb = Q('#pdStockBody'); if (!tb) return;
   
   try {
-    const stock = calculateProductStockFromAPI(product);
+    const stock = product.stockByCountry || {};
     const adSpends = await api('/api/adspend');
     
     const adBreakdown = {};
@@ -1936,22 +1977,12 @@ async function renderProductStockAd(product) {
   }
 }
 
-// Helper function to calculate product stock
-function calculateProductStockFromAPI(product) {
-  // This would be replaced with actual API call in a real implementation
-  const stock = {};
-  state.countries.forEach(country => {
-    stock[country] = Math.floor(Math.random() * 1000); // Mock data
-  });
-  return stock;
-}
-
 function renderProductBudgets(product) {
   const tb = Q('#pdPBBBody');
   if (!tb) return;
 
   api(`/api/product-info/${product.id}`).then(productInfo => {
-    const { costAnalysis } = productInfo;
+    const { costAnalysis, boxleoPerOrder } = productInfo;
 
     tb.innerHTML = costAnalysis.map(analysis => `
       <tr>
@@ -1963,10 +1994,11 @@ function renderProductBudgets(product) {
         <td>$${fmt(analysis.maxCPL)}</td>
         <td>${fmt(analysis.deliveryRate)}%</td>
         <td class="${analysis.availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(analysis.availableForProfitAndAds)}</td>
+        <td>$${fmt(boxleoPerOrder)}</td>
       </tr>
-    `).join('') || `<tr><td colspan="8" class="muted">No data available</td></tr>`;
+    `).join('') || `<tr><td colspan="9" class="muted">No data available</td></tr>`;
   }).catch(() => {
-    tb.innerHTML = `<tr><td colspan="8" class="muted">Error loading cost data</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="9" class="muted">Error loading cost data</td></tr>`;
   });
 }
 
