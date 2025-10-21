@@ -176,6 +176,7 @@ async function preload() {
   try {
     const shipments = await api('/api/shipments');
     state.allShipments = shipments.shipments || [];
+    console.log('Loaded shipments:', state.allShipments.length);
   } catch (error) {
     console.error('Failed to load shipments:', error);
     state.allShipments = [];
@@ -250,25 +251,39 @@ function fillCommonSelects() {
   });
 }
 
-// Use backend calculation instead of frontend recalculation
-async function calculateStockByCountry(productId = null) {
-  try {
-    if (productId) {
-      // For specific product, get product data which includes stockByCountry
-      const products = await api('/api/products');
-      const product = products.products.find(p => p.id === productId);
-      return product?.stockByCountry || {};
-    } else {
-      // For all products, use dashboard overview
-      const overview = await api('/api/dashboard/overview');
-      return overview.totalStockByCountry || {};
-    }
-  } catch (error) {
-    console.error('Error calculating stock:', error);
-    return {};
-  }
-}
+// FIXED: Proper stock calculation function
+function calculateStockByCountry(productId = null) {
+  const stockByCountry = {};
+  
+  // Initialize all countries with 0 stock
+  state.countries.forEach(country => {
+    stockByCountry[country] = 0;
+  });
 
+  // Process all shipments to calculate current stock
+  state.allShipments.forEach(shipment => {
+    // If productId is specified, only count shipments for that product
+    if (productId && shipment.productId !== productId) return;
+
+    const fromCountry = shipment.fromCountry || shipment.from;
+    const toCountry = shipment.toCountry || shipment.to;
+    const quantity = shipment.qty || 0;
+
+    if (shipment.arrivedAt) {
+      // Shipment has arrived: add to destination country
+      if (stockByCountry[toCountry] !== undefined) {
+        stockByCountry[toCountry] += quantity;
+      }
+    } else {
+      // Shipment is in transit: subtract from source country
+      if (stockByCountry[fromCountry] !== undefined && fromCountry !== 'china') {
+        stockByCountry[fromCountry] -= quantity;
+      }
+    }
+  });
+
+  return stockByCountry;
+}
 
 function calculateDateRange(range) {
   const now = new Date();
