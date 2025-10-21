@@ -45,7 +45,8 @@ const state = {
   testedProducts: [],
   currentStoreOrdersPage: 1,
   currentRemittancesPage: 1,
-  currentRefundsPage: 1
+  currentRefundsPage: 1,
+  allShipments: [] // Added to store all shipments for stock calculation
 };
 
 async function boot() {
@@ -171,6 +172,15 @@ async function preload() {
   const cats = await api('/api/finance/categories');
   state.categories = cats || { debit: [], credit: [] };
 
+  // Load all shipments for stock calculation
+  try {
+    const shipments = await api('/api/shipments');
+    state.allShipments = shipments.shipments || [];
+  } catch (error) {
+    console.error('Failed to load shipments:', error);
+    state.allShipments = [];
+  }
+
   fillCommonSelects();
 }
 
@@ -239,6 +249,26 @@ function fillCommonSelects() {
       allCats.map(c => `<option>${c}</option>`).join('');
   });
 }
+
+// Use backend calculation instead of frontend recalculation
+async function calculateStockByCountry(productId = null) {
+  try {
+    if (productId) {
+      // For specific product, get product data which includes stockByCountry
+      const products = await api('/api/products');
+      const product = products.products.find(p => p.id === productId);
+      return product?.stockByCountry || {};
+    } else {
+      // For all products, use dashboard overview
+      const overview = await api('/api/dashboard/overview');
+      return overview.totalStockByCountry || {};
+    }
+  } catch (error) {
+    console.error('Error calculating stock:', error);
+    return {};
+  }
+}
+
 
 function calculateDateRange(range) {
   const now = new Date();
@@ -338,11 +368,30 @@ async function renderCompactKpis() {
   Q('#kpiCountries') && (Q('#kpiCountries').textContent = state.countries.length);
 
   try {
-    const overview = await api('/api/dashboard/overview');
-    Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = overview.transitData?.chinaTransit || '—');
-    Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = overview.transitData?.interCountryTransit || '—');
-    Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = overview.stockData?.activeStock || '—');
-    Q('#kpiInactiveStock') && (Q('#kpiInactiveStock').textContent = overview.stockData?.inactiveStock || '—');
+    // Use our fixed stock calculation
+    const stockByCountry = calculateStockByCountry();
+    let activeStock = 0;
+    let inactiveStock = 0;
+    
+    state.countries.forEach(country => {
+      const stock = stockByCountry[country] || 0;
+      if (stock > 0) activeStock += stock;
+      if (stock < 0) inactiveStock += Math.abs(stock);
+    });
+
+    // Calculate transit pieces
+    const chinaTransit = state.allShipments
+      .filter(shipment => !shipment.arrivedAt && (shipment.fromCountry || shipment.from) === 'china')
+      .reduce((total, shipment) => total + (shipment.qty || 0), 0);
+    
+    const interCountryTransit = state.allShipments
+      .filter(shipment => !shipment.arrivedAt && (shipment.fromCountry || shipment.from) !== 'china')
+      .reduce((total, shipment) => total + (shipment.qty || 0), 0);
+
+    Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = chinaTransit);
+    Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = interCountryTransit);
+    Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = activeStock);
+    Q('#kpiInactiveStock') && (Q('#kpiInactiveStock').textContent = inactiveStock);
   } catch { 
     Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = '—');
     Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = '—');
@@ -365,9 +414,9 @@ async function renderCountryStockSpend() {
   body.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
 
   try {
-    const overview = await api('/api/dashboard/overview');
-    const { totalStockByCountry = {}, adSpendByCountry = {} } = overview;
-
+    // Use our fixed stock calculation instead of backend data
+    const stockByCountry = calculateStockByCountry();
+    
     let st = 0, fb = 0, tt = 0, gg = 0, totalAd = 0;
     
     // Get ad spend breakdown
@@ -389,7 +438,7 @@ async function renderCountryStockSpend() {
     });
 
     const rows = state.countries.map(country => {
-      const stock = totalStockByCountry[country] || 0;
+      const stock = stockByCountry[country] || 0;
       const adData = adBreakdown[country] || { facebook: 0, tiktok: 0, google: 0 };
       const countryAdTotal = adData.facebook + adData.tiktok + adData.google;
 
@@ -952,16 +1001,17 @@ function renderProductsTable() {
       rowClass = 'loss-row';
     }
 
-    // Get stock and ad spend by country
-    const kenyaStock = p.stockByCountry?.kenya || 0;
+    // Use our fixed stock calculation for each product
+    const stockByCountry = calculateStockByCountry(p.id);
+    const kenyaStock = stockByCountry.kenya || 0;
     const kenyaAdSpend = p.adSpendByCountry?.kenya || 0;
-    const tanzaniaStock = p.stockByCountry?.tanzania || 0;
+    const tanzaniaStock = stockByCountry.tanzania || 0;
     const tanzaniaAdSpend = p.adSpendByCountry?.tanzania || 0;
-    const ugandaStock = p.stockByCountry?.uganda || 0;
+    const ugandaStock = stockByCountry.uganda || 0;
     const ugandaAdSpend = p.adSpendByCountry?.uganda || 0;
-    const zambiaStock = p.stockByCountry?.zambia || 0;
+    const zambiaStock = stockByCountry.zambia || 0;
     const zambiaAdSpend = p.adSpendByCountry?.zambia || 0;
-    const zimbabweStock = p.stockByCountry?.zimbabwe || 0;
+    const zimbabweStock = stockByCountry.zimbabwe || 0;
     const zimbabweAdSpend = p.adSpendByCountry?.zimbabwe || 0;
 
     return `
@@ -1081,6 +1131,7 @@ function renderProductInfoResults(productInfo) {
 
   container.innerHTML = html;
 }
+
 // ======== PERFORMANCE PAGE ========
 function renderPerformancePage() {
   initDateRangeSelectors();
@@ -1623,7 +1674,12 @@ function renderStockMovementPage() {
 
     try {
       await api('/api/shipments', { method: 'POST', body: JSON.stringify(payload) });
+      // Reload shipments for accurate stock calculation
+      const shipments = await api('/api/shipments');
+      state.allShipments = shipments.shipments || [];
       await renderTransitTables();
+      await renderCountryStockSpend();
+      await renderCompactKpis();
       alert('Shipment created');
       Q('#mvQty').value = '';
       Q('#mvShip').value = '';
@@ -1640,6 +1696,7 @@ async function renderTransitTables() {
   if (!tbl1 && !tbl2) return;
 
   const s = await api('/api/shipments');
+  state.allShipments = s.shipments || [];
   const live = (s.shipments || []).filter(x => !x.arrivedAt);
   const prodMap = Object.fromEntries(state.products.map(p => [p.id, p.name]));
 
@@ -1704,8 +1761,12 @@ async function handleShipmentActions(e) {
     if (!date) return;
     try { 
       await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) }); 
+      // Reload shipments for accurate stock calculation
+      const shipments = await api('/api/shipments');
+      state.allShipments = shipments.shipments || [];
       await renderTransitTables();
       await renderCountryStockSpend();
+      await renderCompactKpis();
     } catch (err) { 
       alert(err.message); 
     }
@@ -1726,7 +1787,12 @@ async function handleShipmentActions(e) {
     if (!confirm('Delete shipment?')) return;
     try { 
       await api(`/api/shipments/${id}`, { method: 'DELETE' }); 
+      // Reload shipments for accurate stock calculation
+      const shipments = await api('/api/shipments');
+      state.allShipments = shipments.shipments || [];
       await renderTransitTables();
+      await renderCountryStockSpend();
+      await renderCompactKpis();
     } catch (err) { 
       alert(err.message); 
     }
@@ -1940,7 +2006,9 @@ async function renderProductStockAd(product) {
   const tb = Q('#pdStockBody'); if (!tb) return;
   
   try {
-    const stock = product.stockByCountry || {};
+    // Use our fixed stock calculation instead of backend data
+    const stockByCountry = calculateStockByCountry(product.id);
+    
     const adSpends = await api('/api/adspend');
     
     const adBreakdown = {};
@@ -1960,7 +2028,7 @@ async function renderProductStockAd(product) {
     let st = 0, fb = 0, tt = 0, gg = 0, totalAd = 0;
     
     const rows = state.countries.map(country => {
-      const countryStock = stock[country] || 0;
+      const countryStock = stockByCountry[country] || 0;
       const adData = adBreakdown[country] || { facebook: 0, tiktok: 0, google: 0 };
       const countryAdTotal = adData.facebook + adData.tiktok + adData.google;
 
@@ -1996,7 +2064,7 @@ function renderProductBudgets(product) {
   if (!tb) return;
 
   api(`/api/product-info/${product.id}`).then(productInfo => {
-    const { costAnalysis, boxleoPerOrder } = productInfo;
+    const { costAnalysis } = productInfo;
 
     tb.innerHTML = costAnalysis.map(analysis => `
       <tr>
@@ -2008,7 +2076,7 @@ function renderProductBudgets(product) {
         <td>$${fmt(analysis.maxCPL)}</td>
         <td>${fmt(analysis.deliveryRate)}%</td>
         <td class="${analysis.availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(analysis.availableForProfitAndAds)}</td>
-        <td>$${fmt(boxleoPerOrder)}</td>
+        <td>$${fmt(analysis.boxleoPerOrder)}</td>
       </tr>
     `).join('') || `<tr><td colspan="9" class="muted">No data available</td></tr>`;
   }).catch(() => {
@@ -2025,6 +2093,7 @@ async function renderProductTransitTables(product) {
   if (!tbl1 && !tbl2) return;
 
   const s = await api('/api/shipments');
+  state.allShipments = s.shipments || [];
   const live = (s.shipments || []).filter(x => !x.arrivedAt && x.productId === product.id);
 
   const row = sp => {
@@ -2087,8 +2156,12 @@ async function handleProductShipmentActions(e) {
     if (!date) return;
     try { 
       await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) }); 
+      // Reload shipments for accurate stock calculation
+      const shipments = await api('/api/shipments');
+      state.allShipments = shipments.shipments || [];
       const product = state.products.find(p => p.id === state.productId);
       await renderProductTransitTables(product);
+      await renderProductStockAd(product);
     } catch (err) { 
       alert(err.message); 
     }
@@ -2110,8 +2183,12 @@ async function handleProductShipmentActions(e) {
     if (!confirm('Delete shipment?')) return;
     try { 
       await api(`/api/shipments/${id}`, { method: 'DELETE' }); 
+      // Reload shipments for accurate stock calculation
+      const shipments = await api('/api/shipments');
+      state.allShipments = shipments.shipments || [];
       const product = state.products.find(p => p.id === state.productId);
       await renderProductTransitTables(product);
+      await renderProductStockAd(product);
     } catch (err) { 
       alert(err.message); 
     }
