@@ -24,7 +24,7 @@ async function api(path, opts = {}) {
 const state = {
   productId: getQuery('id'),
   countries: [],
-  products: [],
+  products: [], 
   productsActive: [],
   categories: { debit: [], credit: [] },
   productNotes: [],
