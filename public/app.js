@@ -280,20 +280,10 @@ async function calculateStockByCountry(productId = null) {
 
     console.log('🌍 Countries:', state.countries);
 
-    // Process each shipment
+    // FIRST PASS: Add all arrived shipments to destination countries
     state.allShipments.forEach((shipment, index) => {
-      console.log(`📦 Shipment ${index + 1}:`, {
-        productId: shipment.productId,
-        from: shipment.fromCountry,
-        to: shipment.toCountry,
-        qty: shipment.qty,
-        arrived: shipment.arrivedAt,
-        match: productId ? shipment.productId === productId : 'all products'
-      });
-
       // If productId is specified, only count shipments for that product
       if (productId && shipment.productId !== productId) {
-        console.log('⏩ Skipping - product ID mismatch');
         return;
       }
 
@@ -301,24 +291,30 @@ async function calculateStockByCountry(productId = null) {
       const toCountry = shipment.toCountry || shipment.to;
       const quantity = shipment.qty || 0;
 
-      console.log(`📍 Processing: ${fromCountry} → ${toCountry}, Qty: ${quantity}, Arrived: ${!!shipment.arrivedAt}`);
-
       if (shipment.arrivedAt) {
         // Shipment has arrived: add to destination country
         if (stockByCountry[toCountry] !== undefined) {
           stockByCountry[toCountry] += quantity;
           console.log(`✅ Added ${quantity} to ${toCountry}, now: ${stockByCountry[toCountry]}`);
-        } else {
-          console.log(`❌ Destination country ${toCountry} not found`);
         }
-      } else {
-        // Shipment is in transit: subtract from source country (except China)
-        if (stockByCountry[fromCountry] !== undefined && fromCountry !== 'china') {
-          stockByCountry[fromCountry] -= quantity;
-          console.log(`➖ Subtracted ${quantity} from ${fromCountry}, now: ${stockByCountry[fromCountry]}`);
-        } else {
-          console.log(`⏩ Skipping subtraction from ${fromCountry} (china or not found)`);
-        }
+      }
+    });
+
+    // SECOND PASS: Subtract all shipments from source countries (regardless of arrival status)
+    state.allShipments.forEach((shipment, index) => {
+      // If productId is specified, only count shipments for that product
+      if (productId && shipment.productId !== productId) {
+        return;
+      }
+
+      const fromCountry = shipment.fromCountry || shipment.from;
+      const toCountry = shipment.toCountry || shipment.to;
+      const quantity = shipment.qty || 0;
+
+      // Subtract from source country (except China, since China is our supplier)
+      if (stockByCountry[fromCountry] !== undefined && fromCountry !== 'china') {
+        stockByCountry[fromCountry] -= quantity;
+        console.log(`➖ Subtracted ${quantity} from ${fromCountry}, now: ${stockByCountry[fromCountry]}`);
       }
     });
 
@@ -328,8 +324,7 @@ async function calculateStockByCountry(productId = null) {
     console.error('❌ Error calculating stock:', error);
     return {};
   }
-}
-function calculateDateRange(range) {
+}function calculateDateRange(range) {
   const now = new Date();
   const start = new Date();
   
