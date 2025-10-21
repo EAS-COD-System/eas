@@ -10,21 +10,33 @@ const getQuery = k => new URLSearchParams(location.search).get(k);
 const safeJSON = v => { try { return JSON.parse(v); } catch { return null; } };
 
 async function api(path, opts = {}) {
-  const res = await fetch(path, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    ...opts
-  });
-  const ct = res.headers.get('content-type') || '';
-  const body = ct.includes('application/json') ? await res.json() : await res.text();
-  if (!res.ok) throw new Error(body?.error || body || ('HTTP ' + res.status));
-  return body;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+  
+  try {
+    const res = await fetch(path, {
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      ...opts
+    });
+    clearTimeout(timeoutId);
+    
+    const ct = res.headers.get('content-type') || '';
+    const body = ct.includes('application/json') ? await res.json() : await res.text();
+    if (!res.ok) throw new Error(body?.error || body || ('HTTP ' + res.status));
+    return body;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    console.error('API call failed:', error);
+    throw error;
+  }
 }
 
 const state = {
   productId: getQuery('id'),
   countries: [],
-  products: [], 
+  products: [],
   productsActive: [],
   categories: { debit: [], credit: [] },
   productNotes: [],
@@ -37,31 +49,49 @@ const state = {
 };
 
 async function boot() {
+  console.log('Boot starting...');
   try {
+    console.log('Checking auth...');
     await api('/api/meta');
     Q('#login')?.classList.add('hide');
     Q('#main')?.removeAttribute('style');
-  } catch {
+    console.log('Auth successful');
+  } catch (error) {
+    console.error('Auth failed:', error);
     Q('#login')?.classList.remove('hide');
     Q('#main')?.setAttribute('style', 'display:none');
     return;
   }
 
-  await preload();
-  initSimpleNavigation();
-  bindGlobalNav();
+  try {
+    console.log('Preloading data...');
+    await preload();
+    console.log('Data preloaded');
+    
+    console.log('Initializing navigation...');
+    initSimpleNavigation();
+    bindGlobalNav();
+    console.log('Navigation initialized');
 
-  if (state.productId) {
-    renderProductPage();
-  } else {
-    renderDashboardPage();
-    renderProductsPage();
-    renderPerformancePage();
-    renderStockMovementPage();
-    renderFinancePage();
-    renderSettingsPage();
+    if (state.productId) {
+      console.log('Rendering product page...');
+      renderProductPage();
+    } else {
+      console.log('Rendering main pages...');
+      renderDashboardPage();
+      renderProductsPage();
+      renderPerformancePage();
+      renderStockMovementPage();
+      renderFinancePage();
+      renderSettingsPage();
+    }
+    
+    setupDailyBackupButton();
+    console.log('Boot completed successfully');
+  } catch (error) {
+    console.error('Boot failed:', error);
+    alert('Application initialization failed. Please refresh the page.');
   }
-  setupDailyBackupButton();
 }
 
 Q('#loginBtn')?.addEventListener('click', async () => {
@@ -151,6 +181,7 @@ function fillCommonSelects() {
     '#mvFrom', '#mvTo', '#refundCountry', '#pdRefundCountry'];
 
   countrySelects.forEach(sel => QA(sel).forEach(el => {
+    if (!el) return;
     if (sel === '#pcCountry' || sel === '#remCountry' || sel === '#topDelCountry' || sel === '#remAnalyticsCountry') {
       el.innerHTML = `<option value="">All countries</option>` +
         state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
@@ -170,6 +201,7 @@ function fillCommonSelects() {
   // Active products only
   const activeProductInputs = ['#mvProduct', '#adProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct', '#refundProduct'];
   activeProductInputs.forEach(sel => QA(sel).forEach(el => {
+    if (!el) return;
     const activeProducts = state.products
       .filter(p => p.status === 'active')
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
@@ -181,6 +213,7 @@ function fillCommonSelects() {
   // All products
   const allProductsNewestFirst = ['#pcaProduct', '#remAnalyticsProduct', '#productInfoSelect', '#remProduct'];
   allProductsNewestFirst.forEach(sel => QA(sel).forEach(el => {
+    if (!el) return;
     const allProductsSorted = state.products
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     
@@ -195,11 +228,13 @@ function fillCommonSelects() {
 
   const allCats = [...state.categories.debit, ...state.categories.credit].sort();
   QA('#feCat').forEach(el => {
+    if (!el) return;
     el.innerHTML = `<option value="" disabled selected>Select category</option>` +
       allCats.map(c => `<option>${c}</option>`).join('');
   });
 
   QA('#fcSearchCat').forEach(el => {
+    if (!el) return;
     el.innerHTML = `<option value="">All categories</option>` +
       allCats.map(c => `<option>${c}</option>`).join('');
   });
@@ -246,9 +281,10 @@ function calculateDateRange(range) {
 function initDateRangeSelectors() {
   QA('.date-range-select').forEach(select => {
     const container = select.closest('.row');
-    const customRange = container.querySelector('.custom-range');
+    const customRange = container?.querySelector('.custom-range');
 
     select.addEventListener('change', function () {
+      if (!customRange) return;
       if (this.value === 'custom') {
         customRange.style.display = 'flex';
       } else {
@@ -266,21 +302,23 @@ function initDateRangeSelectors() {
 }
 
 function getDateRange(container) {
+  if (!container) return { start: '', end: '' };
+  
   const select = container.querySelector('.date-range-select');
   const customStart = container.querySelector('.custom-start');
   const customEnd = container.querySelector('.custom-end');
 
-  if (select.value === 'custom') {
+  if (select?.value === 'custom') {
     return {
-      start: customStart.value,
-      end: customEnd.value
+      start: customStart?.value || '',
+      end: customEnd?.value || ''
     };
   }
 
-  const dateRange = calculateDateRange(select.value);
+  const dateRange = calculateDateRange(select?.value || '');
   return {
-    start: dateRange.start,
-    end: dateRange.end
+    start: dateRange.start || '',
+    end: dateRange.end || ''
   };
 }
 
@@ -301,10 +339,10 @@ async function renderCompactKpis() {
 
   try {
     const overview = await api('/api/dashboard/overview');
-    Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = overview.transitData.chinaTransit);
-    Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = overview.transitData.interCountryTransit);
-    Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = overview.stockData.activeStock);
-    Q('#kpiInactiveStock') && (Q('#kpiInactiveStock').textContent = overview.stockData.inactiveStock);
+    Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = overview.transitData?.chinaTransit || '—');
+    Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = overview.transitData?.interCountryTransit || '—');
+    Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = overview.stockData?.activeStock || '—');
+    Q('#kpiInactiveStock') && (Q('#kpiInactiveStock').textContent = overview.stockData?.inactiveStock || '—');
   } catch { 
     Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = '—');
     Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = '—');
@@ -328,7 +366,7 @@ async function renderCountryStockSpend() {
 
   try {
     const overview = await api('/api/dashboard/overview');
-    const { totalStockByCountry, adSpendByCountry } = overview;
+    const { totalStockByCountry = {}, adSpendByCountry = {} } = overview;
 
     let st = 0, fb = 0, tt = 0, gg = 0, totalAd = 0;
     
@@ -340,7 +378,7 @@ async function renderCountryStockSpend() {
       adBreakdown[country] = { facebook: 0, tiktok: 0, google: 0 };
     });
 
-    adSpends.adSpends.forEach(ad => {
+    (adSpends.adSpends || []).forEach(ad => {
       const product = state.products.find(p => p.id === ad.productId);
       if (product && product.status === 'active' && adBreakdown[ad.country]) {
         const amount = +ad.amount || 0;
@@ -372,11 +410,11 @@ async function renderCountryStockSpend() {
     }).join('');
 
     body.innerHTML = rows || `<tr><td colspan="6" class="muted">No data</td></tr>`;
-    Q('#stockTotal').textContent = fmt(st);
-    Q('#fbTotal').textContent = fmt(fb);
-    Q('#ttTotal').textContent = fmt(tt);
-    Q('#ggTotal').textContent = fmt(gg);
-    Q('#adTotal').textContent = fmt(totalAd);
+    Q('#stockTotal') && (Q('#stockTotal').textContent = fmt(st));
+    Q('#fbTotal') && (Q('#fbTotal').textContent = fmt(fb));
+    Q('#ttTotal') && (Q('#ttTotal').textContent = fmt(tt));
+    Q('#ggTotal') && (Q('#ggTotal').textContent = fmt(gg));
+    Q('#adTotal') && (Q('#adTotal').textContent = fmt(totalAd));
   } catch (error) {
     body.innerHTML = `<tr><td colspan="6" class="muted">Error loading data</td></tr>`;
     console.error('Dashboard error:', error);
@@ -424,7 +462,7 @@ function renderWeeklyDelivered() {
   const updateGrid = async () => {
     const mon = mondayOf(anchor);
     const days = weekDays(mon);
-    rangeLbl.textContent = `Week: ${days[0]} → ${days[6]}`;
+    rangeLbl && (rangeLbl.textContent = `Week: ${days[0]} → ${days[6]}`);
 
     head.innerHTML = `<tr><th>Country</th>${days.map(d => {
       const lab = new Date(d).toLocaleDateString(undefined, { weekday: 'short' });
@@ -452,21 +490,23 @@ function renderWeeklyDelivered() {
   function computeWeeklyTotals() {
     QA('tr[data-row]').forEach(tr => {
       const t = QA('.wd-cell', tr).reduce((s, el) => s + (+el.value || 0), 0);
-      Q('.row-total', tr).textContent = fmt(t);
+      const totalEl = Q('.row-total', tr);
+      if (totalEl) totalEl.textContent = fmt(t);
     });
 
-    const cols = QA('thead th', Q('#weeklyTable')).length - 2;
+    const cols = QA('thead th', Q('#weeklyTable'))?.length - 2 || 0;
     let grand = 0;
     for (let i = 0; i < cols; i++) {
       let colSum = 0;
       QA('tr[data-row]').forEach(tr => {
         const inp = QA('.wd-cell', tr)[i];
-        colSum += (+inp.value || 0);
+        colSum += (+inp?.value || 0);
       });
-      Q(`#w${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]}T`).textContent = fmt(colSum);
+      const dayEl = Q(`#w${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]}T`);
+      if (dayEl) dayEl.textContent = fmt(colSum);
       grand += colSum;
     }
-    Q('#wAllT').textContent = fmt(grand);
+    Q('#wAllT') && (Q('#wAllT').textContent = fmt(grand));
     Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = fmt(grand));
   }
 
@@ -621,7 +661,7 @@ function initTodos() {
   wrap?.addEventListener('click', (e) => {
     const data = load(WKEY);
     if (e.target.dataset.add) {
-      const d = e.target.dataset.add, v = Q('#w_' + d).value.trim(); if (!v) return;
+      const d = e.target.dataset.add, v = Q('#w_' + d)?.value.trim(); if (!v) return;
       data[d] = data[d] || []; data[d].push({ id: crypto.randomUUID(), text: v, done: false }); save(WKEY, data); renderWeekly();
     }
     if (e.target.dataset.tgl) {
@@ -1293,7 +1333,14 @@ function bindRemittanceAnalytics() {
         productId
       }));
 
-  function renderRemittanceAnalytics(analytics) {
+      renderRemittanceAnalytics(analytics.analytics || []);
+    } catch (e) {
+      alert('Error loading remittance analytics: ' + e.message);
+    }
+  };
+}
+
+function renderRemittanceAnalytics(analytics) {
   const tb = Q('#remAnalyticsBody');
   if (!tb) return;
 
@@ -1309,23 +1356,23 @@ function bindRemittanceAnalytics() {
   tb.innerHTML = analytics.map(item => {
     const product = state.products.find(p => p.id === item.productId) || { name: item.productId };
 
-    totalPieces += item.totalDeliveredPieces;
-    totalRevenue += item.totalRevenue;
-    totalAdSpend += item.totalAdSpend;
-    totalBoxleo += item.totalBoxleoFees;
-    totalProductCost += item.totalProductChinaCost;
-    totalShippingCost += item.totalShippingCost;
-    totalProfit += item.profit;
-    totalOrders += item.totalOrders;
-    totalDeliveredOrders += item.totalDeliveredOrders;
-    totalRefundedOrders += item.totalRefundedOrders;
-    totalRefundedAmount += item.totalRefundedAmount;
-    totalInfluencerSpend += item.totalInfluencerSpend;
-    totalBoxleoPerOrder += item.boxleoPerDeliveredOrder;
-    totalBoxleoPerPiece += item.boxleoPerDeliveredPiece;
-    totalAdCostPerOrder += item.adCostPerDeliveredOrder;
-    totalAdCostPerPiece += item.adCostPerDeliveredPiece;
-    totalAOV += item.averageOrderValue;
+    totalPieces += item.totalDeliveredPieces || 0;
+    totalRevenue += item.totalRevenue || 0;
+    totalAdSpend += item.totalAdSpend || 0;
+    totalBoxleo += item.totalBoxleoFees || 0;
+    totalProductCost += item.totalProductChinaCost || 0;
+    totalShippingCost += item.totalShippingCost || 0;
+    totalProfit += item.profit || 0;
+    totalOrders += item.totalOrders || 0;
+    totalDeliveredOrders += item.totalDeliveredOrders || 0;
+    totalRefundedOrders += item.totalRefundedOrders || 0;
+    totalRefundedAmount += item.totalRefundedAmount || 0;
+    totalInfluencerSpend += item.totalInfluencerSpend || 0;
+    totalBoxleoPerOrder += item.boxleoPerDeliveredOrder || 0;
+    totalBoxleoPerPiece += item.boxleoPerDeliveredPiece || 0;
+    totalAdCostPerOrder += item.adCostPerDeliveredOrder || 0;
+    totalAdCostPerPiece += item.adCostPerDeliveredPiece || 0;
+    totalAOV += item.averageOrderValue || 0;
     itemCount++;
 
     return `<tr>
@@ -1359,25 +1406,26 @@ function bindRemittanceAnalytics() {
   const avgAdCostPerPiece = itemCount > 0 ? totalAdCostPerPiece / itemCount : 0;
   const avgAOV = itemCount > 0 ? totalAOV / itemCount : 0;
 
-  Q('#remAnalyticsOrdersT').textContent = fmt(totalOrders);
-  Q('#remAnalyticsDeliveredOrdersT').textContent = fmt(totalDeliveredOrders);
-  Q('#remAnalyticsRefundedOrdersT').textContent = fmt(totalRefundedOrders);
-  Q('#remAnalyticsDeliveredPiecesT').textContent = fmt(totalPieces);
-  Q('#remAnalyticsRevenueT').textContent = fmt(totalRevenue);
-  Q('#remAnalyticsRefundedAmountT').textContent = fmt(totalRefundedAmount);
-  Q('#remAnalyticsAdSpendT').textContent = fmt(totalAdSpend);
-  Q('#remAnalyticsInfluencerSpendT').textContent = fmt(totalInfluencerSpend);
-  Q('#remAnalyticsBoxleoT').textContent = fmt(totalBoxleo);
-  Q('#remAnalyticsProductCostT').textContent = fmt(totalProductCost);
-  Q('#remAnalyticsShippingCostT').textContent = fmt(totalShippingCost);
-  Q('#remAnalyticsBoxleoOrderT').textContent = '$' + fmt(avgBoxleoPerOrder);
-  Q('#remAnalyticsBoxleoPieceT').textContent = '$' + fmt(avgBoxleoPerPiece);
-  Q('#remAnalyticsAdOrderT').textContent = '$' + fmt(avgAdCostPerOrder);
-  Q('#remAnalyticsAdPieceT').textContent = '$' + fmt(avgAdCostPerPiece);
-  Q('#remAnalyticsDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%';
-  Q('#remAnalyticsAOVT').textContent = '$' + fmt(avgAOV);
-  Q('#remAnalyticsProfitT').textContent = fmt(totalProfit);
+  Q('#remAnalyticsOrdersT') && (Q('#remAnalyticsOrdersT').textContent = fmt(totalOrders));
+  Q('#remAnalyticsDeliveredOrdersT') && (Q('#remAnalyticsDeliveredOrdersT').textContent = fmt(totalDeliveredOrders));
+  Q('#remAnalyticsRefundedOrdersT') && (Q('#remAnalyticsRefundedOrdersT').textContent = fmt(totalRefundedOrders));
+  Q('#remAnalyticsDeliveredPiecesT') && (Q('#remAnalyticsDeliveredPiecesT').textContent = fmt(totalPieces));
+  Q('#remAnalyticsRevenueT') && (Q('#remAnalyticsRevenueT').textContent = fmt(totalRevenue));
+  Q('#remAnalyticsRefundedAmountT') && (Q('#remAnalyticsRefundedAmountT').textContent = fmt(totalRefundedAmount));
+  Q('#remAnalyticsAdSpendT') && (Q('#remAnalyticsAdSpendT').textContent = fmt(totalAdSpend));
+  Q('#remAnalyticsInfluencerSpendT') && (Q('#remAnalyticsInfluencerSpendT').textContent = fmt(totalInfluencerSpend));
+  Q('#remAnalyticsBoxleoT') && (Q('#remAnalyticsBoxleoT').textContent = fmt(totalBoxleo));
+  Q('#remAnalyticsProductCostT') && (Q('#remAnalyticsProductCostT').textContent = fmt(totalProductCost));
+  Q('#remAnalyticsShippingCostT') && (Q('#remAnalyticsShippingCostT').textContent = fmt(totalShippingCost));
+  Q('#remAnalyticsBoxleoOrderT') && (Q('#remAnalyticsBoxleoOrderT').textContent = '$' + fmt(avgBoxleoPerOrder));
+  Q('#remAnalyticsBoxleoPieceT') && (Q('#remAnalyticsBoxleoPieceT').textContent = '$' + fmt(avgBoxleoPerPiece));
+  Q('#remAnalyticsAdOrderT') && (Q('#remAnalyticsAdOrderT').textContent = '$' + fmt(avgAdCostPerOrder));
+  Q('#remAnalyticsAdPieceT') && (Q('#remAnalyticsAdPieceT').textContent = '$' + fmt(avgAdCostPerPiece));
+  Q('#remAnalyticsDeliveryRateT') && (Q('#remAnalyticsDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%');
+  Q('#remAnalyticsAOVT') && (Q('#remAnalyticsAOVT').textContent = '$' + fmt(avgAOV));
+  Q('#remAnalyticsProfitT') && (Q('#remAnalyticsProfitT').textContent = fmt(totalProfit));
 }
+
 function bindProfitByCountry() {
   const btn = Q('#pcRun');
   if (!btn) return;
@@ -1392,7 +1440,7 @@ function bindProfitByCountry() {
         country
       }));
 
-      renderProfitByCountry(analytics.analytics);
+      renderProfitByCountry(analytics.analytics || {});
     } catch (e) {
       alert('Error calculating profit: ' + e.message);
     }
@@ -1411,23 +1459,23 @@ function renderProfitByCountry(analytics) {
   let itemCount = 0;
 
   tb.innerHTML = Object.entries(analytics).map(([country, metrics]) => {
-    totalRevenue += metrics.totalRevenue;
-    totalAdSpend += metrics.totalAdSpend;
-    totalBoxleo += metrics.totalBoxleoFees;
-    totalProductCost += metrics.totalProductChinaCost;
-    totalShippingCost += metrics.totalShippingCost;
-    totalProfit += metrics.profit;
-    totalOrders += metrics.totalOrders;
-    totalDeliveredOrders += metrics.totalDeliveredOrders;
-    totalPieces += metrics.totalDeliveredPieces;
-    totalRefundedOrders += metrics.totalRefundedOrders;
-    totalRefundedAmount += metrics.totalRefundedAmount;
-    totalInfluencerSpend += metrics.totalInfluencerSpend;
-    totalBoxleoPerOrder += metrics.boxleoPerDeliveredOrder;
-    totalBoxleoPerPiece += metrics.boxleoPerDeliveredPiece;
-    totalAdCostPerOrder += metrics.adCostPerDeliveredOrder;
-    totalAdCostPerPiece += metrics.adCostPerDeliveredPiece;
-    totalAOV += metrics.averageOrderValue;
+    totalRevenue += metrics.totalRevenue || 0;
+    totalAdSpend += metrics.totalAdSpend || 0;
+    totalBoxleo += metrics.totalBoxleoFees || 0;
+    totalProductCost += metrics.totalProductChinaCost || 0;
+    totalShippingCost += metrics.totalShippingCost || 0;
+    totalProfit += metrics.profit || 0;
+    totalOrders += metrics.totalOrders || 0;
+    totalDeliveredOrders += metrics.totalDeliveredOrders || 0;
+    totalPieces += metrics.totalDeliveredPieces || 0;
+    totalRefundedOrders += metrics.totalRefundedOrders || 0;
+    totalRefundedAmount += metrics.totalRefundedAmount || 0;
+    totalInfluencerSpend += metrics.totalInfluencerSpend || 0;
+    totalBoxleoPerOrder += metrics.boxleoPerDeliveredOrder || 0;
+    totalBoxleoPerPiece += metrics.boxleoPerDeliveredPiece || 0;
+    totalAdCostPerOrder += metrics.adCostPerDeliveredOrder || 0;
+    totalAdCostPerPiece += metrics.adCostPerDeliveredPiece || 0;
+    totalAOV += metrics.averageOrderValue || 0;
     itemCount++;
 
     return `<tr>
@@ -1460,25 +1508,26 @@ function renderProfitByCountry(analytics) {
   const avgAdCostPerPiece = itemCount > 0 ? totalAdCostPerPiece / itemCount : 0;
   const avgAOV = itemCount > 0 ? totalAOV / itemCount : 0;
 
-  Q('#pcOrdersT').textContent = fmt(totalOrders);
-  Q('#pcDeliveredOrdersT').textContent = fmt(totalDeliveredOrders);
-  Q('#pcRefundedOrdersT').textContent = fmt(totalRefundedOrders);
-  Q('#pcDeliveredPiecesT').textContent = fmt(totalPieces);
-  Q('#pcRevT').textContent = fmt(totalRevenue);
-  Q('#pcRefundedAmountT').textContent = fmt(totalRefundedAmount);
-  Q('#pcAdT').textContent = fmt(totalAdSpend);
-  Q('#pcInfluencerSpendT').textContent = fmt(totalInfluencerSpend);
-  Q('#pcProductCostT').textContent = fmt(totalProductCost);
-  Q('#pcShippingCostT').textContent = fmt(totalShippingCost);
-  Q('#pcBoxleoT').textContent = fmt(totalBoxleo);
-  Q('#pcBoxleoOrderT').textContent = '$' + fmt(avgBoxleoPerOrder);
-  Q('#pcBoxleoPieceT').textContent = '$' + fmt(avgBoxleoPerPiece);
-  Q('#pcAdOrderT').textContent = '$' + fmt(avgAdCostPerOrder);
-  Q('#pcAdPieceT').textContent = '$' + fmt(avgAdCostPerPiece);
-  Q('#pcDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%';
-  Q('#pcAOVT').textContent = '$' + fmt(avgAOV);
-  Q('#pcProfitT').textContent = fmt(totalProfit);
+  Q('#pcOrdersT') && (Q('#pcOrdersT').textContent = fmt(totalOrders));
+  Q('#pcDeliveredOrdersT') && (Q('#pcDeliveredOrdersT').textContent = fmt(totalDeliveredOrders));
+  Q('#pcRefundedOrdersT') && (Q('#pcRefundedOrdersT').textContent = fmt(totalRefundedOrders));
+  Q('#pcDeliveredPiecesT') && (Q('#pcDeliveredPiecesT').textContent = fmt(totalPieces));
+  Q('#pcRevT') && (Q('#pcRevT').textContent = fmt(totalRevenue));
+  Q('#pcRefundedAmountT') && (Q('#pcRefundedAmountT').textContent = fmt(totalRefundedAmount));
+  Q('#pcAdT') && (Q('#pcAdT').textContent = fmt(totalAdSpend));
+  Q('#pcInfluencerSpendT') && (Q('#pcInfluencerSpendT').textContent = fmt(totalInfluencerSpend));
+  Q('#pcProductCostT') && (Q('#pcProductCostT').textContent = fmt(totalProductCost));
+  Q('#pcShippingCostT') && (Q('#pcShippingCostT').textContent = fmt(totalShippingCost));
+  Q('#pcBoxleoT') && (Q('#pcBoxleoT').textContent = fmt(totalBoxleo));
+  Q('#pcBoxleoOrderT') && (Q('#pcBoxleoOrderT').textContent = '$' + fmt(avgBoxleoPerOrder));
+  Q('#pcBoxleoPieceT') && (Q('#pcBoxleoPieceT').textContent = '$' + fmt(avgBoxleoPerPiece));
+  Q('#pcAdOrderT') && (Q('#pcAdOrderT').textContent = '$' + fmt(avgAdCostPerOrder));
+  Q('#pcAdPieceT') && (Q('#pcAdPieceT').textContent = '$' + fmt(avgAdCostPerPiece));
+  Q('#pcDeliveryRateT') && (Q('#pcDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%');
+  Q('#pcAOVT') && (Q('#pcAOVT').textContent = '$' + fmt(avgAOV));
+  Q('#pcProfitT') && (Q('#pcProfitT').textContent = fmt(totalProfit));
 }
+
 function bindRemittanceAdd() {
   const btn = Q('#remAddSave');
   if (!btn) return;
@@ -1790,8 +1839,8 @@ async function runFinanceCategorySearch() {
 
   const r = await api(`/api/finance/entries?start=${s}&end=${e}` + (cat ? `&category=${cat}` : '') + (type ? `&type=${type}` : ''));
 
-  Q('#fcSearchResult').textContent = `Total: ${fmt(r.categoryTotal || 0)} USD`;
-  Q('#fcSearchCount').textContent = `Entries: ${r.entries?.length || 0}`;
+  Q('#fcSearchResult') && (Q('#fcSearchResult').textContent = `Total: ${fmt(r.categoryTotal || 0)} USD`);
+  Q('#fcSearchCount') && (Q('#fcSearchCount').textContent = `Entries: ${r.entries?.length || 0}`);
 }
 
 // ======== SETTINGS PAGE ========
@@ -1890,8 +1939,8 @@ async function renderProductPage() {
   const product = state.products.find(p => p.id === state.productId);
   if (!product) { alert('Product not found'); location.href = '/'; return; }
 
-  Q('#pdTitle').textContent = product.name;
-  Q('#pdSku').textContent = product.sku ? `SKU: ${product.sku}` : '';
+  Q('#pdTitle') && (Q('#pdTitle').textContent = product.name);
+  Q('#pdSku') && (Q('#pdSku').textContent = product.sku ? `SKU: ${product.sku}` : '');
 
   initDateRangeSelectors();
   await renderProductStockAd(product);
@@ -1918,7 +1967,7 @@ async function renderProductStockAd(product) {
       adBreakdown[country] = { facebook: 0, tiktok: 0, google: 0 };
     });
 
-    adSpends.adSpends.forEach(ad => {
+    (adSpends.adSpends || []).forEach(ad => {
       if (ad.productId === product.id && adBreakdown[ad.country]) {
         const amount = +ad.amount || 0;
         if (ad.platform === 'facebook') adBreakdown[ad.country].facebook += amount;
@@ -1951,11 +2000,11 @@ async function renderProductStockAd(product) {
     }).join('');
 
     tb.innerHTML = rows || `<tr><td colspan="6" class="muted">No data</td></tr>`;
-    Q('#pdStockTotal').textContent = fmt(st);
-    Q('#pdFbTotal').textContent = fmt(fb);
-    Q('#pdTtTotal').textContent = fmt(tt);
-    Q('#pdGgTotal').textContent = fmt(gg);
-    Q('#pdAdTotal').textContent = fmt(totalAd);
+    Q('#pdStockTotal') && (Q('#pdStockTotal').textContent = fmt(st));
+    Q('#pdFbTotal') && (Q('#pdFbTotal').textContent = fmt(fb));
+    Q('#pdTtTotal') && (Q('#pdTtTotal').textContent = fmt(tt));
+    Q('#pdGgTotal') && (Q('#pdGgTotal').textContent = fmt(gg));
+    Q('#pdAdTotal') && (Q('#pdAdTotal').textContent = fmt(totalAd));
   } catch (error) {
     tb.innerHTML = `<tr><td colspan="6" class="muted">Error loading data</td></tr>`;
   }
@@ -2167,7 +2216,7 @@ function bindProductLifetime(product) {
       ...dateRange
     }));
 
-    renderProductLifetime(analytics.analytics);
+    renderProductLifetime(analytics.analytics || []);
   };
 
   Q('#pdLPRun')?.addEventListener('click', run);
@@ -2184,19 +2233,19 @@ function renderProductLifetime(analytics) {
   let totalRefundedAmount = 0, totalInfluencerSpend = 0;
 
   tb.innerHTML = analytics.map(item => {
-    totalRevenue += item.totalRevenue;
-    totalAdSpend += item.totalAdSpend;
-    totalBoxleo += item.totalBoxleoFees;
-    totalProductCost += item.totalProductChinaCost;
-    totalShipCost += item.totalShippingCost;
-    totalTotalCost += item.totalCost;
-    totalPieces += item.totalDeliveredPieces;
-    totalProfit += item.profit;
-    totalOrders += item.totalOrders;
-    totalDeliveredOrders += item.totalDeliveredOrders;
-    totalRefundedOrders += item.totalRefundedOrders;
-    totalRefundedAmount += item.totalRefundedAmount;
-    totalInfluencerSpend += item.totalInfluencerSpend;
+    totalRevenue += item.totalRevenue || 0;
+    totalAdSpend += item.totalAdSpend || 0;
+    totalBoxleo += item.totalBoxleoFees || 0;
+    totalProductCost += item.totalProductChinaCost || 0;
+    totalShipCost += item.totalShippingCost || 0;
+    totalTotalCost += item.totalCost || 0;
+    totalPieces += item.totalDeliveredPieces || 0;
+    totalProfit += item.profit || 0;
+    totalOrders += item.totalOrders || 0;
+    totalDeliveredOrders += item.totalDeliveredOrders || 0;
+    totalRefundedOrders += item.totalRefundedOrders || 0;
+    totalRefundedAmount += item.totalRefundedAmount || 0;
+    totalInfluencerSpend += item.totalInfluencerSpend || 0;
 
     return `<tr>
       <td>${item.country}</td>
@@ -2217,20 +2266,20 @@ function renderProductLifetime(analytics) {
     </tr>`;
   }).join('') || `<tr><td colspan="15" class="muted">No data</td></tr>`;
 
-  Q('#pdLPRevT').textContent = fmt(totalRevenue);
-  Q('#pdLPRefundedT').textContent = fmt(totalRefundedAmount);
-  Q('#pdLPAdT').textContent = fmt(totalAdSpend);
-  Q('#pdLPInfluencerT').textContent = fmt(totalInfluencerSpend);
-  Q('#pdLPBoxleoT').textContent = fmt(totalBoxleo);
-  Q('#pdLPProductCostT').textContent = fmt(totalProductCost);
-  Q('#pdLPShipT').textContent = fmt(totalShipCost);
-  Q('#pdLPTotalCostT').textContent = fmt(totalTotalCost);
-  Q('#pdLPOrdersT').textContent = fmt(totalOrders);
-  Q('#pdLPDeliveredOrdersT').textContent = fmt(totalDeliveredOrders);
-  Q('#pdLPRefundedOrdersT').textContent = fmt(totalRefundedOrders);
-  Q('#pdLPDeliveredPiecesT').textContent = fmt(totalPieces);
-  Q('#pdLPDeliveryRateT').textContent = fmt(totalOrders > 0 ? (totalDeliveredOrders / totalOrders * 100) : 0) + '%';
-  Q('#pdLPProfitT').textContent = fmt(totalProfit);
+  Q('#pdLPRevT') && (Q('#pdLPRevT').textContent = fmt(totalRevenue));
+  Q('#pdLPRefundedT') && (Q('#pdLPRefundedT').textContent = fmt(totalRefundedAmount));
+  Q('#pdLPAdT') && (Q('#pdLPAdT').textContent = fmt(totalAdSpend));
+  Q('#pdLPInfluencerT') && (Q('#pdLPInfluencerT').textContent = fmt(totalInfluencerSpend));
+  Q('#pdLPBoxleoT') && (Q('#pdLPBoxleoT').textContent = fmt(totalBoxleo));
+  Q('#pdLPProductCostT') && (Q('#pdLPProductCostT').textContent = fmt(totalProductCost));
+  Q('#pdLPShipT') && (Q('#pdLPShipT').textContent = fmt(totalShipCost));
+  Q('#pdLPTotalCostT') && (Q('#pdLPTotalCostT').textContent = fmt(totalTotalCost));
+  Q('#pdLPOrdersT') && (Q('#pdLPOrdersT').textContent = fmt(totalOrders));
+  Q('#pdLPDeliveredOrdersT') && (Q('#pdLPDeliveredOrdersT').textContent = fmt(totalDeliveredOrders));
+  Q('#pdLPRefundedOrdersT') && (Q('#pdLPRefundedOrdersT').textContent = fmt(totalRefundedOrders));
+  Q('#pdLPDeliveredPiecesT') && (Q('#pdLPDeliveredPiecesT').textContent = fmt(totalPieces));
+  Q('#pdLPDeliveryRateT') && (Q('#pdLPDeliveryRateT').textContent = fmt(totalOrders > 0 ? (totalDeliveredOrders / totalOrders * 100) : 0) + '%');
+  Q('#pdLPProfitT') && (Q('#pdLPProfitT').textContent = fmt(totalProfit));
 }
 
 // ======== PRODUCT STORE ORDERS ========
@@ -2504,7 +2553,7 @@ async function loadInfluencers() {
     if (!select) return;
 
     select.innerHTML = `<option value="">Select influencer...</option>` +
-      influencers.influencers.map(inf => 
+      (influencers.influencers || []).map(inf => 
         `<option value="${inf.id}">${inf.name}${inf.social ? ` (${inf.social})` : ''}</option>`
       ).join('');
   } catch (e) {
@@ -2519,7 +2568,7 @@ async function loadInfluencerSpends(product) {
     const totalEl = Q('#pdInfTotal');
     if (!tb || !totalEl) return;
 
-    const productSpends = spends.spends.filter(s => s.productId === product.id);
+    const productSpends = (spends.spends || []).filter(s => s.productId === product.id);
     
     let total = 0;
     tb.innerHTML = productSpends.map(spend => {
