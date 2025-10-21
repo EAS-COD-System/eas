@@ -1198,7 +1198,7 @@ app.get('/api/analytics/profit-by-country', requireAuth, (req, res) => {
   res.json({ analytics });
 });
 
-// Product Info
+// Product Info with Boxleo Fees per Order
 app.get('/api/product-info/:id', requireAuth, (req, res) => {
   const db = loadDB();
   const productId = req.params.id;
@@ -1208,6 +1208,12 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
 
   const prices = db.productSellingPrices.filter(sp => sp.productId === productId);
   const countries = db.countries.filter(c => c !== 'china');
+  
+  // Calculate Boxleo fees per order
+  const remittances = db.remittances.filter(r => r.productId === productId);
+  const totalBoxleoFees = remittances.reduce((sum, r) => sum + (+r.boxleoFees || 0), 0);
+  const totalDeliveredOrders = remittances.reduce((sum, r) => sum + (+r.orders || 0), 0);
+  const boxleoPerOrder = totalDeliveredOrders > 0 ? totalBoxleoFees / totalDeliveredOrders : 0;
   
   const analysis = countries.map(country => {
     const price = prices.find(p => p.country === country);
@@ -1239,7 +1245,24 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
   res.json({
     product,
     prices: prices,
-    costAnalysis: analysis
+    costAnalysis: analysis,
+    boxleoPerOrder: boxleoPerOrder,
+    totalBoxleoFees: totalBoxleoFees,
+    totalDeliveredOrders: totalDeliveredOrders
+  });
+});
+
+// Product Costs Analysis
+app.get('/api/product-costs-analysis', requireAuth, (req, res) => {
+  const db = loadDB();
+  const { productId, start, end } = req.query || {};
+  
+  const metrics = calculateProfitMetrics(db, productId, null, start, end);
+  
+  res.json({
+    ...metrics,
+    isAggregate: productId === 'all',
+    productCount: productId === 'all' ? db.products.length : 1
   });
 });
 
