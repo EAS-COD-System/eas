@@ -1027,6 +1027,7 @@ function renderProductInfoResults(productInfo) {
                 <th>Total Product Cost</th>
                 <th>Available for Profit & Ads</th>
                 <th>Delivery Rate</th>
+                <th>Boxleo/Order</th>
               </tr>
             </thead>
             <tbody>
@@ -1043,6 +1044,7 @@ function renderProductInfoResults(productInfo) {
         <td>$${fmt(analysis.totalProductCost)}</td>
         <td class="${analysis.availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(analysis.availableForProfitAndAds)}</td>
         <td>${fmt(analysis.deliveryRate)}%</td>
+        <td>$${fmt(analysis.boxleoPerOrder)}</td>
       </tr>
     `;
   });
@@ -1353,11 +1355,10 @@ function renderRemittanceAnalytics(analytics) {
       <td>$${fmt(item.boxleoPerDeliveredPiece)}</td>
       <td>$${fmt(item.adCostPerDeliveredOrder)}</td>
       <td>$${fmt(item.adCostPerDeliveredPiece)}</td>
-      <td>$${fmt(item.influencerPerDeliveredOrder)}</td>
       <td>$${fmt(item.averageOrderValue)}</td>
       <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(item.profit)}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="21" class="muted">No data for selected period</td></tr>`;
+  }).join('') || `<tr><td colspan="20" class="muted">No data for selected period</td></tr>`;
 
   const totalDeliveryRate = totalOrders > 0 ? (totalDeliveredOrders / totalOrders) * 100 : 0;
   const avgBoxleoPerOrder = itemCount > 0 ? totalBoxleoPerOrder / itemCount : 0;
@@ -1459,11 +1460,10 @@ function renderProfitByCountry(analytics) {
       <td>$${fmt(metrics.boxleoPerDeliveredPiece)}</td>
       <td>$${fmt(metrics.adCostPerDeliveredOrder)}</td>
       <td>$${fmt(metrics.adCostPerDeliveredPiece)}</td>
-      <td>$${fmt(metrics.influencerPerDeliveredOrder)}</td>
       <td>$${fmt(metrics.averageOrderValue)}</td>
       <td class="${metrics.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(metrics.profit)}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="20" class="muted">No data</td></tr>`;
+  }).join('') || `<tr><td colspan="19" class="muted">No data</td></tr>`;
 
   const totalDeliveryRate = totalOrders > 0 ? (totalDeliveredOrders / totalOrders) * 100 : 0;
   const avgBoxleoPerOrder = itemCount > 0 ? totalBoxleoPerOrder / itemCount : 0;
@@ -1919,7 +1919,6 @@ async function renderProductPage() {
   await renderProductRefunds(product);
   await bindInfluencers(product);
   bindProductNotes(product);
-  bindProductRefundAdd(product);
 }
 
 async function renderProductStockAd(product) {
@@ -2002,82 +2001,174 @@ function renderProductBudgets(product) {
   });
 }
 
-// ======== PRODUCT REFUNDS ========
-function bindProductRefundAdd(product) {
-  const btn = Q('#pdRefundSave');
-  if (!btn) return;
+async function renderProductTransit(product) {
+  await renderProductTransitTables(product);
+}
 
-  btn.onclick = async () => {
-    const payload = {
-      date: Q('#pdRefundDate')?.value,
-      country: Q('#pdRefundCountry')?.value,
-      productId: product.id,
-      orders: +Q('#pdRefundOrders')?.value || 0,
-      pieces: +Q('#pdRefundPieces')?.value || 0,
-      amount: +Q('#pdRefundAmount')?.value || 0,
-      reason: Q('#pdRefundReason')?.value || ''
-    };
+async function renderProductTransitTables(product) {
+  const tbl1 = Q('#pdShipCKBody'), tbl2 = Q('#pdShipICBody');
+  if (!tbl1 && !tbl2) return;
 
-    if (!payload.date || !payload.country) {
-      return alert('Please fill all required fields: Date and Country');
-    }
+  const s = await api('/api/shipments');
+  const live = (s.shipments || []).filter(x => !x.arrivedAt && x.productId === product.id);
 
-    try {
-      await api('/api/refunds', { method: 'POST', body: JSON.stringify(payload) });
-      alert('Refund entry added successfully!');
-      Q('#pdRefundDate').value = '';
-      Q('#pdRefundOrders').value = '';
-      Q('#pdRefundPieces').value = '';
-      Q('#pdRefundAmount').value = '';
-      Q('#pdRefundReason').value = '';
-      await renderProductRefunds(product);
-      bindProductLifetime(product);
-    } catch (e) {
-      alert('Error adding refund: ' + e.message);
-    }
+  const row = sp => {
+    const paymentBadge = sp.paymentStatus === 'paid' 
+      ? `<span class="badge success">Paid</span>` 
+      : `<span class="badge warning">Pending</span>`;
+    
+    return `<tr>
+      <td>${sp.id}</td>
+      <td>${sp.fromCountry || sp.from} → ${sp.toCountry || sp.to}</td>
+      <td>${fmt(sp.qty)}</td>
+      <td>${fmt(sp.shipCost)}</td>
+      <td>${sp.finalShipCost ? fmt(sp.finalShipCost) : '-'}</td>
+      <td>${sp.fromCountry === 'china' ? fmt(sp.chinaCost) : '-'}</td>
+      <td>${sp.departedAt || ''}</td>
+      <td>${sp.arrivedAt || ''}</td>
+      <td>${paymentBadge}</td>
+      <td>
+        ${sp.paymentStatus !== 'paid' ? `<button class="btn outline act-pay" data-id="${sp.id}">Mark Paid</button>` : ''}
+        <button class="btn outline act-arr" data-id="${sp.id}">Arrived</button>
+        <button class="btn outline act-edit" data-id="${sp.id}">Edit</button>
+        <button class="btn outline act-del" data-id="${sp.id}">Delete</button>
+      </td>
+    </tr>`;
   };
+
+  const ck = live.filter(sp => (sp.fromCountry || sp.from || '').toLowerCase() === 'china' && (sp.toCountry || sp.to || '').toLowerCase() === 'kenya');
+  const ic = live.filter(sp => !ck.includes(sp));
+
+  if (tbl1) tbl1.innerHTML = ck.map(row).join('') || `<tr><td colspan="10" class="muted">No transit</td></tr>`;
+  if (tbl2) tbl2.innerHTML = ic.map(row).join('') || `<tr><td colspan="9" class="muted">No transit</td></tr>`;
+
+  const host = document.getElementById('product');
+  host.removeEventListener('click', handleProductShipmentActions);
+  host.addEventListener('click', handleProductShipmentActions);
 }
 
-async function renderProductRefunds(product) {
-  await loadProductRefunds(product, state.currentRefundsPage);
-}
+async function handleProductShipmentActions(e) {
+  const id = e.target.dataset?.id;
+  if (!id) return;
 
-async function loadProductRefunds(product, page = 1) {
-  try {
-    const refunds = await api(`/api/refunds?productId=${product.id}&page=${page}&limit=8`);
-    const tb = Q('#pdRefundsBody');
-    if (!tb) return;
+  if (e.target.classList.contains('act-pay')) {
+    const finalCost = prompt('Final shipping cost paid (USD):', '0');
+    if (!finalCost || isNaN(finalCost)) return;
+    
+    try {
+      await api(`/api/shipments/${id}/mark-paid`, { 
+        method: 'POST', 
+        body: JSON.stringify({ finalShipCost: +finalCost }) 
+      });
+      const product = state.products.find(p => p.id === state.productId);
+      await renderProductTransitTables(product);
+    } catch (err) { 
+      alert(err.message); 
+    }
+  }
 
-    tb.innerHTML = (refunds.refunds || []).map(rf => `
-      <tr>
-        <td>${rf.date}</td>
-        <td>${rf.country}</td>
-        <td>${fmt(rf.orders)}</td>
-        <td>${fmt(rf.pieces)}</td>
-        <td class="number-negative">${fmt(rf.amount)}</td>
-        <td>${rf.reason || '-'}</td>
-        <td>
-          <button class="btn outline pd-refund-del" data-id="${rf.id}">Delete</button>
-        </td>
-      </tr>
-    `).join('') || `<tr><td colspan="7" class="muted">No refunds for this product</td></tr>`;
+  if (e.target.classList.contains('act-arr')) {
+    const date = prompt('Arrival date (YYYY-MM-DD)', isoToday());
+    if (!date) return;
+    try { 
+      await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) }); 
+      const product = state.products.find(p => p.id === state.productId);
+      await renderProductTransitTables(product);
+    } catch (err) { 
+      alert(err.message); 
+    }
+  }
 
-    renderPagination('pdRefundsPagination', refunds.pagination, 'refunds');
+  if (e.target.classList.contains('act-edit')) {
+    const shipCost = +prompt('New estimated shipping cost?', '0') || 0;
+    const note = prompt('Note?', '') || '';
+    try { 
+      await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ shipCost, note }) }); 
+      const product = state.products.find(p => p.id === state.productId);
+      await renderProductTransitTables(product);
+    } catch (err) { 
+      alert(err.message); 
+    }
+  }
 
-    tb.removeEventListener('click', handleRefundDeletions);
-    tb.addEventListener('click', handleRefundDeletions);
-  } catch (e) {
-    console.error('Failed to load product refunds:', e);
+  if (e.target.classList.contains('act-del')) {
+    if (!confirm('Delete shipment?')) return;
+    try { 
+      await api(`/api/shipments/${id}`, { method: 'DELETE' }); 
+      const product = state.products.find(p => p.id === state.productId);
+      await renderProductTransitTables(product);
+    } catch (err) { 
+      alert(err.message); 
+    }
   }
 }
 
-async function handleRefundDeletions(e) {
-  if (e.target.classList.contains('pd-refund-del')) {
-    if (!confirm('Delete this refund entry?')) return;
-    await api(`/api/refunds/${e.target.dataset.id}`, { method: 'DELETE' });
-    const product = state.products.find(p => p.id === state.productId);
-    await renderProductRefunds(product);
-    bindProductLifetime(product);
+async function renderProductArrivedShipments(product) {
+  const tb = Q('#pdArrivedBody');
+  if (!tb) return;
+
+  const s = await api('/api/shipments');
+  const arrived = (s.shipments || []).filter(x => x.arrivedAt && x.productId === product.id);
+
+  const row = sp => {
+    const departed = new Date(sp.departedAt);
+    const arrived = new Date(sp.arrivedAt);
+    const daysInTransit = Math.round((arrived - departed) / (1000 * 60 * 60 * 24));
+    
+    const paymentBadge = sp.paymentStatus === 'paid' 
+      ? `<span class="badge success">Paid</span>` 
+      : `<span class="badge warning">Pending</span>`;
+    
+    return `<tr>
+      <td>${sp.id}</td>
+      <td>${sp.fromCountry || sp.from} → ${sp.toCountry || sp.to}</td>
+      <td>${fmt(sp.qty)}</td>
+      <td>${fmt(sp.shipCost)}</td>
+      <td>${sp.finalShipCost ? fmt(sp.finalShipCost) : '-'}</td>
+      <td>${sp.fromCountry === 'china' ? fmt(sp.chinaCost) : '-'}</td>
+      <td>${sp.departedAt || ''}</td>
+      <td>${sp.arrivedAt || ''}</td>
+      <td>${daysInTransit}</td>
+      <td>${paymentBadge}</td>
+      <td>${sp.note || ''}</td>
+      <td>
+        <button class="btn outline act-edit" data-id="${sp.id}">Edit</button>
+        <button class="btn outline act-del" data-id="${sp.id}">Delete</button>
+      </td>
+    </tr>`;
+  };
+
+  tb.innerHTML = arrived.map(row).join('') || `<tr><td colspan="12" class="muted">No arrived shipments</td></tr>`;
+
+  tb.removeEventListener('click', handleArrivedShipmentActions);
+  tb.addEventListener('click', handleArrivedShipmentActions);
+}
+
+async function handleArrivedShipmentActions(e) {
+  const id = e.target.dataset?.id;
+  if (!id) return;
+
+  if (e.target.classList.contains('act-edit')) {
+    const shipCost = +prompt('New estimated shipping cost?', '0') || 0;
+    const note = prompt('Note?', '') || '';
+    try { 
+      await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ shipCost, note }) }); 
+      const product = state.products.find(p => p.id === state.productId);
+      await renderProductArrivedShipments(product);
+    } catch (err) { 
+      alert(err.message); 
+    }
+  }
+
+  if (e.target.classList.contains('act-del')) {
+    if (!confirm('Delete shipment?')) return;
+    try { 
+      await api(`/api/shipments/${id}`, { method: 'DELETE' }); 
+      const product = state.products.find(p => p.id === state.productId);
+      await renderProductArrivedShipments(product);
+    } catch (err) { 
+      alert(err.message); 
+    }
   }
 }
 
@@ -2155,6 +2246,330 @@ function renderProductLifetime(analytics) {
   Q('#pdLPDeliveredPiecesT').textContent = fmt(totalPieces);
   Q('#pdLPDeliveryRateT').textContent = fmt(totalOrders > 0 ? (totalDeliveredOrders / totalOrders * 100) : 0) + '%';
   Q('#pdLPProfitT').textContent = fmt(totalProfit);
+}
+
+// ======== PRODUCT STORE ORDERS ========
+async function renderProductStoreOrders(product) {
+  await loadProductStoreOrders(product, state.currentStoreOrdersPage);
+}
+
+async function loadProductStoreOrders(product, page = 1) {
+  try {
+    const orders = await api(`/api/product-orders?productId=${product.id}&page=${page}&limit=8`);
+    const tb = Q('#pdStoreOrdersBody');
+    if (!tb) return;
+
+    tb.innerHTML = (orders.orders || []).map(order => `
+      <tr>
+        <td>${order.startDate} to ${order.endDate}</td>
+        <td>${order.country}</td>
+        <td>${fmt(order.orders)}</td>
+        <td>
+          <button class="btn outline pd-order-del" data-id="${order.id}">Delete</button>
+        </td>
+      </tr>
+    `).join('') || `<tr><td colspan="4" class="muted">No store orders for this product</td></tr>`;
+
+    renderPagination('pdStoreOrdersPagination', orders.pagination, 'storeOrders');
+
+    tb.removeEventListener('click', handleOrderDeletions);
+    tb.addEventListener('click', handleOrderDeletions);
+  } catch (e) {
+    console.error('Failed to load product store orders:', e);
+  }
+}
+
+async function handleOrderDeletions(e) {
+  if (e.target.classList.contains('pd-order-del')) {
+    if (!confirm('Delete this order entry?')) return;
+    await api(`/api/product-orders/${e.target.dataset.id}`, { method: 'DELETE' });
+    const product = state.products.find(p => p.id === state.productId);
+    await renderProductStoreOrders(product);
+    bindProductLifetime(product);
+  }
+}
+
+// ======== PRODUCT REMITTANCES ========
+async function renderProductRemittances(product) {
+  await loadProductRemittances(product, state.currentRemittancesPage);
+}
+
+async function loadProductRemittances(product, page = 1) {
+  try {
+    const remittances = await api(`/api/remittances?productId=${product.id}&page=${page}&limit=8`);
+    const tb = Q('#pdRemittancesBody');
+    if (!tb) return;
+
+    tb.innerHTML = (remittances.remittances || []).map(rem => `
+      <tr>
+        <td>${rem.start} to ${rem.end}</td>
+        <td>${rem.country}</td>
+        <td>${fmt(rem.orders)}</td>
+        <td>${fmt(rem.pieces)}</td>
+        <td>${fmt(rem.revenue)}</td>
+        <td>${fmt(rem.adSpend)}</td>
+        <td>${fmt(rem.boxleoFees)}</td>
+        <td>
+          <button class="btn outline pd-remittance-del" data-id="${rem.id}">Delete</button>
+        </td>
+      </tr>
+    `).join('') || `<tr><td colspan="8" class="muted">No remittances for this product</td></tr>`;
+
+    renderPagination('pdRemittancesPagination', remittances.pagination, 'remittances');
+
+    tb.removeEventListener('click', handleRemittanceDeletions);
+    tb.addEventListener('click', handleRemittanceDeletions);
+  } catch (e) {
+    console.error('Failed to load product remittances:', e);
+  }
+}
+
+async function handleRemittanceDeletions(e) {
+  if (e.target.classList.contains('pd-remittance-del')) {
+    if (!confirm('Delete this remittance entry?')) return;
+    await api(`/api/remittances/${e.target.dataset.id}`, { method: 'DELETE' });
+    const product = state.products.find(p => p.id === state.productId);
+    await renderProductRemittances(product);
+    bindProductLifetime(product);
+  }
+}
+
+// ======== PRODUCT REFUNDS ========
+async function renderProductRefunds(product) {
+  await loadProductRefunds(product, state.currentRefundsPage);
+}
+
+async function loadProductRefunds(product, page = 1) {
+  try {
+    const refunds = await api(`/api/refunds?productId=${product.id}&page=${page}&limit=8`);
+    const tb = Q('#pdRefundsBody');
+    if (!tb) return;
+
+    tb.innerHTML = (refunds.refunds || []).map(rf => `
+      <tr>
+        <td>${rf.date}</td>
+        <td>${rf.country}</td>
+        <td>${fmt(rf.orders)}</td>
+        <td>${fmt(rf.pieces)}</td>
+        <td class="number-negative">${fmt(rf.amount)}</td>
+        <td>${rf.reason || '-'}</td>
+        <td>
+          <button class="btn outline pd-refund-del" data-id="${rf.id}">Delete</button>
+        </td>
+      </tr>
+    `).join('') || `<tr><td colspan="7" class="muted">No refunds for this product</td></tr>`;
+
+    renderPagination('pdRefundsPagination', refunds.pagination, 'refunds');
+
+    tb.removeEventListener('click', handleRefundDeletions);
+    tb.addEventListener('click', handleRefundDeletions);
+  } catch (e) {
+    console.error('Failed to load product refunds:', e);
+  }
+}
+
+async function handleRefundDeletions(e) {
+  if (e.target.classList.contains('pd-refund-del')) {
+    if (!confirm('Delete this refund entry?')) return;
+    await api(`/api/refunds/${e.target.dataset.id}`, { method: 'DELETE' });
+    const product = state.products.find(p => p.id === state.productId);
+    await renderProductRefunds(product);
+    bindProductLifetime(product);
+  }
+}
+
+// ======== PRODUCT NOTES ========
+function bindProductNotes(product) {
+  const saveBtn = Q('#pdNoteSave');
+  if (!saveBtn) return;
+
+  // Load existing notes
+  loadProductNotes(product);
+
+  saveBtn.onclick = async () => {
+    const country = Q('#pdNoteCountry')?.value;
+    const note = Q('#pdNoteText')?.value.trim();
+
+    if (!country || !note) return alert('Please select country and enter note');
+
+    try {
+      await api(`/api/products/${product.id}/notes`, {
+        method: 'POST',
+        body: JSON.stringify({ country, note })
+      });
+
+      Q('#pdNoteText').value = '';
+      await loadProductNotes(product);
+      alert('Note saved successfully!');
+    } catch (e) {
+      alert('Error saving note: ' + e.message);
+    }
+  };
+}
+
+async function loadProductNotes(product) {
+  try {
+    const notes = await api(`/api/products/${product.id}/notes`);
+    const container = Q('#pdNotesList');
+    if (!container) return;
+
+    if (notes.notes.length === 0) {
+      container.innerHTML = '<div class="muted">No notes yet. Add your first note above.</div>';
+      return;
+    }
+
+    container.innerHTML = notes.notes.map(note => `
+      <div class="note-card">
+        <div class="note-header">
+          <span class="note-country">${note.country}</span>
+          <button class="btn outline small pd-note-del" data-id="${note.id}">Delete</button>
+        </div>
+        <div class="note-content">${note.note}</div>
+        <div class="note-date">Last updated: ${new Date(note.updatedAt).toLocaleString()}</div>
+      </div>
+    `).join('');
+
+    container.removeEventListener('click', handleNoteDeletions);
+    container.addEventListener('click', handleNoteDeletions);
+  } catch (e) {
+    console.error('Failed to load product notes:', e);
+  }
+}
+
+async function handleNoteDeletions(e) {
+  if (e.target.classList.contains('pd-note-del')) {
+    if (!confirm('Delete this note?')) return;
+    await api(`/api/products/notes/${e.target.dataset.id}`, { method: 'DELETE' });
+    const product = state.products.find(p => p.id === state.productId);
+    await loadProductNotes(product);
+  }
+}
+
+// ======== INFLUENCERS ========
+async function bindInfluencers(product) {
+  const addBtn = Q('#pdInfAdd');
+  const spendBtn = Q('#pdInfSpendAdd');
+  const filterBtn = Q('#pdInfRun');
+
+  if (!addBtn || !spendBtn || !filterBtn) return;
+
+  // Load influencers and spends
+  await loadInfluencers();
+  await loadInfluencerSpends(product);
+
+  addBtn.onclick = async () => {
+    const name = Q('#pdInfName')?.value.trim();
+    const social = Q('#pdInfSocial')?.value.trim();
+    const country = Q('#pdInfCountry')?.value;
+
+    if (!name) return alert('Please enter influencer name');
+
+    try {
+      await api('/api/influencers', {
+        method: 'POST',
+        body: JSON.stringify({ name, social, country })
+      });
+
+      Q('#pdInfName').value = '';
+      Q('#pdInfSocial').value = '';
+      await loadInfluencers();
+      alert('Influencer added successfully!');
+    } catch (e) {
+      alert('Error adding influencer: ' + e.message);
+    }
+  };
+
+  spendBtn.onclick = async () => {
+    const date = Q('#pdInfDate')?.value;
+    const influencerId = Q('#pdInfSelect')?.value;
+    const country = Q('#pdInfFilterCountry')?.value;
+    const amount = +Q('#pdInfAmount')?.value || 0;
+
+    if (!date || !influencerId) return alert('Please select date and influencer');
+
+    try {
+      await api('/api/influencers/spend', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          date, 
+          influencerId, 
+          country, 
+          productId: product.id,
+          amount 
+        })
+      });
+
+      Q('#pdInfAmount').value = '';
+      await loadInfluencerSpends(product);
+      alert('Influencer spend added successfully!');
+    } catch (e) {
+      alert('Error adding influencer spend: ' + e.message);
+    }
+  };
+
+  filterBtn.onclick = async () => {
+    await loadInfluencerSpends(product);
+  };
+}
+
+async function loadInfluencers() {
+  try {
+    const influencers = await api('/api/influencers');
+    const select = Q('#pdInfSelect');
+    if (!select) return;
+
+    select.innerHTML = `<option value="">Select influencer...</option>` +
+      influencers.influencers.map(inf => 
+        `<option value="${inf.id}">${inf.name}${inf.social ? ` (${inf.social})` : ''}</option>`
+      ).join('');
+  } catch (e) {
+    console.error('Failed to load influencers:', e);
+  }
+}
+
+async function loadInfluencerSpends(product) {
+  try {
+    const spends = await api('/api/influencers/spend');
+    const tb = Q('#pdInfBody');
+    const totalEl = Q('#pdInfTotal');
+    if (!tb || !totalEl) return;
+
+    const productSpends = spends.spends.filter(s => s.productId === product.id);
+    
+    let total = 0;
+    tb.innerHTML = productSpends.map(spend => {
+      const influencer = state.influencers?.find(i => i.id === spend.influencerId) || { name: 'Unknown', social: '' };
+      total += +spend.amount || 0;
+
+      return `<tr>
+        <td>${spend.date}</td>
+        <td>${spend.country || '-'}</td>
+        <td>${influencer.name}</td>
+        <td>${influencer.social || '-'}</td>
+        <td>${fmt(spend.amount)}</td>
+        <td>
+          <button class="btn outline pd-influencer-del" data-id="${spend.id}">Delete</button>
+        </td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="6" class="muted">No influencer spends for this product</td></tr>`;
+
+    totalEl.textContent = fmt(total);
+
+    tb.removeEventListener('click', handleInfluencerSpendDeletions);
+    tb.addEventListener('click', handleInfluencerSpendDeletions);
+  } catch (e) {
+    console.error('Failed to load influencer spends:', e);
+  }
+}
+
+async function handleInfluencerSpendDeletions(e) {
+  if (e.target.classList.contains('pd-influencer-del')) {
+    if (!confirm('Delete this influencer spend?')) return;
+    await api(`/api/influencers/spend/${e.target.dataset.id}`, { method: 'DELETE' });
+    const product = state.products.find(p => p.id === state.productId);
+    await loadInfluencerSpends(product);
+    bindProductLifetime(product);
+  }
 }
 
 // ======== PAGINATION ========
