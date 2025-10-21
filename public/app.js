@@ -1293,14 +1293,7 @@ function bindRemittanceAnalytics() {
         productId
       }));
 
-      renderRemittanceAnalytics(analytics.analytics);
-    } catch (e) {
-      alert('Error generating analytics: ' + e.message);
-    }
-  };
-}
-
-function renderRemittanceAnalytics(analytics) {
+  function renderRemittanceAnalytics(analytics) {
   const tb = Q('#remAnalyticsBody');
   if (!tb) return;
 
@@ -1308,7 +1301,7 @@ function renderRemittanceAnalytics(analytics) {
   let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0;
   let totalDeliveredOrders = 0, totalRefundedOrders = 0, totalRefundedAmount = 0, totalInfluencerSpend = 0;
   let totalBoxleoPerOrder = 0, totalBoxleoPerPiece = 0, totalAdCostPerOrder = 0, totalAdCostPerPiece = 0;
-  let totalInfluencerPerOrder = 0, totalAOV = 0;
+  let totalAOV = 0;
   let itemCount = 0;
 
   analytics.sort((a, b) => b.totalDeliveredPieces - a.totalDeliveredPieces);
@@ -1332,7 +1325,6 @@ function renderRemittanceAnalytics(analytics) {
     totalBoxleoPerPiece += item.boxleoPerDeliveredPiece;
     totalAdCostPerOrder += item.adCostPerDeliveredOrder;
     totalAdCostPerPiece += item.adCostPerDeliveredPiece;
-    totalInfluencerPerOrder += item.influencerPerDeliveredOrder;
     totalAOV += item.averageOrderValue;
     itemCount++;
 
@@ -1350,11 +1342,11 @@ function renderRemittanceAnalytics(analytics) {
       <td>${fmt(item.totalBoxleoFees)}</td>
       <td>${fmt(item.totalProductChinaCost)}</td>
       <td>${fmt(item.totalShippingCost)}</td>
-      <td>${fmt(item.deliveryRate)}%</td>
       <td>$${fmt(item.boxleoPerDeliveredOrder)}</td>
       <td>$${fmt(item.boxleoPerDeliveredPiece)}</td>
       <td>$${fmt(item.adCostPerDeliveredOrder)}</td>
       <td>$${fmt(item.adCostPerDeliveredPiece)}</td>
+      <td>${fmt(item.deliveryRate)}%</td>
       <td>$${fmt(item.averageOrderValue)}</td>
       <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(item.profit)}</td>
     </tr>`;
@@ -1378,11 +1370,11 @@ function renderRemittanceAnalytics(analytics) {
   Q('#remAnalyticsBoxleoT').textContent = fmt(totalBoxleo);
   Q('#remAnalyticsProductCostT').textContent = fmt(totalProductCost);
   Q('#remAnalyticsShippingCostT').textContent = fmt(totalShippingCost);
-  Q('#remAnalyticsDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%';
   Q('#remAnalyticsBoxleoOrderT').textContent = '$' + fmt(avgBoxleoPerOrder);
   Q('#remAnalyticsBoxleoPieceT').textContent = '$' + fmt(avgBoxleoPerPiece);
   Q('#remAnalyticsAdOrderT').textContent = '$' + fmt(avgAdCostPerOrder);
   Q('#remAnalyticsAdPieceT').textContent = '$' + fmt(avgAdCostPerPiece);
+  Q('#remAnalyticsDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%';
   Q('#remAnalyticsAOVT').textContent = '$' + fmt(avgAOV);
   Q('#remAnalyticsProfitT').textContent = fmt(totalProfit);
 }
@@ -1415,7 +1407,7 @@ function renderProfitByCountry(analytics) {
   let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0;
   let totalDeliveredOrders = 0, totalPieces = 0, totalRefundedOrders = 0, totalRefundedAmount = 0, totalInfluencerSpend = 0;
   let totalBoxleoPerOrder = 0, totalBoxleoPerPiece = 0, totalAdCostPerOrder = 0, totalAdCostPerPiece = 0;
-  let totalInfluencerPerOrder = 0, totalAOV = 0;
+  let totalAOV = 0;
   let itemCount = 0;
 
   tb.innerHTML = Object.entries(analytics).map(([country, metrics]) => {
@@ -1435,7 +1427,6 @@ function renderProfitByCountry(analytics) {
     totalBoxleoPerPiece += metrics.boxleoPerDeliveredPiece;
     totalAdCostPerOrder += metrics.adCostPerDeliveredOrder;
     totalAdCostPerPiece += metrics.adCostPerDeliveredPiece;
-    totalInfluencerPerOrder += metrics.influencerPerDeliveredOrder;
     totalAOV += metrics.averageOrderValue;
     itemCount++;
 
@@ -1452,11 +1443,11 @@ function renderProfitByCountry(analytics) {
       <td>${fmt(metrics.totalProductChinaCost)}</td>
       <td>${fmt(metrics.totalShippingCost)}</td>
       <td>${fmt(metrics.totalBoxleoFees)}</td>
-      <td>${fmt(metrics.deliveryRate)}%</td>
       <td>$${fmt(metrics.boxleoPerDeliveredOrder)}</td>
       <td>$${fmt(metrics.boxleoPerDeliveredPiece)}</td>
       <td>$${fmt(metrics.adCostPerDeliveredOrder)}</td>
       <td>$${fmt(metrics.adCostPerDeliveredPiece)}</td>
+      <td>${fmt(metrics.deliveryRate)}%</td>
       <td>$${fmt(metrics.averageOrderValue)}</td>
       <td class="${metrics.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(metrics.profit)}</td>
     </tr>`;
@@ -1480,15 +1471,14 @@ function renderProfitByCountry(analytics) {
   Q('#pcProductCostT').textContent = fmt(totalProductCost);
   Q('#pcShippingCostT').textContent = fmt(totalShippingCost);
   Q('#pcBoxleoT').textContent = fmt(totalBoxleo);
-  Q('#pcDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%';
   Q('#pcBoxleoOrderT').textContent = '$' + fmt(avgBoxleoPerOrder);
   Q('#pcBoxleoPieceT').textContent = '$' + fmt(avgBoxleoPerPiece);
   Q('#pcAdOrderT').textContent = '$' + fmt(avgAdCostPerOrder);
   Q('#pcAdPieceT').textContent = '$' + fmt(avgAdCostPerPiece);
+  Q('#pcDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%';
   Q('#pcAOVT').textContent = '$' + fmt(avgAOV);
   Q('#pcProfitT').textContent = fmt(totalProfit);
 }
-
 function bindRemittanceAdd() {
   const btn = Q('#remAddSave');
   if (!btn) return;
