@@ -272,59 +272,60 @@
               </select>
               <button id="remAnalyticsRun" class="btn">📊 Generate Analytics</button>
             </div>
-            <div class="table-scroll">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>Product Name</th>
-                    <th>Country</th>
-                    <th>Orders</th>
-                    <th>Delivered Orders</th>                
-                    <th>Delivered Pieces</th>
-                    <th>Revenue</th>                
-                    <th>Advertising Spend</th>
-                    <th>Influencer Spend</th>
-                    <th>Boxleo Fees</th>
-                    <th>Product Cost China</th>
-                    <th>Total Shipping Cost</th>
-                    <th>Refunded Orders</th>               
-                    <th>Refunded Amount</th> 
-                    <th>Delivery Rate</th>
-                    <th>Boxleo/Order</th>
-                    <th>Boxleo/Piece</th>
-                    <th>Ad Cost/Order</th>
-                    <th>Ad Cost/Piece</th>
-                    <th>Avg Order Value</th>
-                    <th>Profit</th>
-                  </tr>
-                </thead>
-                <tbody id="remAnalyticsBody"></tbody>
-                <tfoot>
-                  <tr class="totals">
-                    <th colspan="2">Totals</th>
-                    <th id="remAnalyticsOrdersT">0</th>
-                    <th id="remAnalyticsDeliveredOrdersT">0</th>
-                    <th id="remAnalyticsRefundedOrdersT">0</th>
-                    <th id="remAnalyticsDeliveredPiecesT">0</th>
-                    <th id="remAnalyticsRevenueT">0</th>
-                    <th id="remAnalyticsRefundedAmountT">0</th>
-                    <th id="remAnalyticsAdSpendT">0</th>
-                    <th id="remAnalyticsInfluencerSpendT">0</th>
-                    <th id="remAnalyticsBoxleoT">0</th>
-                    <th id="remAnalyticsProductCostT">0</th>
-                    <th id="remAnalyticsShippingCostT">0</th>
-                    <th id="remAnalyticsDeliveryRateT">0%</th>
-                    <th id="remAnalyticsBoxleoOrderT">$0</th>
-                    <th id="remAnalyticsBoxleoPieceT">$0</th>
-                    <th id="remAnalyticsAdOrderT">$0</th>
-                    <th id="remAnalyticsAdPieceT">$0</th>
-                    <th id="remAnalyticsAOVT">$0</th>
-                    <th id="remAnalyticsProfitT">0</th>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
+            <!-- Remittance Analytics Table -->
+<div class="table-scroll">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Product Name</th>
+        <th>Country</th>
+        <th>Orders</th>
+        <th>Delivered Orders</th>
+        <th>Refunded Orders</th>
+        <th>Delivered Pieces</th>
+        <th>Revenue</th>
+        <th>Refunded Amount</th>
+        <th>Advertising Spend</th>
+        <th>Influencer Spend</th>
+        <th>Boxleo Fees</th>
+        <th>Product Cost China</th>
+        <th>Total Shipping Cost</th>
+        <th>Boxleo/Order</th>
+        <th>Boxleo/Piece</th>
+        <th>Ad Cost/Order</th>
+        <th>Ad Cost/Piece</th>
+        <th>Delivery Rate</th>
+        <th>Avg Order Value</th>
+        <th>Profit</th>
+      </tr>
+    </thead>
+    <tbody id="remAnalyticsBody"></tbody>
+    <tfoot>
+      <tr class="totals">
+        <th colspan="2">Totals</th>
+        <th id="remAnalyticsOrdersT">0</th>
+        <th id="remAnalyticsDeliveredOrdersT">0</th>
+        <th id="remAnalyticsRefundedOrdersT">0</th>
+        <th id="remAnalyticsDeliveredPiecesT">0</th>
+        <th id="remAnalyticsRevenueT">0</th>
+        <th id="remAnalyticsRefundedAmountT">0</th>
+        <th id="remAnalyticsAdSpendT">0</th>
+        <th id="remAnalyticsInfluencerSpendT">0</th>
+        <th id="remAnalyticsBoxleoT">0</th>
+        <th id="remAnalyticsProductCostT">0</th>
+        <th id="remAnalyticsShippingCostT">0</th>
+        <th id="remAnalyticsBoxleoOrderT">$0</th>
+        <th id="remAnalyticsBoxleoPieceT">$0</th>
+        <th id="remAnalyticsAdOrderT">$0</th>
+        <th id="remAnalyticsAdPieceT">$0</th>
+        <th id="remAnalyticsDeliveryRateT">0%</th>
+        <th id="remAnalyticsAOVT">$0</th>
+        <th id="remAnalyticsProfitT">0</th>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+        </div>
 
           <!-- Product Costs Analysis -->
           <div class="card">
@@ -375,57 +376,58 @@
               <select id="pcCountry" class="input"><option value="">All countries</option></select>
               <button id="pcRun" class="btn">📈 Calculate</button>
             </div>
-            <div class="table-scroll">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>Country</th>
-                    <th>Orders</th>
-                    <th>Delivered Orders</th>
-                    <th>Delivered Pieces</th>
-                    <th>Revenue</th>
-                    <th>Total Advertising Spend</th>
-                    <th>Influencer Spend</th>
-                    <th>Product Cost China</th>
-                    <th>Total Shipping Cost</th>
-                    <th>Total Boxleo Fees</th>
-                    <th>Refunded Orders</th>               
-                    <th>Refunded Amount</th>                    
-                    <th>Delivery Rate</th>
-                    <th>Boxleo/Order</th>
-                    <th>Boxleo/Piece</th>
-                    <th>Ad Cost/Order</th>
-                    <th>Ad Cost/Piece</th>
-                    <th>Avg Order Value</th>
-                    <th>Profit</th>
-                  </tr>
-                </thead>
-                <tbody id="profitCountryBody"></tbody>
-                <tfoot>
-                  <tr class="totals">
-                    <th>Totals</th>
-                    <th id="pcOrdersT">0</th>
-                    <th id="pcDeliveredOrdersT">0</th>
-                    <th id="pcRefundedOrdersT">0</th>
-                    <th id="pcDeliveredPiecesT">0</th>
-                    <th id="pcRevT">0</th>
-                    <th id="pcRefundedAmountT">0</th>
-                    <th id="pcAdT">0</th>
-                    <th id="pcInfluencerSpendT">0</th>
-                    <th id="pcProductCostT">0</th>
-                    <th id="pcShippingCostT">0</th>
-                    <th id="pcBoxleoT">0</th>
-                    <th id="pcDeliveryRateT">0%</th>
-                    <th id="pcBoxleoOrderT">$0</th>
-                    <th id="pcBoxleoPieceT">$0</th>
-                    <th id="pcAdOrderT">$0</th>
-                    <th id="pcAdPieceT">$0</th>
-                    <th id="pcAOVT">$0</th>
-                    <th id="pcProfitT">0</th>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+          <!-- Profit by Country Table -->
+<div class="table-scroll">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Country</th>
+        <th>Orders</th>
+        <th>Delivered Orders</th>
+        <th>Refunded Orders</th>
+        <th>Delivered Pieces</th>
+        <th>Revenue</th>
+        <th>Refunded Amount</th>
+        <th>Total Advertising Spend</th>
+        <th>Influencer Spend</th>
+        <th>Product Cost China</th>
+        <th>Total Shipping Cost</th>
+        <th>Total Boxleo Fees</th>
+        <th>Boxleo/Order</th>
+        <th>Boxleo/Piece</th>
+        <th>Ad Cost/Order</th>
+        <th>Ad Cost/Piece</th>
+        <th>Delivery Rate</th>
+        <th>Avg Order Value</th>
+        <th>Profit</th>
+      </tr>
+    </thead>
+    <tbody id="profitCountryBody"></tbody>
+    <tfoot>
+      <tr class="totals">
+        <th>Totals</th>
+        <th id="pcOrdersT">0</th>
+        <th id="pcDeliveredOrdersT">0</th>
+        <th id="pcRefundedOrdersT">0</th>
+        <th id="pcDeliveredPiecesT">0</th>
+        <th id="pcRevT">0</th>
+        <th id="pcRefundedAmountT">0</th>
+        <th id="pcAdT">0</th>
+        <th id="pcInfluencerSpendT">0</th>
+        <th id="pcProductCostT">0</th>
+        <th id="pcShippingCostT">0</th>
+        <th id="pcBoxleoT">0</th>
+        <th id="pcBoxleoOrderT">$0</th>
+        <th id="pcBoxleoPieceT">$0</th>
+        <th id="pcAdOrderT">$0</th>
+        <th id="pcAdPieceT">$0</th>
+        <th id="pcDeliveryRateT">0%</th>
+        <th id="pcAOVT">$0</th>
+        <th id="pcProfitT">0</th>
+      </tr>
+    </tfoot>
+  </table>
+</div>
           </div>
 
           <!-- Product Orders Tracking -->
