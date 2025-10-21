@@ -1238,7 +1238,8 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
       totalProductCost,
       availableForProfitAndAds,
       deliveryRate,
-      maxCPL
+      maxCPL,
+      boxleoPerOrder
     };
   });
 
@@ -1252,18 +1253,25 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
   });
 });
 
-// Product Costs Analysis
+// Product Costs Analysis - FIXED FOR "ALL PRODUCTS"
 app.get('/api/product-costs-analysis', requireAuth, (req, res) => {
   const db = loadDB();
   const { productId, start, end } = req.query || {};
   
-  const metrics = calculateProfitMetrics(db, productId, null, start, end);
+  // FIX: Handle "all" products case properly
+  let metrics;
+  if (productId === 'all') {
+    // Calculate aggregate metrics for all products
+    metrics = calculateProfitMetrics(db, null, null, start, end);
+    metrics.isAggregate = true;
+    metrics.productCount = db.products.length;
+  } else {
+    metrics = calculateProfitMetrics(db, productId, null, start, end);
+    metrics.isAggregate = false;
+    metrics.productCount = 1;
+  }
   
-  res.json({
-    ...metrics,
-    isAggregate: productId === 'all',
-    productCount: productId === 'all' ? db.products.length : 1
-  });
+  res.json(metrics);
 });
 
 // Dashboard Data
