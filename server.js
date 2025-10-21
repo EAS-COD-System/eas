@@ -61,7 +61,7 @@ function requireAuth(req, res, next) {
   return res.status(403).json({ error: 'Unauthorized' });
 }
 
-// ======== ENHANCED SHIPMENT MANAGEMENT ========
+// ======== FIXED STOCK CALCULATION LOGIC ========
 function calculateProductStock(db, productId = null, country = null) {
   const shipments = db.shipments || [];
   const remittances = db.remittances || [];
@@ -69,22 +69,66 @@ function calculateProductStock(db, productId = null, country = null) {
   
   let stock = {};
   
-  // Initialize stock for all countries
+  // Initialize stock for all countries (except China)
   db.countries.filter(c => c !== 'china').forEach(c => {
     stock[c] = 0;
   });
 
-  // Add arrived shipments
-  shipments.filter(s => s.arrivedAt && (!productId || s.productId === productId)).forEach(shipment => {
-    if (stock[shipment.toCountry] !== undefined) {
-      stock[shipment.toCountry] += (+shipment.qty || 0);
+  // Process all shipments chronologically
+  const sortedShipments = [...shipments].sort((a, b) => 
+    new Date(a.departedAt || '2000-01-01') - new Date(b.departedAt || '2000-01-01')
+  );
+
+  sortedShipments.forEach(shipment => {
+    // Skip if product doesn't match
+    if (productId && shipment.productId !== productId) return;
+    
+    const fromCountry = shipment.fromCountry;
+    const toCountry = shipment.toCountry;
+    const quantity = +shipment.qty || 0;
+    const hasArrived = !!shipment.arrivedAt;
+
+    console.log(`Processing shipment: ${fromCountry} → ${toCountry}, Qty: ${quantity}, Arrived: ${hasArrived}`);
+
+    if (fromCountry === 'china') {
+      // Shipment FROM China
+      if (hasArrived) {
+        // Add to destination country
+        if (stock[toCountry] !== undefined) {
+          stock[toCountry] += quantity;
+          console.log(`✅ Added ${quantity} to ${toCountry}, now: ${stock[toCountry]}`);
+        }
+      } else {
+        // In transit from China - no effect on destination stock yet
+        console.log(`⏳ In transit from China to ${toCountry} - no stock change`);
+      }
+    } else {
+      // Inter-country shipment
+      if (hasArrived) {
+        // Remove from source, add to destination
+        if (stock[fromCountry] !== undefined) {
+          stock[fromCountry] -= quantity;
+          console.log(`➖ Removed ${quantity} from ${fromCountry}, now: ${stock[fromCountry]}`);
+        }
+        if (stock[toCountry] !== undefined) {
+          stock[toCountry] += quantity;
+          console.log(`✅ Added ${quantity} to ${toCountry}, now: ${stock[toCountry]}`);
+        }
+      } else {
+        // In transit - remove from source only
+        if (stock[fromCountry] !== undefined) {
+          stock[fromCountry] -= quantity;
+          console.log(`➖ Removed ${quantity} from ${fromCountry} (in transit), now: ${stock[fromCountry]}`);
+        }
+      }
     }
   });
 
-  // Subtract remittances
+  // Subtract remittances (sales)
   remittances.filter(r => (!productId || r.productId === productId)).forEach(remittance => {
     if (stock[remittance.country] !== undefined) {
       stock[remittance.country] -= (+remittance.pieces || 0);
+      console.log(`🛒 Sold ${remittance.pieces} from ${remittance.country}`);
     }
   });
 
@@ -92,15 +136,11 @@ function calculateProductStock(db, productId = null, country = null) {
   refunds.filter(rf => (!productId || rf.productId === productId)).forEach(refund => {
     if (stock[refund.country] !== undefined) {
       stock[refund.country] += (+refund.pieces || 0);
+      console.log(`🔄 Refunded ${refund.pieces} back to ${refund.country}`);
     }
   });
 
-  // Subtract transit shipments (pieces that left but haven't arrived)
-  shipments.filter(s => !s.arrivedAt && (!productId || s.productId === productId)).forEach(shipment => {
-    if (stock[shipment.fromCountry] !== undefined) {
-      stock[shipment.fromCountry] -= (+shipment.qty || 0);
-    }
-  });
+  console.log('Final stock:', stock);
 
   if (country) {
     return stock[country] || 0;
