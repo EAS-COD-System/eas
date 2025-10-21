@@ -46,7 +46,7 @@ const state = {
   currentStoreOrdersPage: 1,
   currentRemittancesPage: 1,
   currentRefundsPage: 1,
-  allShipments: [] // Added to store all shipments for stock calculation
+  allShipments: []
 };
 
 async function boot() {
@@ -172,19 +172,20 @@ async function preload() {
   const cats = await api('/api/finance/categories');
   state.categories = cats || { debit: [], credit: [] };
 
-  // Load all shipments for stock calculation - but don't fail if not available yet
+  // Load all shipments for stock calculation
   try {
     console.log('🔄 Preload: Loading shipments...');
     const shipments = await api('/api/shipments');
     state.allShipments = shipments.shipments || [];
     console.log('✅ Preload: Loaded', state.allShipments.length, 'shipments');
   } catch (error) {
-    console.log('⚠️ Preload: Could not load shipments yet, will load when needed');
+    console.error('❌ Preload: Failed to load shipments:', error);
     state.allShipments = [];
   }
 
   fillCommonSelects();
 }
+
 function fillCommonSelects() {
   const countrySelects = ['#adCountry', '#rCountry', '#pdAdCountry', '#pdRCountry',
     '#pdInfCountry', '#pdInfFilterCountry', '#pcCountry', '#remCountry', '#remAddCountry',
@@ -251,75 +252,36 @@ function fillCommonSelects() {
   });
 }
 
-// DEBUG VERSION: Let's see what's happening
+// FIXED: Use server-side stock calculation instead of client-side
 async function calculateStockByCountry(productId = null) {
   try {
-    console.log('🔍 calculateStockByCountry called with productId:', productId);
-    
-    // Make sure we have shipments loaded
-    if (!state.allShipments || state.allShipments.length === 0) {
-      console.log('🔄 Loading shipments...');
-      const shipments = await api('/api/shipments');
-      state.allShipments = shipments.shipments || [];
-      console.log('📦 Loaded shipments:', state.allShipments.length);
+    // Use server-side calculation which is now fixed
+    const db = await api('/api/products');
+    if (productId) {
+      const product = db.products.find(p => p.id === productId);
+      return product ? product.stockByCountry : {};
+    } else {
+      // Calculate total stock across all products
+      const totalStock = {};
+      state.countries.forEach(country => {
+        totalStock[country] = 0;
+      });
+      
+      db.products.forEach(product => {
+        Object.keys(product.stockByCountry || {}).forEach(country => {
+          totalStock[country] = (totalStock[country] || 0) + (product.stockByCountry[country] || 0);
+        });
+      });
+      
+      return totalStock;
     }
-
-    console.log('📊 Processing', state.allShipments.length, 'shipments');
-    
-    const stockByCountry = {};
-    
-    // Initialize all countries with 0 stock
-    state.countries.forEach(country => {
-      stockByCountry[country] = 0;
-    });
-
-    console.log('🌍 Countries:', state.countries);
-
-    // FIRST PASS: Add all arrived shipments to destination countries
-    state.allShipments.forEach((shipment, index) => {
-      // If productId is specified, only count shipments for that product
-      if (productId && shipment.productId !== productId) {
-        return;
-      }
-
-      const fromCountry = shipment.fromCountry || shipment.from;
-      const toCountry = shipment.toCountry || shipment.to;
-      const quantity = shipment.qty || 0;
-
-      if (shipment.arrivedAt) {
-        // Shipment has arrived: add to destination country
-        if (stockByCountry[toCountry] !== undefined) {
-          stockByCountry[toCountry] += quantity;
-          console.log(`✅ Added ${quantity} to ${toCountry}, now: ${stockByCountry[toCountry]}`);
-        }
-      }
-    });
-
-    // SECOND PASS: Subtract all shipments from source countries (regardless of arrival status)
-    state.allShipments.forEach((shipment, index) => {
-      // If productId is specified, only count shipments for that product
-      if (productId && shipment.productId !== productId) {
-        return;
-      }
-
-      const fromCountry = shipment.fromCountry || shipment.from;
-      const toCountry = shipment.toCountry || shipment.to;
-      const quantity = shipment.qty || 0;
-
-      // Subtract from source country (except China, since China is our supplier)
-      if (stockByCountry[fromCountry] !== undefined && fromCountry !== 'china') {
-        stockByCountry[fromCountry] -= quantity;
-        console.log(`➖ Subtracted ${quantity} from ${fromCountry}, now: ${stockByCountry[fromCountry]}`);
-      }
-    });
-
-    console.log('📈 Final stock by country:', stockByCountry);
-    return stockByCountry;
   } catch (error) {
-    console.error('❌ Error calculating stock:', error);
+    console.error('Error calculating stock:', error);
     return {};
   }
-}function calculateDateRange(range) {
+}
+
+function calculateDateRange(range) {
   const now = new Date();
   const start = new Date();
   
@@ -417,8 +379,8 @@ async function renderCompactKpis() {
   Q('#kpiCountries') && (Q('#kpiCountries').textContent = state.countries.length);
 
   try {
-    // Use our fixed stock calculation
-    const stockByCountry = calculateStockByCountry();
+    // Use server-side calculation
+    const stockByCountry = await calculateStockByCountry();
     let activeStock = 0;
     let inactiveStock = 0;
     
@@ -428,17 +390,11 @@ async function renderCompactKpis() {
       if (stock < 0) inactiveStock += Math.abs(stock);
     });
 
-    // Calculate transit pieces
-    const chinaTransit = state.allShipments
-      .filter(shipment => !shipment.arrivedAt && (shipment.fromCountry || shipment.from) === 'china')
-      .reduce((total, shipment) => total + (shipment.qty || 0), 0);
+    // Calculate transit pieces using server data
+    const transitData = await calculateTransitPieces();
     
-    const interCountryTransit = state.allShipments
-      .filter(shipment => !shipment.arrivedAt && (shipment.fromCountry || shipment.from) !== 'china')
-      .reduce((total, shipment) => total + (shipment.qty || 0), 0);
-
-    Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = chinaTransit);
-    Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = interCountryTransit);
+    Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = transitData.chinaTransit);
+    Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = transitData.interCountryTransit);
     Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = activeStock);
     Q('#kpiInactiveStock') && (Q('#kpiInactiveStock').textContent = inactiveStock);
   } catch { 
@@ -458,13 +414,37 @@ async function renderCompactKpis() {
   Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = t);
 }
 
+async function calculateTransitPieces() {
+  try {
+    const shipments = await api('/api/shipments');
+    const transitShipments = shipments.shipments.filter(s => !s.arrivedAt);
+    
+    const chinaTransit = transitShipments
+      .filter(s => s.fromCountry === 'china')
+      .reduce((sum, s) => sum + (+s.qty || 0), 0);
+    
+    const interCountryTransit = transitShipments
+      .filter(s => s.fromCountry !== 'china')
+      .reduce((sum, s) => sum + (+s.qty || 0), 0);
+
+    return {
+      chinaTransit,
+      interCountryTransit,
+      totalTransit: chinaTransit + interCountryTransit
+    };
+  } catch (error) {
+    console.error('Error calculating transit:', error);
+    return { chinaTransit: 0, interCountryTransit: 0, totalTransit: 0 };
+  }
+}
+
 async function renderCountryStockSpend() {
   const body = Q('#stockByCountryBody'); if (!body) return;
   body.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
 
   try {
-    // Use our fixed stock calculation instead of backend data
-    const stockByCountry = calculateStockByCountry();
+    // Use server-side stock calculation
+    const stockByCountry = await calculateStockByCountry();
     
     let st = 0, fb = 0, tt = 0, gg = 0, totalAd = 0;
     
@@ -1050,17 +1030,16 @@ function renderProductsTable() {
       rowClass = 'loss-row';
     }
 
-    // Use our fixed stock calculation for each product
-    const stockByCountry = calculateStockByCountry(p.id);
-    const kenyaStock = stockByCountry.kenya || 0;
+    // Use server-side stock data
+    const kenyaStock = p.stockByCountry?.kenya || 0;
     const kenyaAdSpend = p.adSpendByCountry?.kenya || 0;
-    const tanzaniaStock = stockByCountry.tanzania || 0;
+    const tanzaniaStock = p.stockByCountry?.tanzania || 0;
     const tanzaniaAdSpend = p.adSpendByCountry?.tanzania || 0;
-    const ugandaStock = stockByCountry.uganda || 0;
+    const ugandaStock = p.stockByCountry?.uganda || 0;
     const ugandaAdSpend = p.adSpendByCountry?.uganda || 0;
-    const zambiaStock = stockByCountry.zambia || 0;
+    const zambiaStock = p.stockByCountry?.zambia || 0;
     const zambiaAdSpend = p.adSpendByCountry?.zambia || 0;
-    const zimbabweStock = stockByCountry.zimbabwe || 0;
+    const zimbabweStock = p.stockByCountry?.zimbabwe || 0;
     const zimbabweAdSpend = p.adSpendByCountry?.zimbabwe || 0;
 
     return `
@@ -1723,9 +1702,8 @@ function renderStockMovementPage() {
 
     try {
       await api('/api/shipments', { method: 'POST', body: JSON.stringify(payload) });
-      // Reload shipments for accurate stock calculation
-      const shipments = await api('/api/shipments');
-      state.allShipments = shipments.shipments || [];
+      // Reload products to get updated stock data
+      await preload();
       await renderTransitTables();
       await renderCountryStockSpend();
       await renderCompactKpis();
@@ -1810,9 +1788,8 @@ async function handleShipmentActions(e) {
     if (!date) return;
     try { 
       await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) }); 
-      // Reload shipments for accurate stock calculation
-      const shipments = await api('/api/shipments');
-      state.allShipments = shipments.shipments || [];
+      // Reload products to get updated stock data
+      await preload();
       await renderTransitTables();
       await renderCountryStockSpend();
       await renderCompactKpis();
@@ -1836,9 +1813,8 @@ async function handleShipmentActions(e) {
     if (!confirm('Delete shipment?')) return;
     try { 
       await api(`/api/shipments/${id}`, { method: 'DELETE' }); 
-      // Reload shipments for accurate stock calculation
-      const shipments = await api('/api/shipments');
-      state.allShipments = shipments.shipments || [];
+      // Reload products to get updated stock data
+      await preload();
       await renderTransitTables();
       await renderCountryStockSpend();
       await renderCompactKpis();
@@ -2055,8 +2031,8 @@ async function renderProductStockAd(product) {
   const tb = Q('#pdStockBody'); if (!tb) return;
   
   try {
-    // Use our fixed stock calculation instead of backend data
-    const stockByCountry = calculateStockByCountry(product.id);
+    // Use server-side stock data for the specific product
+    const stockByCountry = product.stockByCountry || {};
     
     const adSpends = await api('/api/adspend');
     
@@ -2205,9 +2181,8 @@ async function handleProductShipmentActions(e) {
     if (!date) return;
     try { 
       await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) }); 
-      // Reload shipments for accurate stock calculation
-      const shipments = await api('/api/shipments');
-      state.allShipments = shipments.shipments || [];
+      // Reload products to get updated stock data
+      await preload();
       const product = state.products.find(p => p.id === state.productId);
       await renderProductTransitTables(product);
       await renderProductStockAd(product);
@@ -2232,9 +2207,8 @@ async function handleProductShipmentActions(e) {
     if (!confirm('Delete shipment?')) return;
     try { 
       await api(`/api/shipments/${id}`, { method: 'DELETE' }); 
-      // Reload shipments for accurate stock calculation
-      const shipments = await api('/api/shipments');
-      state.allShipments = shipments.shipments || [];
+      // Reload products to get updated stock data
+      await preload();
       const product = state.products.find(p => p.id === state.productId);
       await renderProductTransitTables(product);
       await renderProductStockAd(product);
