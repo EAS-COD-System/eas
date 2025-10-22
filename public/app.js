@@ -884,18 +884,36 @@ function renderProductsPage() {
       }
     }
 
+    // FIXED: Updated product addition with immediate refresh
     Q('#pAdd')?.addEventListener('click', async () => {
       const p = {
         name: Q('#pName')?.value.trim(),
         sku: Q('#pSku')?.value.trim()
       };
       if (!p.name) return alert('Name required');
-      await api('/api/products', { method: 'POST', body: JSON.stringify(p) });
-      await preload();
-      renderProductsTable();
-      renderCompactCountryStats();
-      renderAdvertisingOverview();
-      alert('Product added');
+      
+      try {
+        await api('/api/products', { method: 'POST', body: JSON.stringify(p) });
+        
+        // Refresh the data and re-render
+        await preload();
+        
+        // Clear the form
+        Q('#pName').value = '';
+        Q('#pSku').value = '';
+        
+        // Re-render all product-related components
+        renderProductsTable();
+        renderCompactCountryStats();
+        renderAdvertisingOverview();
+        
+        // Also update the product dropdowns
+        fillCommonSelects();
+        
+        alert('Product added');
+      } catch (error) {
+        alert('Error adding product: ' + error.message);
+      }
     });
 
     Q('#spSave')?.addEventListener('click', async () => {
@@ -1219,7 +1237,8 @@ function renderCompactCountryStats() {
   }
 }
 
-function renderAdvertisingOverview() {
+// FIXED: Enhanced renderAdvertisingOverview with proper data refresh
+async function renderAdvertisingOverview() {
   return new Promise((resolve) => {
     try {
       const container = Q('#advertisingOverview');
@@ -1229,11 +1248,18 @@ function renderAdvertisingOverview() {
       }
 
       // Show loading state
-      container.innerHTML = '<div class="card"><div class="muted">Updating advertising data...</div></div>';
+      container.innerHTML = '<div class="card"><div class="muted">Loading advertising data...</div></div>';
 
+      // First, refresh the adspend data from server
       api('/api/adspend').then(adData => {
         const adSpends = adData.adSpends || [];
-
+        
+        // Also refresh products data to ensure we have the latest
+        return api('/api/products').then(productsData => {
+          state.products = productsData.products || [];
+          return adSpends;
+        });
+      }).then(adSpends => {
         const byCountry = {};
 
         adSpends.forEach(spend => {
@@ -1276,7 +1302,7 @@ function renderAdvertisingOverview() {
             <div class="h" style="color: var(--primary); margin-bottom: 12px;">${country}</div>`;
 
           sortedProducts.forEach(([productId, data]) => {
-            const product = state.products ? state.products.find(p => p.id === productId) : { name: productId };
+            const product = state.products.find(p => p.id === productId) || { name: productId };
             html += `
             <div class="product-row">
               <div class="product-name">${product ? product.name : productId}</div>
@@ -1305,6 +1331,7 @@ function renderAdvertisingOverview() {
     }
   });
 }
+
 function renderProductInfoResults(productInfo) {
   const container = Q('#productInfoResults');
   if (!container) return;
@@ -2092,6 +2119,7 @@ function fillAdspendSelects() {
   }));
 }
 
+// FIXED: Updated adspend save with immediate refresh
 function bindAdspendSave() {
   const btn = Q('#adspendSave');
   if (!btn) return;
@@ -2111,12 +2139,16 @@ function bindAdspendSave() {
     
     try {
       await api('/api/adspend', { method: 'POST', body: JSON.stringify(payload) });
+      
+      // Refresh all relevant data
       await renderCountryStockSpend();
       await renderCompactKpis();
-      alert('Ad spend saved successfully!');
+      await renderAdvertisingOverview(); // Refresh advertising overview
       
       // Clear the form
       Q('#adspendAmount').value = '';
+      
+      alert('Ad spend saved successfully!');
     } catch (e) {
       alert('Error saving ad spend: ' + e.message);
     }
@@ -3203,6 +3235,7 @@ function renderPagination(containerId, pagination, type) {
 }
 
 // ======== GLOBAL NAVIGATION ========
+// FIXED: Updated navigation to refresh data when switching pages
 function bindGlobalNav() {
   QA('.nav a[data-view]')?.forEach(a => a.addEventListener('click', e => {
     e.preventDefault();
@@ -3212,10 +3245,27 @@ function bindGlobalNav() {
       if (el) el.style.display = (id === v) ? '' : 'none';
     });
     QA('.nav a').forEach(x => x.classList.toggle('active', x === a));
-    if (v === 'home') { renderCompactKpis(); renderCountryStockSpend(); }
-    if (v === 'products') { renderCompactCountryStats(); renderAdvertisingOverview(); }
+    
+    if (v === 'home') { 
+      renderCompactKpis(); 
+      renderCountryStockSpend(); 
+    }
+    if (v === 'products') { 
+      // Refresh data when navigating to products page
+      preload().then(() => {
+        renderCompactCountryStats(); 
+        renderAdvertisingOverview();
+        renderProductsTable();
+      });
+    }
+    if (v === 'adspend') { 
+      // Refresh data when navigating to adspend page
+      preload().then(() => {
+        renderAdspendPage();
+        renderAdvertisingOverview();
+      });
+    }
     if (v === 'stockMovement') { renderStockMovementPage(); }
-    if (v === 'adspend') { renderAdspendPage(); }
     if (v === 'performance') { 
       bindProductCostsAnalysis(); 
       bindRemittanceAnalytics();
@@ -3228,6 +3278,7 @@ function bindGlobalNav() {
     }
   }));
 }
+
 function setupDailyBackupButton() {
   const button = Q('#createDailyBackup');
   if (button) {
@@ -3258,6 +3309,24 @@ function setupDailyBackupButton() {
       }
     };
   }
+}
+
+// ======== PRODUCT INFO SECTION ========
+function renderProductInfoSection() {
+  const runBtn = Q('#productInfoRun');
+  if (!runBtn) return;
+
+  runBtn.onclick = async () => {
+    const productId = Q('#productInfoSelect')?.value;
+    if (!productId) return alert('Please select a product');
+
+    try {
+      const productInfo = await api(`/api/product-info/${productId}`);
+      renderProductInfoResults(productInfo);
+    } catch (e) {
+      alert('Error loading product info: ' + e.message);
+    }
+  };
 }
 
 // Initialize the application
