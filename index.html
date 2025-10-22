@@ -23,15 +23,16 @@
 
     <!-- MAIN -->
     <div id="main" style="display:none">
-      <nav class="nav">
-        <a data-view="home" class="active">📊 Dashboard</a>
-        <a data-view="products">📦 Products</a>
-        <a data-view="performance">📈 Performance</a>
-        <a data-view="stockMovement">🚚 Stock Movement</a>
-        <a data-view="finance">💰 Finance</a>
-        <a data-view="settings">⚙️ Settings</a>
-        <a id="logoutLink" class="nav-right">🚪 Logout</a>
-      </nav>
+<nav class="nav">
+  <a data-view="home" class="active">📊 Dashboard</a>
+  <a data-view="products">📦 Products</a>
+  <a data-view="performance">📈 Performance</a>
+  <a data-view="stockMovement">🚚 Stock Movement</a>
+  <a data-view="adspend">🎯 Adspend</a>
+  <a data-view="finance">💰 Finance</a>
+  <a data-view="settings">⚙️ Settings</a>
+  <a id="logoutLink" class="nav-right">🚪 Logout</a>
+</nav>
 
       <div class="container">
 
@@ -574,7 +575,70 @@
             </div>
           </div>
         </section>
+<!-- ADSPEND -->
+<section id="adspend" style="display:none">
+  <h2>Advertising Spend Management</h2>
 
+  <!-- Daily Advertising Spend -->
+  <div class="section">
+    <h2>Daily Advertising Spend</h2>
+    <div class="card">
+      <div class="h">Add Daily Advertising Spend</div>
+      <div class="row wrap">
+        <select id="adspendPlatform" class="input">
+          <option value="facebook">Facebook</option>
+          <option value="tiktok">TikTok</option>
+          <option value="google">Google</option>
+        </select>
+        <select id="adspendProduct" class="input"></select>
+        <select id="adspendCountry" class="input"></select>
+        <input id="adspendAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
+        <button id="adspendSave" class="btn">💾 Save / Replace</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ad Spend History & Analytics -->
+  <div class="section">
+    <h2>Ad Spend History & Analytics</h2>
+    <div class="card">
+      <div class="h">📊 Advertising Spend Overview</div>
+      <div class="row wrap">
+        <select id="adspendRange" class="input date-range-select">
+          <option value="8days">Last 8 days</option>
+          <option value="15days">Last 15 days</option>
+          <option value="1month">Last 1 month</option>
+          <option value="2months">Last 2 months</option>
+          <option value="6months">Last 6 months</option>
+          <option value="1year">Last 1 year</option>
+          <option value="2years">Last 2 years</option>
+          <option value="lifetime">Lifetime</option>
+          <option value="custom">Custom range</option>
+        </select>
+        <div class="custom-range" style="display: none;">
+          <input type="date" class="input custom-start"/>
+          <input type="date" class="input custom-end"/>
+        </div>
+        <select id="adspendFilterCountry" class="input">
+          <option value="">All countries</option>
+        </select>
+        <select id="adspendFilterProduct" class="input">
+          <option value="all">All products</option>
+        </select>
+        <select id="adspendFilterPlatform" class="input">
+          <option value="">All platforms</option>
+          <option value="facebook">Facebook</option>
+          <option value="tiktok">TikTok</option>
+          <option value="google">Google</option>
+        </select>
+        <button id="adspendRun" class="btn">📈 Generate Report</button>
+      </div>
+      
+      <!-- Ad Spend Results -->
+      <div id="adspendResults" style="margin-top: 20px;"></div>
+    </div>
+  </div>
+</section>
         <!-- FINANCE -->
         <section id="finance" style="display:none">
           <h2>Financial Management</h2>
