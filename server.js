@@ -386,11 +386,14 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
   const netDeliveredOrders = totalDeliveredOrders - totalRefundedOrders;
   const deliveryRate = totalOrders > 0 ? (netDeliveredOrders / totalOrders) * 100 : 0;
 
-  // Calculate rates
+  // ======== FIXED AD COST CALCULATIONS ========
   const costPerDeliveredOrder = netDeliveredOrders > 0 ? totalCost / netDeliveredOrders : 0;
   const costPerDeliveredPiece = totalDeliveredPieces > 0 ? totalCost / totalDeliveredPieces : 0;
+  
+  // FIXED: Use consistent metrics for ad cost calculations
   const adCostPerDeliveredOrder = netDeliveredOrders > 0 ? totalAdSpend / netDeliveredOrders : 0;
   const adCostPerDeliveredPiece = totalDeliveredPieces > 0 ? totalAdSpend / totalDeliveredPieces : 0;
+  
   const boxleoPerDeliveredOrder = netDeliveredOrders > 0 ? totalBoxleoFees / netDeliveredOrders : 0;
   const boxleoPerDeliveredPiece = totalDeliveredPieces > 0 ? totalBoxleoFees / totalDeliveredPieces : 0;
   const influencerPerDeliveredOrder = netDeliveredOrders > 0 ? totalInfluencerSpend / netDeliveredOrders : 0;
@@ -425,6 +428,7 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
     hasData: hasData
   };
 }
+
 // ======== STARTUP BACKUP ========
 async function createStartupBackup() {
   try {
