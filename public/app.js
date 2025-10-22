@@ -1426,9 +1426,10 @@ function bindRemittanceAnalytics() {
 }
 
 function renderRemittanceAnalytics(analytics) {
-   console.log('DEBUG - Analytics data received:', analytics);
   const tb = Q('#remAnalyticsBody');
   if (!tb) return;
+
+  console.log('🔍 DEBUG - Analytics data received:', analytics);
 
   let totalPieces = 0, totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
   let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0;
@@ -1441,6 +1442,17 @@ function renderRemittanceAnalytics(analytics) {
 
   tb.innerHTML = analytics.map(item => {
     const product = state.products.find(p => p.id === item.productId) || { name: item.productId };
+
+    // Debug each item
+    console.log('📊 DEBUG - Item data:', {
+      product: product.name,
+      country: item.country,
+      adCostPerDeliveredOrder: item.adCostPerDeliveredOrder,
+      adCostPerDeliveredPiece: item.adCostPerDeliveredPiece,
+      totalAdSpend: item.totalAdSpend,
+      totalDeliveredOrders: item.totalDeliveredOrders,
+      totalDeliveredPieces: item.totalDeliveredPieces
+    });
 
     totalPieces += item.totalDeliveredPieces || 0;
     totalRevenue += item.totalRevenue || 0;
@@ -1477,8 +1489,8 @@ function renderRemittanceAnalytics(analytics) {
       <td>${fmt(item.totalShippingCost)}</td>
       <td>$${fmt(item.boxleoPerDeliveredOrder)}</td>
       <td>$${fmt(item.boxleoPerDeliveredPiece)}</td>
-      <td>$${fmt(item.adCostPerDeliveredOrder)}</td>
-      <td>$${fmt(item.adCostPerDeliveredPiece)}</td>
+      <td style="background-color: #ffeb3b; font-weight: bold;">$${fmt(item.adCostPerDeliveredOrder)}</td>
+      <td style="background-color: #ffeb3b; font-weight: bold;">$${fmt(item.adCostPerDeliveredPiece)}</td>
       <td>${fmt(item.deliveryRate)}%</td>
       <td>$${fmt(item.averageOrderValue)}</td>
       <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(item.profit)}</td>
@@ -1491,6 +1503,14 @@ function renderRemittanceAnalytics(analytics) {
   const avgAdCostPerOrder = itemCount > 0 ? totalAdCostPerOrder / itemCount : 0;
   const avgAdCostPerPiece = itemCount > 0 ? totalAdCostPerPiece / itemCount : 0;
   const avgAOV = itemCount > 0 ? totalAOV / itemCount : 0;
+
+  console.log('📈 DEBUG - Calculated averages:', {
+    avgAdCostPerOrder,
+    avgAdCostPerPiece,
+    itemCount,
+    totalAdCostPerOrder,
+    totalAdCostPerPiece
+  });
 
   Q('#remAnalyticsOrdersT') && (Q('#remAnalyticsOrdersT').textContent = fmt(totalOrders));
   Q('#remAnalyticsDeliveredOrdersT') && (Q('#remAnalyticsDeliveredOrdersT').textContent = fmt(totalDeliveredOrders));
@@ -1511,7 +1531,6 @@ function renderRemittanceAnalytics(analytics) {
   Q('#remAnalyticsAOVT') && (Q('#remAnalyticsAOVT').textContent = '$' + fmt(avgAOV));
   Q('#remAnalyticsProfitT') && (Q('#remAnalyticsProfitT').textContent = fmt(totalProfit));
 }
-
 function bindProfitByCountry() {
   const btn = Q('#pcRun');
   if (!btn) return;
