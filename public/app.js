@@ -1510,6 +1510,7 @@ function renderRemittanceAnalytics(analytics) {
   Q('#remAnalyticsAOVT') && (Q('#remAnalyticsAOVT').textContent = '$' + fmt(avgAOV));
   Q('#remAnalyticsProfitT') && (Q('#remAnalyticsProfitT').textContent = fmt(totalProfit));
 }
+
 function bindProfitByCountry() {
   const btn = Q('#pcRun');
   if (!btn) return;
@@ -1611,6 +1612,7 @@ function renderProfitByCountry(analytics) {
   Q('#pcAOVT') && (Q('#pcAOVT').textContent = '$' + fmt(avgAOV));
   Q('#pcProfitT') && (Q('#pcProfitT').textContent = fmt(totalProfit));
 }
+
 function bindRemittanceAdd() {
   const btn = Q('#remAddSave');
   if (!btn) return;
