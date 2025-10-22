@@ -152,80 +152,100 @@
 
         </section>
 
-        <!-- PRODUCTS -->
-        <section id="products" style="display:none">
-          <h2>Products Management</h2>
-          
-          <!-- Advertising Overview -->
-          <div class="section">
-            <h2>🎯 Advertising Overview by Country</h2>
-            <div id="advertisingOverview"></div>
-          </div>
-
-          <!-- Add Product -->
-          <div class="card">
-            <div class="h">➕ Add New Product</div>
-            <div class="row wrap">
-              <input id="pName" class="input" placeholder="Product Name"/>
-              <input id="pSku" class="input" placeholder="SKU"/>
-              <button id="pAdd" class="btn">🚀 Add Product</button>
-            </div>
-          </div>
-
-          <!-- Add Selling Prices -->
-          <div class="card">
-            <div class="h">💰 Set Selling Prices by Country</div>
-            <div class="row wrap">
-              <select id="spProduct" class="input">
-                <option value="">Select product...</option>
-              </select>
-              <select id="spCountry" class="input">
-                <option value="">Select country...</option>
-              </select>
-              <input id="spPrice" type="number" class="input" placeholder="Selling Price (USD)" step="0.01"/>
-              <button id="spSave" class="btn">💾 Save Price</button>
-            </div>
-          </div>
-
-          <!-- Product Info Section -->
-          <div class="section">
-            <h2>📋 Product Info & Analytics</h2>
-            <div class="card">
-              <div class="h">Search Product Details</div>
-              <div class="row wrap">
-                <select id="productInfoSelect" class="input">
-                  <option value="">Select product...</option>
-                </select>
-                <button id="productInfoRun" class="btn">🔍 Get Product Info</button>
-              </div>
-              <div id="productInfoResults"></div>
-            </div>
-          </div>
-
-   <!-- Products Table -->
-<div class="section">
-  <h2>📦 All Products</h2>
-  <div class="table-scroll">
-    <table id="productsTable" class="table">
-      <thead>
-        <tr>
-          <!-- JavaScript will populate this -->
-        </tr>
-      </thead>
-      <tbody>
-        <!-- JavaScript will populate this -->
-      </tbody>
-    </table>
+   <!-- PRODUCTS -->
+<section id="products" style="display:none">
+  <h2>Products Management</h2>
+  
+  <!-- Advertising Overview -->
+  <div class="section">
+    <h2>🎯 Advertising Overview by Country</h2>
+    <div id="advertisingOverview"></div>
   </div>
-</div>
-          <!-- Country Product Stats -->
-          <div class="section">
-            <h2>📊 Products by Country</h2>
-            <div id="countryProductStats" class="country-stats-grid-compact"></div>
-          </div>
 
-        </section>
+  <!-- Add Product -->
+  <div class="card">
+    <div class="h">➕ Add New Product</div>
+    <div class="row wrap">
+      <input id="pName" class="input" placeholder="Product Name"/>
+      <input id="pSku" class="input" placeholder="SKU"/>
+      <button id="pAdd" class="btn">🚀 Add Product</button>
+    </div>
+  </div>
 
+  <!-- Add Selling Prices -->
+  <div class="card">
+    <div class="h">💰 Set Selling Prices by Country</div>
+    <div class="row wrap">
+      <select id="spProduct" class="input">
+        <option value="">Select product...</option>
+      </select>
+      <select id="spCountry" class="input">
+        <option value="">Select country...</option>
+      </select>
+      <input id="spPrice" type="number" class="input" placeholder="Selling Price (USD)" step="0.01"/>
+      <button id="spSave" class="btn">💾 Save Price</button>
+    </div>
+  </div>
+
+  <!-- Product Info Section -->
+  <div class="section">
+    <h2>📋 Product Info & Analytics</h2>
+    <div class="card">
+      <div class="h">Search Product Details</div>
+      <div class="row wrap">
+        <select id="productInfoSelect" class="input">
+          <option value="">Select product...</option>
+        </select>
+        <button id="productInfoRun" class="btn">🔍 Get Product Info</button>
+      </div>
+      <div id="productInfoResults"></div>
+    </div>
+  </div>
+
+  <!-- Products Table with Search and Pagination -->
+  <div class="section">
+    <h2>📦 All Products</h2>
+    
+    <!-- Search Box -->
+    <div class="card">
+      <div class="h">🔍 Search Products</div>
+      <div class="row">
+        <input 
+          id="productSearch" 
+          class="input" 
+          placeholder="Type to search products by name..." 
+          style="flex: 1;"
+        />
+        <button id="clearSearch" class="btn outline">Clear</button>
+      </div>
+      <div id="searchResultsInfo" class="muted" style="margin-top: 8px;"></div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="table-scroll">
+      <table id="productsTable" class="table">
+        <thead>
+          <tr>
+            <!-- JavaScript will populate this -->
+          </tr>
+        </thead>
+        <tbody>
+          <!-- JavaScript will populate this -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="productsPagination" style="margin-top: 15px;"></div>
+  </div>
+
+  <!-- Country Product Stats -->
+  <div class="section">
+    <h2>📊 Products by Country</h2>
+    <div id="countryProductStats" class="country-stats-grid-compact"></div>
+  </div>
+</section>
+        
   <!-- PERFORMANCE -->
 <section id="performance" style="display:none">
   <h2>Performance Analytics</h2>
