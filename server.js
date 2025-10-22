@@ -1238,7 +1238,7 @@ app.get('/api/analytics/profit-by-country', requireAuth, (req, res) => {
   res.json({ analytics });
 });
 
-// Product Info with Boxleo Fees per Order - UPDATED CALCULATION
+// Product Info with Boxleo Fees per Order - FIXED DATA MAPPING
 app.get('/api/product-info/:id', requireAuth, (req, res) => {
   const db = loadDB();
   const productId = req.params.id;
@@ -1259,7 +1259,8 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
     const price = prices.find(p => p.country === country);
     const productCosts = calculateProductCosts(db, productId, country);
     
-    const sellingPrice = price ? price.price : 0;
+    // FIXED: Ensure proper data mapping
+    const sellingPrice = price ? +price.price : 0;
     const productCostChina = productCosts.chinaCostPerPiece || 0;
     const shippingCost = productCosts.shippingCostPerPiece || 0;
     
@@ -1294,7 +1295,6 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
     totalDeliveredOrders: totalDeliveredOrders
   });
 });
-
 // Product Costs Analysis - FIXED FOR "ALL PRODUCTS"
 app.get('/api/product-costs-analysis', requireAuth, (req, res) => {
   const db = loadDB();
