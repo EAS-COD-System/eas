@@ -339,7 +339,7 @@ function getDateRange(container) {
 function renderDashboardPage() {
   renderCompactKpis();
   renderCountryStockSpend();
-  bindDailyAdSpend();
+  bindDailyAdSpend(); // FIXED: Now includes date field
   renderWeeklyDelivered();
   initBrainstorming();
   initTodos();
@@ -493,11 +493,13 @@ async function renderCountryStockSpend() {
   }
 }
 
+// FIXED: Added date field to daily ad spend
 function bindDailyAdSpend() {
   const btn = Q('#adSave');
   if (!btn) return;
   btn.onclick = async () => {
     const payload = {
+      date: isoToday(), // FIXED: Add current date
       productId: Q('#adProduct')?.value,
       country: Q('#adCountry')?.value,
       platform: Q('#adPlatform')?.value,
@@ -1181,6 +1183,7 @@ function renderProductInfoResults(productInfo) {
 
   container.innerHTML = html;
 }
+
 // ======== PERFORMANCE PAGE ========
 function renderPerformancePage() {
   initDateRangeSelectors();
@@ -2108,11 +2111,8 @@ function renderProductBudgets(product) {
 
   api(`/api/product-info/${product.id}`).then(productInfo => {
     const { costAnalysis } = productInfo;
-    console.log('Product Budgets Data:', productInfo); // Debug log
 
     tb.innerHTML = costAnalysis.map(analysis => {
-      console.log('Country Analysis:', analysis); // Debug log per country
-      
       const boxleoPerOrderValue = analysis.boxleoPerOrder || 0;
       const totalCost = analysis.productCostChina + analysis.shippingCost + boxleoPerOrderValue;
       const availableForProfitAndAds = analysis.sellingPrice - totalCost;
@@ -2136,6 +2136,7 @@ function renderProductBudgets(product) {
     tb.innerHTML = `<tr><td colspan="9" class="muted">Error loading cost data: ${error.message}</td></tr>`;
   });
 }
+
 async function renderProductTransit(product) {
   await renderProductTransitTables(product);
 }
