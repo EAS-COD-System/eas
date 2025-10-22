@@ -230,89 +230,89 @@
 <section id="performance" style="display:none">
   <h2>Performance Analytics</h2>
 
-  <!-- Remittance Analytics -->
-  <div class="card">
-    <div class="h">📈 Remittance Analytics (🏆 Filtered By Top Delivered)</div>
-    <div class="row wrap">
-      <select id="remAnalyticsRange" class="input date-range-select">
-        <option value="8days">Last 8 days</option>
-        <option value="15days">Last 15 days</option>
-        <option value="1month">Last 1 month</option>
-        <option value="2months">Last 2 months</option>
-        <option value="6months">Last 6 months</option>
-        <option value="1year">Last 1 year</option>
-        <option value="2years">Last 2 years</option>
-        <option value="lifetime">Lifetime</option>
-        <option value="custom">Custom range</option>
-      </select>
-      <div class="custom-range" style="display: none;">
-        <input type="date" class="input custom-start"/>
-        <input type="date" class="input custom-end"/>
-      </div>
-      <select id="remAnalyticsCountry" class="input">
-        <option value="">All countries</option>
-      </select>
-      <select id="remAnalyticsProduct" class="input">
-        <option value="all">All products</option>
-      </select>
-      <button id="remAnalyticsRun" class="btn">📊 Generate Analytics</button>
+ <!-- Remittance Analytics -->
+<div class="card">
+  <div class="h">📈 Remittance Analytics (🏆 Filtered By Top Delivered)</div>
+  <div class="row wrap">
+    <select id="remAnalyticsRange" class="input date-range-select">
+      <option value="8days">Last 8 days</option>
+      <option value="15days">Last 15 days</option>
+      <option value="1month">Last 1 month</option>
+      <option value="2months">Last 2 months</option>
+      <option value="6months">Last 6 months</option>
+      <option value="1year">Last 1 year</option>
+      <option value="2years">Last 2 years</option>
+      <option value="lifetime">Lifetime</option>
+      <option value="custom">Custom range</option>
+    </select>
+    <div class="custom-range" style="display: none;">
+      <input type="date" class="input custom-start"/>
+      <input type="date" class="input custom-end"/>
     </div>
-    
-    <!-- Remittance Analytics Table -->
-    <div class="table-scroll">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Product Name</th>
-            <th>Country</th>
-            <th>Orders</th>
-            <th>Delivered Orders</th>
-            <th>Refunded Orders</th>
-            <th>Delivered Pieces</th>
-            <th>Revenue</th>
-            <th>Refunded Amount</th>
-            <th>Advertising Spend</th>
-            <th>Influencer Spend</th>
-            <th>Boxleo Fees</th>
-            <th>Product Cost China</th>
-            <th>Total Shipping Cost</th>
-            <th>Boxleo/Order</th>
-            <th>Boxleo/Piece</th>
-            <th>Ad Cost/Order</th>
-            <th>Ad Cost/Piece</th>
-            <th>Delivery Rate</th>
-            <th>Avg Order Value</th>
-            <th>Profit</th>
-          </tr>
-        </thead>
-        <tbody id="remAnalyticsBody"></tbody>
-        <tfoot>
-          <tr class="totals">
-            <th colspan="2">Totals</th>
-            <th id="remAnalyticsOrdersT">0</th>
-            <th id="remAnalyticsDeliveredOrdersT">0</th>
-            <th id="remAnalyticsRefundedOrdersT">0</th>
-            <th id="remAnalyticsDeliveredPiecesT">0</th>
-            <th id="remAnalyticsRevenueT">0</th>
-            <th id="remAnalyticsRefundedAmountT">0</th>
-            <th id="remAnalyticsAdSpendT">0</th>
-            <th id="remAnalyticsInfluencerSpendT">0</th>
-            <th id="remAnalyticsBoxleoT">0</th>
-            <th id="remAnalyticsProductCostT">0</th>
-            <th id="remAnalyticsShippingCostT">0</th>
-            <th id="remAnalyticsBoxleoOrderT">$0</th>
-            <th id="remAnalyticsBoxleoPieceT">$0</th>
-            <th id="remAnalyticsAdOrderT">$0</th>
-            <th id="remAnalyticsAdPieceT">$0</th>
-            <th id="remAnalyticsDeliveryRateT">0%</th>
-            <th id="remAnalyticsAOVT">$0</th>
-            <th id="remAnalyticsProfitT">0</th>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+    <select id="remAnalyticsCountry" class="input">
+      <option value="">All countries</option>
+    </select>
+    <select id="remAnalyticsProduct" class="input">
+      <option value="all">All products</option>
+    </select>
+    <button id="remAnalyticsRun" class="btn">📊 Generate Analytics</button>
   </div>
-
+  
+  <!-- Remittance Analytics Table -->
+  <div class="table-scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Product Name</th>
+          <th>Country</th>
+          <th>Orders</th>
+          <th>Delivered Orders</th>
+          <th>Refunded Orders</th>
+          <th>Delivered Pieces</th>
+          <th>Revenue</th>
+          <th>Refunded Amount</th>
+          <th>Advertising Spend</th>
+          <th>Influencer Spend</th>
+          <th>Boxleo Fees</th>
+          <th>Product Cost China</th>
+          <th>Total Shipping Cost</th>
+          <th>Boxleo/Order</th>
+          <th>Boxleo/Piece</th>
+          <th>Ad Cost/Order</th>
+          <th>Ad Cost/Piece</th>
+          <th>Delivery Rate</th>
+          <th>Avg Order Value</th>
+          <th>Profit</th>
+        </tr>
+      </thead>
+      <tbody id="remAnalyticsBody"></tbody>
+      <tfoot>
+        <tr class="totals">
+          <th colspan="2">Totals</th>
+          <th id="remAnalyticsOrdersT">0</th>
+          <th id="remAnalyticsDeliveredOrdersT">0</th>
+          <th id="remAnalyticsRefundedOrdersT">0</th>
+          <th id="remAnalyticsDeliveredPiecesT">0</th>
+          <th id="remAnalyticsRevenueT">0</th>
+          <th id="remAnalyticsRefundedAmountT">0</th>
+          <th id="remAnalyticsAdSpendT">0</th>
+          <th id="remAnalyticsInfluencerSpendT">0</th>
+          <th id="remAnalyticsBoxleoT">0</th>
+          <th id="remAnalyticsProductCostT">0</th>
+          <th id="remAnalyticsShippingCostT">0</th>
+          <th id="remAnalyticsBoxleoOrderT">$0</th>
+          <th id="remAnalyticsBoxleoPieceT">$0</th>
+          <th id="remAnalyticsAdOrderT">$0</th>
+          <th id="remAnalyticsAdPieceT">$0</th>
+          <th id="remAnalyticsDeliveryRateT">0%</th>
+          <th id="remAnalyticsAOVT">$0</th>
+          <th id="remAnalyticsProfitT">0</th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+  
   <!-- Product Costs Analysis -->
   <div class="card">
     <div class="h">💰 Lifetime Product Costs Analysis</div>
