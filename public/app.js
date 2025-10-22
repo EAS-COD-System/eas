@@ -46,7 +46,10 @@ const state = {
   currentStoreOrdersPage: 1,
   currentRemittancesPage: 1,
   currentRefundsPage: 1,
-  allShipments: []
+  allShipments: [],
+  // Add these new properties for products pagination and search
+  currentProductsPage: 1,
+  productsSearchTerm: ''
 };
 
 async function boot() {
