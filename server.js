@@ -1238,7 +1238,7 @@ app.get('/api/analytics/profit-by-country', requireAuth, (req, res) => {
   res.json({ analytics });
 });
 
-// Product Info with Boxleo Fees per Order
+// Product Info with Boxleo Fees per Order - UPDATED CALCULATION
 app.get('/api/product-info/:id', requireAuth, (req, res) => {
   const db = loadDB();
   const productId = req.params.id;
@@ -1262,8 +1262,10 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
     const sellingPrice = price ? price.price : 0;
     const productCostChina = productCosts.chinaCostPerPiece || 0;
     const shippingCost = productCosts.shippingCostPerPiece || 0;
-    const totalProductCost = productCostChina + shippingCost;
-    const availableForProfitAndAds = sellingPrice - totalProductCost;
+    
+    // NEW CALCULATION: Include Boxleo fees in total cost
+    const totalCost = productCostChina + shippingCost + boxleoPerOrder;
+    const availableForProfitAndAds = sellingPrice - totalCost;
     
     // Get delivery rate
     const deliveryData = calculateProfitMetrics(db, productId, country, '2000-01-01', '2100-01-01');
@@ -1275,11 +1277,11 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
       sellingPrice,
       productCostChina,
       shippingCost,
-      totalProductCost,
+      boxleoPerOrder,
+      totalCost,
       availableForProfitAndAds,
       deliveryRate,
-      maxCPL,
-      boxleoPerOrder
+      maxCPL
     };
   });
 
