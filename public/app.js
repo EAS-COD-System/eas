@@ -1131,19 +1131,13 @@ function renderProductInfoResults(productInfo) {
       </div>
       
       <div class="profit-budgets-section">
-        <h4>💰 Product Cost Analysis by Country (Including Boxleo Fees)</h4>
-        <div class="card" style="background: var(--primary-50); margin-bottom: 15px;">
-          <div style="padding: 10px;">
-            <strong>Calculation Formula:</strong><br>
-            Selling Price - (Product Cost China + Shipping Cost + Boxleo per Order) = Available for Profit & Ads<br>
-            Max CPL = Available for Profit & Ads × (Delivery Rate / 100)
-          </div>
-        </div>
+        <h4>💰 Product Cost Analysis by Country</h4>
         <div class="table-scroll">
           <table class="table">
             <thead>
               <tr>
                 <th>Country</th>
+                <th>Max Cost Per Lead</th>
                 <th>Selling Price</th>
                 <th>Product Cost China</th>
                 <th>Shipping Cost</th>
@@ -1151,7 +1145,6 @@ function renderProductInfoResults(productInfo) {
                 <th>Total Cost</th>
                 <th>Available for Profit & Ads</th>
                 <th>Delivery Rate</th>
-                <th>Max Cost Per Lead</th>
               </tr>
             </thead>
             <tbody>
@@ -1166,6 +1159,7 @@ function renderProductInfoResults(productInfo) {
     html += `
       <tr>
         <td>${analysis.country}</td>
+        <td>$${fmt(maxCPL)}</td>
         <td>$${fmt(analysis.sellingPrice)}</td>
         <td>$${fmt(analysis.productCostChina)}</td>
         <td>$${fmt(analysis.shippingCost)}</td>
@@ -1173,7 +1167,6 @@ function renderProductInfoResults(productInfo) {
         <td>$${fmt(totalCost)}</td>
         <td class="${availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(availableForProfitAndAds)}</td>
         <td>${fmt(analysis.deliveryRate)}%</td>
-        <td>$${fmt(maxCPL)}</td>
       </tr>
     `;
   });
@@ -1188,7 +1181,6 @@ function renderProductInfoResults(productInfo) {
 
   container.innerHTML = html;
 }
-
 // ======== PERFORMANCE PAGE ========
 function renderPerformancePage() {
   initDateRangeSelectors();
@@ -2126,12 +2118,12 @@ function renderProductBudgets(product) {
       return `
       <tr>
         <td>${analysis.country}</td>
+        <td>$${fmt(maxCPL)}</td>
         <td>$${fmt(analysis.sellingPrice)}</td>
         <td>$${fmt(analysis.productCostChina)}</td>
         <td>$${fmt(analysis.shippingCost)}</td>
         <td>$${fmt(boxleoPerOrderValue)}</td>
         <td>$${fmt(totalCost)}</td>
-        <td>$${fmt(maxCPL)}</td>
         <td>${fmt(analysis.deliveryRate)}%</td>
         <td class="${availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(availableForProfitAndAds)}</td>
       </tr>`;
