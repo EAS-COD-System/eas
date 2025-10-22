@@ -2032,7 +2032,242 @@ async function handleShipmentActions(e) {
     }
   }
 }
+// ======== ADSPEND PAGE ========
+function renderAdspendPage() {
+  initDateRangeSelectors();
+  bindAdspendSave();
+  bindAdspendAnalytics();
+  fillAdspendSelects();
+}
 
+function fillAdspendSelects() {
+  // Fill product dropdowns
+  const productSelects = ['#adspendProduct', '#adspendFilterProduct'];
+  productSelects.forEach(sel => QA(sel).forEach(el => {
+    if (!el) return;
+    const activeProducts = state.products
+      .filter(p => p.status === 'active')
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    
+    if (sel === '#adspendFilterProduct') {
+      el.innerHTML = `<option value="all">All products</option>` +
+        activeProducts.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+    } else {
+      el.innerHTML = `<option value="">Select Product...</option>` +
+        activeProducts.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+    }
+  }));
+
+  // Fill country dropdowns
+  const countrySelects = ['#adspendCountry', '#adspendFilterCountry'];
+  countrySelects.forEach(sel => QA(sel).forEach(el => {
+    if (!el) return;
+    if (sel === '#adspendFilterCountry') {
+      el.innerHTML = `<option value="">All countries</option>` +
+        state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
+    } else {
+      el.innerHTML = `<option value="">Select country...</option>` +
+        state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+  }));
+}
+
+function bindAdspendSave() {
+  const btn = Q('#adspendSave');
+  if (!btn) return;
+  
+  btn.onclick = async () => {
+    const payload = {
+      date: isoToday(),
+      productId: Q('#adspendProduct')?.value,
+      country: Q('#adspendCountry')?.value,
+      platform: Q('#adspendPlatform')?.value,
+      amount: +Q('#adspendAmount')?.value || 0
+    };
+    
+    if (!payload.productId || !payload.country || !payload.platform) {
+      return alert('Please fill all fields: Product, Country, and Platform');
+    }
+    
+    try {
+      await api('/api/adspend', { method: 'POST', body: JSON.stringify(payload) });
+      await renderCountryStockSpend();
+      await renderCompactKpis();
+      alert('Ad spend saved successfully!');
+      
+      // Clear the form
+      Q('#adspendAmount').value = '';
+    } catch (e) {
+      alert('Error saving ad spend: ' + e.message);
+    }
+  };
+}
+
+function bindAdspendAnalytics() {
+  const btn = Q('#adspendRun');
+  if (!btn) return;
+
+  btn.onclick = async () => {
+    const dateRange = getDateRange(btn.closest('.row'));
+    const country = Q('#adspendFilterCountry')?.value || '';
+    const productId = Q('#adspendFilterProduct')?.value || '';
+    const platform = Q('#adspendFilterPlatform')?.value || '';
+
+    try {
+      const adSpends = await api('/api/adspend');
+      const filteredSpends = filterAdSpends(adSpends.adSpends || [], dateRange, country, productId, platform);
+      renderAdspendResults(filteredSpends);
+    } catch (e) {
+      alert('Error loading ad spend data: ' + e.message);
+    }
+  };
+}
+
+function filterAdSpends(adSpends, dateRange, country, productId, platform) {
+  return adSpends.filter(spend => {
+    // Filter by date range
+    if (dateRange.start && spend.date < dateRange.start) return false;
+    if (dateRange.end && spend.date > dateRange.end) return false;
+    
+    // Filter by country
+    if (country && spend.country !== country) return false;
+    
+    // Filter by product
+    if (productId && productId !== 'all' && spend.productId !== productId) return false;
+    
+    // Filter by platform
+    if (platform && spend.platform !== platform) return false;
+    
+    return true;
+  });
+}
+
+function renderAdspendResults(adSpends) {
+  const container = Q('#adspendResults');
+  if (!container) return;
+
+  if (adSpends.length === 0) {
+    container.innerHTML = '<div class="muted">No ad spend data found for the selected filters.</div>';
+    return;
+  }
+
+  // Calculate totals
+  const totalSpend = adSpends.reduce((sum, spend) => sum + (+spend.amount || 0), 0);
+  const byPlatform = {};
+  const byCountry = {};
+  const byProduct = {};
+
+  adSpends.forEach(spend => {
+    // Platform breakdown
+    byPlatform[spend.platform] = (byPlatform[spend.platform] || 0) + (+spend.amount || 0);
+    
+    // Country breakdown
+    byCountry[spend.country] = (byCountry[spend.country] || 0) + (+spend.amount || 0);
+    
+    // Product breakdown
+    const product = state.products.find(p => p.id === spend.productId) || { name: spend.productId };
+    byProduct[product.name] = (byProduct[product.name] || 0) + (+spend.amount || 0);
+  });
+
+  let html = `
+    <div class="adspend-summary">
+      <div class="summary-stats">
+        <div class="stat-card">
+          <div class="stat-label">Total Spend</div>
+          <div class="stat-value">$${fmt(totalSpend)}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Entries</div>
+          <div class="stat-value">${adSpends.length}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Average Daily</div>
+          <div class="stat-value">$${fmt(totalSpend / Math.max(adSpends.length, 1))}</div>
+        </div>
+      </div>
+  `;
+
+  // Platform breakdown
+  html += `
+      <div class="breakdown-section">
+        <h4>By Platform</h4>
+        <div class="breakdown-grid">
+  `;
+  Object.entries(byPlatform).sort((a, b) => b[1] - a[1]).forEach(([platform, amount]) => {
+    const percentage = ((amount / totalSpend) * 100).toFixed(1);
+    html += `
+          <div class="breakdown-item">
+            <div class="breakdown-label">${platform.charAt(0).toUpperCase() + platform.slice(1)}</div>
+            <div class="breakdown-bar">
+              <div class="breakdown-bar-fill" style="width: ${percentage}%"></div>
+            </div>
+            <div class="breakdown-value">$${fmt(amount)} (${percentage}%)</div>
+          </div>
+    `;
+  });
+  html += `</div></div>`;
+
+  // Country breakdown
+  html += `
+      <div class="breakdown-section">
+        <h4>By Country</h4>
+        <div class="breakdown-grid">
+  `;
+  Object.entries(byCountry).sort((a, b) => b[1] - a[1]).forEach(([country, amount]) => {
+    const percentage = ((amount / totalSpend) * 100).toFixed(1);
+    html += `
+          <div class="breakdown-item">
+            <div class="breakdown-label">${country}</div>
+            <div class="breakdown-bar">
+              <div class="breakdown-bar-fill" style="width: ${percentage}%"></div>
+            </div>
+            <div class="breakdown-value">$${fmt(amount)} (${percentage}%)</div>
+          </div>
+    `;
+  });
+  html += `</div></div>`;
+
+  // Detailed table
+  html += `
+      <div class="breakdown-section">
+        <h4>Detailed History</h4>
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Platform</th>
+                <th>Product</th>
+                <th>Country</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+  `;
+  
+  adSpends.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(spend => {
+    const product = state.products.find(p => p.id === spend.productId) || { name: spend.productId };
+    html += `
+              <tr>
+                <td>${spend.date}</td>
+                <td>${spend.platform}</td>
+                <td>${product.name}</td>
+                <td>${spend.country}</td>
+                <td>$${fmt(spend.amount)}</td>
+              </tr>
+    `;
+  });
+  
+  html += `
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
 // ======== FINANCE PAGE ========
 function renderFinancePage() {
   refreshFinanceCategories();
@@ -2952,7 +3187,7 @@ function bindGlobalNav() {
   QA('.nav a[data-view]')?.forEach(a => a.addEventListener('click', e => {
     e.preventDefault();
     const v = a.dataset.view;
-    ['home', 'products', 'performance', 'stockMovement', 'finance', 'settings'].forEach(id => {
+    ['home', 'products', 'performance', 'stockMovement', 'finance', 'adspend', 'settings'].forEach(id => {
       const el = Q('#' + id);
       if (el) el.style.display = (id === v) ? '' : 'none';
     });
@@ -2960,6 +3195,7 @@ function bindGlobalNav() {
     if (v === 'home') { renderCompactKpis(); renderCountryStockSpend(); }
     if (v === 'products') { renderCompactCountryStats(); renderAdvertisingOverview(); }
     if (v === 'stockMovement') { renderStockMovementPage(); }
+    if (v === 'adspend') { renderAdspendPage(); }
     if (v === 'performance') { 
       bindProductCostsAnalysis(); 
       bindRemittanceAnalytics();
@@ -2972,7 +3208,6 @@ function bindGlobalNav() {
     }
   }));
 }
-
 function setupDailyBackupButton() {
   const button = Q('#createDailyBackup');
   if (button) {
