@@ -858,6 +858,14 @@ function renderProductsPage() {
   renderAdvertisingOverview();
   initDateRangeSelectors();
 
+  // Add search functionality
+  initProductSearch();
+  
+  // Initialize products table with pagination
+  state.currentProductsPage = 1;
+  state.productsSearchTerm = '';
+  renderProductsTable();
+
   Q('#pAdd')?.addEventListener('click', async () => {
     const p = {
       name: Q('#pName')?.value.trim(),
@@ -889,8 +897,212 @@ function renderProductsPage() {
     alert('Selling price saved');
   });
 
-  renderProductsTable();
   renderProductInfoSection();
+}
+
+// Product Search Functionality
+function initProductSearch() {
+  const searchInput = Q('#productSearch');
+  const clearBtn = Q('#clearSearch');
+  
+  if (!searchInput) return;
+
+  // Real-time search with debouncing
+  let searchTimeout;
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      state.productsSearchTerm = e.target.value.toLowerCase().trim();
+      state.currentProductsPage = 1;
+      renderProductsTable();
+    }, 300);
+  });
+
+  // Clear search
+  clearBtn?.addEventListener('click', () => {
+    searchInput.value = '';
+    state.productsSearchTerm = '';
+    state.currentProductsPage = 1;
+    renderProductsTable();
+  });
+
+  // Enter key to search
+  searchInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      state.productsSearchTerm = e.target.value.toLowerCase().trim();
+      state.currentProductsPage = 1;
+      renderProductsTable();
+    }
+  });
+}
+
+// Filter products based on search term
+function filterProducts(products, searchTerm) {
+  if (!searchTerm) return products;
+  
+  return products.filter(product => 
+    product.name.toLowerCase().includes(searchTerm) ||
+    (product.sku && product.sku.toLowerCase().includes(searchTerm))
+  );
+}
+
+function renderProductsTable() {
+  const tb = Q('#productsTable tbody'); 
+  const thead = Q('#productsTable thead tr');
+  const searchInfo = Q('#searchResultsInfo');
+  if (!tb || !thead) return;
+
+  // Filter products based on search term
+  const filteredProducts = filterProducts(state.products, state.productsSearchTerm);
+  
+  // Update search results info
+  if (searchInfo) {
+    if (state.productsSearchTerm) {
+      searchInfo.textContent = `Found ${filteredProducts.length} products matching "${state.productsSearchTerm}"`;
+    } else {
+      searchInfo.textContent = `Showing all ${filteredProducts.length} products`;
+    }
+  }
+
+  // Pagination
+  const productsPerPage = 15;
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+  const startIndex = (state.currentProductsPage - 1) * productsPerPage;
+  const endIndex = startIndex + productsPerPage;
+  const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+
+  // Build table header
+  let headerHTML = `
+    <th>Name</th>
+    <th>SKU</th>
+    <th>Status</th>
+    <th>Total Stock</th>
+    <th>Total Transit</th>
+    <th>Total Pieces</th>
+  `;
+
+  state.countries.forEach(country => {
+    if (country !== 'china') {
+      headerHTML += `<th>${country.charAt(0).toUpperCase() + country.slice(1)} Stock</th>`;
+      headerHTML += `<th>${country.charAt(0).toUpperCase() + country.slice(1)} Ad Spend</th>`;
+    }
+  });
+
+  headerHTML += `<th>Actions</th>`;
+  
+  thead.innerHTML = headerHTML;
+
+  // Build table body
+  tb.innerHTML = paginatedProducts.map(p => {
+    let rowClass = '';
+    if (!p.hasData) {
+      rowClass = 'no-data-row';
+    } else if (p.isProfitable) {
+      rowClass = 'profit-row';
+    } else {
+      rowClass = 'loss-row';
+    }
+
+    let rowHTML = `
+      <tr class="${rowClass}">
+        <td>${p.name}</td>
+        <td>${p.sku || '-'}</td>
+        <td><span class="badge ${p.status === 'paused' ? 'muted' : ''}">${p.status || 'active'}</span></td>
+        <td>${fmt(p.totalStock || 0)}</td>
+        <td>${fmt(p.transitPieces || 0)}</td>
+        <td>${fmt(p.totalPiecesIncludingTransit || 0)}</td>
+    `;
+
+    state.countries.forEach(country => {
+      if (country !== 'china') {
+        const stock = p.stockByCountry?.[country] || 0;
+        const adSpend = p.adSpendByCountry?.[country] || 0;
+        rowHTML += `
+          <td>${fmt(stock)}</td>
+          <td>${fmt(adSpend)}</td>
+        `;
+      }
+    });
+
+    rowHTML += `
+        <td>
+          <a class="btn" href="/product.html?id=${p.id}">Open</a>
+          <button class="btn outline act-toggle" data-id="${p.id}">${p.status === 'active' ? 'Pause' : 'Run'}</button>
+          <button class="btn outline act-del" data-id="${p.id}">Delete</button>
+        </td>
+      </tr>
+    `;
+
+    return rowHTML;
+  }).join('') || `<tr><td colspan="${6 + (state.countries.length - 1) * 2 + 1}" class="muted">No products found</td></tr>`;
+
+  // Render pagination
+  renderProductsPagination(filteredProducts.length, productsPerPage);
+
+  // Add event listeners for product actions
+  tb.onclick = async (e) => {
+    const id = e.target.dataset?.id; 
+    if (!id) return;
+    
+    if (e.target.classList.contains('act-toggle')) {
+      const p = state.products.find(x => x.id === id); 
+      const ns = p.status === 'active' ? 'paused' : 'active';
+      await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: ns }) });
+      await preload(); 
+      renderProductsTable(); 
+    }
+    
+    if (e.target.classList.contains('act-del')) {
+      if (!confirm('Delete product and ALL its data?')) return;
+      await api(`/api/products/${id}`, { method: 'DELETE' });
+      await preload(); 
+      renderProductsTable(); 
+    }
+  };
+}
+
+// Products Pagination
+function renderProductsPagination(totalItems, itemsPerPage) {
+  const container = Q('#productsPagination');
+  if (!container) return;
+
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+
+  let html = '';
+
+  html += `<button class="pagination-btn" ${state.currentProductsPage <= 1 ? 'disabled' : ''} data-page="${state.currentProductsPage - 1}">◀ Previous</button>`;
+
+  const startPage = Math.max(1, state.currentProductsPage - 2);
+  const endPage = Math.min(totalPages, startPage + 4);
+
+  for (let i = startPage; i <= endPage; i++) {
+    html += `<button class="pagination-btn ${i === state.currentProductsPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+  }
+
+  html += `<button class="pagination-btn" ${state.currentProductsPage >= totalPages ? 'disabled' : ''} data-page="${state.currentProductsPage + 1}">Next ▶</button>`;
+  html += `<span class="pagination-info">Page ${state.currentProductsPage} of ${totalPages} (${totalItems} products)</span>`;
+
+  container.innerHTML = html;
+
+  // Add pagination event listeners
+  container.addEventListener('click', (e) => {
+    if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
+      const page = parseInt(e.target.dataset.page);
+      state.currentProductsPage = page;
+      renderProductsTable();
+      
+      // Scroll to top of table
+      const table = Q('#productsTable');
+      if (table) {
+        table.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  });
 }
 
 function renderCompactCountryStats() {
@@ -1011,112 +1223,6 @@ function renderAdvertisingOverview() {
 
     container.innerHTML = html || '<div class="card"><div class="muted">No advertising data yet</div></div>';
   }).catch(console.error);
-}
-
-function renderProductsTable() {
-  const tb = Q('#productsTable tbody'); 
-  const thead = Q('#productsTable thead tr');
-  if (!tb || !thead) return;
-
-  let headerHTML = `
-    <th>Name</th>
-    <th>SKU</th>
-    <th>Status</th>
-    <th>Total Stock</th>
-    <th>Total Transit</th>
-    <th>Total Pieces</th>
-  `;
-
-  state.countries.forEach(country => {
-    if (country !== 'china') {
-      headerHTML += `<th>${country.charAt(0).toUpperCase() + country.slice(1)} Stock</th>`;
-      headerHTML += `<th>${country.charAt(0).toUpperCase() + country.slice(1)} Ad Spend</th>`;
-    }
-  });
-
-  headerHTML += `<th>Actions</th>`;
-  
-  thead.innerHTML = headerHTML;
-
-  tb.innerHTML = state.products.map(p => {
-    let rowClass = '';
-    if (!p.hasData) {
-      rowClass = 'no-data-row';
-    } else if (p.isProfitable) {
-      rowClass = 'profit-row';
-    } else {
-      rowClass = 'loss-row';
-    }
-
-    let rowHTML = `
-      <tr class="${rowClass}">
-        <td>${p.name}</td>
-        <td>${p.sku || '-'}</td>
-        <td><span class="badge ${p.status === 'paused' ? 'muted' : ''}">${p.status || 'active'}</span></td>
-        <td>${fmt(p.totalStock || 0)}</td>
-        <td>${fmt(p.transitPieces || 0)}</td>
-        <td>${fmt(p.totalPiecesIncludingTransit || 0)}</td>
-    `;
-
-    state.countries.forEach(country => {
-      if (country !== 'china') {
-        const stock = p.stockByCountry?.[country] || 0;
-        const adSpend = p.adSpendByCountry?.[country] || 0;
-        rowHTML += `
-          <td>${fmt(stock)}</td>
-          <td>${fmt(adSpend)}</td>
-        `;
-      }
-    });
-
-    rowHTML += `
-        <td>
-          <a class="btn" href="/product.html?id=${p.id}">Open</a>
-          <button class="btn outline act-toggle" data-id="${p.id}">${p.status === 'active' ? 'Pause' : 'Run'}</button>
-          <button class="btn outline act-del" data-id="${p.id}">Delete</button>
-        </td>
-      </tr>
-    `;
-
-    return rowHTML;
-  }).join('') || `<tr><td colspan="${6 + (state.countries.length - 1) * 2 + 1}" class="muted">No products</td></tr>`;
-
-  tb.onclick = async (e) => {
-    const id = e.target.dataset?.id; 
-    if (!id) return;
-    
-    if (e.target.classList.contains('act-toggle')) {
-      const p = state.products.find(x => x.id === id); 
-      const ns = p.status === 'active' ? 'paused' : 'active';
-      await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: ns }) });
-      await preload(); 
-      renderProductsTable(); 
-    }
-    
-    if (e.target.classList.contains('act-del')) {
-      if (!confirm('Delete product and ALL its data?')) return;
-      await api(`/api/products/${id}`, { method: 'DELETE' });
-      await preload(); 
-      renderProductsTable(); 
-    }
-  };
-}
-
-function renderProductInfoSection() {
-  const runBtn = Q('#productInfoRun');
-  if (!runBtn) return;
-
-  runBtn.onclick = async () => {
-    const productId = Q('#productInfoSelect')?.value;
-    if (!productId) return alert('Select a product');
-
-    try {
-      const productInfo = await api(`/api/product-info/${productId}`);
-      renderProductInfoResults(productInfo);
-    } catch (e) {
-      alert('Error loading product info: ' + e.message);
-    }
-  };
 }
 
 function renderProductInfoResults(productInfo) {
