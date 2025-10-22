@@ -399,6 +399,21 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
   const influencerPerDeliveredOrder = netDeliveredOrders > 0 ? totalInfluencerSpend / netDeliveredOrders : 0;
   const averageOrderValue = netDeliveredOrders > 0 ? adjustedRevenue / netDeliveredOrders : 0;
 
+  // DEBUG: Log the calculated values
+  console.log('🔍 SERVER DEBUG - Profit Metrics:', {
+    productId,
+    country,
+    totalAdSpend,
+    netDeliveredOrders,
+    totalDeliveredPieces,
+    adCostPerDeliveredOrder,
+    adCostPerDeliveredPiece,
+    calculation: {
+      adCostPerDeliveredOrder: `${totalAdSpend} / ${netDeliveredOrders} = ${adCostPerDeliveredOrder}`,
+      adCostPerDeliveredPiece: `${totalAdSpend} / ${totalDeliveredPieces} = ${adCostPerDeliveredPiece}`
+    }
+  });
+
   const hasData = totalDeliveredPieces > 0 || adjustedRevenue > 0 || totalAdSpend > 0;
   
   return {
@@ -428,7 +443,6 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
     hasData: hasData
   };
 }
-
 // ======== STARTUP BACKUP ========
 async function createStartupBackup() {
   try {
