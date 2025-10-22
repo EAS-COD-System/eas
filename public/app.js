@@ -1426,6 +1426,7 @@ function bindRemittanceAnalytics() {
 }
 
 function renderRemittanceAnalytics(analytics) {
+   console.log('DEBUG - Analytics data received:', analytics);
   const tb = Q('#remAnalyticsBody');
   if (!tb) return;
 
@@ -1533,6 +1534,7 @@ function bindProfitByCountry() {
 }
 
 function renderProfitByCountry(analytics) {
+   console.log('DEBUG - Profit by country data received:', analytics);
   const tb = Q('#profitCountryBody');
   if (!tb) return;
 
