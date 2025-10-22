@@ -11,7 +11,7 @@ const safeJSON = v => { try { return JSON.parse(v); } catch { return null; } };
 
 async function api(path, opts = {}) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
   
   try {
     const res = await fetch(path, {
@@ -95,6 +95,7 @@ async function boot() {
   }
 }
 
+// Event Listeners
 Q('#loginBtn')?.addEventListener('click', async () => {
   const password = Q('#pw')?.value || '';
   try {
@@ -252,35 +253,6 @@ function fillCommonSelects() {
   });
 }
 
-// FIXED: Use server-side stock calculation instead of client-side
-async function calculateStockByCountry(productId = null) {
-  try {
-    // Use server-side calculation which is now fixed
-    const db = await api('/api/products');
-    if (productId) {
-      const product = db.products.find(p => p.id === productId);
-      return product ? product.stockByCountry : {};
-    } else {
-      // Calculate total stock across all products
-      const totalStock = {};
-      state.countries.forEach(country => {
-        totalStock[country] = 0;
-      });
-      
-      db.products.forEach(product => {
-        Object.keys(product.stockByCountry || {}).forEach(country => {
-          totalStock[country] = (totalStock[country] || 0) + (product.stockByCountry[country] || 0);
-        });
-      });
-      
-      return totalStock;
-    }
-  } catch (error) {
-    console.error('Error calculating stock:', error);
-    return {};
-  }
-}
-
 function calculateDateRange(range) {
   const now = new Date();
   const start = new Date();
@@ -379,7 +351,6 @@ async function renderCompactKpis() {
   Q('#kpiCountries') && (Q('#kpiCountries').textContent = state.countries.length);
 
   try {
-    // Use server-side calculation
     const stockByCountry = await calculateStockByCountry();
     let activeStock = 0;
     let inactiveStock = 0;
@@ -390,7 +361,6 @@ async function renderCompactKpis() {
       if (stock < 0) inactiveStock += Math.abs(stock);
     });
 
-    // Calculate transit pieces using server data
     const transitData = await calculateTransitPieces();
     
     Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = transitData.chinaTransit);
@@ -438,17 +408,41 @@ async function calculateTransitPieces() {
   }
 }
 
+async function calculateStockByCountry(productId = null) {
+  try {
+    const db = await api('/api/products');
+    if (productId) {
+      const product = db.products.find(p => p.id === productId);
+      return product ? product.stockByCountry : {};
+    } else {
+      const totalStock = {};
+      state.countries.forEach(country => {
+        totalStock[country] = 0;
+      });
+      
+      db.products.forEach(product => {
+        Object.keys(product.stockByCountry || {}).forEach(country => {
+          totalStock[country] = (totalStock[country] || 0) + (product.stockByCountry[country] || 0);
+        });
+      });
+      
+      return totalStock;
+    }
+  } catch (error) {
+    console.error('Error calculating stock:', error);
+    return {};
+  }
+}
+
 async function renderCountryStockSpend() {
   const body = Q('#stockByCountryBody'); if (!body) return;
   body.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
 
   try {
-    // Use server-side stock calculation
     const stockByCountry = await calculateStockByCountry();
     
     let st = 0, fb = 0, tt = 0, gg = 0, totalAd = 0;
     
-    // Get ad spend breakdown
     const adSpends = await api('/api/adspend');
     const adBreakdown = {};
     
@@ -870,7 +864,7 @@ function renderProductsPage() {
     if (!p.name) return alert('Name required');
     await api('/api/products', { method: 'POST', body: JSON.stringify(p) });
     await preload();
-    renderProductsTable(); // ← Make sure this is called
+    renderProductsTable();
     renderCompactCountryStats();
     renderAdvertisingOverview();
     alert('Product added');
@@ -893,7 +887,7 @@ function renderProductsPage() {
     alert('Selling price saved');
   });
 
-  renderProductsTable(); // ← Make sure this is called here too
+  renderProductsTable();
   renderProductInfoSection();
 }
 
@@ -1022,7 +1016,6 @@ function renderProductsTable() {
   const thead = Q('#productsTable thead tr');
   if (!tb || !thead) return;
 
-  // Build table header dynamically
   let headerHTML = `
     <th>Name</th>
     <th>SKU</th>
@@ -1032,7 +1025,6 @@ function renderProductsTable() {
     <th>Total Pieces</th>
   `;
 
-  // Add country columns (except China)
   state.countries.forEach(country => {
     if (country !== 'china') {
       headerHTML += `<th>${country.charAt(0).toUpperCase() + country.slice(1)} Stock</th>`;
@@ -1042,10 +1034,8 @@ function renderProductsTable() {
 
   headerHTML += `<th>Actions</th>`;
   
-  // Set the header
   thead.innerHTML = headerHTML;
 
-  // Build table rows
   tb.innerHTML = state.products.map(p => {
     let rowClass = '';
     if (!p.hasData) {
@@ -1056,7 +1046,6 @@ function renderProductsTable() {
       rowClass = 'loss-row';
     }
 
-    // Start with static columns
     let rowHTML = `
       <tr class="${rowClass}">
         <td>${p.name}</td>
@@ -1067,7 +1056,6 @@ function renderProductsTable() {
         <td>${fmt(p.totalPiecesIncludingTransit || 0)}</td>
     `;
 
-    // Add dynamic country data (except China)
     state.countries.forEach(country => {
       if (country !== 'china') {
         const stock = p.stockByCountry?.[country] || 0;
@@ -1079,7 +1067,6 @@ function renderProductsTable() {
       }
     });
 
-    // Add actions column
     rowHTML += `
         <td>
           <a class="btn" href="/product.html?id=${p.id}">Open</a>
@@ -1092,7 +1079,6 @@ function renderProductsTable() {
     return rowHTML;
   }).join('') || `<tr><td colspan="${6 + (state.countries.length - 1) * 2 + 1}" class="muted">No products</td></tr>`;
 
-  // Add event listeners for actions
   tb.onclick = async (e) => {
     const id = e.target.dataset?.id; 
     if (!id) return;
@@ -1113,6 +1099,7 @@ function renderProductsTable() {
     }
   };
 }
+
 function renderProductInfoSection() {
   const runBtn = Q('#productInfoRun');
   if (!runBtn) return;
@@ -1200,6 +1187,7 @@ function renderPerformancePage() {
   bindRemittanceAdd();
   bindRefundAdd();
   
+  // Auto-run analytics on page load
   setTimeout(() => {
     if (Q('#pcaRun')) Q('#pcaRun').click();
     if (Q('#remAnalyticsRun')) Q('#remAnalyticsRun').click();
@@ -1732,7 +1720,6 @@ function renderStockMovementPage() {
 
     try {
       await api('/api/shipments', { method: 'POST', body: JSON.stringify(payload) });
-      // Reload products to get updated stock data
       await preload();
       await renderTransitTables();
       await renderCountryStockSpend();
@@ -1818,7 +1805,6 @@ async function handleShipmentActions(e) {
     if (!date) return;
     try { 
       await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) }); 
-      // Reload products to get updated stock data
       await preload();
       await renderTransitTables();
       await renderCountryStockSpend();
@@ -1843,7 +1829,6 @@ async function handleShipmentActions(e) {
     if (!confirm('Delete shipment?')) return;
     try { 
       await api(`/api/shipments/${id}`, { method: 'DELETE' }); 
-      // Reload products to get updated stock data
       await preload();
       await renderTransitTables();
       await renderCountryStockSpend();
@@ -2061,7 +2046,6 @@ async function renderProductStockAd(product) {
   const tb = Q('#pdStockBody'); if (!tb) return;
   
   try {
-    // Use server-side stock data for the specific product
     const stockByCountry = product.stockByCountry || {};
     
     const adSpends = await api('/api/adspend');
@@ -2211,7 +2195,6 @@ async function handleProductShipmentActions(e) {
     if (!date) return;
     try { 
       await api(`/api/shipments/${id}`, { method: 'PUT', body: JSON.stringify({ arrivedAt: date }) }); 
-      // Reload products to get updated stock data
       await preload();
       const product = state.products.find(p => p.id === state.productId);
       await renderProductTransitTables(product);
@@ -2237,7 +2220,6 @@ async function handleProductShipmentActions(e) {
     if (!confirm('Delete shipment?')) return;
     try { 
       await api(`/api/shipments/${id}`, { method: 'DELETE' }); 
-      // Reload products to get updated stock data
       await preload();
       const product = state.products.find(p => p.id === state.productId);
       await renderProductTransitTables(product);
@@ -2528,7 +2510,6 @@ function bindProductNotes(product) {
   const saveBtn = Q('#pdNoteSave');
   if (!saveBtn) return;
 
-  // Load existing notes
   loadProductNotes(product);
 
   saveBtn.onclick = async () => {
@@ -2598,7 +2579,6 @@ async function bindInfluencers(product) {
 
   if (!addBtn || !spendBtn || !filterBtn) return;
 
-  // Load influencers and spends
   await loadInfluencers();
   await loadInfluencerSpends(product);
 
