@@ -1482,7 +1482,7 @@ function renderRemittanceAnalytics(analytics) {
       <td>$${fmt(item.averageOrderValue)}</td>
       <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(item.profit)}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="22" class="muted">No data for selected period</td></tr>`;
+  }).join('') || `<tr><td colspan="20" class="muted">No data for selected period</td></tr>`;
 
   const totalDeliveryRate = totalOrders > 0 ? (totalDeliveredOrders / totalOrders) * 100 : 0;
   const avgBoxleoPerOrder = itemCount > 0 ? totalBoxleoPerOrder / itemCount : 0;
@@ -1510,7 +1510,6 @@ function renderRemittanceAnalytics(analytics) {
   Q('#remAnalyticsAOVT') && (Q('#remAnalyticsAOVT').textContent = '$' + fmt(avgAOV));
   Q('#remAnalyticsProfitT') && (Q('#remAnalyticsProfitT').textContent = fmt(totalProfit));
 }
-
 function bindProfitByCountry() {
   const btn = Q('#pcRun');
   if (!btn) return;
