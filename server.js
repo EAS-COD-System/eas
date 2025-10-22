@@ -280,12 +280,11 @@ function calculateProductCosts(db, productId, targetCountry = null) {
 
 function calculateProfitMetrics(db, productId = null, country = null, startDate = null, endDate = null) {
   const remittances = db.remittances || [];
-  const adSpends = db.adspend || []; // This includes dashboard entries but we WON'T use them
   const refunds = db.refunds || [];
   const influencerSpends = db.influencerSpends || [];
 
   let totalRevenue = 0;
-  let totalAdSpend = 0; // This will now ONLY include remittance-based ad spend
+  let totalAdSpend = 0;
   let totalBoxleoFees = 0;
   let totalDeliveredPieces = 0;
   let totalDeliveredOrders = 0;
@@ -300,18 +299,12 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
         (!startDate || remittance.start >= startDate) &&
         (!endDate || remittance.end <= endDate)) {
       totalRevenue += +remittance.revenue || 0;
-      totalAdSpend += +remittance.adSpend || 0; // Only remittance ad spend counts
+      totalAdSpend += +remittance.adSpend || 0;
       totalBoxleoFees += +remittance.boxleoFees || 0;
       totalDeliveredPieces += +remittance.pieces || 0;
       totalDeliveredOrders += +remittance.orders || 0;
     }
   });
-
-  // FIXED: Dashboard ad spends are for tracking only - DO NOT include in profit calculations
-  // adSpends.forEach(ad => {
-  //   // Completely skip dashboard ad spends - they don't belong in profit calculations
-  //   // Only remittance-based ad spend should affect profit metrics
-  // });
 
   // Calculate refunds
   refunds.forEach(refund => {
@@ -393,7 +386,7 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
   const netDeliveredOrders = totalDeliveredOrders - totalRefundedOrders;
   const deliveryRate = totalOrders > 0 ? (netDeliveredOrders / totalOrders) * 100 : 0;
 
-  // Calculate rates - ADDED THE TWO METRICS YOU REQUESTED
+  // Calculate rates
   const costPerDeliveredOrder = netDeliveredOrders > 0 ? totalCost / netDeliveredOrders : 0;
   const costPerDeliveredPiece = totalDeliveredPieces > 0 ? totalCost / totalDeliveredPieces : 0;
   const adCostPerDeliveredOrder = netDeliveredOrders > 0 ? totalAdSpend / netDeliveredOrders : 0;
@@ -407,7 +400,7 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
   
   return {
     totalRevenue: adjustedRevenue,
-    totalAdSpend, // Now only contains remittance-based ad spend
+    totalAdSpend,
     totalBoxleoFees,
     totalProductChinaCost,
     totalShippingCost,
@@ -422,8 +415,8 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
     deliveryRate,
     costPerDeliveredOrder,
     costPerDeliveredPiece,
-    adCostPerDeliveredOrder, // ADDED: Ad cost per delivered order
-    adCostPerDeliveredPiece, // ADDED: Ad cost per delivered piece
+    adCostPerDeliveredOrder,
+    adCostPerDeliveredPiece,
     boxleoPerDeliveredOrder,
     boxleoPerDeliveredPiece,
     influencerPerDeliveredOrder,
