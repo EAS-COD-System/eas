@@ -1804,3 +1804,88 @@ select.input {
   color: var(--text-muted);
   font-size: 0.8rem;
 }
+/* Adspend Page Styles */
+.adspend-summary {
+  margin-top: 20px;
+}
+
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.stat-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.breakdown-section {
+  margin-bottom: 30px;
+}
+
+.breakdown-section h4 {
+  margin-bottom: 15px;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--primary);
+  padding-bottom: 5px;
+}
+
+.breakdown-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.breakdown-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 10px;
+  background: var(--card-bg);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.breakdown-label {
+  min-width: 100px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.breakdown-bar {
+  flex: 1;
+  height: 20px;
+  background: var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.breakdown-bar-fill {
+  height: 100%;
+  background: var(--primary);
+  transition: width 0.3s ease;
+}
+
+.breakdown-value {
+  min-width: 120px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--text-primary);
+}
