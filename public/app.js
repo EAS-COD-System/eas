@@ -1121,7 +1121,7 @@ function renderProductInfoResults(productInfo) {
   const container = Q('#productInfoResults');
   if (!container) return;
 
-  const { product, costAnalysis } = productInfo;
+  const { product, costAnalysis, boxleoPerOrder } = productInfo;
 
   let html = `
     <div class="product-info-results">
@@ -1131,37 +1131,49 @@ function renderProductInfoResults(productInfo) {
       </div>
       
       <div class="profit-budgets-section">
-        <h4>💰 Product Cost Analysis by Country</h4>
+        <h4>💰 Product Cost Analysis by Country (Including Boxleo Fees)</h4>
+        <div class="card" style="background: var(--primary-50); margin-bottom: 15px;">
+          <div style="padding: 10px;">
+            <strong>Calculation Formula:</strong><br>
+            Selling Price - (Product Cost China + Shipping Cost + Boxleo per Order) = Available for Profit & Ads<br>
+            Max CPL = Available for Profit & Ads × (Delivery Rate / 100)
+          </div>
+        </div>
         <div class="table-scroll">
           <table class="table">
             <thead>
               <tr>
                 <th>Country</th>
                 <th>Selling Price</th>
-                <th>Max Cost Per Lead</th>
                 <th>Product Cost China</th>
                 <th>Shipping Cost</th>
-                <th>Total Product Cost</th>
+                <th>Boxleo/Order</th>
+                <th>Total Cost</th>
                 <th>Available for Profit & Ads</th>
                 <th>Delivery Rate</th>
-                <th>Boxleo/Order</th>
+                <th>Max Cost Per Lead</th>
               </tr>
             </thead>
             <tbody>
   `;
 
   costAnalysis.forEach(analysis => {
+    const boxleoPerOrderValue = analysis.boxleoPerOrder || boxleoPerOrder || 0;
+    const totalCost = analysis.productCostChina + analysis.shippingCost + boxleoPerOrderValue;
+    const availableForProfitAndAds = analysis.sellingPrice - totalCost;
+    const maxCPL = analysis.deliveryRate > 0 ? availableForProfitAndAds * (analysis.deliveryRate / 100) : 0;
+
     html += `
       <tr>
         <td>${analysis.country}</td>
         <td>$${fmt(analysis.sellingPrice)}</td>
-        <td>$${fmt(analysis.maxCPL)}</td>
         <td>$${fmt(analysis.productCostChina)}</td>
         <td>$${fmt(analysis.shippingCost)}</td>
-        <td>$${fmt(analysis.totalProductCost)}</td>
-        <td class="${analysis.availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(analysis.availableForProfitAndAds)}</td>
+        <td>$${fmt(boxleoPerOrderValue)}</td>
+        <td>$${fmt(totalCost)}</td>
+        <td class="${availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(availableForProfitAndAds)}</td>
         <td>${fmt(analysis.deliveryRate)}%</td>
-        <td>$${fmt(analysis.boxleoPerOrder)}</td>
+        <td>$${fmt(maxCPL)}</td>
       </tr>
     `;
   });
@@ -2105,24 +2117,29 @@ function renderProductBudgets(product) {
   api(`/api/product-info/${product.id}`).then(productInfo => {
     const { costAnalysis } = productInfo;
 
-    tb.innerHTML = costAnalysis.map(analysis => `
+    tb.innerHTML = costAnalysis.map(analysis => {
+      const boxleoPerOrderValue = analysis.boxleoPerOrder || 0;
+      const totalCost = analysis.productCostChina + analysis.shippingCost + boxleoPerOrderValue;
+      const availableForProfitAndAds = analysis.sellingPrice - totalCost;
+      const maxCPL = analysis.deliveryRate > 0 ? availableForProfitAndAds * (analysis.deliveryRate / 100) : 0;
+
+      return `
       <tr>
         <td>${analysis.country}</td>
         <td>$${fmt(analysis.sellingPrice)}</td>
         <td>$${fmt(analysis.productCostChina)}</td>
         <td>$${fmt(analysis.shippingCost)}</td>
-        <td>$${fmt(analysis.totalProductCost)}</td>
-        <td>$${fmt(analysis.maxCPL)}</td>
+        <td>$${fmt(boxleoPerOrderValue)}</td>
+        <td>$${fmt(totalCost)}</td>
+        <td>$${fmt(maxCPL)}</td>
         <td>${fmt(analysis.deliveryRate)}%</td>
-        <td class="${analysis.availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(analysis.availableForProfitAndAds)}</td>
-        <td>$${fmt(analysis.boxleoPerOrder)}</td>
-      </tr>
-    `).join('') || `<tr><td colspan="9" class="muted">No data available</td></tr>`;
+        <td class="${availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(availableForProfitAndAds)}</td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="9" class="muted">No data available</td></tr>`;
   }).catch(() => {
     tb.innerHTML = `<tr><td colspan="9" class="muted">Error loading cost data</td></tr>`;
   });
 }
-
 async function renderProductTransit(product) {
   await renderProductTransitTables(product);
 }
