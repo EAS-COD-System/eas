@@ -496,7 +496,7 @@ async function renderCountryStockSpend() {
   }
 }
 
-// FIXED: Added date field to daily ad spend
+// FIXED: Added date field to daily ad spend and auto-refresh advertising overview
 function bindDailyAdSpend() {
   const btn = Q('#adSave');
   if (!btn) return;
@@ -513,7 +513,14 @@ function bindDailyAdSpend() {
       await api('/api/adspend', { method: 'POST', body: JSON.stringify(payload) });
       await renderCountryStockSpend();
       await renderCompactKpis();
+      
+      // Refresh the advertising overview immediately
+      await renderAdvertisingOverview();
+      
       alert('Ad spend saved');
+      
+      // Clear the form
+      Q('#adAmount').value = '';
     } catch (e) { alert(e.message); }
   };
 }
@@ -1213,78 +1220,91 @@ function renderCompactCountryStats() {
 }
 
 function renderAdvertisingOverview() {
-  try {
-    const container = Q('#advertisingOverview');
-    if (!container) return;
+  return new Promise((resolve) => {
+    try {
+      const container = Q('#advertisingOverview');
+      if (!container) {
+        resolve();
+        return;
+      }
 
-    api('/api/adspend').then(adData => {
-      const adSpends = adData.adSpends || [];
+      // Show loading state
+      container.innerHTML = '<div class="card"><div class="muted">Updating advertising data...</div></div>';
 
-      const byCountry = {};
+      api('/api/adspend').then(adData => {
+        const adSpends = adData.adSpends || [];
 
-      adSpends.forEach(spend => {
-        const country = spend.country;
-        const productId = spend.productId;
-        const platform = spend.platform;
-        const amount = +spend.amount || 0;
+        const byCountry = {};
 
-        if (!byCountry[country]) {
-          byCountry[country] = {};
-        }
+        adSpends.forEach(spend => {
+          const country = spend.country;
+          const productId = spend.productId;
+          const platform = spend.platform;
+          const amount = +spend.amount || 0;
 
-        if (!byCountry[country][productId]) {
-          byCountry[country][productId] = {
-            facebook: 0,
-            tiktok: 0,
-            google: 0,
-            total: 0
-          };
-        }
+          if (!byCountry[country]) {
+            byCountry[country] = {};
+          }
 
-        if (platform === 'facebook') byCountry[country][productId].facebook += amount;
-        else if (platform === 'tiktok') byCountry[country][productId].tiktok += amount;
-        else if (platform === 'google') byCountry[country][productId].google += amount;
+          if (!byCountry[country][productId]) {
+            byCountry[country][productId] = {
+              facebook: 0,
+              tiktok: 0,
+              google: 0,
+              total: 0
+            };
+          }
 
-        byCountry[country][productId].total += amount;
-      });
+          if (platform === 'facebook') byCountry[country][productId].facebook += amount;
+          else if (platform === 'tiktok') byCountry[country][productId].tiktok += amount;
+          else if (platform === 'google') byCountry[country][productId].google += amount;
 
-      let html = '';
-
-      Object.keys(byCountry).sort().forEach(country => {
-        const products = byCountry[country];
-        const sortedProducts = Object.entries(products)
-          .filter(([_, data]) => data.total > 0)
-          .sort((a, b) => b[1].total - a[1].total);
-
-        if (sortedProducts.length === 0) return;
-
-        html += `<div class="card country-section">
-          <div class="h" style="color: var(--primary); margin-bottom: 12px;">${country}</div>`;
-
-        sortedProducts.forEach(([productId, data]) => {
-          const product = state.products ? state.products.find(p => p.id === productId) : { name: productId };
-          html += `
-          <div class="product-row">
-            <div class="product-name">${product ? product.name : productId}</div>
-            <div class="platform-spends">
-              <span class="platform-badge ${data.facebook > 0 ? 'active' : ''}">Facebook: ${fmt(data.facebook)}</span>
-              <span class="platform-badge ${data.tiktok > 0 ? 'active' : ''}">TikTok: ${fmt(data.tiktok)}</span>
-              <span class="platform-badge ${data.google > 0 ? 'active' : ''}">Google: ${fmt(data.google)}</span>
-              <span class="total-badge">Total: ${fmt(data.total)}</span>
-            </div>
-          </div>`;
+          byCountry[country][productId].total += amount;
         });
 
-        html += `</div>`;
+        let html = '';
+
+        Object.keys(byCountry).sort().forEach(country => {
+          const products = byCountry[country];
+          const sortedProducts = Object.entries(products)
+            .filter(([_, data]) => data.total > 0)
+            .sort((a, b) => b[1].total - a[1].total);
+
+          if (sortedProducts.length === 0) return;
+
+          html += `<div class="card country-section">
+            <div class="h" style="color: var(--primary); margin-bottom: 12px;">${country}</div>`;
+
+          sortedProducts.forEach(([productId, data]) => {
+            const product = state.products ? state.products.find(p => p.id === productId) : { name: productId };
+            html += `
+            <div class="product-row">
+              <div class="product-name">${product ? product.name : productId}</div>
+              <div class="platform-spends">
+                <span class="platform-badge ${data.facebook > 0 ? 'active' : ''}">Facebook: ${fmt(data.facebook)}</span>
+                <span class="platform-badge ${data.tiktok > 0 ? 'active' : ''}">TikTok: ${fmt(data.tiktok)}</span>
+                <span class="platform-badge ${data.google > 0 ? 'active' : ''}">Google: ${fmt(data.google)}</span>
+                <span class="total-badge">Total: ${fmt(data.total)}</span>
+              </div>
+            </div>`;
+          });
+
+          html += `</div>`;
+        });
+
+        container.innerHTML = html || '<div class="card"><div class="muted">No advertising data yet</div></div>';
+        resolve();
+      }).catch(error => {
+        console.error('Error loading advertising overview:', error);
+        container.innerHTML = '<div class="card"><div class="muted">Error loading advertising data</div></div>';
+        resolve();
       });
-
-      container.innerHTML = html || '<div class="card"><div class="muted">No advertising data yet</div></div>';
-    }).catch(console.error);
-  } catch (error) {
-    console.error('Error in renderAdvertisingOverview:', error);
-  }
+    } catch (error) {
+      console.error('Error in renderAdvertisingOverview:', error);
+      resolve();
+    }
+  });
 }
-
 function renderProductInfoResults(productInfo) {
   const container = Q('#productInfoResults');
   if (!container) return;
