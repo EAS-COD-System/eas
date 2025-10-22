@@ -393,7 +393,7 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
   const netDeliveredOrders = totalDeliveredOrders - totalRefundedOrders;
   const deliveryRate = totalOrders > 0 ? (netDeliveredOrders / totalOrders) * 100 : 0;
 
-  // Calculate rates
+  // Calculate rates - ADDED THE TWO METRICS YOU REQUESTED
   const costPerDeliveredOrder = netDeliveredOrders > 0 ? totalCost / netDeliveredOrders : 0;
   const costPerDeliveredPiece = totalDeliveredPieces > 0 ? totalCost / totalDeliveredPieces : 0;
   const adCostPerDeliveredOrder = netDeliveredOrders > 0 ? totalAdSpend / netDeliveredOrders : 0;
@@ -422,8 +422,8 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
     deliveryRate,
     costPerDeliveredOrder,
     costPerDeliveredPiece,
-    adCostPerDeliveredOrder,
-    adCostPerDeliveredPiece,
+    adCostPerDeliveredOrder, // ADDED: Ad cost per delivered order
+    adCostPerDeliveredPiece, // ADDED: Ad cost per delivered piece
     boxleoPerDeliveredOrder,
     boxleoPerDeliveredPiece,
     influencerPerDeliveredOrder,
