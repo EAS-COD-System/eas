@@ -280,12 +280,12 @@ function calculateProductCosts(db, productId, targetCountry = null) {
 
 function calculateProfitMetrics(db, productId = null, country = null, startDate = null, endDate = null) {
   const remittances = db.remittances || [];
-  const adSpends = db.adspend || [];
+  const adSpends = db.adspend || []; // This includes dashboard entries but we WON'T use them
   const refunds = db.refunds || [];
   const influencerSpends = db.influencerSpends || [];
 
   let totalRevenue = 0;
-  let totalAdSpend = 0;
+  let totalAdSpend = 0; // This will now ONLY include remittance-based ad spend
   let totalBoxleoFees = 0;
   let totalDeliveredPieces = 0;
   let totalDeliveredOrders = 0;
@@ -293,40 +293,25 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
   let totalRefundedAmount = 0;
   let totalInfluencerSpend = 0;
 
-  // Calculate from remittances
+  // Calculate from remittances (ONLY source for profit calculations)
   remittances.forEach(remittance => {
     if ((!productId || remittance.productId === productId) &&
         (!country || remittance.country === country) &&
         (!startDate || remittance.start >= startDate) &&
         (!endDate || remittance.end <= endDate)) {
       totalRevenue += +remittance.revenue || 0;
-      totalAdSpend += +remittance.adSpend || 0;
+      totalAdSpend += +remittance.adSpend || 0; // Only remittance ad spend counts
       totalBoxleoFees += +remittance.boxleoFees || 0;
       totalDeliveredPieces += +remittance.pieces || 0;
       totalDeliveredOrders += +remittance.orders || 0;
     }
   });
 
-  // FIXED: Include ad spends from dashboard entries with date filtering
-  adSpends.forEach(ad => {
-    if ((!productId || ad.productId === productId) &&
-        (!country || ad.country === country)) {
-      
-      // For dashboard ad spends, use the date field for filtering
-      let includeAdSpend = true;
-      
-      if (startDate && ad.date && ad.date < startDate) {
-        includeAdSpend = false;
-      }
-      if (endDate && ad.date && ad.date > endDate) {
-        includeAdSpend = false;
-      }
-      
-      if (includeAdSpend) {
-        totalAdSpend += +ad.amount || 0;
-      }
-    }
-  });
+  // FIXED: Dashboard ad spends are for tracking only - DO NOT include in profit calculations
+  // adSpends.forEach(ad => {
+  //   // Completely skip dashboard ad spends - they don't belong in profit calculations
+  //   // Only remittance-based ad spend should affect profit metrics
+  // });
 
   // Calculate refunds
   refunds.forEach(refund => {
@@ -422,7 +407,7 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
   
   return {
     totalRevenue: adjustedRevenue,
-    totalAdSpend,
+    totalAdSpend, // Now only contains remittance-based ad spend
     totalBoxleoFees,
     totalProductChinaCost,
     totalShippingCost,
@@ -447,7 +432,6 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
     hasData: hasData
   };
 }
-
 // ======== STARTUP BACKUP ========
 async function createStartupBackup() {
   try {
