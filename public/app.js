@@ -1138,13 +1138,13 @@ function renderProductInfoResults(productInfo) {
               <tr>
                 <th>Country</th>
                 <th>Max Cost Per Lead</th>
+                <th>Available for Profit & Ads</th>
+                <th>Delivery Rate</th>
                 <th>Selling Price</th>
                 <th>Product Cost China</th>
                 <th>Shipping Cost</th>
                 <th>Boxleo/Order</th>
                 <th>Total Cost</th>
-                <th>Available for Profit & Ads</th>
-                <th>Delivery Rate</th>
               </tr>
             </thead>
             <tbody>
@@ -1160,13 +1160,13 @@ function renderProductInfoResults(productInfo) {
       <tr>
         <td>${analysis.country}</td>
         <td>$${fmt(maxCPL)}</td>
+        <td class="${availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(availableForProfitAndAds)}</td>
+        <td>${fmt(analysis.deliveryRate)}%</td>
         <td>$${fmt(analysis.sellingPrice)}</td>
         <td>$${fmt(analysis.productCostChina)}</td>
         <td>$${fmt(analysis.shippingCost)}</td>
         <td>$${fmt(boxleoPerOrderValue)}</td>
         <td>$${fmt(totalCost)}</td>
-        <td class="${availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(availableForProfitAndAds)}</td>
-        <td>${fmt(analysis.deliveryRate)}%</td>
       </tr>
     `;
   });
@@ -2108,8 +2108,11 @@ function renderProductBudgets(product) {
 
   api(`/api/product-info/${product.id}`).then(productInfo => {
     const { costAnalysis } = productInfo;
+    console.log('Product Budgets Data:', productInfo); // Debug log
 
     tb.innerHTML = costAnalysis.map(analysis => {
+      console.log('Country Analysis:', analysis); // Debug log per country
+      
       const boxleoPerOrderValue = analysis.boxleoPerOrder || 0;
       const totalCost = analysis.productCostChina + analysis.shippingCost + boxleoPerOrderValue;
       const availableForProfitAndAds = analysis.sellingPrice - totalCost;
@@ -2119,17 +2122,18 @@ function renderProductBudgets(product) {
       <tr>
         <td>${analysis.country}</td>
         <td>$${fmt(maxCPL)}</td>
+        <td class="${availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(availableForProfitAndAds)}</td>
+        <td>${fmt(analysis.deliveryRate)}%</td>
         <td>$${fmt(analysis.sellingPrice)}</td>
         <td>$${fmt(analysis.productCostChina)}</td>
         <td>$${fmt(analysis.shippingCost)}</td>
         <td>$${fmt(boxleoPerOrderValue)}</td>
         <td>$${fmt(totalCost)}</td>
-        <td>${fmt(analysis.deliveryRate)}%</td>
-        <td class="${availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(availableForProfitAndAds)}</td>
       </tr>`;
     }).join('') || `<tr><td colspan="9" class="muted">No data available</td></tr>`;
-  }).catch(() => {
-    tb.innerHTML = `<tr><td colspan="9" class="muted">Error loading cost data</td></tr>`;
+  }).catch((error) => {
+    console.error('Error loading product budgets:', error);
+    tb.innerHTML = `<tr><td colspan="9" class="muted">Error loading cost data: ${error.message}</td></tr>`;
   });
 }
 async function renderProductTransit(product) {
