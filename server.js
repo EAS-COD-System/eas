@@ -307,12 +307,24 @@ function calculateProfitMetrics(db, productId = null, country = null, startDate 
     }
   });
 
-  // Add ad spends
+  // FIXED: Include ad spends from dashboard entries with date filtering
   adSpends.forEach(ad => {
     if ((!productId || ad.productId === productId) &&
-        (!country || ad.country === country) &&
-        (!startDate || true) && (!endDate || true)) {
-      totalAdSpend += +ad.amount || 0;
+        (!country || ad.country === country)) {
+      
+      // For dashboard ad spends, use the date field for filtering
+      let includeAdSpend = true;
+      
+      if (startDate && ad.date && ad.date < startDate) {
+        includeAdSpend = false;
+      }
+      if (endDate && ad.date && ad.date > endDate) {
+        includeAdSpend = false;
+      }
+      
+      if (includeAdSpend) {
+        totalAdSpend += +ad.amount || 0;
+      }
     }
   });
 
@@ -842,19 +854,40 @@ app.delete('/api/tested-products/:id', requireAuth, (req, res) => {
   saveDB(db); res.json({ ok: true });
 });
 
-// Ad Spend
-app.get('/api/adspend', requireAuth, (req, res) => {
-  const db = loadDB(); res.json({ adSpends: db.adspend || [] });
+// Ad Spend - FIXED: Added date field
+app.get('/api/adspend', requireAuth, (req, res) => { 
+  const db = loadDB(); 
+  res.json({ adSpends: db.adspend || [] });
 });
 
 app.post('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB(); db.adspend = db.adspend || [];
-  const { productId, country, platform, amount } = req.body || {};
-  if (!productId || !country || !platform) return res.status(400).json({ error: 'Missing fields' });
-  const ex = db.adspend.find(a => a.productId === productId && a.country === country && a.platform === platform);
-  if (ex) ex.amount = +amount || 0;
-  else db.adspend.push({ id: uuidv4(), productId, country, platform, amount: +amount || 0 });
-  saveDB(db); res.json({ ok: true });
+  const { productId, country, platform, amount, date } = req.body || {};
+  if (!productId || !country || !platform || !date) return res.status(400).json({ error: 'Missing fields' });
+  
+  // FIXED: Include date in the search to allow multiple entries per day for same product/country/platform
+  const ex = db.adspend.find(a => 
+    a.productId === productId && 
+    a.country === country && 
+    a.platform === platform &&
+    a.date === date
+  );
+  
+  if (ex) {
+    ex.amount = +amount || 0;
+  } else {
+    db.adspend.push({ 
+      id: uuidv4(), 
+      productId, 
+      country, 
+      platform, 
+      amount: +amount || 0,
+      date: date // FIXED: Add date field
+    });
+  }
+  
+  saveDB(db); 
+  res.json({ ok: true });
 });
 
 // Deliveries
@@ -1295,6 +1328,7 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
     totalDeliveredOrders: totalDeliveredOrders
   });
 });
+
 // Product Costs Analysis - FIXED FOR "ALL PRODUCTS"
 app.get('/api/product-costs-analysis', requireAuth, (req, res) => {
   const db = loadDB();
