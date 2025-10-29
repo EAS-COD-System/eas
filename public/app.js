@@ -78,8 +78,7 @@ async function boot() {
     console.log('Data preloaded');
     
     console.log('Initializing navigation...');
-    initSimpleNavigation();
-    bindGlobalNav();
+    bindGlobalNav(); // FIXED: Call the navigation function
     console.log('Navigation initialized');
 
     if (state.productId) {
@@ -91,7 +90,7 @@ async function boot() {
       renderProductsPage();
       renderPerformancePage();
       renderStockMovementPage();
-      renderAdspendPage();
+      renderAdspendPage(); // ADDED: This was missing
       renderFinancePage();
       renderSettingsPage();
     }
