@@ -3075,44 +3075,58 @@ function fillProductPageSelects() {
   });
 }
 
-// ======== GLOBAL NAVIGATION ========
+// ======== FIXED NAVIGATION - REPLACE YOUR EXISTING FUNCTION ========
 function bindGlobalNav() {
+  console.log('🔄 Setting up navigation...');
+  
   const navLinks = QA('.nav a[data-view]');
+  const mainSections = QA('.container > section');
+  
+  console.log('📍 Found nav links:', navLinks.length);
+  console.log('📍 Found sections:', mainSections.length);
+  
+  // Hide all sections first
+  mainSections.forEach(section => {
+    section.style.display = 'none';
+  });
+  
+  // Add click listeners to nav links
   navLinks.forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
-      const view = e.target.dataset.view;
-      showView(view);
+      const viewName = link.getAttribute('data-view');
+      console.log('🎯 Navigation clicked:', viewName);
+      
+      // Remove active class from all links
+      navLinks.forEach(l => l.classList.remove('active'));
+      
+      // Add active class to clicked link
+      link.classList.add('active');
+      
+      // Hide all sections
+      mainSections.forEach(section => {
+        section.style.display = 'none';
+      });
+      
+      // Show the selected section
+      const targetSection = document.getElementById(viewName);
+      if (targetSection) {
+        targetSection.style.display = 'block';
+        console.log('✅ Showing section:', viewName);
+      } else {
+        console.log('❌ Section not found:', viewName);
+      }
     });
   });
-}
-
-function showView(viewName) {
-  // Hide all sections
-  QA('#main > section').forEach(section => {
-    section.style.display = 'none';
-  });
-
-  // Remove active class from all nav links
-  QA('.nav a[data-view]').forEach(link => {
-    link.classList.remove('active');
-  });
-
-  // Show selected section and activate nav link
-  const targetSection = Q(`#${viewName}`);
-  const targetLink = Q(`.nav a[data-view="${viewName}"]`);
-
-  if (targetSection) {
-    targetSection.style.display = 'block';
+  
+  // Show home section by default
+  const homeSection = document.getElementById('home');
+  const homeLink = document.querySelector('.nav a[data-view="home"]');
+  if (homeSection && homeLink) {
+    homeSection.style.display = 'block';
+    homeLink.classList.add('active');
+    console.log('🏠 Default section: home');
   }
-
-  if (targetLink) {
-    targetLink.classList.add('active');
-  }
-
-  // Scroll to top when changing views
-  window.scrollTo(0, 0);
 }
-
 // ======== INITIALIZATION ========
 document.addEventListener('DOMContentLoaded', boot);
