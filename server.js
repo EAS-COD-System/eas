@@ -97,7 +97,8 @@ function calculateShippingCostPerPiece(db, productId, targetCountry) {
   traceShipmentCost(targetCountry, 0);
   return totalPieces > 0 ? totalCost / totalPieces : 0;
 }
-function calculateProductCostPerPiece(db, productId, targetCountry) {
+
+function calculateProductCostPerPiece(db, productId) {
   const shipments = db.shipments || [];
   const chinaShipments = shipments.filter(s => 
     s.productId === productId && 
@@ -299,33 +300,34 @@ function calculateProfitMetrics(db, productId, country = null, startDate = null,
   }
 
   // Calculate product costs using FIXED logic (for analytics sections)
-let totalProductChinaCost = 0;
-let totalShippingCost = 0;
+  let totalProductChinaCost = 0;
+  let totalShippingCost = 0;
 
-if (productId && totalDeliveredPieces > 0) {
-  if (country) {
-    const productCostPerPiece = calculateProductCostPerPiece(db, productId, country);
-    const shippingCostPerPiece = calculateShippingCostPerPiece(db, productId, country);
-    
-    totalProductChinaCost = totalDeliveredPieces * productCostPerPiece;
-    totalShippingCost = totalDeliveredPieces * shippingCostPerPiece;
-  } else {
-    // Aggregate across all countries
-    const countries = db.countries.filter(c => c !== 'china');
-    countries.forEach(country => {
-      const productCostPerPiece = calculateProductCostPerPiece(db, productId, country);
+  if (productId && totalDeliveredPieces > 0) {
+    if (country) {
+      const productCostPerPiece = calculateProductCostPerPiece(db, productId);
       const shippingCostPerPiece = calculateShippingCostPerPiece(db, productId, country);
-      const countryRemittances = remittances.filter(r => 
-        r.productId === productId && r.country === country &&
-        (!startDate || r.start >= startDate) && (!endDate || r.end <= endDate)
-      );
-      const countryPieces = countryRemittances.reduce((sum, r) => sum + (+r.pieces || 0), 0);
       
-      totalProductChinaCost += countryPieces * productCostPerPiece;
-      totalShippingCost += countryPieces * shippingCostPerPiece;
-    });
+      totalProductChinaCost = totalDeliveredPieces * productCostPerPiece;
+      totalShippingCost = totalDeliveredPieces * shippingCostPerPiece;
+    } else {
+      // Aggregate across all countries
+      const countries = db.countries.filter(c => c !== 'china');
+      countries.forEach(country => {
+        const productCostPerPiece = calculateProductCostPerPiece(db, productId);
+        const shippingCostPerPiece = calculateShippingCostPerPiece(db, productId, country);
+        const countryRemittances = remittances.filter(r => 
+          r.productId === productId && r.country === country &&
+          (!startDate || r.start >= startDate) && (!endDate || r.end <= endDate)
+        );
+        const countryPieces = countryRemittances.reduce((sum, r) => sum + (+r.pieces || 0), 0);
+        
+        totalProductChinaCost += countryPieces * productCostPerPiece;
+        totalShippingCost += countryPieces * shippingCostPerPiece;
+      });
+    }
   }
-}
+
   // Adjust revenue for refunds
   const adjustedRevenue = totalRevenue - totalRefundedAmount;
   
@@ -942,7 +944,13 @@ app.delete('/api/tested-products/:id', requireAuth, (req, res) => {
   db.testedProducts = (db.testedProducts || []).filter(tp => tp.id !== req.params.id);
   saveDB(db); res.json({ ok: true });
 });
- // Ad Spend 
+
+// Ad Spend 
+app.get('/api/adspend', requireAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ adSpends: db.adspend || [] });
+});
+
 app.post('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.adspend = db.adspend || [];
@@ -986,6 +994,7 @@ app.post('/api/adspend', requireAuth, (req, res) => {
   saveDB(db); 
   res.json({ ok: true });
 });
+
 // Deliveries
 app.get('/api/deliveries', requireAuth, (req, res) => {
   const db = loadDB(); res.json({ deliveries: db.deliveries || [] });
@@ -1482,7 +1491,7 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
     const price = prices.find(p => p.country === country);
     
     // Use FIXED cost calculation logic
-    const productCostPerPiece = calculateProductCostPerPiece(db, productId, country);
+    const productCostPerPiece = calculateProductCostPerPiece(db, productId);
     const shippingCostPerPiece = calculateShippingCostPerPiece(db, productId, country);
     
     const sellingPrice = price ? +price.price : 0;
