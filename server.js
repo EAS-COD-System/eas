@@ -49,7 +49,6 @@ function ensureDB() {
       influencers: [],
       influencerSpends: [],
       snapshots: [],
-      // NEW: Todo list storage
       todos: [],
       weeklyTodos: {}
     }, { spaces: 2 });
@@ -67,33 +66,60 @@ function requireAuth(req, res, next) {
 // ======== ENHANCED SHIPPING COST CALCULATION LOGIC ========
 function calculateShippingCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
-  const arrivedShipments = shipments.filter(s => 
-    s.productId === productId && s.arrivedAt && s.toCountry === targetCountry
-  );
-
-  if (arrivedShipments.length === 0) return 0;
-
+  
+  // Find all shipments that contributed to stock in target country
   let totalShippingCost = 0;
   let totalPieces = 0;
-
-  // Calculate shipping cost for each shipment to the target country
-  arrivedShipments.forEach(shipment => {
-    const pieces = +shipment.qty || 0;
-    const shippingCost = +shipment.shipCost || 0;
+  
+  // Function to trace shipment path and accumulate costs
+  function traceShipmentCost(shipmentId, currentCountry, accumulatedCost = 0) {
+    const shipment = shipments.find(s => s.id === shipmentId);
+    if (!shipment) return;
     
-    if (pieces > 0) {
-      totalShippingCost += shippingCost;
+    if (shipment.toCountry === targetCountry) {
+      const pieces = +shipment.qty || 0;
+      const shippingCost = +shipment.shipCost || 0;
+      const costPerPiece = shippingCost / pieces;
+      
+      totalShippingCost += (accumulatedCost + costPerPiece) * pieces;
       totalPieces += pieces;
+      return;
     }
+    
+    // Find next shipments from this destination
+    const nextShipments = shipments.filter(s => 
+      s.fromCountry === shipment.toCountry && 
+      s.productId === productId &&
+      s.arrivedAt
+    );
+    
+    const nextCostPerPiece = (+shipment.shipCost || 0) / (+shipment.qty || 1);
+    
+    nextShipments.forEach(nextShipment => {
+      traceShipmentCost(nextShipment.id, nextShipment.fromCountry, accumulatedCost + nextCostPerPiece);
+    });
+  }
+  
+  // Start with China shipments
+  const chinaShipments = shipments.filter(s => 
+    s.productId === productId && 
+    s.fromCountry === 'china' && 
+    s.arrivedAt
+  );
+  
+  chinaShipments.forEach(shipment => {
+    traceShipmentCost(shipment.id, 'china', 0);
   });
-
+  
   return totalPieces > 0 ? totalShippingCost / totalPieces : 0;
 }
 
 function calculateProductCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
   const chinaShipments = shipments.filter(s => 
-    s.productId === productId && s.fromCountry === 'china' && s.arrivedAt
+    s.productId === productId && 
+    s.fromCountry === 'china' && 
+    s.arrivedAt
   );
 
   if (chinaShipments.length === 0) return 0;
@@ -101,7 +127,6 @@ function calculateProductCostPerPiece(db, productId, targetCountry) {
   let totalProductCost = 0;
   let totalPieces = 0;
 
-  // Calculate product cost from China shipments
   chinaShipments.forEach(shipment => {
     const pieces = +shipment.qty || 0;
     const chinaCost = +shipment.chinaCost || 0;
@@ -207,20 +232,6 @@ function calculateTransitPieces(db, productId = null) {
     interCountryTransit,
     totalTransit: chinaTransit + interCountryTransit
   };
-}
-
-// ======== ACTIVE/INACTIVE STOCK CALCULATION ========
-function calculateActiveInactiveStock(db) {
-  const stockByCountry = calculateProductStock(db);
-  let activeStock = 0;
-  let inactiveStock = 0;
-  
-  Object.values(stockByCountry).forEach(stock => {
-    if (stock > 0) activeStock += stock;
-    if (stock < 0) inactiveStock += Math.abs(stock);
-  });
-
-  return { activeStock, inactiveStock };
 }
 
 // ======== ENHANCED PROFIT CALCULATION WITH FIXED COST LOGIC ========
@@ -472,7 +483,7 @@ app.post('/api/auth', (req, res) => {
   return res.status(403).json({ error: 'Wrong password' });
 });
 
-// ======== TODO LIST ROUTES (NEW) ========
+// ======== TODO LIST ROUTES (FIXED) ========
 app.get('/api/todos', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ todos: db.todos || [] });
@@ -515,7 +526,7 @@ app.delete('/api/todos/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// ======== WEEKLY TODO ROUTES (NEW) ========
+// ======== WEEKLY TODO ROUTES (FIXED) ========
 app.get('/api/weekly-todos', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ weeklyTodos: db.weeklyTodos || {} });
