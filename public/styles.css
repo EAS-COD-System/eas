@@ -1,5 +1,6 @@
 /* =========================================================
    EAS Tracker — Advanced Professional Dashboard System
+   Enhanced Color Scheme & Professional Styling
    ========================================================= */
 
 /* ---------- CSS Reset ---------- */
@@ -7,7 +8,7 @@
 html, body { height: 100%; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
 img { max-width: 100%; display: block; }
 
-/* ---------- Modern Professional Color Theme - WHITE BACKGROUND ---------- */
+/* ---------- Modern Professional Color Theme ---------- */
 :root {
   /* Primary Colors - Professional Blue Theme */
   --primary: #2563eb;
@@ -36,14 +37,14 @@ img { max-width: 100%; display: block; }
   --gray-800: #1f2937;
   --gray-900: #111827;
   
-  /* Background Colors - WHITE THEME */
+  /* Background Colors */
   --bg-body: #ffffff;
   --bg-card: #ffffff;
   --bg-card-light: #f8fafc;
   --bg-hover: #f1f5f9;
   --bg-sidebar: #f8fafc;
   
-  /* Text Colors - Dark for white background */
+  /* Text Colors */
   --text-primary: #1f2937;
   --text-secondary: #4b5563;
   --text-muted: #6b7280;
@@ -64,13 +65,21 @@ img { max-width: 100%; display: block; }
   --danger-light: rgba(220, 38, 38, 0.1);
   --info-light: rgba(37, 99, 235, 0.1);
   
-  /* Gradients - Professional Blue Theme */
+  /* Enhanced Profit/Loss Colors */
+  --profit-high: #065f46;
+  --profit-medium: #047857;
+  --profit-low: #059669;
+  --loss-high: #991b1b;
+  --loss-medium: #dc2626;
+  --loss-low: #ef4444;
+  
+  /* Gradients */
   --gradient-primary: linear-gradient(135deg, #2563eb, #3b82f6);
   --gradient-success: linear-gradient(135deg, #059669, #10b981);
   --gradient-warning: linear-gradient(135deg, #d97706, #f59e0b);
   --gradient-danger: linear-gradient(135deg, #dc2626, #ef4444);
   
-  /* Shadows - Lighter for white background */
+  /* Shadows */
   --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
@@ -82,7 +91,7 @@ img { max-width: 100%; display: block; }
   --transition-slow: 0.5s ease;
 }
 
-/* ---------- Base Styles - WHITE BACKGROUND ---------- */
+/* ---------- Base Styles ---------- */
 body {
   background: var(--bg-body) !important;
   color: var(--text-primary);
@@ -92,15 +101,15 @@ body {
   padding-top: 0 !important;
 }
 
-/* ---------- Enhanced Fixed Navigation - MOBILE FRIENDLY ---------- */
+/* ---------- Enhanced Fixed Navigation ---------- */
 .nav {
   position: fixed !important;
   top: 0 !important;
   left: 0 !important;
   right: 0 !important;
   z-index: 1000 !important;
-  background: #ffffff !important;
-  border-bottom: 1px solid #e5e5e5 !important;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%) !important;
+  border: none !important;
   padding: 12px 16px !important;
   display: flex !important;
   align-items: center !important;
@@ -109,20 +118,18 @@ body {
   min-height: 80px !important;
   height: auto !important;
   width: 100% !important;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+  box-shadow: var(--shadow-lg) !important;
   transition: transform 0.3s ease, opacity 0.3s ease !important;
   transform: translateY(0) !important;
   opacity: 1 !important;
 }
 
-/* Hide nav when scrolling - COMPLETELY HIDDEN */
 .nav.nav-hidden {
   transform: translateY(-100%) !important;
   opacity: 0 !important;
   pointer-events: none !important;
 }
 
-/* Show nav only at top */
 .nav.nav-visible {
   transform: translateY(0) !important;
   opacity: 1 !important;
@@ -131,34 +138,36 @@ body {
 
 .nav a {
   padding: 10px 14px !important;
-  color: #333 !important;
+  color: rgba(255, 255, 255, 0.9) !important;
   text-decoration: none !important;
   font-weight: 500 !important;
   font-size: 14px !important;
-  border: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
   display: flex !important;
   align-items: center !important;
   gap: 6px !important;
-  background: transparent !important;
+  background: rgba(255, 255, 255, 0.1) !important;
   border-radius: 6px !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.3s ease !important;
   white-space: nowrap !important;
   flex-shrink: 0 !important;
   min-width: 0 !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
+  backdrop-filter: blur(10px);
 }
 
 .nav a:hover {
-  background: #f8f9fa !important;
-  color: #007cba !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  transform: translateY(-1px);
 }
 
 .nav a.active {
-  background: #007cba !important;
+  background: rgba(255, 255, 255, 0.25) !important;
   color: white !important;
-  box-shadow: none !important;
-  font-weight: 500 !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
 }
 
 .nav .nav-right {
@@ -169,7 +178,6 @@ body {
   flex-shrink: 0 !important;
 }
 
-/* Main content starts below the fixed nav */
 #main {
   margin-top: 80px !important;
   padding-top: 20px !important;
@@ -244,21 +252,21 @@ h4 {
   color: transparent;
 }
 
-/* ---------- Advanced KPI Grid - COMPACT ---------- */
+/* ---------- Advanced KPI Grid ---------- */
 .kpis-compact {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 15px;
+  margin-bottom: 25px;
 }
 
 .kpi-compact {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 16px;
+  padding: 20px;
   text-align: center;
-  transition: all var(--transition-normal);
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
 }
@@ -269,12 +277,12 @@ h4 {
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 4px;
   background: var(--gradient-primary);
 }
 
 .kpi-compact:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   box-shadow: var(--shadow-md);
   border-color: var(--primary);
 }
@@ -294,24 +302,17 @@ h4 {
   color: var(--text-primary);
 }
 
-/* Color-coded KPIs */
-.kpi-compact:nth-child(1)::before { background: var(--gradient-primary); }
-.kpi-compact:nth-child(2)::before { background: var(--gradient-success); }
-.kpi-compact:nth-child(3)::before { background: var(--gradient-warning); }
-.kpi-compact:nth-child(4)::before { background: var(--accent-teal); }
-.kpi-compact:nth-child(5)::before { background: var(--accent-orange); }
-
 /* ---------- Professional Cards ---------- */
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 18px;
+  padding: 20px;
   box-shadow: var(--shadow-sm);
-  transition: all var(--transition-normal);
-  margin-bottom: 16px;
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  margin-bottom: 16px;
 }
 
 .card::before {
@@ -322,16 +323,16 @@ h4 {
   right: 0;
   height: 3px;
   background: var(--gradient-primary);
-  opacity: 0;
-  transition: opacity var(--transition-normal);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
 }
 
 .card:hover::before {
-  opacity: 1;
+  transform: scaleX(1);
 }
 
 .card:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
   border-color: var(--primary-light);
 }
@@ -345,206 +346,108 @@ h4 {
   border-bottom: 2px solid var(--primary);
 }
 
-/* ---------- Country Stats Grid - COMPACT ---------- */
-.country-stats-grid-compact {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
+/* ---------- Enhanced Profit/Loss Indicators ---------- */
+.profit-high {
+  background: linear-gradient(90deg, rgba(5, 150, 105, 0.15) 0%, transparent 100%) !important;
+  font-weight: 700 !important;
+  color: var(--profit-high) !important;
+  border-left: 3px solid var(--success) !important;
 }
 
-.country-stat-card-compact {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 14px;
-  transition: all var(--transition-normal);
+.profit-medium {
+  background: linear-gradient(90deg, rgba(5, 150, 105, 0.1) 0%, transparent 100%) !important;
+  font-weight: 600 !important;
+  color: var(--profit-medium) !important;
+  border-left: 2px solid var(--success) !important;
+}
+
+.profit-low {
+  background: linear-gradient(90deg, rgba(5, 150, 105, 0.05) 0%, transparent 100%) !important;
+  font-weight: 500 !important;
+  color: var(--profit-low) !important;
+  border-left: 1px solid var(--success) !important;
+}
+
+.loss-high {
+  background: linear-gradient(90deg, rgba(220, 38, 38, 0.15) 0%, transparent 100%) !important;
+  font-weight: 700 !important;
+  color: var(--loss-high) !important;
+  border-left: 3px solid var(--danger) !important;
+}
+
+.loss-medium {
+  background: linear-gradient(90deg, rgba(220, 38, 38, 0.1) 0%, transparent 100%) !important;
+  font-weight: 600 !important;
+  color: var(--loss-medium) !important;
+  border-left: 2px solid var(--danger) !important;
+}
+
+.loss-low {
+  background: linear-gradient(90deg, rgba(220, 38, 38, 0.05) 0%, transparent 100%) !important;
+  font-weight: 500 !important;
+  color: var(--loss-low) !important;
+  border-left: 1px solid var(--danger) !important;
+}
+
+/* ---------- Enhanced Analytics Tables ---------- */
+.analytics-table th {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+  font-weight: 600;
+  border-right: 1px solid rgba(255,255,255,0.3) !important;
   position: relative;
   overflow: hidden;
 }
 
-.country-stat-card-compact::before {
+.analytics-table th::before {
   content: '';
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--gradient-primary);
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
 }
 
-.country-stat-card-compact:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
-  border-color: var(--primary);
+.analytics-table th:hover::before {
+  left: 100%;
 }
 
-.country-name-compact {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 10px;
-  color: var(--text-primary);
-  text-align: center;
-}
-
-.stats-row-compact {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-}
-
-.stat-item-compact {
-  text-align: center;
-  padding: 8px;
-  border-radius: 6px;
-  transition: all var(--transition-fast);
-}
-
-.stat-item-compact.active {
-  background: var(--success-light);
-  border: 1px solid var(--success);
-}
-
-.stat-item-compact.paused {
-  background: var(--warning-light);
-  border: 1px solid var(--warning);
-}
-
-.stat-item-compact.total {
-  background: var(--info-light);
-  border: 1px solid var(--info);
-}
-
-.stat-label-compact {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 3px;
+.analytics-table td {
+  background: var(--bg-card-light) !important;
+  color: var(--text-primary) !important;
   font-weight: 500;
+  border-right: 1px solid var(--border) !important;
+  transition: all 0.2s ease;
 }
 
-.stat-value-compact {
-  font-size: 1.1rem;
-  font-weight: 700;
+.analytics-table tr:nth-child(even) td {
+  background: var(--bg-card) !important;
 }
 
-.stat-item-compact.active .stat-value-compact { color: var(--success); }
-.stat-item-compact.paused .stat-value-compact { color: var(--warning); }
-.stat-item-compact.total .stat-value-compact { color: var(--info); }
-
-/* ---------- Big Balance Display ---------- */
-.big-balance {
-  text-align: center;
-  padding: 30px;
-  background: var(--gradient-success);
-  border-radius: 12px;
-  color: white;
-  margin-bottom: 24px;
+.analytics-table tr:hover td {
+  background: var(--bg-hover) !important;
+  transform: scale(1.01);
 }
 
-.big-balance .h {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 1.1rem;
-  margin-bottom: 10px;
-  border-bottom: none;
-}
-
-.big-balance .balance {
-  font-size: 3rem !important;
-  font-weight: 800 !important;
+/* ---------- Enhanced Profit by Country Table ---------- */
+.profit-country-table th {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
   color: white !important;
+  font-weight: 600;
+  border-right: 1px solid rgba(255,255,255,0.3) !important;
 }
 
-/* ---------- Professional Inputs ---------- */
-.input {
-  background: var(--bg-card-light);
-  border: 2px solid var(--border);
-  color: var(--text-primary);
-  padding: 9px 12px;
-  border-radius: 6px;
-  outline: none;
-  transition: all var(--transition-fast);
-  font-size: 0.9rem;
-  font-weight: 400;
-}
-
-.input:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-  background: var(--bg-card);
-}
-
-.input::placeholder {
-  color: var(--text-muted);
-  font-weight: 400;
-}
-
-select.input {
-  cursor: pointer;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-  background-position: right 12px center;
-  background-repeat: no-repeat;
-  background-size: 16px;
-  padding-right: 40px;
-}
-
-/* ---------- Professional Buttons ---------- */
-.btn {
-  background: var(--gradient-primary);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 9px 18px;
-  cursor: pointer;
+.profit-country-table td {
+  background: var(--bg-card-light) !important;
+  color: var(--text-primary) !important;
   font-weight: 500;
-  font-size: 0.9rem;
-  transition: all var(--transition-fast);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  text-decoration: none;
+  border-right: 1px solid var(--border) !important;
 }
 
-.btn:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
-  background: var(--primary-dark);
-}
-
-.btn:active {
-  transform: translateY(0);
-}
-
-.btn.outline {
-  background: transparent;
-  color: var(--primary);
-  border: 2px solid var(--primary);
-}
-
-.btn.outline:hover {
-  background: var(--primary);
-  color: white;
-}
-
-.btn.danger {
-  background: var(--gradient-danger);
-}
-
-.btn.danger.outline {
-  background: transparent;
-  color: var(--danger);
-  border-color: var(--danger);
-}
-
-.btn.danger.outline:hover {
-  background: var(--danger);
-  color: white;
-}
-
-.btn.small {
-  padding: 7px 14px;
-  font-size: 0.85rem;
+.profit-country-table tr:nth-child(even) td {
+  background: var(--bg-card) !important;
 }
 
 /* ---------- Professional Tables - SCROLLABLE ---------- */
@@ -557,24 +460,25 @@ select.input {
   box-shadow: var(--shadow-sm);
   -webkit-overflow-scrolling: touch;
   width: 100%;
+  background: var(--bg-card);
 }
 
 .table-scroll::-webkit-scrollbar {
-  height: 6px;
+  height: 8px;
 }
 
 .table-scroll::-webkit-scrollbar-track {
   background: var(--gray-100);
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 .table-scroll::-webkit-scrollbar-thumb {
-  background: var(--gray-400);
-  border-radius: 3px;
+  background: var(--primary);
+  border-radius: 4px;
 }
 
 .table-scroll::-webkit-scrollbar-thumb:hover {
-  background: var(--primary);
+  background: var(--primary-dark);
 }
 
 .table {
@@ -637,82 +541,167 @@ select.input {
   font-style: italic;
 }
 
-/* ---------- Profit/Loss Row Styles ---------- */
-.profit-row {
-  background: linear-gradient(90deg, rgba(5, 150, 105, 0.1) 0%, transparent 100%) !important;
+/* ---------- Enhanced Stock Movement Tables ---------- */
+.table th.stock-column {
+  background: var(--accent-teal) !important;
+  color: white !important;
 }
 
-.loss-row {
-  background: linear-gradient(90deg, rgba(220, 38, 38, 0.1) 0%, transparent 100%) !important;
+.table th.transit-column {
+  background: var(--accent-amber) !important;
+  color: white !important;
 }
 
-.no-data-row {
-  background: linear-gradient(90deg, rgba(217, 119, 6, 0.1) 0%, transparent 100%) !important;
+.table th.total-column {
+  background: var(--accent-blue) !important;
+  color: white !important;
 }
 
-.profit-bg {
-  background: linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, transparent 50%) !important;
-  border-left: 4px solid var(--success) !important;
+/* ---------- Enhanced Action Buttons ---------- */
+.action-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
-.loss-bg {
-  background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, transparent 50%) !important;
-  border-left: 4px solid var(--danger) !important;
+.action-buttons .btn {
+  font-size: 0.8rem;
+  padding: 6px 10px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  min-width: 60px;
 }
 
-/* ---------- PRODUCT PAGE SPECIFIC FIXES ---------- */
-#product .container {
-  max-width: 100%;
-  overflow-x: hidden;
-  padding: 20px;
-}
-
-#product .section {
-  max-width: 100%;
-  overflow: hidden;
-  margin-bottom: 20px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 18px;
+.action-buttons .btn:hover {
+  transform: translateY(-1px);
   box-shadow: var(--shadow-sm);
 }
 
-/* Ensure ALL tables in product page are scrollable */
-#product .table-scroll {
-  max-width: 100% !important;
-  margin: 12px 0 !important;
-  min-width: auto !important;
-  overflow-x: auto !important;
-  border: 1px solid var(--border) !important;
-  border-radius: 8px !important;
-  display: block !important;
-}
-
-/* Make sure all tables in product page don't break layout */
-#product table {
-  min-width: 1000px !important;
-  width: 100% !important;
-}
-
-/* Product page specific table styling */
-#product .table {
-  min-width: 1000px !important;
-}
-
-#product .table tbody tr:nth-child(even) {
+/* ---------- Professional Inputs ---------- */
+.input {
   background: var(--bg-card-light);
+  border: 2px solid var(--border);
+  color: var(--text-primary);
+  padding: 10px 12px;
+  border-radius: 6px;
+  outline: none;
+  transition: all var(--transition-fast);
+  font-size: 0.9rem;
+  font-weight: 400;
 }
 
-/* ---------- Number Formatting for Financial Data ---------- */
+.input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  background: var(--bg-card);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+select.input {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 12px center;
+  background-repeat: no-repeat;
+  background-size: 16px;
+  padding-right: 40px;
+}
+
+/* ---------- Professional Buttons ---------- */
+.btn {
+  background: var(--gradient-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn:hover::before {
+  left: 100%;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn.outline {
+  background: transparent;
+  color: var(--primary);
+  border: 2px solid var(--primary);
+}
+
+.btn.outline:hover {
+  background: var(--primary);
+  color: white;
+}
+
+.btn.danger {
+  background: var(--gradient-danger);
+}
+
+.btn.danger.outline {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.btn.danger.outline:hover {
+  background: var(--danger);
+  color: white;
+}
+
+.btn.small {
+  padding: 7px 14px;
+  font-size: 0.85rem;
+}
+
+/* ---------- Enhanced Number Formatting ---------- */
 .number-positive {
   color: var(--success);
   font-weight: 600;
+  background: rgba(5, 150, 105, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border-left: 2px solid var(--success);
 }
 
 .number-negative {
   color: var(--danger);
   font-weight: 600;
+  background: rgba(220, 38, 38, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border-left: 2px solid var(--danger);
 }
 
 .number-neutral {
@@ -775,52 +764,43 @@ select.input {
 /* ---------- Badges & Status ---------- */
 .badge {
   display: inline-block;
-  padding: 3px 8px;
-  background: var(--bg-card-light);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  color: var(--text-primary);
-  font-size: 0.7rem;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .badge.success {
-  background: var(--success-light);
-  border-color: var(--success);
-  color: var(--success);
+  background: var(--gradient-success);
+  color: white;
 }
 
 .badge.warning {
-  background: var(--warning-light);
-  border-color: var(--warning);
-  color: var(--warning);
+  background: var(--gradient-warning);
+  color: white;
 }
 
 .badge.danger {
-  background: var(--danger-light);
-  border-color: var(--danger);
-  color: var(--danger);
+  background: var(--gradient-danger);
+  color: white;
 }
 
 .badge.info {
-  background: var(--info-light);
-  border-color: var(--info);
-  color: var(--info);
+  background: var(--gradient-primary);
+  color: white;
 }
 
 /* Payment Status Badges */
 .badge.paid {
-  background: var(--success-light);
-  border-color: var(--success);
-  color: var(--success);
+  background: var(--gradient-success);
+  color: white;
 }
 
 .badge.pending {
-  background: var(--warning-light);
-  border-color: var(--warning);
-  color: var(--warning);
+  background: var(--gradient-warning);
+  color: white;
 }
 
 /* ---------- Advertising Overview ---------- */
@@ -875,6 +855,18 @@ select.input {
   background: var(--info-light);
   border-color: var(--info);
   color: var(--info);
+}
+
+.platform-badge.editable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px dashed #3b82f6 !important;
+}
+
+.platform-badge.editable:hover {
+  background: #3b82f6 !important;
+  color: white !important;
+  transform: scale(1.05);
 }
 
 .total-badge {
@@ -1304,222 +1296,6 @@ select.input {
 .row.compact { gap: 6px; }
 .row.compact .input { min-height: auto; }
 
-/* ---------- Top Products Ranking Styles ---------- */
-.table .rank-column {
-  text-align: center;
-  font-weight: 700;
-  background: var(--primary-50);
-}
-
-.table .highlight-column {
-  background: var(--success-light);
-  font-weight: 700;
-}
-
-/* Analytics Table Improvements */
-.table-scroll .table {
-  font-size: 0.82rem;
-}
-
-.table-scroll .table th {
-  white-space: nowrap;
-  padding: 8px 10px;
-}
-
-.table-scroll .table td {
-  padding: 8px 10px;
-  white-space: nowrap;
-}
-
-/* Financial table specific styles */
-.financial-table .cost-column {
-  background: var(--warning-light);
-}
-
-.financial-table .profit-column {
-  background: var(--success-light);
-}
-
-/* Compact financial inputs */
-.finance-input-compact {
-  max-width: 120px;
-}
-
-/* Date range compact */
-.date-range-compact {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.date-range-compact .input {
-  min-width: 140px;
-}
-
-/* Performance section specific */
-#performance .card {
-  margin-bottom: 20px;
-}
-
-#performance .section {
-  margin-bottom: 25px;
-}
-
-/* Top products highlight */
-.top-product-row {
-  background: linear-gradient(90deg, var(--success-light) 0%, transparent 100%);
-}
-
-.top-product-row:nth-child(1) {
-  background: linear-gradient(90deg, var(--accent-amber) 0%, transparent 100%);
-  font-weight: 700;
-}
-
-.top-product-row:nth-child(2) {
-  background: linear-gradient(90deg, var(--primary-100) 0%, transparent 100%);
-  font-weight: 600;
-}
-
-.top-product-row:nth-child(3) {
-  background: linear-gradient(90deg, var(--primary-50) 0%, transparent 100%);
-  font-weight: 500;
-}
-
-/* ---------- Enhanced CSS for refunds and payment tracking ---------- */
-
-/* Refund specific styles */
-.refund-amount {
-  color: var(--danger);
-  font-weight: 600;
-}
-
-.refund-row {
-  background: linear-gradient(90deg, rgba(220, 38, 38, 0.05) 0%, transparent 100%) !important;
-}
-
-/* Enhanced table headers for new columns */
-.table th.stock-column {
-  background: var(--accent-teal);
-}
-
-.table th.transit-column {
-  background: var(--accent-amber);
-}
-
-.table th.total-column {
-  background: var(--accent-blue);
-}
-
-/* Payment action buttons */
-.btn.payment {
-  background: var(--gradient-success);
-}
-
-.btn.payment.outline {
-  background: transparent;
-  color: var(--success);
-  border-color: var(--success);
-}
-
-.btn.payment.outline:hover {
-  background: var(--success);
-  color: white;
-}
-
-/* Enhanced product table styling */
-.products-table {
-  font-size: 0.8rem;
-}
-
-.products-table th {
-  white-space: nowrap;
-  padding: 8px 6px;
-}
-
-.products-table td {
-  padding: 8px 6px;
-  text-align: center;
-}
-
-/* Stock number styling */
-.stock-number {
-  font-weight: 600;
-  font-family: 'Courier New', monospace;
-}
-
-.stock-number.positive {
-  color: var(--success);
-}
-
-.stock-number.negative {
-  color: var(--danger);
-}
-
-.stock-number.zero {
-  color: var(--text-muted);
-}
-
-/* Transit status indicators */
-.transit-indicator {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 5px;
-}
-
-.transit-indicator.china {
-  background: var(--accent-orange);
-}
-
-.transit-indicator.intercountry {
-  background: var(--accent-blue);
-}
-
-/* Enhanced dashboard KPIs */
-.kpi-compact.transit-china::before {
-  background: var(--accent-orange);
-}
-
-.kpi-compact.transit-between::before {
-  background: var(--accent-blue);
-}
-
-.kpi-compact.active-stock::before {
-  background: var(--success);
-}
-
-.kpi-compact.inactive-stock::before {
-  background: var(--warning);
-}
-
-/* Refund form styling */
-.refund-form .input {
-  border-left: 3px solid var(--danger);
-}
-
-.refund-form .card {
-  border-left: 4px solid var(--danger);
-}
-
-/* Payment form styling */
-.payment-form .input {
-  border-left: 3px solid var(--success);
-}
-
-.payment-form .card {
-  border-left: 4px solid var(--success);
-}
-
-/* Enhanced analytics table */
-.analytics-table .refund-cell {
-  background: rgba(220, 38, 38, 0.05);
-}
-
-.analytics-table .influencer-cell {
-  background: rgba(139, 69, 19, 0.05);
-}
-
 /* ---------- Mobile Navigation Styles ---------- */
 @media (max-width: 1024px) {
   .nav {
@@ -1552,7 +1328,6 @@ select.input {
   .container { padding: 16px; }
   
   .kpis-compact { grid-template-columns: repeat(2, 1fr); }
-  .country-stats-grid-compact { grid-template-columns: 1fr; }
   
   .nav {
     padding: 8px 10px !important;
@@ -1577,11 +1352,6 @@ select.input {
     width: 100%;
   }
   
-  .stats-row-compact {
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-  
   .notes-list,
   .notes-grid {
     grid-template-columns: 1fr;
@@ -1602,19 +1372,27 @@ select.input {
   h2 { font-size: 1.4rem; }
   h3 { font-size: 1.2rem; }
   
-  .big-balance .balance {
-    font-size: 2.5rem !important;
+  .analytics-table th,
+  .profit-country-table th {
+    font-size: 0.75rem;
+    padding: 8px 6px;
   }
   
-  /* Mobile optimizations for new columns */
-  .products-table th.stock-column,
-  .products-table td.stock-column {
-    display: none;
+  .analytics-table td,
+  .profit-country-table td {
+    font-size: 0.8rem;
+    padding: 8px 6px;
   }
   
-  .analytics-table .refund-cell,
-  .analytics-table .influencer-cell {
-    font-size: 0.7rem;
+  .action-buttons {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .action-buttons .btn {
+    min-width: auto;
+    font-size: 0.75rem;
+    padding: 4px 8px;
   }
   
   #main {
@@ -1761,277 +1539,19 @@ select.input {
     border: 1px solid black !important;
   }
   
-  .refund-amount {
-    color: black !important;
-  }
-}
-
-/* ---------- Data Visualization Enhancements ---------- */
-.data-grid {
-  display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-}
-
-.data-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px;
-  transition: all var(--transition-normal);
-}
-
-.data-card:hover {
-  border-color: var(--primary);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
-}
-
-.data-card .title {
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 6px;
-  font-size: 0.9rem;
-}
-
-.data-card .value {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.data-card .subtitle {
-  color: var(--text-muted);
-  font-size: 0.8rem;
-}
-
-/* Adspend Page Styles */
-.adspend-summary {
-  margin-top: 20px;
-}
-
-.summary-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
-  margin-bottom: 30px;
-}
-
-.stat-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 20px;
-  text-align: center;
-}
-
-.stat-label {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-}
-
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--primary);
-}
-
-.breakdown-section {
-  margin-bottom: 30px;
-}
-
-.breakdown-section h4 {
-  margin-bottom: 15px;
-  color: var(--text-primary);
-  border-bottom: 2px solid var(--primary);
-  padding-bottom: 5px;
-}
-
-.breakdown-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.breakdown-item {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  padding: 10px;
-  background: var(--card-bg);
-  border-radius: 6px;
-  border: 1px solid var(--border);
-}
-
-.breakdown-label {
-  min-width: 100px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.breakdown-bar {
-  flex: 1;
-  height: 20px;
-  background: var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.breakdown-bar-fill {
-  height: 100%;
-  background: var(--primary);
-  transition: width 0.3s ease;
-}
-
-.breakdown-value {
-  min-width: 120px;
-  text-align: right;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-/* =========================================================
-   PROFESSIONAL COLOR SCHEME FOR ANALYTICS TABLES
-   ========================================================= */
-
-/* Products Table - Subtle Professional Colors */
-.table th.country-kenya,
-.table td.country-kenya {
-    background-color: #e0f2fe !important; /* Light Blue */
-    color: #0369a1 !important;
-    font-weight: 600;
-    border-right: 1px solid #bae6fd !important;
-}
-
-.table th.country-tanzania,
-.table td.country-tanzania {
-    background-color: #f0fdf4 !important; /* Light Green */
-    color: #15803d !important;
-    font-weight: 600;
-    border-right: 1px solid #bbf7d0 !important;
-}
-
-.table th.country-uganda,
-.table td.country-uganda {
-    background-color: #fefce8 !important; /* Light Yellow */
-    color: #a16207 !important;
-    font-weight: 600;
-    border-right: 1px solid #fef08a !important;
-}
-
-.table th.country-zambia,
-.table td.country-zambia {
-    background-color: #fdf2f8 !important; /* Light Pink */
-    color: #be185d !important;
-    font-weight: 600;
-    border-right: 1px solid #fbcfe8 !important;
-}
-
-.table th.country-zimbabwe,
-.table td.country-zimbabwe {
-    background-color: #faf5ff !important; /* Light Purple */
-    color: #7e22ce !important;
-    font-weight: 600;
-    border-right: 1px solid #e9d5ff !important;
-}
-
-/* Analytics Tables - Professional Gradient Headers */
-.analytics-table th {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-    color: white !important;
-    font-weight: 600;
-    border-right: 1px solid rgba(255,255,255,0.3) !important;
-}
-
-.analytics-table td {
-    background: #f8fafc !important;
-    color: #1f2937 !important;
-    font-weight: 500;
-    border-right: 1px solid #e5e7eb !important;
-}
-
-.analytics-table tr:nth-child(even) td {
-    background: #ffffff !important;
-}
-
-/* Profit by Country Table - Professional Style */
-.profit-country-table th {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
-    color: white !important;
-    font-weight: 600;
-    border-right: 1px solid rgba(255,255,255,0.3) !important;
-}
-
-.profit-country-table td {
-    background: #f8fafc !important;
-    color: #1f2937 !important;
-    font-weight: 500;
-    border-right: 1px solid #e5e7eb !important;
-}
-
-.profit-country-table tr:nth-child(even) td {
-    background: #ffffff !important;
-}
-
-/* Enhanced Profit/Loss Indicators */
-.profit-high {
-    background: linear-gradient(90deg, #10b981 0%, transparent 100%) !important;
-    font-weight: 700 !important;
+  .profit-high,
+  .profit-medium,
+  .profit-low {
+    background: #f0fdf4 !important;
     color: #065f46 !important;
-}
-
-.profit-medium {
-    background: linear-gradient(90deg, #34d399 0%, transparent 100%) !important;
-    font-weight: 600 !important;
-    color: #047857 !important;
-}
-
-.profit-low {
-    background: linear-gradient(90deg, #6ee7b7 0%, transparent 100%) !important;
-    font-weight: 500 !important;
-    color: #059669 !important;
-}
-
-.loss-high {
-    background: linear-gradient(90deg, #ef4444 0%, transparent 100%) !important;
-    font-weight: 700 !important;
+    border: 1px solid #059669 !important;
+  }
+  
+  .loss-high,
+  .loss-medium,
+  .loss-low {
+    background: #fef2f2 !important;
     color: #991b1b !important;
-}
-
-.loss-medium {
-    background: linear-gradient(90deg, #f87171 0%, transparent 100%) !important;
-    font-weight: 600 !important;
-    color: #dc2626 !important;
-}
-
-.loss-low {
-    background: linear-gradient(90deg, #fca5a5 0%, transparent 100%) !important;
-    font-weight: 500 !important;
-    color: #ef4444 !important;
-}
-
-/* Action buttons styling */
-.action-buttons {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-}
-
-.action-buttons .btn {
-    font-size: 0.75rem;
-    padding: 4px 8px;
-}
-
-/* Editable badge styling */
-.platform-badge.editable {
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: 1px dashed #3b82f6 !important;
-}
-
-.platform-badge.editable:hover {
-    background: #3b82f6 !important;
-    color: white !important;
-    transform: scale(1.05);
+    border: 1px solid #dc2626 !important;
+  }
 }
