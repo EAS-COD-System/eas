@@ -63,57 +63,40 @@ function requireAuth(req, res, next) {
   return res.status(403).json({ error: 'Unauthorized' });
 }
 
-// ======== ENHANCED SHIPPING COST CALCULATION LOGIC ========
+/// ======== ENHANCED SHIPPING COST CALCULATION LOGIC ========
 function calculateShippingCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
-  
-  // Find all shipments that contributed to stock in target country
-  let totalShippingCost = 0;
-  let totalPieces = 0;
-  
-  // Function to trace shipment path and accumulate costs
-  function traceShipmentCost(shipmentId, currentCountry, accumulatedCost = 0) {
-    const shipment = shipments.find(s => s.id === shipmentId);
-    if (!shipment) return;
-    
-    if (shipment.toCountry === targetCountry) {
-      const pieces = +shipment.qty || 0;
-      const shippingCost = +shipment.shipCost || 0;
-      const costPerPiece = shippingCost / pieces;
-      
-      totalShippingCost += (accumulatedCost + costPerPiece) * pieces;
-      totalPieces += pieces;
-      return;
-    }
-    
-    // Find next shipments from this destination
-    const nextShipments = shipments.filter(s => 
-      s.fromCountry === shipment.toCountry && 
-      s.productId === productId &&
-      s.arrivedAt
-    );
-    
-    const nextCostPerPiece = (+shipment.shipCost || 0) / (+shipment.qty || 1);
-    
-    nextShipments.forEach(nextShipment => {
-      traceShipmentCost(nextShipment.id, nextShipment.fromCountry, accumulatedCost + nextCostPerPiece);
-    });
-  }
-  
-  // Start with China shipments
-  const chinaShipments = shipments.filter(s => 
+  const productShipments = shipments.filter(s => 
     s.productId === productId && 
-    s.fromCountry === 'china' && 
     s.arrivedAt
   );
-  
-  chinaShipments.forEach(shipment => {
-    traceShipmentCost(shipment.id, 'china', 0);
-  });
-  
-  return totalPieces > 0 ? totalShippingCost / totalPieces : 0;
-}
 
+  let totalCost = 0;
+  let totalPieces = 0;
+
+  // Recursive function to trace shipment path
+  function traceShipmentCost(currentCountry, accumulatedCost = 0) {
+    const incomingShipments = productShipments.filter(s => s.toCountry === currentCountry);
+    
+    incomingShipments.forEach(shipment => {
+      const pieces = +shipment.qty || 0;
+      const shipCost = +shipment.shipCost || 0;
+      const costPerPiece = shipCost / pieces;
+      const newAccumulatedCost = accumulatedCost + costPerPiece;
+      
+      if (currentCountry === targetCountry) {
+        totalCost += newAccumulatedCost * pieces;
+        totalPieces += pieces;
+      } else {
+        // Continue tracing if this is not the final destination
+        traceShipmentCost(shipment.fromCountry, newAccumulatedCost);
+      }
+    });
+  }
+
+  traceShipmentCost(targetCountry, 0);
+  return totalPieces > 0 ? totalCost / totalPieces : 0;
+}
 function calculateProductCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
   const chinaShipments = shipments.filter(s => 
@@ -316,34 +299,33 @@ function calculateProfitMetrics(db, productId, country = null, startDate = null,
   }
 
   // Calculate product costs using FIXED logic (for analytics sections)
-  let totalProductChinaCost = 0;
-  let totalShippingCost = 0;
+let totalProductChinaCost = 0;
+let totalShippingCost = 0;
 
-  if (productId && totalDeliveredPieces > 0) {
-    if (country) {
+if (productId && totalDeliveredPieces > 0) {
+  if (country) {
+    const productCostPerPiece = calculateProductCostPerPiece(db, productId, country);
+    const shippingCostPerPiece = calculateShippingCostPerPiece(db, productId, country);
+    
+    totalProductChinaCost = totalDeliveredPieces * productCostPerPiece;
+    totalShippingCost = totalDeliveredPieces * shippingCostPerPiece;
+  } else {
+    // Aggregate across all countries
+    const countries = db.countries.filter(c => c !== 'china');
+    countries.forEach(country => {
       const productCostPerPiece = calculateProductCostPerPiece(db, productId, country);
       const shippingCostPerPiece = calculateShippingCostPerPiece(db, productId, country);
+      const countryRemittances = remittances.filter(r => 
+        r.productId === productId && r.country === country &&
+        (!startDate || r.start >= startDate) && (!endDate || r.end <= endDate)
+      );
+      const countryPieces = countryRemittances.reduce((sum, r) => sum + (+r.pieces || 0), 0);
       
-      totalProductChinaCost = totalDeliveredPieces * productCostPerPiece;
-      totalShippingCost = totalDeliveredPieces * shippingCostPerPiece;
-    } else {
-      // Aggregate across all countries
-      const countries = db.countries.filter(c => c !== 'china');
-      countries.forEach(country => {
-        const productCostPerPiece = calculateProductCostPerPiece(db, productId, country);
-        const shippingCostPerPiece = calculateShippingCostPerPiece(db, productId, country);
-        const countryRemittances = remittances.filter(r => 
-          r.productId === productId && r.country === country &&
-          (!startDate || r.start >= startDate) && (!endDate || r.end <= endDate)
-        );
-        const countryPieces = countryRemittances.reduce((sum, r) => sum + (+r.pieces || 0), 0);
-        
-        totalProductChinaCost += countryPieces * productCostPerPiece;
-        totalShippingCost += countryPieces * shippingCostPerPiece;
-      });
-    }
+      totalProductChinaCost += countryPieces * productCostPerPiece;
+      totalShippingCost += countryPieces * shippingCostPerPiece;
+    });
   }
-
+}
   // Adjust revenue for refunds
   const adjustedRevenue = totalRevenue - totalRefundedAmount;
   
@@ -691,9 +673,13 @@ app.put('/api/products/:id', requireAuth, (req, res) => {
 });
 
 app.post('/api/products/:id/status', requireAuth, (req, res) => {
-  const db = loadDB(); const p = (db.products || []).find(x => x.id === req.params.id);
+  const db = loadDB(); 
+  const p = (db.products || []).find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ error: 'Not found' });
-  p.status = req.body.status || 'active'; saveDB(db); res.json({ ok: true, product: p });
+  
+  p.status = req.body.status || 'active'; 
+  saveDB(db); 
+  res.json({ ok: true, product: p });
 });
 
 app.delete('/api/products/:id', requireAuth, (req, res) => {
@@ -956,18 +942,27 @@ app.delete('/api/tested-products/:id', requireAuth, (req, res) => {
   db.testedProducts = (db.testedProducts || []).filter(tp => tp.id !== req.params.id);
   saveDB(db); res.json({ ok: true });
 });
-
-// Ad Spend
-app.get('/api/adspend', requireAuth, (req, res) => { 
-  const db = loadDB(); 
-  res.json({ adSpends: db.adspend || [] });
-});
-
+ // Ad Spend 
 app.post('/api/adspend', requireAuth, (req, res) => {
-  const db = loadDB(); db.adspend = db.adspend || [];
-  const { productId, country, platform, amount, date } = req.body || {};
-  if (!productId || !country || !platform || !date) return res.status(400).json({ error: 'Missing fields' });
+  const db = loadDB(); 
+  db.adspend = db.adspend || [];
+  const { id, productId, country, platform, amount, date } = req.body || {};
   
+  if (!productId || !country || !platform || !date) {
+    return res.status(400).json({ error: 'Missing fields' });
+  }
+  
+  // If ID is provided, update existing entry
+  if (id) {
+    const existing = db.adspend.find(a => a.id === id);
+    if (existing) {
+      existing.amount = +amount || 0;
+      saveDB(db);
+      return res.json({ ok: true });
+    }
+  }
+  
+  // Check for existing entry for update
   const ex = db.adspend.find(a => 
     a.productId === productId && 
     a.country === country && 
@@ -979,7 +974,7 @@ app.post('/api/adspend', requireAuth, (req, res) => {
     ex.amount = +amount || 0;
   } else {
     db.adspend.push({ 
-      id: uuidv4(), 
+      id: id || uuidv4(), 
       productId, 
       country, 
       platform, 
@@ -991,7 +986,6 @@ app.post('/api/adspend', requireAuth, (req, res) => {
   saveDB(db); 
   res.json({ ok: true });
 });
-
 // Deliveries
 app.get('/api/deliveries', requireAuth, (req, res) => {
   const db = loadDB(); res.json({ deliveries: db.deliveries || [] });
