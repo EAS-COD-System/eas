@@ -78,7 +78,7 @@ async function boot() {
     console.log('Data preloaded');
     
     console.log('Initializing navigation...');
-    bindGlobalNav(); // FIXED: Call the navigation function
+    bindGlobalNav();
     console.log('Navigation initialized');
 
     if (state.productId) {
@@ -90,7 +90,7 @@ async function boot() {
       renderProductsPage();
       renderPerformancePage();
       renderStockMovementPage();
-      renderAdspendPage(); // ADDED: This was missing
+      renderAdspendPage();
       renderFinancePage();
       renderSettingsPage();
     }
@@ -698,7 +698,6 @@ function initBrainstorming() {
   }
 }
 
-// FIXED: Todo lists using server-side storage
 function initTodos() {
   const listEl = Q('#todoList'); 
   const addBtn = Q('#todoAdd');
@@ -743,7 +742,6 @@ function initTodos() {
   renderQuick();
 }
 
-// FIXED: Weekly Todo lists using server-side storage
 function initWeeklyTodos() {
   const container = Q('#weeklyWrap');
   if (!container) return;
@@ -782,7 +780,6 @@ function initWeeklyTodos() {
         `;
       }).join('');
       
-      // Add event listeners
       container.addEventListener('click', handleWeeklyTodoActions);
       QA('.weekly-todo-add').forEach(btn => {
         btn.addEventListener('click', addWeeklyTodo);
@@ -1148,7 +1145,7 @@ function renderProductsTable() {
       return;
     }
 
-    // Filter and sort products
+    // Filter and sort products - INCLUDE PAUSED PRODUCTS
     const filteredProducts = filterProducts(state.products, state.productsSearchTerm);
     const countryFilter = Q('#productsCountryFilter')?.value || 'all';
     const sortedProducts = sortProducts(filteredProducts, state.productsSortBy, countryFilter);
@@ -1181,11 +1178,11 @@ function renderProductsTable() {
 
     // Build table header with colored columns
     const countryColors = {
-      'kenya': '#1e3a8a', // Dark blue
-      'tanzania': '#7c2d12', // Dark brown
-      'uganda': '#166534', // Dark green
-      'zambia': '#9d174d', // Dark pink
-      'zimbabwe': '#701a75' // Dark purple
+      'kenya': '#1e3a8a',
+      'tanzania': '#7c2d12',
+      'uganda': '#166534',
+      'zambia': '#9d174d',
+      'zimbabwe': '#701a75'
     };
     
     let headerHTML = `
@@ -1211,7 +1208,7 @@ function renderProductsTable() {
     
     thead.innerHTML = headerHTML;
 
-    // Build table body
+    // Build table body - INCLUDE PAUSED PRODUCTS
     if (paginatedProducts.length === 0) {
       tb.innerHTML = `<tr><td colspan="${6 + (state.countries ? (state.countries.length - 1) * 2 : 0) + 1}" class="muted">No products found</td></tr>`;
     } else {
@@ -2225,14 +2222,17 @@ async function renderShipmentTables() {
   try {
     const shipments = await api('/api/shipments');
     
-    // China → Kenya shipments
-    const chinaKenyaShipments = shipments.shipments.filter(s => 
+    // Filter out arrived shipments from transit tables
+    const transitShipments = shipments.shipments.filter(s => !s.arrivedAt);
+    
+    // China → Kenya shipments (transit only)
+    const chinaKenyaShipments = transitShipments.filter(s => 
       s.fromCountry === 'china' && s.toCountry === 'kenya'
     );
     renderShipmentTable('#shipCKBody', chinaKenyaShipments, true);
     
-    // Inter-country shipments (excluding China → Kenya)
-    const interCountryShipments = shipments.shipments.filter(s => 
+    // Inter-country shipments (transit only, excluding China → Kenya)
+    const interCountryShipments = transitShipments.filter(s => 
       s.fromCountry !== 'china' || s.toCountry !== 'kenya'
     );
     renderShipmentTable('#shipICBody', interCountryShipments, false);
@@ -2246,7 +2246,7 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
   if (!tbody) return;
 
   if (shipments.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="12" class="muted">No shipments</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="muted">No shipments in transit</td></tr>';
     return;
   }
 
@@ -2987,9 +2987,171 @@ function renderProductProfitBudgets() {
   tbody.innerHTML = '<tr><td colspan="8" class="muted">Profit budget calculation coming soon</td></tr>';
 }
 
-function renderProductShipments() {
-  // Implementation would mirror renderShipmentTables but with product filter
-  // Placeholder for now
+async function renderProductShipments() {
+  try {
+    const shipments = await api('/api/shipments');
+    
+    // Filter shipments for this product
+    const productShipments = shipments.shipments.filter(s => s.productId === state.productId);
+    
+    // Arrived shipments
+    const arrivedShipments = productShipments.filter(s => s.arrivedAt);
+    
+    // Transit shipments
+    const transitShipments = productShipments.filter(s => !s.arrivedAt);
+    
+    // China → Kenya shipments (transit)
+    const chinaKenyaShipments = transitShipments.filter(s => 
+      s.fromCountry === 'china' && s.toCountry === 'kenya'
+    );
+    
+    // Inter-country shipments (transit)
+    const interCountryShipments = transitShipments.filter(s => 
+      s.fromCountry !== 'china' || s.toCountry !== 'kenya'
+    );
+    
+    // Render arrived shipments
+    renderProductArrivedShipments(arrivedShipments);
+    
+    // Render transit shipments
+    renderProductTransitShipments('#pdShipCKBody', chinaKenyaShipments, true);
+    renderProductTransitShipments('#pdShipICBody', interCountryShipments, false);
+    
+  } catch (error) {
+    console.error('Error loading product shipments:', error);
+  }
+}
+
+function renderProductArrivedShipments(shipments) {
+  const tbody = Q('#pdArrivedBody');
+  if (!tbody) return;
+
+  if (shipments.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="12" class="muted">No arrived shipments</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = shipments.map(shipment => {
+    const product = state.products.find(p => p.id === shipment.productId);
+    const productName = product ? product.name : shipment.productId;
+    const route = `${shipment.fromCountry} → ${shipment.toCountry}`;
+    
+    // Calculate days in transit
+    const departed = new Date(shipment.departedAt);
+    const arrived = new Date(shipment.arrivedAt);
+    const daysInTransit = Math.round((arrived - departed) / (1000 * 60 * 60 * 24));
+    
+    return `
+      <tr>
+        <td>${shipment.id.slice(0, 8)}</td>
+        <td>${route}</td>
+        <td>${fmt(shipment.qty)}</td>
+        <td>${fmt(shipment.shipCost)}</td>
+        <td>${shipment.finalShipCost ? fmt(shipment.finalShipCost) : '-'}</td>
+        <td>${shipment.chinaCost ? fmt(shipment.chinaCost) : '-'}</td>
+        <td>${shipment.departedAt || '-'}</td>
+        <td>${shipment.arrivedAt || '-'}</td>
+        <td>${daysInTransit}</td>
+        <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
+        <td>${shipment.note || '-'}</td>
+        <td>
+          ${shipment.paymentStatus === 'pending' ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
+          <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // Add event listeners
+  tbody.onclick = async (e) => {
+    const id = e.target.dataset?.id;
+    if (!id) return;
+
+    if (e.target.classList.contains('act-pay')) {
+      const finalCost = prompt('Enter final shipping cost:');
+      if (finalCost && !isNaN(finalCost)) {
+        await api(`/api/shipments/${id}/mark-paid`, {
+          method: 'POST',
+          body: JSON.stringify({ finalShipCost: +finalCost })
+        });
+        renderProductShipments();
+      }
+    }
+
+    if (e.target.classList.contains('act-del-ship')) {
+      if (confirm('Delete this shipment?')) {
+        await api(`/api/shipments/${id}`, { method: 'DELETE' });
+        renderProductShipments();
+      }
+    }
+  };
+}
+
+function renderProductTransitShipments(selector, shipments, showChinaCost) {
+  const tbody = Q(selector);
+  if (!tbody) return;
+
+  if (shipments.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="12" class="muted">No shipments in transit</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = shipments.map(shipment => {
+    const product = state.products.find(p => p.id === shipment.productId);
+    const productName = product ? product.name : shipment.productId;
+    const route = `${shipment.fromCountry} → ${shipment.toCountry}`;
+    
+    return `
+      <tr>
+        <td>${shipment.id.slice(0, 8)}</td>
+        <td>${route}</td>
+        <td>${fmt(shipment.qty)}</td>
+        <td>${fmt(shipment.shipCost)}</td>
+        <td>${shipment.finalShipCost ? fmt(shipment.finalShipCost) : '-'}</td>
+        ${showChinaCost ? `<td>${shipment.chinaCost ? fmt(shipment.chinaCost) : '-'}</td>` : ''}
+        <td>${shipment.departedAt || '-'}</td>
+        <td>${shipment.arrivedAt || '-'}</td>
+        <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
+        <td>
+          ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
+          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
+          <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // Add event listeners
+  tbody.onclick = async (e) => {
+    const id = e.target.dataset?.id;
+    if (!id) return;
+
+    if (e.target.classList.contains('act-arrive')) {
+      await api(`/api/shipments/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ arrivedAt: isoToday() })
+      });
+      renderProductShipments();
+    }
+
+    if (e.target.classList.contains('act-pay')) {
+      const finalCost = prompt('Enter final shipping cost:');
+      if (finalCost && !isNaN(finalCost)) {
+        await api(`/api/shipments/${id}/mark-paid`, {
+          method: 'POST',
+          body: JSON.stringify({ finalShipCost: +finalCost })
+        });
+        renderProductShipments();
+      }
+    }
+
+    if (e.target.classList.contains('act-del-ship')) {
+      if (confirm('Delete this shipment?')) {
+        await api(`/api/shipments/${id}`, { method: 'DELETE' });
+        renderProductShipments();
+      }
+    }
+  };
 }
 
 function renderProductLifetimePerformance() {
@@ -3075,7 +3237,7 @@ function fillProductPageSelects() {
   });
 }
 
-// ======== FIXED NAVIGATION - REPLACE YOUR EXISTING FUNCTION ========
+// ======== FIXED NAVIGATION ========
 function bindGlobalNav() {
   console.log('🔄 Setting up navigation...');
   
@@ -3128,5 +3290,6 @@ function bindGlobalNav() {
     console.log('🏠 Default section: home');
   }
 }
+
 // ======== INITIALIZATION ========
 document.addEventListener('DOMContentLoaded', boot);
