@@ -33,13 +33,75 @@ async function api(path, opts = {}) {
   }
 }
 
+// Enhanced calculation functions
+async function calculateEnhancedProductCosts(productId, country) {
+  try {
+    const shipments = await api('/api/shipments');
+    const productShipments = shipments.shipments.filter(s => s.productId === productId && s.arrivedAt);
+    
+    let totalProductCost = 0;
+    let totalShippingCost = 0;
+    let totalPieces = 0;
+    
+    // Function to calculate shipping cost for a specific country
+    function calculateShippingToCountry(targetCountry) {
+      let shippingCostPerPiece = 0;
+      
+      // Find all shipment paths that lead to this country
+      function traceShipmentPath(currentCountry, accumulatedCost = 0) {
+        const incomingShipments = productShipments.filter(s => s.toCountry === currentCountry);
+        
+        incomingShipments.forEach(shipment => {
+          const pieces = +shipment.qty || 0;
+          const shipCost = +shipment.shipCost || 0;
+          const costPerPiece = shipCost / pieces;
+          
+          if (shipment.fromCountry === 'china') {
+            // This is direct from China
+            shippingCostPerPiece = accumulatedCost + costPerPiece;
+          } else {
+            // This is inter-country, trace back
+            traceShipmentPath(shipment.fromCountry, accumulatedCost + costPerPiece);
+          }
+        });
+      }
+      
+      traceShipmentPath(targetCountry, 0);
+      return shippingCostPerPiece;
+    }
+    
+    // Calculate product cost from China shipments
+    const chinaShipments = productShipments.filter(s => s.fromCountry === 'china');
+    chinaShipments.forEach(shipment => {
+      const pieces = +shipment.qty || 0;
+      const chinaCost = +shipment.chinaCost || 0;
+      const costPerPiece = chinaCost / pieces;
+      
+      totalProductCost += chinaCost;
+      totalPieces += pieces;
+    });
+    
+    const avgProductCostPerPiece = totalPieces > 0 ? totalProductCost / totalPieces : 0;
+    const shippingCostPerPiece = calculateShippingToCountry(country);
+    
+    return {
+      productCostPerPiece: avgProductCostPerPiece,
+      shippingCostPerPiece: shippingCostPerPiece,
+      totalCostPerPiece: avgProductCostPerPiece + shippingCostPerPiece
+    };
+  } catch (error) {
+    console.error('Error calculating enhanced costs:', error);
+    return { productCostPerPiece: 0, shippingCostPerPiece: 0, totalCostPerPiece: 0 };
+  }
+}
+
 // Enhanced profit calculation for analytics
 async function calculateEnhancedProfitMetrics(productId, country, startDate, endDate) {
   try {
+    const costs = await calculateEnhancedProductCosts(productId, country);
     const remittances = await api('/api/remittances');
     const refunds = await api('/api/refunds');
     const adspend = await api('/api/adspend');
-    const productInfo = await api(`/api/product-info/${productId}`);
     
     // Filter data by date range and product/country
     const filteredRemittances = remittances.remittances.filter(r => 
@@ -71,13 +133,9 @@ async function calculateEnhancedProfitMetrics(productId, country, startDate, end
     const totalDeliveredPieces = filteredRemittances.reduce((sum, r) => sum + (+r.pieces || 0), 0);
     const totalDeliveredOrders = filteredRemittances.reduce((sum, r) => sum + (+r.orders || 0), 0);
     
-    // Find cost analysis for this country
-    const countryAnalysis = productInfo.costAnalysis.find(ca => ca.country === country);
-    const productCostPerPiece = countryAnalysis ? countryAnalysis.productCostChina : 0;
-    const shippingCostPerPiece = countryAnalysis ? countryAnalysis.shippingCost : 0;
-    
-    const totalProductCost = totalDeliveredPieces * productCostPerPiece;
-    const totalShippingCost = totalDeliveredPieces * shippingCostPerPiece;
+    // Calculate costs using enhanced logic
+    const totalProductCost = totalDeliveredPieces * costs.productCostPerPiece;
+    const totalShippingCost = totalDeliveredPieces * costs.shippingCostPerPiece;
     
     const totalCost = totalProductCost + totalShippingCost + totalAdSpend + totalBoxleoFees;
     const profit = (totalRevenue - totalRefundedAmount) - totalCost;
@@ -92,8 +150,8 @@ async function calculateEnhancedProfitMetrics(productId, country, startDate, end
       profit,
       totalDeliveredPieces,
       totalDeliveredOrders,
-      productCostPerPiece,
-      shippingCostPerPiece,
+      productCostPerPiece: costs.productCostPerPiece,
+      shippingCostPerPiece: costs.shippingCostPerPiece,
       isProfitable: profit > 0
     };
   } catch (error) {
@@ -1067,34 +1125,6 @@ function renderProductsPage() {
     });
 
     renderProductInfoSection();
-
-    // Fix for product status toggle
-    const productsTable = Q('#productsTable');
-    if (productsTable) {
-      productsTable.addEventListener('click', async (e) => {
-        if (e.target.classList.contains('act-toggle')) {
-          const productId = e.target.dataset.id;
-          const product = state.products.find(p => p.id === productId);
-          if (!product) return;
-          
-          const newStatus = product.status === 'active' ? 'paused' : 'active';
-          
-          try {
-            await api(`/api/products/${productId}/status`, { 
-              method: 'POST', 
-              body: JSON.stringify({ status: newStatus }) 
-            });
-            
-            await preload();
-            renderProductsTable();
-            alert(`Product ${newStatus === 'active' ? 'activated' : 'paused'} successfully`);
-          } catch (error) {
-            alert('Error updating product status: ' + error.message);
-          }
-        }
-      });
-    }
-
   } catch (error) {
     console.error('Error in renderProductsPage:', error);
   }
@@ -1361,10 +1391,19 @@ function renderProductsTable() {
     // Render pagination
     renderProductsPagination(sortedProducts.length, productsPerPage);
 
-    // Add delete handlers
+    // In the renderProductsTable function, replace the act-toggle event handler:
     tb.onclick = async (e) => {
       const id = e.target.dataset?.id; 
       if (!id) return;
+      
+      if (e.target.classList.contains('act-toggle')) {
+        const p = state.products.find(x => x.id === id); 
+        if (!p) return;
+        const ns = p.status === 'active' ? 'paused' : 'active';
+        await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: ns }) });
+        await preload(); 
+        renderProductsTable(); 
+      }
       
       if (e.target.classList.contains('act-del')) {
         if (!confirm('Delete product and ALL its data?')) return;
@@ -1486,7 +1525,7 @@ function renderCompactCountryStats() {
   }
 }
 
-// Update the renderAdvertisingOverview function to include all 4 buttons
+// Update the renderAdvertisingOverview function
 async function renderAdvertisingOverview() {
   return new Promise((resolve) => {
     try {
@@ -1673,13 +1712,11 @@ function renderProductInfoResults(productInfo) {
     const availableForProfitAndAds = analysis.sellingPrice - totalCost;
     const maxCPL = analysis.deliveryRate > 0 ? availableForProfitAndAds * (analysis.deliveryRate / 100) : 0;
 
-    const profitClass = availableForProfitAndAds >= 0 ? 'profit-medium' : 'loss-medium';
-
     html += `
       <tr>
         <td>${analysis.country}</td>
         <td>$${fmt(maxCPL)}</td>
-        <td class="${profitClass}">$${fmt(availableForProfitAndAds)}</td>
+        <td class="${availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(availableForProfitAndAds)}</td>
         <td>${fmt(analysis.deliveryRate)}%</td>
         <td>$${fmt(analysis.sellingPrice)}</td>
         <td>$${fmt(analysis.productCostChina)}</td>
@@ -2502,6 +2539,7 @@ function editShipment(shipment) {
     }).catch(alert);
   }
 }
+
 // ======== ADSPEND PAGE ========
 function renderAdspendPage() {
   bindAdspendDaily();
