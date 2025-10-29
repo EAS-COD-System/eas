@@ -32,75 +32,14 @@ async function api(path, opts = {}) {
     throw error;
   }
 }
-// Add these enhanced calculation functions
-async function calculateEnhancedProductCosts(productId, country) {
-  try {
-    const shipments = await api('/api/shipments');
-    const productShipments = shipments.shipments.filter(s => s.productId === productId && s.arrivedAt);
-    
-    let totalProductCost = 0;
-    let totalShippingCost = 0;
-    let totalPieces = 0;
-    
-    // Function to calculate shipping cost for a specific country
-    function calculateShippingToCountry(targetCountry) {
-      let shippingCostPerPiece = 0;
-      
-      // Find all shipment paths that lead to this country
-      function traceShipmentPath(currentCountry, accumulatedCost = 0) {
-        const incomingShipments = productShipments.filter(s => s.toCountry === currentCountry);
-        
-        incomingShipments.forEach(shipment => {
-          const pieces = +shipment.qty || 0;
-          const shipCost = +shipment.shipCost || 0;
-          const costPerPiece = shipCost / pieces;
-          
-          if (shipment.fromCountry === 'china') {
-            // This is direct from China
-            shippingCostPerPiece = accumulatedCost + costPerPiece;
-          } else {
-            // This is inter-country, trace back
-            traceShipmentPath(shipment.fromCountry, accumulatedCost + costPerPiece);
-          }
-        });
-      }
-      
-      traceShipmentPath(targetCountry, 0);
-      return shippingCostPerPiece;
-    }
-    
-    // Calculate product cost from China shipments
-    const chinaShipments = productShipments.filter(s => s.fromCountry === 'china');
-    chinaShipments.forEach(shipment => {
-      const pieces = +shipment.qty || 0;
-      const chinaCost = +shipment.chinaCost || 0;
-      const costPerPiece = chinaCost / pieces;
-      
-      totalProductCost += chinaCost;
-      totalPieces += pieces;
-    });
-    
-    const avgProductCostPerPiece = totalPieces > 0 ? totalProductCost / totalPieces : 0;
-    const shippingCostPerPiece = calculateShippingToCountry(country);
-    
-    return {
-      productCostPerPiece: avgProductCostPerPiece,
-      shippingCostPerPiece: shippingCostPerPiece,
-      totalCostPerPiece: avgProductCostPerPiece + shippingCostPerPiece
-    };
-  } catch (error) {
-    console.error('Error calculating enhanced costs:', error);
-    return { productCostPerPiece: 0, shippingCostPerPiece: 0, totalCostPerPiece: 0 };
-  }
-}
 
 // Enhanced profit calculation for analytics
 async function calculateEnhancedProfitMetrics(productId, country, startDate, endDate) {
   try {
-    const costs = await calculateEnhancedProductCosts(productId, country);
     const remittances = await api('/api/remittances');
     const refunds = await api('/api/refunds');
     const adspend = await api('/api/adspend');
+    const productInfo = await api(`/api/product-info/${productId}`);
     
     // Filter data by date range and product/country
     const filteredRemittances = remittances.remittances.filter(r => 
@@ -132,9 +71,13 @@ async function calculateEnhancedProfitMetrics(productId, country, startDate, end
     const totalDeliveredPieces = filteredRemittances.reduce((sum, r) => sum + (+r.pieces || 0), 0);
     const totalDeliveredOrders = filteredRemittances.reduce((sum, r) => sum + (+r.orders || 0), 0);
     
-    // Calculate costs using enhanced logic
-    const totalProductCost = totalDeliveredPieces * costs.productCostPerPiece;
-    const totalShippingCost = totalDeliveredPieces * costs.shippingCostPerPiece;
+    // Find cost analysis for this country
+    const countryAnalysis = productInfo.costAnalysis.find(ca => ca.country === country);
+    const productCostPerPiece = countryAnalysis ? countryAnalysis.productCostChina : 0;
+    const shippingCostPerPiece = countryAnalysis ? countryAnalysis.shippingCost : 0;
+    
+    const totalProductCost = totalDeliveredPieces * productCostPerPiece;
+    const totalShippingCost = totalDeliveredPieces * shippingCostPerPiece;
     
     const totalCost = totalProductCost + totalShippingCost + totalAdSpend + totalBoxleoFees;
     const profit = (totalRevenue - totalRefundedAmount) - totalCost;
@@ -149,8 +92,8 @@ async function calculateEnhancedProfitMetrics(productId, country, startDate, end
       profit,
       totalDeliveredPieces,
       totalDeliveredOrders,
-      productCostPerPiece: costs.productCostPerPiece,
-      shippingCostPerPiece: costs.shippingCostPerPiece,
+      productCostPerPiece,
+      shippingCostPerPiece,
       isProfitable: profit > 0
     };
   } catch (error) {
@@ -158,6 +101,7 @@ async function calculateEnhancedProfitMetrics(productId, country, startDate, end
     return null;
   }
 }
+
 const state = {
   productId: getQuery('id'),
   countries: [],
@@ -468,598 +412,236 @@ function getDateRange(container) {
   };
 }
 
-// ======== DASHBOARD ========
-function renderDashboardPage() {
-  renderCompactKpis();
-  renderCountryStockSpend();
-  bindDailyAdSpend();
-  renderWeeklyDelivered();
-  initBrainstorming();
-  initTodos();
-  initWeeklyTodos();
-  initTestedProducts();
+// ======== PERFORMANCE PAGE ENHANCEMENTS ========
+function renderPerformancePage() {
+  initDateRangeSelectors();
+  bindProductOrders();
+  bindProductCostsAnalysis();
+  bindRemittanceAnalytics();
+  bindProfitByCountry();
+  bindRemittanceAdd();
+  bindRefundAdd();
+  
+  setTimeout(() => {
+    if (Q('#pcaRun')) Q('#pcaRun').click();
+    if (Q('#remAnalyticsRun')) Q('#remAnalyticsRun').click();
+    if (Q('#pcRun')) Q('#pcRun').click();
+  }, 500);
 }
 
-async function renderCompactKpis() {
-  Q('#kpiProducts') && (Q('#kpiProducts').textContent = state.products.length);
-  Q('#kpiCountries') && (Q('#kpiCountries').textContent = state.countries.length);
-
-  try {
-    const stockByCountry = await calculateStockByCountry();
-    let activeStock = 0;
-    let inactiveStock = 0;
-    
-    state.countries.forEach(country => {
-      const stock = stockByCountry[country] || 0;
-      if (stock > 0) activeStock += stock;
-      if (stock < 0) inactiveStock += Math.abs(stock);
-    });
-
-    const transitData = await calculateTransitPieces();
-    
-    Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = transitData.chinaTransit);
-    Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = transitData.interCountryTransit);
-    Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = activeStock);
-    Q('#kpiInactiveStock') && (Q('#kpiInactiveStock').textContent = inactiveStock);
-  } catch { 
-    Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = '—');
-    Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = '—');
-    Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = '—');
-    Q('#kpiInactiveStock') && (Q('#kpiInactiveStock').textContent = '—');
-  }
-
-  try {
-    const a = await api('/api/adspend');
-    const total = (a.adSpends || []).reduce((t, x) => t + (+x.amount || 0), 0);
-    Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = `${fmt(total)} USD`);
-  } catch { Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = '—'); }
-
-  const t = Q('#wAllT')?.textContent || '0';
-  Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = t);
-}
-
-async function calculateTransitPieces() {
-  try {
-    const shipments = await api('/api/shipments');
-    const transitShipments = shipments.shipments.filter(s => !s.arrivedAt);
-    
-    const chinaTransit = transitShipments
-      .filter(s => s.fromCountry === 'china')
-      .reduce((sum, s) => sum + (+s.qty || 0), 0);
-    
-    const interCountryTransit = transitShipments
-      .filter(s => s.fromCountry !== 'china')
-      .reduce((sum, s) => sum + (+s.qty || 0), 0);
-
-    return {
-      chinaTransit,
-      interCountryTransit,
-      totalTransit: chinaTransit + interCountryTransit
-    };
-  } catch (error) {
-    console.error('Error calculating transit:', error);
-    return { chinaTransit: 0, interCountryTransit: 0, totalTransit: 0 };
-  }
-}
-
-async function calculateStockByCountry(productId = null) {
-  try {
-    const db = await api('/api/products');
-    if (productId) {
-      const product = db.products.find(p => p.id === productId);
-      return product ? product.stockByCountry : {};
-    } else {
-      const totalStock = {};
-      state.countries.forEach(country => {
-        totalStock[country] = 0;
-      });
-      
-      db.products.forEach(product => {
-        Object.keys(product.stockByCountry || {}).forEach(country => {
-          totalStock[country] = (totalStock[country] || 0) + (product.stockByCountry[country] || 0);
-        });
-      });
-      
-      return totalStock;
-    }
-  } catch (error) {
-    console.error('Error calculating stock:', error);
-    return {};
-  }
-}
-
-async function renderCountryStockSpend() {
-  const body = Q('#stockByCountryBody'); if (!body) return;
-  body.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
-
-  try {
-    const stockByCountry = await calculateStockByCountry();
-    
-    let st = 0, fb = 0, tt = 0, gg = 0, totalAd = 0;
-    
-    const adSpends = await api('/api/adspend');
-    const adBreakdown = {};
-    
-    state.countries.forEach(country => {
-      adBreakdown[country] = { facebook: 0, tiktok: 0, google: 0 };
-    });
-
-    (adSpends.adSpends || []).forEach(ad => {
-      const product = state.products.find(p => p.id === ad.productId);
-      if (product && product.status === 'active' && adBreakdown[ad.country]) {
-        const amount = +ad.amount || 0;
-        if (ad.platform === 'facebook') adBreakdown[ad.country].facebook += amount;
-        else if (ad.platform === 'tiktok') adBreakdown[ad.country].tiktok += amount;
-        else if (ad.platform === 'google') adBreakdown[ad.country].google += amount;
-      }
-    });
-
-    const rows = state.countries.map(country => {
-      const stock = stockByCountry[country] || 0;
-      const adData = adBreakdown[country] || { facebook: 0, tiktok: 0, google: 0 };
-      const countryAdTotal = adData.facebook + adData.tiktok + adData.google;
-
-      st += stock;
-      fb += adData.facebook;
-      tt += adData.tiktok;
-      gg += adData.google;
-      totalAd += countryAdTotal;
-
-      return `<tr>
-        <td>${country}</td>
-        <td>${fmt(stock)}</td>
-        <td>${fmt(adData.facebook)}</td>
-        <td>${fmt(adData.tiktok)}</td>
-        <td>${fmt(adData.google)}</td>
-        <td>${fmt(countryAdTotal)}</td>
-      </tr>`;
-    }).join('');
-
-    body.innerHTML = rows || `<tr><td colspan="6" class="muted">No data</td></tr>`;
-    Q('#stockTotal') && (Q('#stockTotal').textContent = fmt(st));
-    Q('#fbTotal') && (Q('#fbTotal').textContent = fmt(fb));
-    Q('#ttTotal') && (Q('#ttTotal').textContent = fmt(tt));
-    Q('#ggTotal') && (Q('#ggTotal').textContent = fmt(gg));
-    Q('#adTotal') && (Q('#adTotal').textContent = fmt(totalAd));
-  } catch (error) {
-    body.innerHTML = `<tr><td colspan="6" class="muted">Error loading data</td></tr>`;
-    console.error('Dashboard error:', error);
-  }
-}
-
-function bindDailyAdSpend() {
-  const btn = Q('#adSave');
+function bindRemittanceAnalytics() {
+  const btn = Q('#remAnalyticsRun');
   if (!btn) return;
+
   btn.onclick = async () => {
-    const payload = {
-      date: isoToday(),
-      productId: Q('#adProduct')?.value,
-      country: Q('#adCountry')?.value,
-      platform: Q('#adPlatform')?.value,
-      amount: +Q('#adAmount')?.value || 0
-    };
-    if (!payload.productId || !payload.country || !payload.platform) return alert('Fill all fields');
+    const dateRange = getDateRange(btn.closest('.row'));
+    const country = Q('#remAnalyticsCountry')?.value || '';
+    const productId = Q('#remAnalyticsProduct')?.value || '';
+
     try {
-      await api('/api/adspend', { method: 'POST', body: JSON.stringify(payload) });
-      await renderCountryStockSpend();
-      await renderCompactKpis();
-      
-      await renderAdvertisingOverview();
-      
-      alert('Ad spend saved');
-      
-      Q('#adAmount').value = '';
-    } catch (e) { alert(e.message); }
+      const analytics = await api('/api/analytics/remittance?' + new URLSearchParams({
+        ...dateRange,
+        country,
+        productId,
+        sortBy: state.remittanceSortBy,
+        sortOrder: state.remittanceSortOrder
+      }));
+
+      renderRemittanceAnalytics(analytics.analytics || []);
+    } catch (e) {
+      alert('Error loading remittance analytics: ' + e.message);
+    }
   };
 }
 
-function mondayOf(dateISO) {
-  const d = new Date(dateISO);
-  const k = (d.getDay() + 6) % 7; d.setDate(d.getDate() - k);
-  return d;
-}
+function renderRemittanceAnalytics(analytics) {
+  const tb = Q('#remAnalyticsBody');
+  if (!tb) return;
 
-function weekDays(fromMonDate) {
-  return [...Array(7)].map((_, i) => {
-    const t = new Date(fromMonDate); t.setDate(t.getDate() + i);
-    return t.toISOString().slice(0, 10);
-  });
-}
+  let totalPieces = 0, totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
+  let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0;
+  let totalDeliveredOrders = 0, totalRefundedOrders = 0, totalRefundedAmount = 0, totalInfluencerSpend = 0;
+  let itemCount = 0;
 
-function renderWeeklyDelivered() {
-  const head = Q('#weeklyHead'), body = Q('#weeklyBody'), rangeLbl = Q('#weeklyRange');
-  if (!head || !body) return;
+  if (analytics.length === 0) {
+    tb.innerHTML = '<tr><td colspan="22" class="muted">No data found for the selected criteria</td></tr>';
+    return;
+  }
 
-  let anchor = isoToday();
-  const updateGrid = async () => {
-    const mon = mondayOf(anchor);
-    const days = weekDays(mon);
-    rangeLbl && (rangeLbl.textContent = `Week: ${days[0]} → ${days[6]}`);
+  tb.innerHTML = analytics.map(item => {
+    totalPieces += item.totalDeliveredPieces || 0;
+    totalRevenue += item.totalRevenue || 0;
+    totalAdSpend += item.totalAdSpend || 0;
+    totalBoxleo += item.totalBoxleoFees || 0;
+    totalProductCost += item.totalProductChinaCost || 0;
+    totalShippingCost += item.totalShippingCost || 0;
+    totalProfit += item.profit || 0;
+    totalOrders += item.totalOrders || 0;
+    totalDeliveredOrders += item.totalDeliveredOrders || 0;
+    totalRefundedOrders += item.totalRefundedOrders || 0;
+    totalRefundedAmount += item.totalRefundedAmount || 0;
+    totalInfluencerSpend += item.totalInfluencerSpend || 0;
+    itemCount++;
 
-    head.innerHTML = `<tr><th>Country</th>${days.map(d => {
-      const lab = new Date(d).toLocaleDateString(undefined, { weekday: 'short' });
-      return `<th>${lab}<br>${d}</th>`;
-    }).join('')}<th>Total</th></tr>`;
+    const profitClass = item.profit >= 0 ? 'profit-high' : 'loss-high';
+    const profitPerOrderClass = item.profitPerOrder >= 0 ? 'profit-medium' : 'loss-medium';
+    const profitPerPieceClass = item.profitPerPiece >= 0 ? 'profit-low' : 'loss-low';
 
-    body.innerHTML = state.countries.map(c => {
-      const cells = days.map(d => `<td><input type="number" min="0" class="wd-cell" data-country="${c}" data-date="${d}" placeholder="0"/></td>`).join('');
-      return `<tr data-row="${c}"><td>${c}</td>${cells}<td class="row-total">0</td></tr>`;
-    }).join('');
+    return `
+      <tr>
+        <td>${item.productName}</td>
+        <td>${item.country}</td>
+        <td>${fmt(item.totalOrders)}</td>
+        <td>${fmt(item.totalDeliveredOrders)}</td>
+        <td>${fmt(item.totalRefundedOrders)}</td>
+        <td>${fmt(item.totalDeliveredPieces)}</td>
+        <td class="number-positive">$${fmt(item.totalRevenue)}</td>
+        <td class="number-negative">$${fmt(item.totalRefundedAmount)}</td>
+        <td>$${fmt(item.totalAdSpend)}</td>
+        <td>$${fmt(item.totalInfluencerSpend)}</td>
+        <td>$${fmt(item.totalBoxleoFees)}</td>
+        <td>$${fmt(item.totalProductChinaCost)}</td>
+        <td>$${fmt(item.totalShippingCost)}</td>
+        <td>$${fmt(item.boxleoPerDeliveredOrder)}</td>
+        <td>$${fmt(item.boxleoPerDeliveredPiece)}</td>
+        <td>$${fmt(item.adCostPerDeliveredOrder)}</td>
+        <td>$${fmt(item.adCostPerDeliveredPiece)}</td>
+        <td class="${profitPerOrderClass}">$${fmt(item.profitPerOrder)}</td>
+        <td class="${profitPerPieceClass}">$${fmt(item.profitPerPiece)}</td>
+        <td>${fmt(item.deliveryRate)}%</td>
+        <td>$${fmt(item.averageOrderValue)}</td>
+        <td class="${profitClass}">$${fmt(item.profit)}</td>
+      </tr>
+    `;
+  }).join('');
 
-    try {
-      const r = await api('/api/deliveries');
-      const map = {};
-      (r.deliveries || []).forEach(x => map[`${x.country}|${x.date}`] = +x.delivered || 0);
-      QA('.wd-cell').forEach(inp => {
-        const k = `${inp.dataset.country}|${inp.dataset.date}`;
-        if (map[k] != null) inp.value = map[k];
-      });
-    } catch { }
-
-    computeWeeklyTotals();
+  // Update totals
+  const updateTotal = (id, value) => {
+    const el = Q(id);
+    if (el) el.textContent = typeof value === 'number' ? fmt(value) : value;
   };
 
-  function computeWeeklyTotals() {
-    QA('tr[data-row]').forEach(tr => {
-      const t = QA('.wd-cell', tr).reduce((s, el) => s + (+el.value || 0), 0);
-      const totalEl = Q('.row-total', tr);
-      if (totalEl) totalEl.textContent = fmt(t);
-    });
+  updateTotal('#remAnalyticsOrdersT', totalOrders);
+  updateTotal('#remAnalyticsDeliveredOrdersT', totalDeliveredOrders);
+  updateTotal('#remAnalyticsRefundedOrdersT', totalRefundedOrders);
+  updateTotal('#remAnalyticsDeliveredPiecesT', totalPieces);
+  updateTotal('#remAnalyticsRevenueT', totalRevenue);
+  updateTotal('#remAnalyticsRefundedAmountT', totalRefundedAmount);
+  updateTotal('#remAnalyticsAdSpendT', totalAdSpend);
+  updateTotal('#remAnalyticsInfluencerSpendT', totalInfluencerSpend);
+  updateTotal('#remAnalyticsBoxleoT', totalBoxleo);
+  updateTotal('#remAnalyticsProductCostT', totalProductCost);
+  updateTotal('#remAnalyticsShippingCostT', totalShippingCost);
+  updateTotal('#remAnalyticsProfitT', totalProfit);
 
-    const cols = QA('thead th', Q('#weeklyTable'))?.length - 2 || 0;
-    let grand = 0;
-    for (let i = 0; i < cols; i++) {
-      let colSum = 0;
-      QA('tr[data-row]').forEach(tr => {
-        const inp = QA('.wd-cell', tr)[i];
-        colSum += (+inp?.value || 0);
-      });
-      const dayEl = Q(`#w${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]}T`);
-      if (dayEl) dayEl.textContent = fmt(colSum);
-      grand += colSum;
-    }
-    Q('#wAllT') && (Q('#wAllT').textContent = fmt(grand));
-    Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = fmt(grand));
-  }
+  // Add sorting functionality
+  addSortingToAnalytics();
+}
 
-  Q('#weeklyPrev')?.addEventListener('click', () => { const d = new Date(anchor); d.setDate(d.getDate() - 7); anchor = d.toISOString().slice(0, 10); updateGrid(); });
-  Q('#weeklyNext')?.addEventListener('click', () => { const d = new Date(anchor); d.setDate(d.getDate() + 7); anchor = d.toISOString().slice(0, 10); updateGrid(); });
-  Q('#weeklyReset')?.addEventListener('click', () => { QA('.wd-cell').forEach(el => el.value = ''); computeWeeklyTotals(); });
-  Q('#weeklyTable')?.addEventListener('input', (e) => { if (e.target.classList.contains('wd-cell')) computeWeeklyTotals(); });
-  Q('#weeklySave')?.addEventListener('click', async () => {
-    const payload = [];
-    QA('.wd-cell').forEach(inp => {
-      const val = +inp.value || 0;
-      if (val > 0) payload.push({ date: inp.dataset.date, country: inp.dataset.country, delivered: val });
-    });
+function bindProfitByCountry() {
+  const btn = Q('#pcRun');
+  if (!btn) return;
+
+  btn.onclick = async () => {
+    const dateRange = getDateRange(btn.closest('.row'));
+    const country = Q('#pcCountry')?.value || '';
+
     try {
-      for (const row of payload) await api('/api/deliveries', { method: 'POST', body: JSON.stringify(row) });
-      alert('Weekly deliveries saved');
-    } catch (e) { alert('Save failed: ' + e.message); }
-  });
+      const analytics = await api('/api/analytics/profit-by-country?' + new URLSearchParams({
+        ...dateRange,
+        country,
+        sortBy: state.profitCountrySortBy,
+        sortOrder: state.profitCountrySortOrder
+      }));
 
-  updateGrid();
+      renderProfitByCountry(analytics.analytics || []);
+    } catch (e) {
+      alert('Error loading profit by country: ' + e.message);
+    }
+  };
 }
 
-function initBrainstorming() {
-  const container = Q('#brainstormingSection');
-  if (!container) return;
+function renderProfitByCountry(analytics) {
+  const tb = Q('#profitCountryBody');
+  if (!tb) return;
 
-  api('/api/brainstorming').then(data => {
-    state.brainstorming = data.ideas || [];
-    renderBrainstorming();
-  }).catch(console.error);
+  let totalPieces = 0, totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
+  let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0;
+  let totalDeliveredOrders = 0, totalRefundedOrders = 0, totalRefundedAmount = 0, totalInfluencerSpend = 0;
+  let itemCount = 0;
 
-  function renderBrainstorming() {
-    container.innerHTML = `
-      <div class="card">
-        <div class="h">💡 Brainstorming & Idea Management</div>
-        <div class="row wrap">
-          <input id="brainTitle" class="input" placeholder="Idea title"/>
-          <select id="brainCategory" class="input">
-            <option value="product">Product Idea</option>
-            <option value="marketing">Marketing</option>
-            <option value="operation">Operation</option>
-            <option value="improvement">Improvement</option>
-            <option value="general">General</option>
-          </select>
-          <button id="brainAdd" class="btn">➕ Add Idea</button>
-        </div>
-        <textarea id="brainDescription" class="input" placeholder="Detailed description, notes, implementation plan..." rows="3" style="width: 100%; margin: 10px 0;"></textarea>
-        
-        <div id="brainstormingList" class="ideas-list">
-          ${state.brainstorming.map(idea => `
-            <div class="idea-card" data-id="${idea.id}">
-              <div class="idea-header">
-                <strong>${idea.title}</strong>
-                <span class="idea-category ${idea.category}">${idea.category}</span>
-                <div class="idea-actions">
-                  <button class="btn outline small brain-del" data-id="${idea.id}">Delete</button>
-                </div>
-              </div>
-              <div class="idea-description">${idea.description}</div>
-              <div class="idea-date">Last updated: ${new Date(idea.updatedAt).toLocaleDateString()}</div>
-            </div>
-          `).join('')}
-        </div>
-      </div>
+  if (analytics.length === 0) {
+    tb.innerHTML = '<tr><td colspan="21" class="muted">No data found for the selected criteria</td></tr>';
+    return;
+  }
+
+  tb.innerHTML = analytics.map(item => {
+    totalPieces += item.totalDeliveredPieces || 0;
+    totalRevenue += item.totalRevenue || 0;
+    totalAdSpend += item.totalAdSpend || 0;
+    totalBoxleo += item.totalBoxleoFees || 0;
+    totalProductCost += item.totalProductChinaCost || 0;
+    totalShippingCost += item.totalShippingCost || 0;
+    totalProfit += item.profit || 0;
+    totalOrders += item.totalOrders || 0;
+    totalDeliveredOrders += item.totalDeliveredOrders || 0;
+    totalRefundedOrders += item.totalRefundedOrders || 0;
+    totalRefundedAmount += item.totalRefundedAmount || 0;
+    totalInfluencerSpend += item.totalInfluencerSpend || 0;
+    itemCount++;
+
+    const profitClass = item.profit >= 0 ? 'profit-high' : 'loss-high';
+    const profitPerOrderClass = item.profitPerOrder >= 0 ? 'profit-medium' : 'loss-medium';
+    const profitPerPieceClass = item.profitPerPiece >= 0 ? 'profit-low' : 'loss-low';
+
+    return `
+      <tr>
+        <td>${item.country}</td>
+        <td>${fmt(item.totalOrders)}</td>
+        <td>${fmt(item.totalDeliveredOrders)}</td>
+        <td>${fmt(item.totalRefundedOrders)}</td>
+        <td>${fmt(item.totalDeliveredPieces)}</td>
+        <td class="number-positive">$${fmt(item.totalRevenue)}</td>
+        <td class="number-negative">$${fmt(item.totalRefundedAmount)}</td>
+        <td>$${fmt(item.totalAdSpend)}</td>
+        <td>$${fmt(item.totalInfluencerSpend)}</td>
+        <td>$${fmt(item.totalProductChinaCost)}</td>
+        <td>$${fmt(item.totalShippingCost)}</td>
+        <td>$${fmt(item.totalBoxleoFees)}</td>
+        <td>$${fmt(item.boxleoPerDeliveredOrder)}</td>
+        <td>$${fmt(item.boxleoPerDeliveredPiece)}</td>
+        <td>$${fmt(item.adCostPerDeliveredOrder)}</td>
+        <td>$${fmt(item.adCostPerDeliveredPiece)}</td>
+        <td class="${profitPerOrderClass}">$${fmt(item.profitPerOrder)}</td>
+        <td class="${profitPerPieceClass}">$${fmt(item.profitPerPiece)}</td>
+        <td>${fmt(item.deliveryRate)}%</td>
+        <td>$${fmt(item.averageOrderValue)}</td>
+        <td class="${profitClass}">$${fmt(item.profit)}</td>
+      </tr>
     `;
+  }).join('');
 
-    Q('#brainAdd')?.addEventListener('click', addBrainstormingIdea);
-    container.addEventListener('click', handleBrainstormingActions);
-  }
+  // Update totals
+  const updateTotal = (id, value) => {
+    const el = Q(id);
+    if (el) el.textContent = typeof value === 'number' ? fmt(value) : value;
+  };
 
-  function addBrainstormingIdea() {
-    const title = Q('#brainTitle')?.value.trim();
-    const description = Q('#brainDescription')?.value.trim();
-    const category = Q('#brainCategory')?.value;
-
-    if (!title) return alert('Please enter an idea title');
-
-    api('/api/brainstorming', {
-      method: 'POST',
-      body: JSON.stringify({ title, description, category })
-    }).then(() => {
-      Q('#brainTitle').value = '';
-      Q('#brainDescription').value = '';
-      return api('/api/brainstorming');
-    }).then(data => {
-      state.brainstorming = data.ideas || [];
-      renderBrainstorming();
-    }).catch(alert);
-  }
-
-  function handleBrainstormingActions(e) {
-    if (e.target.classList.contains('brain-del')) {
-      if (!confirm('Delete this idea?')) return;
-      api(`/api/brainstorming/${e.target.dataset.id}`, { method: 'DELETE' })
-        .then(() => api('/api/brainstorming'))
-        .then(data => {
-          state.brainstorming = data.ideas || [];
-          renderBrainstorming();
-        })
-        .catch(alert);
-    }
-  }
+  updateTotal('#pcOrdersT', totalOrders);
+  updateTotal('#pcDeliveredOrdersT', totalDeliveredOrders);
+  updateTotal('#pcRefundedOrdersT', totalRefundedOrders);
+  updateTotal('#pcDeliveredPiecesT', totalPieces);
+  updateTotal('#pcRevT', totalRevenue);
+  updateTotal('#pcRefundedAmountT', totalRefundedAmount);
+  updateTotal('#pcAdT', totalAdSpend);
+  updateTotal('#pcInfluencerSpendT', totalInfluencerSpend);
+  updateTotal('#pcProductCostT', totalProductCost);
+  updateTotal('#pcShippingCostT', totalShippingCost);
+  updateTotal('#pcBoxleoT', totalBoxleo);
+  updateTotal('#pcProfitT', totalProfit);
 }
 
-function initTodos() {
-  const listEl = Q('#todoList'); 
-  const addBtn = Q('#todoAdd');
-  
-  function renderQuick() {
-    api('/api/todos').then(data => {
-      const arr = data.todos || [];
-      listEl.innerHTML = arr.map(t => `<div class="flex">
-        <span>${t.done ? '✅ ' : ''}${t.text}</span>
-        <button class="btn outline" data-done="${t.id}">${t.done ? 'Undo' : 'Done'}</button>
-        <button class="btn outline" data-del="${t.id}">Delete</button>
-      </div>`).join('') || '<div class="muted">No tasks</div>';
-    }).catch(console.error);
-  }
-  
-  addBtn?.addEventListener('click', () => {
-    const v = Q('#todoText')?.value.trim(); 
-    if (!v) return;
-    
-    api('/api/todos', {
-      method: 'POST',
-      body: JSON.stringify({ text: v, done: false })
-    }).then(() => {
-      Q('#todoText').value = '';
-      renderQuick();
-    }).catch(alert);
-  });
-  
-  listEl?.addEventListener('click', (e) => {
-    if (e.target.dataset.done) {
-      api(`/api/todos/${e.target.dataset.done}/toggle`, { method: 'POST' })
-        .then(renderQuick)
-        .catch(alert);
-    }
-    if (e.target.dataset.del) {
-      api(`/api/todos/${e.target.dataset.del}`, { method: 'DELETE' })
-        .then(renderQuick)
-        .catch(alert);
-    }
-  });
-  
-  renderQuick();
-}
-
-function initWeeklyTodos() {
-  const container = Q('#weeklyWrap');
-  if (!container) return;
-
-  const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-  
-  function renderWeeklyTodos() {
-    api('/api/weekly-todos').then(data => {
-      const weeklyTodos = data.weeklyTodos || {};
-      
-      container.innerHTML = days.map(day => {
-        const dayTodos = weeklyTodos[day] || [];
-        return `
-          <div class="card">
-            <div class="h">${day.charAt(0).toUpperCase() + day.slice(1)}</div>
-            <div class="row">
-              <input class="input weekly-todo-input" data-day="${day}" placeholder="Add task for ${day}..."/>
-              <button class="btn weekly-todo-add" data-day="${day}">Add</button>
-            </div>
-            <div class="weekly-todo-list" data-day="${day}">
-              ${dayTodos.map(todo => `
-                <div class="flex">
-                  <span>${todo.done ? '✅ ' : ''}${todo.text}</span>
-                  <div>
-                    <button class="btn outline small weekly-todo-toggle" data-day="${day}" data-id="${todo.id}">
-                      ${todo.done ? 'Undo' : 'Done'}
-                    </button>
-                    <button class="btn outline small weekly-todo-delete" data-day="${day}" data-id="${todo.id}">
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              `).join('') || '<div class="muted">No tasks for this day</div>'}
-            </div>
-          </div>
-        `;
-      }).join('');
-      
-      container.addEventListener('click', handleWeeklyTodoActions);
-      QA('.weekly-todo-add').forEach(btn => {
-        btn.addEventListener('click', addWeeklyTodo);
-      });
-      QA('.weekly-todo-input').forEach(input => {
-        input.addEventListener('keypress', (e) => {
-          if (e.key === 'Enter') {
-            addWeeklyTodo({ target: e.target.closest('.weekly-todo-add') });
-          }
-        });
-      });
-    }).catch(console.error);
-  }
-
-  function addWeeklyTodo(e) {
-    const day = e.target.dataset.day;
-    const input = Q(`.weekly-todo-input[data-day="${day}"]`);
-    const text = input?.value.trim();
-    
-    if (!text) return;
-    
-    api('/api/weekly-todos', {
-      method: 'POST',
-      body: JSON.stringify({ day, text })
-    }).then(() => {
-      input.value = '';
-      renderWeeklyTodos();
-    }).catch(alert);
-  }
-
-  function handleWeeklyTodoActions(e) {
-    if (e.target.classList.contains('weekly-todo-toggle')) {
-      const { day, id } = e.target.dataset;
-      api(`/api/weekly-todos/${day}/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ done: true })
-      }).then(renderWeeklyTodos).catch(alert);
-    }
-    
-    if (e.target.classList.contains('weekly-todo-delete')) {
-      const { day, id } = e.target.dataset;
-      api(`/api/weekly-todos/${day}/${id}`, {
-        method: 'DELETE'
-      }).then(renderWeeklyTodos).catch(alert);
-    }
-  }
-  
-  renderWeeklyTodos();
-}
-
-function initTestedProducts() {
-  const container = Q('#testedProductsSection');
-  if (!container) return;
-
-  api('/api/tested-products').then(data => {
-    state.testedProducts = data.testedProducts || [];
-    renderTestedProducts();
-  }).catch(console.error);
-
-  function renderTestedProducts() {
-    container.innerHTML = `
-      <div class="card">
-        <div class="h">🧪 Product Testing Results & Analysis</div>
-        <div class="row wrap">
-          <input id="testProductName" class="input" placeholder="Product name"/>
-          <select id="testCountry" class="input">
-            <option value="">Select country</option>
-            ${state.countries.map(c => `<option value="${c}">${c}</option>`).join('')}
-          </select>
-          <input id="testCostPerLead" type="number" class="input" placeholder="Cost per lead (USD)" step="0.01"/>
-          <input id="testConfirmationRate" type="number" class="input" placeholder="Confirmation rate %" step="0.1" max="100"/>
-        </div>
-        <div class="row wrap">
-          <input id="testSellingPrice" type="number" class="input" placeholder="Selling price (USD)" step="0.01"/>
-          <button id="testAdd" class="btn">💾 Save Test Results</button>
-        </div>
-        
-        <div id="testedProductsList" class="tested-products-list">
-          ${renderTestedProductsList()}
-        </div>
-      </div>
-    `;
-
-    Q('#testAdd')?.addEventListener('click', addTestedProduct);
-    container.addEventListener('click', handleTestedProductActions);
-  }
-
-  function renderTestedProductsList() {
-    if (state.testedProducts.length === 0) {
-      return '<div class="muted">No tested products yet. Add your first product test results above.</div>';
-    }
-
-    return state.testedProducts.map(product => `
-      <div class="tested-product-card">
-        <div class="tested-product-header">
-          <strong>${product.productName}</strong>
-          <button class="btn outline small test-del" data-id="${product.id}">Delete</button>
-        </div>
-        <div class="tested-product-countries">
-          ${product.countryData.map(country => `
-            <div class="country-result">
-              <span class="country-name">${country.country}</span>
-              <div class="country-stats">
-                <span class="stat-badge">CPL: $${fmt(country.costPerLead)}</span>
-                <span class="stat-badge">Confirmation: ${fmt(country.confirmationRate)}%</span>
-                <span class="stat-badge">Price: $${fmt(country.sellingPrice)}</span>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    `).join('');
-  }
-
-  function addTestedProduct() {
-    const productName = Q('#testProductName')?.value.trim();
-    const country = Q('#testCountry')?.value;
-    const costPerLead = +Q('#testCostPerLead')?.value || 0;
-    const confirmationRate = +Q('#testConfirmationRate')?.value || 0;
-    const sellingPrice = +Q('#testSellingPrice')?.value || 0;
-
-    if (!productName || !country) return alert('Please enter product name and country');
-
-    api('/api/tested-products', {
-      method: 'POST',
-      body: JSON.stringify({ productName, country, costPerLead, confirmationRate, sellingPrice })
-    }).then(() => {
-      Q('#testProductName').value = '';
-      Q('#testCountry').value = '';
-      Q('#testCostPerLead').value = '';
-      Q('#testConfirmationRate').value = '';
-      Q('#testSellingPrice').value = '';
-
-      return api('/api/tested-products');
-    }).then(data => {
-      state.testedProducts = data.testedProducts || [];
-      renderTestedProducts();
-    }).catch(alert);
-  }
-
-  function handleTestedProductActions(e) {
-    if (e.target.classList.contains('test-del')) {
-      if (!confirm('Delete all test results for this product?')) return;
-      api(`/api/tested-products/${e.target.dataset.id}`, { method: 'DELETE' })
-        .then(() => api('/api/tested-products'))
-        .then(data => {
-          state.testedProducts = data.testedProducts || [];
-          renderTestedProducts();
-        })
-        .catch(alert);
-    }
-  }
-}
-
-// ======== PRODUCTS PAGE ========
+// ======== PRODUCTS PAGE ENHANCEMENTS ========
 function renderProductsPage() {
   try {
     renderCompactCountryStats();
@@ -1105,425 +687,190 @@ function renderProductsPage() {
       }
     });
 
-    Q('#spSave')?.addEventListener('click', async () => {
-      const productId = Q('#spProduct')?.value;
-      const country = Q('#spCountry')?.value;
-      const price = +Q('#spPrice')?.value || 0;
-
-      if (!productId || !country) return alert('Select product and country');
-      if (price <= 0) return alert('Enter valid selling price');
-
-      await api(`/api/products/${productId}/prices`, {
-        method: 'POST',
-        body: JSON.stringify({ country, price })
+    // Fix for product status toggle
+    const productsTable = Q('#productsTable');
+    if (productsTable) {
+      productsTable.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('act-toggle')) {
+          const productId = e.target.dataset.id;
+          const product = state.products.find(p => p.id === productId);
+          if (!product) return;
+          
+          const newStatus = product.status === 'active' ? 'paused' : 'active';
+          
+          try {
+            await api(`/api/products/${productId}/status`, { 
+              method: 'POST', 
+              body: JSON.stringify({ status: newStatus }) 
+            });
+            
+            await preload();
+            renderProductsTable();
+            alert(`Product ${newStatus === 'active' ? 'activated' : 'paused'} successfully`);
+          } catch (error) {
+            alert('Error updating product status: ' + error.message);
+          }
+        }
       });
+    }
 
-      Q('#spPrice').value = '';
-      alert('Selling price saved');
-    });
-
-    renderProductInfoSection();
   } catch (error) {
     console.error('Error in renderProductsPage:', error);
   }
 }
 
-function initProductSearch() {
-  try {
-    const searchInput = Q('#productSearch');
-    const clearBtn = Q('#clearSearch');
-    
-    if (!searchInput) return;
+function renderProductInfoResults(productInfo) {
+  const container = Q('#productInfoResults');
+  if (!container) return;
 
-    // Add country filter dropdown
-    const searchCard = Q('#productSearch').closest('.card');
-    if (searchCard && !Q('#productsCountryFilter')) {
-      const filterRow = document.createElement('div');
-      filterRow.className = 'row wrap';
-      filterRow.style.marginTop = '10px';
-      filterRow.innerHTML = `
-        <select id="productsCountryFilter" class="input">
-          <option value="all">All Countries</option>
-          ${state.countries.map(c => `<option value="${c}">${c}</option>`).join('')}
-        </select>
-        <select id="productsSortBy" class="input">
-          <option value="totalPieces">Most Pieces</option>
-          <option value="name">Name</option>
-          <option value="status">Status</option>
-          <option value="totalStock">Total Stock</option>
-          <option value="countryStock">Country Stock</option>
-        </select>
-        <button id="applyFilters" class="btn">Apply Filters</button>
-      `;
-      searchCard.appendChild(filterRow);
+  const { product, costAnalysis, boxleoPerOrder } = productInfo;
+
+  let html = `
+    <div class="product-info-results">
+      <div class="product-info-header">
+        <h3>${product.name} ${product.sku ? `(${product.sku})` : ''}</h3>
+        <div class="product-status ${product.status}">${product.status}</div>
+      </div>
       
-      Q('#applyFilters').addEventListener('click', () => {
-        state.productsSortBy = Q('#productsSortBy').value;
-        state.currentProductsPage = 1;
-        renderProductsTable();
-      });
-      
-      Q('#productsCountryFilter').addEventListener('change', () => {
-        state.currentProductsPage = 1;
-        renderProductsTable();
-      });
-    }
+      <div class="profit-budgets-section">
+        <h4>💰 Product Cost Analysis by Country</h4>
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Country</th>
+                <th>Max Cost Per Lead</th>
+                <th>Available for Profit & Ads</th>
+                <th>Delivery Rate</th>
+                <th>Selling Price</th>
+                <th>Product Cost China</th>
+                <th>Shipping Cost</th>
+                <th>Boxleo/Order</th>
+                <th>Total Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+  `;
 
-    let searchTimeout;
-    searchInput.addEventListener('input', (e) => {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
-        state.productsSearchTerm = e.target.value.toLowerCase().trim();
-        state.currentProductsPage = 1;
-        renderProductsTable();
-      }, 300);
-    });
+  costAnalysis.forEach(analysis => {
+    const boxleoPerOrderValue = analysis.boxleoPerOrder || boxleoPerOrder || 0;
+    const totalCost = analysis.productCostChina + analysis.shippingCost + boxleoPerOrderValue;
+    const availableForProfitAndAds = analysis.sellingPrice - totalCost;
+    const maxCPL = analysis.deliveryRate > 0 ? availableForProfitAndAds * (analysis.deliveryRate / 100) : 0;
 
-    clearBtn?.addEventListener('click', () => {
-      searchInput.value = '';
-      state.productsSearchTerm = '';
-      state.currentProductsPage = 1;
-      renderProductsTable();
-    });
+    const profitClass = availableForProfitAndAds >= 0 ? 'profit-medium' : 'loss-medium';
 
-    searchInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        state.productsSearchTerm = e.target.value.toLowerCase().trim();
-        state.currentProductsPage = 1;
-        renderProductsTable();
-      }
-    });
-  } catch (error) {
-    console.error('Error in initProductSearch:', error);
-  }
-}
-
-function filterProducts(products, searchTerm) {
-  if (!products || !Array.isArray(products)) return [];
-  if (!searchTerm) return products;
-  
-  return products.filter(product => 
-    product && product.name && product.name.toLowerCase().includes(searchTerm) ||
-    (product.sku && product.sku.toLowerCase().includes(searchTerm))
-  );
-}
-
-function sortProducts(products, sortBy, countryFilter = 'all') {
-  if (!products || !Array.isArray(products)) return products;
-  
-  let filteredProducts = [...products];
-  
-  // Apply country filter
-  if (countryFilter !== 'all') {
-    filteredProducts = filteredProducts.filter(product => 
-      product.stockByCountry && product.stockByCountry[countryFilter] > 0
-    );
-  }
-  
-  // Apply sorting
-  filteredProducts.sort((a, b) => {
-    let aValue, bValue;
-    
-    switch(sortBy) {
-      case 'name':
-        aValue = a.name || '';
-        bValue = b.name || '';
-        return aValue.localeCompare(bValue);
-        
-      case 'status':
-        aValue = a.status || '';
-        bValue = b.status || '';
-        return aValue.localeCompare(bValue);
-        
-      case 'totalStock':
-        aValue = a.totalStock || 0;
-        bValue = b.totalStock || 0;
-        return bValue - aValue;
-        
-      case 'countryStock':
-        if (countryFilter !== 'all') {
-          aValue = a.stockByCountry?.[countryFilter] || 0;
-          bValue = b.stockByCountry?.[countryFilter] || 0;
-          return bValue - aValue;
-        }
-        // Fall through to totalPieces if no country selected
-      case 'totalPieces':
-      default:
-        aValue = a.totalPiecesIncludingTransit || 0;
-        bValue = b.totalPiecesIncludingTransit || 0;
-        return bValue - aValue;
-    }
-  });
-  
-  return filteredProducts;
-}
-
-function renderProductsTable() {
-  try {
-    const tb = Q('#productsTable tbody'); 
-    const thead = Q('#productsTable thead tr');
-    const searchInfo = Q('#searchResultsInfo');
-    if (!tb || !thead) return;
-
-    if (!state.products || !Array.isArray(state.products)) {
-      tb.innerHTML = '<tr><td colspan="20" class="muted">Loading products...</td></tr>';
-      return;
-    }
-
-    // Filter and sort products - INCLUDE PAUSED PRODUCTS
-    const filteredProducts = filterProducts(state.products, state.productsSearchTerm);
-    const countryFilter = Q('#productsCountryFilter')?.value || 'all';
-    const sortedProducts = sortProducts(filteredProducts, state.productsSortBy, countryFilter);
-    
-    // Update search results info
-    if (searchInfo) {
-      let infoText = `Showing ${sortedProducts.length} products`;
-      if (state.productsSearchTerm) {
-        infoText += ` matching "${state.productsSearchTerm}"`;
-      }
-      if (countryFilter !== 'all') {
-        infoText += ` in ${countryFilter}`;
-      }
-      if (state.productsSortBy === 'totalPieces') {
-        infoText += ` (sorted by most pieces)`;
-      } else if (state.productsSortBy === 'totalStock') {
-        infoText += ` (sorted by most stock)`;
-      } else if (state.productsSortBy === 'countryStock' && countryFilter !== 'all') {
-        infoText += ` (sorted by most stock in ${countryFilter})`;
-      }
-      searchInfo.textContent = infoText;
-    }
-
-    // Pagination
-    const productsPerPage = 15;
-    const totalPages = Math.ceil(sortedProducts.length / productsPerPage);
-    const startIndex = (state.currentProductsPage - 1) * productsPerPage;
-    const endIndex = startIndex + productsPerPage;
-    const paginatedProducts = sortedProducts.slice(startIndex, endIndex);
-
-    // Build table header with colored columns
-    const countryColors = {
-      'kenya': '#1e3a8a',
-      'tanzania': '#7c2d12',
-      'uganda': '#166534',
-      'zambia': '#9d174d',
-      'zimbabwe': '#701a75'
-    };
-    
-    let headerHTML = `
-      <th>Name</th>
-      <th>SKU</th>
-      <th>Status</th>
-      <th>Total Stock</th>
-      <th>Total Transit</th>
-      <th>Total Pieces</th>
+    html += `
+      <tr>
+        <td>${analysis.country}</td>
+        <td>$${fmt(maxCPL)}</td>
+        <td class="${profitClass}">$${fmt(availableForProfitAndAds)}</td>
+        <td>${fmt(analysis.deliveryRate)}%</td>
+        <td>$${fmt(analysis.sellingPrice)}</td>
+        <td>$${fmt(analysis.productCostChina)}</td>
+        <td>$${fmt(analysis.shippingCost)}</td>
+        <td>$${fmt(boxleoPerOrderValue)}</td>
+        <td>$${fmt(totalCost)}</td>
+      </tr>
     `;
+  });
 
-    if (state.countries && Array.isArray(state.countries)) {
-      state.countries.forEach(country => {
-        if (country !== 'china') {
-          const color = countryColors[country] || '#374151';
-          headerHTML += `<th style="background-color: ${color}; color: white;" class="country-${country}">${country.charAt(0).toUpperCase() + country.slice(1)} Stock</th>`;
-          headerHTML += `<th style="background-color: ${color}; color: white;" class="country-${country}">${country.charAt(0).toUpperCase() + country.slice(1)} Ad Spend</th>`;
-        }
+  html += `
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
+
+// ======== STOCK MOVEMENT ENHANCEMENTS ========
+function renderShipmentTable(selector, shipments, showChinaCost) {
+  const tbody = Q(selector);
+  if (!tbody) return;
+
+  if (shipments.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="12" class="muted">No shipments in transit</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = shipments.map(shipment => {
+    const product = state.products.find(p => p.id === shipment.productId);
+    const productName = product ? product.name : shipment.productId;
+    const route = `${shipment.fromCountry} → ${shipment.toCountry}`;
+    
+    return `
+      <tr>
+        <td>${shipment.id.slice(0, 8)}</td>
+        <td>${productName}</td>
+        <td>${route}</td>
+        <td>${fmt(shipment.qty)}</td>
+        <td>${fmt(shipment.shipCost)}</td>
+        <td>${shipment.finalShipCost ? fmt(shipment.finalShipCost) : '-'}</td>
+        ${showChinaCost ? `<td>${shipment.chinaCost ? fmt(shipment.chinaCost) : '-'}</td>` : ''}
+        <td>${shipment.departedAt || '-'}</td>
+        <td>${shipment.arrivedAt || '-'}</td>
+        <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
+        <td>${shipment.note || '-'}</td>
+        <td>
+          <div class="action-buttons">
+            ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
+            ${shipment.paymentStatus === 'pending' ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
+            <button class="btn small outline act-edit" data-id="${shipment.id}">Edit</button>
+            <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // Enhanced event listeners for shipment actions
+  tbody.onclick = async (e) => {
+    const id = e.target.dataset?.id;
+    if (!id) return;
+
+    const shipment = state.allShipments.find(s => s.id === id);
+    if (!shipment) return;
+
+    if (e.target.classList.contains('act-arrive')) {
+      await api(`/api/shipments/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ arrivedAt: isoToday() })
       });
+      renderShipmentTables();
+      renderProductsTable();
+      renderCompactKpis();
     }
 
-    headerHTML += `<th>Actions</th>`;
-    
-    thead.innerHTML = headerHTML;
-
-    // Build table body - INCLUDE PAUSED PRODUCTS
-    if (paginatedProducts.length === 0) {
-      tb.innerHTML = `<tr><td colspan="${6 + (state.countries ? (state.countries.length - 1) * 2 : 0) + 1}" class="muted">No products found</td></tr>`;
-    } else {
-      tb.innerHTML = paginatedProducts.map(p => {
-        if (!p) return '';
-        
-        let rowClass = '';
-        if (!p.hasData) {
-          rowClass = 'no-data-row';
-        } else if (p.isProfitable) {
-          rowClass = 'profit-row';
-        } else {
-          rowClass = 'loss-row';
-        }
-
-        let rowHTML = `
-          <tr class="${rowClass}">
-            <td>${p.name || 'Unnamed'}</td>
-            <td>${p.sku || '-'}</td>
-            <td><span class="badge ${p.status === 'paused' ? 'muted' : ''}">${p.status || 'active'}</span></td>
-            <td>${fmt(p.totalStock || 0)}</td>
-            <td>${fmt(p.transitPieces || 0)}</td>
-            <td>${fmt(p.totalPiecesIncludingTransit || 0)}</td>
-        `;
-
-        if (state.countries && Array.isArray(state.countries)) {
-          state.countries.forEach(country => {
-            if (country !== 'china') {
-              const stock = p.stockByCountry?.[country] || 0;
-              const adSpend = p.adSpendByCountry?.[country] || 0;
-              const color = countryColors[country] || '#374151';
-              rowHTML += `
-                <td style="background-color: ${color}; color: white;" class="country-${country}">${fmt(stock)}</td>
-                <td style="background-color: ${color}; color: white;" class="country-${country}">${fmt(adSpend)}</td>
-              `;
-            }
-          });
-        }
-
-        rowHTML += `
-            <td>
-              <a class="btn" href="/product.html?id=${p.id}">Open</a>
-              <button class="btn outline act-toggle" data-id="${p.id}">${p.status === 'active' ? 'Pause' : 'Run'}</button>
-              <button class="btn outline act-del" data-id="${p.id}">Delete</button>
-            </td>
-          </tr>
-        `;
-
-        return rowHTML;
-      }).join('');
+    if (e.target.classList.contains('act-pay')) {
+      const finalCost = prompt('Enter final shipping cost:');
+      if (finalCost && !isNaN(finalCost)) {
+        await api(`/api/shipments/${id}/mark-paid`, {
+          method: 'POST',
+          body: JSON.stringify({ finalShipCost: +finalCost })
+        });
+        renderShipmentTables();
+      }
     }
 
-    // Render pagination
-    renderProductsPagination(sortedProducts.length, productsPerPage);
-
-// In the renderProductsTable function, replace the act-toggle event handler:
-tb.onclick = async (e) => {
-  const id = e.target.dataset?.id; 
-  if (!id) return;
-  
-  if (e.target.classList.contains('act-toggle')) {
-    const p = state.products.find(x => x.id === id); 
-    if (!p) return;
-    const ns = p.status === 'active' ? 'paused' : 'active';
-    await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: ns }) });
-    await preload(); 
-    renderProductsTable(); 
-  }
-  
-  if (e.target.classList.contains('act-del')) {
-    if (!confirm('Delete product and ALL its data?')) return;
-    await api(`/api/products/${id}`, { method: 'DELETE' });
-    await preload(); 
-    renderProductsTable(); 
-  }
-};
-  } catch (error) {
-    console.error('Error in renderProductsTable:', error);
-    const tb = Q('#productsTable tbody');
-    if (tb) {
-      tb.innerHTML = '<tr><td colspan="20" class="muted">Error loading products</td></tr>';
-    }
-  }
-}
-
-function renderProductsPagination(totalItems, itemsPerPage) {
-  try {
-    const container = Q('#productsPagination');
-    if (!container) return;
-
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    
-    if (totalPages <= 1) {
-      container.innerHTML = '';
-      return;
+    if (e.target.classList.contains('act-edit')) {
+      editShipment(shipment);
     }
 
-    let html = '';
-
-    html += `<button class="pagination-btn" ${state.currentProductsPage <= 1 ? 'disabled' : ''} data-page="${state.currentProductsPage - 1}">◀ Previous</button>`;
-
-    const startPage = Math.max(1, state.currentProductsPage - 2);
-    const endPage = Math.min(totalPages, startPage + 4);
-
-    for (let i = startPage; i <= endPage; i++) {
-      html += `<button class="pagination-btn ${i === state.currentProductsPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
-    }
-
-    html += `<button class="pagination-btn" ${state.currentProductsPage >= totalPages ? 'disabled' : ''} data-page="${state.currentProductsPage + 1}">Next ▶</button>`;
-    html += `<span class="pagination-info">Page ${state.currentProductsPage} of ${totalPages} (${totalItems} products)</span>`;
-
-    container.innerHTML = html;
-
-    container.addEventListener('click', (e) => {
-      if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
-        const page = parseInt(e.target.dataset.page);
-        state.currentProductsPage = page;
+    if (e.target.classList.contains('act-del-ship')) {
+      if (confirm('Delete this shipment?')) {
+        await api(`/api/shipments/${id}`, { method: 'DELETE' });
+        renderShipmentTables();
         renderProductsTable();
-        
-        const table = Q('#productsTable');
-        if (table) {
-          table.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        renderCompactKpis();
       }
-    });
-  } catch (error) {
-    console.error('Error in renderProductsPagination:', error);
-  }
+    }
+  };
 }
 
-function renderCompactCountryStats() {
-  try {
-    const container = Q('#countryProductStats');
-    if (!container) return;
-
-    api('/api/adspend').then(adData => {
-      const adSpends = adData.adSpends || [];
-      const countryStats = {};
-
-      if (state.countries && Array.isArray(state.countries)) {
-        state.countries.forEach(country => {
-          countryStats[country] = { active: 0, paused: 0, total: 0 };
-        });
-
-        if (state.products && Array.isArray(state.products)) {
-          state.products.forEach(product => {
-            state.countries.forEach(country => {
-              countryStats[country].total++;
-              if (product.status === 'active') {
-                countryStats[country].active++;
-              } else {
-                countryStats[country].paused++;
-              }
-            });
-          });
-        }
-
-        let html = '';
-        Object.keys(countryStats).sort().forEach(country => {
-          const stats = countryStats[country];
-          html += `
-            <div class="country-stat-card-compact">
-              <div class="country-name-compact">${country}</div>
-              <div class="stats-row-compact">
-                <div class="stat-item-compact active">
-                  <div class="stat-label-compact">Active</div>
-                  <div class="stat-value-compact">${stats.active}</div>
-                </div>
-                <div class="stat-item-compact paused">
-                  <div class="stat-label-compact">Paused</div>
-                  <div class="stat-value-compact">${stats.paused}</div>
-                </div>
-                <div class="stat-item-compact total">
-                  <div class="stat-label-compact">Total</div>
-                  <div class="stat-value-compact">${stats.total}</div>
-                </div>
-              </div>
-            </div>
-          `;
-        });
-
-        container.innerHTML = html;
-      }
-    }).catch(console.error);
-  } catch (error) {
-    console.error('Error in renderCompactCountryStats:', error);
-  }
-}
-
-// Update the renderAdvertisingOverview function
+// ======== ADSPEND ENHANCEMENTS ========
 async function renderAdvertisingOverview() {
   return new Promise((resolve) => {
     try {
@@ -1670,6 +1017,7 @@ function editAdSpendEntry(badge) {
     }).catch(alert);
   }
 }
+
 function renderProductInfoResults(productInfo) {
   const container = Q('#productInfoResults');
   if (!container) return;
