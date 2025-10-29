@@ -1892,447 +1892,146 @@ select.input {
 }
 
 /* =========================================================
-   ENHANCED COLUMN COLORS - STRONG VIBRANT COLORS
+   PROFESSIONAL COLOR SCHEME FOR ANALYTICS TABLES
    ========================================================= */
 
-/* Products Table - Country Columns - STRONG COLORS */
+/* Products Table - Subtle Professional Colors */
 .table th.country-kenya,
 .table td.country-kenya {
-    background-color: #1e3a8a !important; /* Dark Blue */
-    color: white !important;
-    font-weight: 700;
-    border-right: 2px solid rgba(255,255,255,0.3) !important;
+    background-color: #e0f2fe !important; /* Light Blue */
+    color: #0369a1 !important;
+    font-weight: 600;
+    border-right: 1px solid #bae6fd !important;
 }
 
 .table th.country-tanzania,
 .table td.country-tanzania {
-    background-color: #7c2d12 !important; /* Dark Brown */
-    color: white !important;
-    font-weight: 700;
-    border-right: 2px solid rgba(255,255,255,0.3) !important;
+    background-color: #f0fdf4 !important; /* Light Green */
+    color: #15803d !important;
+    font-weight: 600;
+    border-right: 1px solid #bbf7d0 !important;
 }
 
 .table th.country-uganda,
 .table td.country-uganda {
-    background-color: #166534 !important; /* Dark Green */
-    color: white !important;
-    font-weight: 700;
-    border-right: 2px solid rgba(255,255,255,0.3) !important;
+    background-color: #fefce8 !important; /* Light Yellow */
+    color: #a16207 !important;
+    font-weight: 600;
+    border-right: 1px solid #fef08a !important;
 }
 
 .table th.country-zambia,
 .table td.country-zambia {
-    background-color: #9d174d !important; /* Dark Pink */
-    color: white !important;
-    font-weight: 700;
-    border-right: 2px solid rgba(255,255,255,0.3) !important;
+    background-color: #fdf2f8 !important; /* Light Pink */
+    color: #be185d !important;
+    font-weight: 600;
+    border-right: 1px solid #fbcfe8 !important;
 }
 
 .table th.country-zimbabwe,
 .table td.country-zimbabwe {
-    background-color: #701a75 !important; /* Dark Purple */
+    background-color: #faf5ff !important; /* Light Purple */
+    color: #7e22ce !important;
+    font-weight: 600;
+    border-right: 1px solid #e9d5ff !important;
+}
+
+/* Analytics Tables - Professional Gradient Headers */
+.analytics-table th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
     color: white !important;
-    font-weight: 700;
-    border-right: 2px solid rgba(255,255,255,0.3) !important;
+    font-weight: 600;
+    border-right: 1px solid rgba(255,255,255,0.3) !important;
 }
 
-/* Analytics Tables - STRONG VIBRANT COLORS */
-.analytics-table th:nth-child(1),
-.analytics-table td:nth-child(1) {
-    background-color: #1e40af !important; /* Product Name - Strong Blue */
-    color: white !important;
-    font-weight: 700;
+.analytics-table td {
+    background: #f8fafc !important;
+    color: #1f2937 !important;
+    font-weight: 500;
+    border-right: 1px solid #e5e7eb !important;
 }
 
-.analytics-table th:nth-child(2),
-.analytics-table td:nth-child(2) {
-    background-color: #7e22ce !important; /* Country - Strong Purple */
-    color: white !important;
-    font-weight: 700;
+.analytics-table tr:nth-child(even) td {
+    background: #ffffff !important;
 }
 
-.analytics-table th:nth-child(3),
-.analytics-table td:nth-child(3) {
-    background-color: #059669 !important; /* Orders - Strong Green */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(4),
-.analytics-table td:nth-child(4) {
-    background-color: #d97706 !important; /* Delivered Orders - Strong Amber */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(5),
-.analytics-table td:nth-child(5) {
-    background-color: #dc2626 !important; /* Refunded Orders - Strong Red */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(6),
-.analytics-table td:nth-child(6) {
-    background-color: #0d9488 !important; /* Delivered Pieces - Strong Teal */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(7),
-.analytics-table td:nth-child(7) {
-    background-color: #65a30d !important; /* Revenue - Strong Lime */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(8),
-.analytics-table td:nth-child(8) {
-    background-color: #ea580c !important; /* Refunded Amount - Strong Orange */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(9),
-.analytics-table td:nth-child(9) {
-    background-color: #0369a1 !important; /* Advertising Spend - Strong Sky */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(10),
-.analytics-table td:nth-child(10) {
-    background-color: #7c2d12 !important; /* Influencer Spend - Strong Brown */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(11),
-.analytics-table td:nth-child(11) {
-    background-color: #0f766e !important; /* Boxleo Fees - Strong Teal */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(12),
-.analytics-table td:nth-child(12) {
-    background-color: #4338ca !important; /* Product Cost China - Strong Indigo */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(13),
-.analytics-table td:nth-child(13) {
-    background-color: #b45309 !important; /* Shipping Costs - Strong Amber */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(14),
-.analytics-table td:nth-child(14) {
-    background-color: #1d4ed8 !important; /* Boxleo/Order - Strong Blue */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(15),
-.analytics-table td:nth-child(15) {
-    background-color: #7e22ce !important; /* Boxleo/Piece - Strong Purple */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(16),
-.analytics-table td:nth-child(16) {
-    background-color: #059669 !important; /* Ad Cost/Order - Strong Green */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(17),
-.analytics-table td:nth-child(17) {
-    background-color: #d97706 !important; /* Ad Cost/Piece - Strong Amber */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(18),
-.analytics-table td:nth-child(18) {
-    background-color: #0d9488 !important; /* Profit/Order - Strong Teal */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(19),
-.analytics-table td:nth-child(19) {
-    background-color: #65a30d !important; /* Profit/Piece - Strong Lime */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(20),
-.analytics-table td:nth-child(20) {
-    background-color: #0369a1 !important; /* Delivery Rate - Strong Sky */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(21),
-.analytics-table td:nth-child(21) {
-    background-color: #7c2d12 !important; /* Avg Order Value - Strong Brown */
-    color: white !important;
-    font-weight: 700;
-}
-
-.analytics-table th:nth-child(22),
-.analytics-table td:nth-child(22) {
-    background-color: #4338ca !important; /* Profit - Strong Indigo */
-    color: white !important;
-    font-weight: 700;
-}
-
-/* Profit by Country Table - STRONG VIBRANT COLORS */
-.profit-country-table th:nth-child(1),
-.profit-country-table td:nth-child(1) {
-    background-color: #1e40af !important; /* Country */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(2),
-.profit-country-table td:nth-child(2) {
-    background-color: #7e22ce !important; /* Orders */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(3),
-.profit-country-table td:nth-child(3) {
-    background-color: #059669 !important; /* Delivered Orders */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(4),
-.profit-country-table td:nth-child(4) {
-    background-color: #d97706 !important; /* Refunded Orders */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(5),
-.profit-country-table td:nth-child(5) {
-    background-color: #0d9488 !important; /* Delivered Pieces */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(6),
-.profit-country-table td:nth-child(6) {
-    background-color: #65a30d !important; /* Revenue */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(7),
-.profit-country-table td:nth-child(7) {
-    background-color: #ea580c !important; /* Refunded Amount */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(8),
-.profit-country-table td:nth-child(8) {
-    background-color: #0369a1 !important; /* Advertising Spend */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(9),
-.profit-country-table td:nth-child(9) {
-    background-color: #7c2d12 !important; /* Influencer Spend */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(10),
-.profit-country-table td:nth-child(10) {
-    background-color: #0f766e !important; /* Product Cost China */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(11),
-.profit-country-table td:nth-child(11) {
-    background-color: #4338ca !important; /* Shipping Cost */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(12),
-.profit-country-table td:nth-child(12) {
-    background-color: #b45309 !important; /* Boxleo Fees */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(13),
-.profit-country-table td:nth-child(13) {
-    background-color: #1d4ed8 !important; /* Boxleo/Order */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(14),
-.profit-country-table td:nth-child(14) {
-    background-color: #7e22ce !important; /* Boxleo/Piece */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(15),
-.profit-country-table td:nth-child(15) {
-    background-color: #059669 !important; /* Ad Cost/Order */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(16),
-.profit-country-table td:nth-child(16) {
-    background-color: #d97706 !important; /* Ad Cost/Piece */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(17),
-.profit-country-table td:nth-child(17) {
-    background-color: #0d9488 !important; /* Profit/Order */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(18),
-.profit-country-table td:nth-child(18) {
-    background-color: #65a30d !important; /* Profit/Piece */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(19),
-.profit-country-table td:nth-child(19) {
-    background-color: #0369a1 !important; /* Delivery Rate */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(20),
-.profit-country-table td:nth-child(20) {
-    background-color: #7c2d12 !important; /* Avg Order Value */
-    color: white !important;
-    font-weight: 700;
-}
-
-.profit-country-table th:nth-child(21),
-.profit-country-table td:nth-child(21) {
-    background-color: #4338ca !important; /* Profit */
-    color: white !important;
-    font-weight: 700;
-}
-
-/* Enhanced hover effects for colored cells */
-.table td[style*="background-color"]:hover,
-.analytics-table td:hover,
-.profit-country-table td:hover {
-    filter: brightness(0.9) !important;
-    transform: scale(1.02) !important;
-    transition: all 0.2s ease !important;
-    z-index: 1;
-    position: relative;
-}
-
-/* Ensure text remains readable with strong colors */
-.table th,
-.analytics-table th,
+/* Profit by Country Table - Professional Style */
 .profit-country-table th {
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+    color: white !important;
+    font-weight: 600;
+    border-right: 1px solid rgba(255,255,255,0.3) !important;
+}
+
+.profit-country-table td {
+    background: #f8fafc !important;
+    color: #1f2937 !important;
+    font-weight: 500;
+    border-right: 1px solid #e5e7eb !important;
+}
+
+.profit-country-table tr:nth-child(even) td {
+    background: #ffffff !important;
+}
+
+/* Enhanced Profit/Loss Indicators */
+.profit-high {
+    background: linear-gradient(90deg, #10b981 0%, transparent 100%) !important;
     font-weight: 700 !important;
+    color: #065f46 !important;
 }
 
-.table td,
-.analytics-table td,
-.profit-country-table td {
-    text-shadow: 1px 1px 1px rgba(0,0,0,0.2);
+.profit-medium {
+    background: linear-gradient(90deg, #34d399 0%, transparent 100%) !important;
     font-weight: 600 !important;
+    color: #047857 !important;
 }
 
-/* Enhanced border styling for colored cells */
-.table th[style*="background-color"],
-.table td[style*="background-color"],
-.analytics-table th,
-.analytics-table td,
-.profit-country-table th,
-.profit-country-table td {
-    border-right: 2px solid rgba(255,255,255,0.3) !important;
-    border-bottom: 2px solid rgba(255,255,255,0.3) !important;
+.profit-low {
+    background: linear-gradient(90deg, #6ee7b7 0%, transparent 100%) !important;
+    font-weight: 500 !important;
+    color: #059669 !important;
 }
 
-/* Remove default table borders for colored sections */
-.table-scroll .table {
-    border-collapse: separate;
-    border-spacing: 0;
+.loss-high {
+    background: linear-gradient(90deg, #ef4444 0%, transparent 100%) !important;
+    font-weight: 700 !important;
+    color: #991b1b !important;
 }
 
-/* Enhanced header styling */
-.table thead th {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+.loss-medium {
+    background: linear-gradient(90deg, #f87171 0%, transparent 100%) !important;
+    font-weight: 600 !important;
+    color: #dc2626 !important;
 }
 
-/* Sort indicator styling */
-.analytics-table th.sortable:hover::after {
-    color: #ffd700 !important;
-    text-shadow: 0 0 3px rgba(0,0,0,0.5);
+.loss-low {
+    background: linear-gradient(90deg, #fca5a5 0%, transparent 100%) !important;
+    font-weight: 500 !important;
+    color: #ef4444 !important;
 }
 
-.analytics-table th.sort-asc::after,
-.analytics-table th.sort-desc::after {
-    color: #ffd700 !important;
-    font-weight: bold;
-    text-shadow: 0 0 3px rgba(0,0,0,0.5);
+/* Action buttons styling */
+.action-buttons {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
 }
 
-/* Mobile responsiveness for colored tables */
-@media (max-width: 768px) {
-    .table th[style*="background-color"],
-    .table td[style*="background-color"],
-    .analytics-table th,
-    .analytics-table td,
-    .profit-country-table th,
-    .profit-country-table td {
-        font-size: 0.75rem;
-        padding: 6px 4px;
-    }
-    
-    /* Reduce text size but maintain readability */
-    .table td,
-    .analytics-table td,
-    .profit-country-table td {
-        font-size: 0.7rem;
-    }
+.action-buttons .btn {
+    font-size: 0.75rem;
+    padding: 4px 8px;
 }
 
-/* Print styles for colored tables */
-@media print {
-    .table th[style*="background-color"],
-    .table td[style*="background-color"],
-    .analytics-table th,
-    .analytics-table td,
-    .profit-country-table th,
-    .profit-country-table td {
-        background-color: #f8f9fa !important;
-        color: #000 !important;
-        border: 1px solid #dee2e6 !important;
-    }
+/* Editable badge styling */
+.platform-badge.editable {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px dashed #3b82f6 !important;
+}
+
+.platform-badge.editable:hover {
+    background: #3b82f6 !important;
+    color: white !important;
+    transform: scale(1.05);
 }
