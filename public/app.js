@@ -47,9 +47,14 @@ const state = {
   currentRemittancesPage: 1,
   currentRefundsPage: 1,
   allShipments: [],
-  // Add these new properties for products pagination and search
   currentProductsPage: 1,
-  productsSearchTerm: ''
+  productsSearchTerm: '',
+  productsSortBy: 'totalPieces',
+  productsSortOrder: 'desc',
+  remittanceSortBy: 'totalDeliveredPieces',
+  remittanceSortOrder: 'desc',
+  profitCountrySortBy: 'totalDeliveredPieces',
+  profitCountrySortOrder: 'desc'
 };
 
 async function boot() {
@@ -342,7 +347,7 @@ function getDateRange(container) {
 function renderDashboardPage() {
   renderCompactKpis();
   renderCountryStockSpend();
-  bindDailyAdSpend(); // FIXED: Now includes date field
+  bindDailyAdSpend();
   renderWeeklyDelivered();
   initBrainstorming();
   initTodos();
@@ -496,13 +501,12 @@ async function renderCountryStockSpend() {
   }
 }
 
-// FIXED: Added date field to daily ad spend and auto-refresh advertising overview
 function bindDailyAdSpend() {
   const btn = Q('#adSave');
   if (!btn) return;
   btn.onclick = async () => {
     const payload = {
-      date: isoToday(), // FIXED: Add current date
+      date: isoToday(),
       productId: Q('#adProduct')?.value,
       country: Q('#adCountry')?.value,
       platform: Q('#adPlatform')?.value,
@@ -514,12 +518,10 @@ function bindDailyAdSpend() {
       await renderCountryStockSpend();
       await renderCompactKpis();
       
-      // Refresh the advertising overview immediately
       await renderAdvertisingOverview();
       
       alert('Ad spend saved');
       
-      // Clear the form
       Q('#adAmount').value = '';
     } catch (e) { alert(e.message); }
   };
@@ -695,67 +697,49 @@ function initBrainstorming() {
   }
 }
 
+// FIXED: Todo lists using server-side storage
 function initTodos() {
-  const KEY = 'eas_todos', WKEY = 'eas_weekly';
-  const load = k => safeJSON(localStorage.getItem(k)) || (k === WKEY ? {} : []);
-  const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
-
-  const listEl = Q('#todoList'); const addBtn = Q('#todoAdd');
+  const listEl = Q('#todoList'); 
+  const addBtn = Q('#todoAdd');
+  
   function renderQuick() {
-    const arr = load(KEY);
-    listEl.innerHTML = arr.map(t => `<div class="flex">
-      <span>${t.done ? '✅ ' : ''}${t.text}</span>
-      <button class="btn outline" data-done="${t.id}">${t.done ? 'Undo' : 'Done'}</button>
-      <button class="btn outline" data-del="${t.id}">Delete</button>
-    </div>`).join('') || '<div class="muted">No tasks</div>';
+    api('/api/todos').then(data => {
+      const arr = data.todos || [];
+      listEl.innerHTML = arr.map(t => `<div class="flex">
+        <span>${t.done ? '✅ ' : ''}${t.text}</span>
+        <button class="btn outline" data-done="${t.id}">${t.done ? 'Undo' : 'Done'}</button>
+        <button class="btn outline" data-del="${t.id}">Delete</button>
+      </div>`).join('') || '<div class="muted">No tasks</div>';
+    }).catch(console.error);
   }
+  
   addBtn?.addEventListener('click', () => {
-    const v = Q('#todoText')?.value.trim(); if (!v) return;
-    const arr = load(KEY); arr.push({ id: crypto.randomUUID(), text: v, done: false }); save(KEY, arr); Q('#todoText').value = ''; renderQuick();
+    const v = Q('#todoText')?.value.trim(); 
+    if (!v) return;
+    
+    api('/api/todos', {
+      method: 'POST',
+      body: JSON.stringify({ text: v, done: false })
+    }).then(() => {
+      Q('#todoText').value = '';
+      renderQuick();
+    }).catch(alert);
   });
+  
   listEl?.addEventListener('click', (e) => {
     if (e.target.dataset.done) {
-      const arr = load(KEY);
-      const it = arr.find(x => x.id === e.target.dataset.done);
-      it.done = !it.done; save(KEY, arr); renderQuick();
+      api(`/api/todos/${e.target.dataset.done}/toggle`, { method: 'POST' })
+        .then(renderQuick)
+        .catch(alert);
     }
     if (e.target.dataset.del) {
-      const arr = load(KEY);
-      const idx = arr.findIndex(x => x.id === e.target.dataset.del); arr.splice(idx, 1); save(KEY, arr); renderQuick();
+      api(`/api/todos/${e.target.dataset.del}`, { method: 'DELETE' })
+        .then(renderQuick)
+        .catch(alert);
     }
   });
+  
   renderQuick();
-
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const wrap = Q('#weeklyWrap');
-  function renderWeekly() {
-    const data = load(WKEY);
-    wrap.innerHTML = days.map(d => {
-      const arr = data[d] || [];
-      return `<div class="card">
-        <div class="h">${d}</div>
-        <div class="row"><input id="w_${d}" class="input" placeholder="Task"/><button class="btn" data-add="${d}">Add</button></div>
-        <div class="list">${arr.map(t => `<div class="flex"><span>${t.done ? '✅ ' : ''}${t.text}</span>
-          <button class="btn outline" data-tgl="${d}|${t.id}">${t.done ? 'Undo' : 'Done'}</button>
-          <button class="btn outline" data-del="${d}|${t.id}">Delete</button>
-        </div>`).join('')}</div>
-      </div>`;
-    }).join('');
-  }
-  wrap?.addEventListener('click', (e) => {
-    const data = load(WKEY);
-    if (e.target.dataset.add) {
-      const d = e.target.dataset.add, v = Q('#w_' + d)?.value.trim(); if (!v) return;
-      data[d] = data[d] || []; data[d].push({ id: crypto.randomUUID(), text: v, done: false }); save(WKEY, data); renderWeekly();
-    }
-    if (e.target.dataset.tgl) {
-      const [d, id] = e.target.dataset.tgl.split('|'); const it = (data[d] || []).find(x => x.id === id); it.done = !it.done; save(WKEY, data); renderWeekly();
-    }
-    if (e.target.dataset.del) {
-      const [d, id] = e.target.dataset.del.split('|'); const arr = (data[d] || []); const i = arr.findIndex(x => x.id === id); arr.splice(i, 1); data[d] = arr; save(WKEY, data); renderWeekly();
-    }
-  });
-  renderWeekly();
 }
 
 function initTestedProducts() {
@@ -869,22 +853,18 @@ function renderProductsPage() {
     renderAdvertisingOverview();
     initDateRangeSelectors();
 
-    // Initialize products table with pagination - only if products exist
     if (state.products && state.products.length > 0) {
       state.currentProductsPage = 1;
       state.productsSearchTerm = '';
-      // Add search functionality
       initProductSearch();
       renderProductsTable();
     } else {
-      // If no products, show empty state
       const tb = Q('#productsTable tbody');
       if (tb) {
         tb.innerHTML = '<tr><td colspan="20" class="muted">No products found. Add your first product above.</td></tr>';
       }
     }
 
-    // FIXED: Updated product addition with immediate refresh
     Q('#pAdd')?.addEventListener('click', async () => {
       const p = {
         name: Q('#pName')?.value.trim(),
@@ -895,19 +875,15 @@ function renderProductsPage() {
       try {
         await api('/api/products', { method: 'POST', body: JSON.stringify(p) });
         
-        // Refresh the data and re-render
         await preload();
         
-        // Clear the form
         Q('#pName').value = '';
         Q('#pSku').value = '';
         
-        // Re-render all product-related components
         renderProductsTable();
         renderCompactCountryStats();
         renderAdvertisingOverview();
         
-        // Also update the product dropdowns
         fillCommonSelects();
         
         alert('Product added');
@@ -939,15 +915,49 @@ function renderProductsPage() {
   }
 }
 
-// Product Search Functionality
 function initProductSearch() {
   try {
     const searchInput = Q('#productSearch');
     const clearBtn = Q('#clearSearch');
+    const countryFilter = Q('#productsCountryFilter');
     
     if (!searchInput) return;
 
-    // Real-time search with debouncing
+    // Add country filter dropdown
+    if (!countryFilter) {
+      const searchCard = Q('#productSearch').closest('.card');
+      if (searchCard) {
+        const filterRow = document.createElement('div');
+        filterRow.className = 'row wrap';
+        filterRow.style.marginTop = '10px';
+        filterRow.innerHTML = `
+          <select id="productsCountryFilter" class="input">
+            <option value="all">All Countries</option>
+            ${state.countries.map(c => `<option value="${c}">${c}</option>`).join('')}
+          </select>
+          <select id="productsSortBy" class="input">
+            <option value="totalPieces">Most Pieces</option>
+            <option value="name">Name</option>
+            <option value="status">Status</option>
+            <option value="totalStock">Total Stock</option>
+          </select>
+          <button id="applyFilters" class="btn">Apply Filters</button>
+        `;
+        searchCard.appendChild(filterRow);
+        
+        Q('#applyFilters').addEventListener('click', () => {
+          state.productsSortBy = Q('#productsSortBy').value;
+          state.currentProductsPage = 1;
+          renderProductsTable();
+        });
+        
+        Q('#productsCountryFilter').addEventListener('change', () => {
+          state.currentProductsPage = 1;
+          renderProductsTable();
+        });
+      }
+    }
+
     let searchTimeout;
     searchInput.addEventListener('input', (e) => {
       clearTimeout(searchTimeout);
@@ -958,7 +968,6 @@ function initProductSearch() {
       }, 300);
     });
 
-    // Clear search
     clearBtn?.addEventListener('click', () => {
       searchInput.value = '';
       state.productsSearchTerm = '';
@@ -966,7 +975,6 @@ function initProductSearch() {
       renderProductsTable();
     });
 
-    // Enter key to search
     searchInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
         state.productsSearchTerm = e.target.value.toLowerCase().trim();
@@ -979,7 +987,6 @@ function initProductSearch() {
   }
 }
 
-// Filter products based on search term
 function filterProducts(products, searchTerm) {
   if (!products || !Array.isArray(products)) return [];
   if (!searchTerm) return products;
@@ -990,6 +997,49 @@ function filterProducts(products, searchTerm) {
   );
 }
 
+function sortProducts(products, sortBy, countryFilter = 'all') {
+  if (!products || !Array.isArray(products)) return products;
+  
+  let filteredProducts = [...products];
+  
+  // Apply country filter
+  if (countryFilter !== 'all') {
+    filteredProducts = filteredProducts.filter(product => 
+      product.stockByCountry && product.stockByCountry[countryFilter] > 0
+    );
+  }
+  
+  // Apply sorting
+  filteredProducts.sort((a, b) => {
+    let aValue, bValue;
+    
+    switch(sortBy) {
+      case 'name':
+        aValue = a.name || '';
+        bValue = b.name || '';
+        return aValue.localeCompare(bValue);
+        
+      case 'status':
+        aValue = a.status || '';
+        bValue = b.status || '';
+        return aValue.localeCompare(bValue);
+        
+      case 'totalStock':
+        aValue = a.totalStock || 0;
+        bValue = b.totalStock || 0;
+        return bValue - aValue;
+        
+      case 'totalPieces':
+      default:
+        aValue = a.totalPiecesIncludingTransit || 0;
+        bValue = b.totalPiecesIncludingTransit || 0;
+        return bValue - aValue;
+    }
+  });
+  
+  return filteredProducts;
+}
+
 function renderProductsTable() {
   try {
     const tb = Q('#productsTable tbody'); 
@@ -997,32 +1047,49 @@ function renderProductsTable() {
     const searchInfo = Q('#searchResultsInfo');
     if (!tb || !thead) return;
 
-    // Check if products exist
     if (!state.products || !Array.isArray(state.products)) {
       tb.innerHTML = '<tr><td colspan="20" class="muted">Loading products...</td></tr>';
       return;
     }
 
-    // Filter products based on search term
+    // Filter and sort products
     const filteredProducts = filterProducts(state.products, state.productsSearchTerm);
+    const countryFilter = Q('#productsCountryFilter')?.value || 'all';
+    const sortedProducts = sortProducts(filteredProducts, state.productsSortBy, countryFilter);
     
     // Update search results info
     if (searchInfo) {
+      let infoText = `Showing ${sortedProducts.length} products`;
       if (state.productsSearchTerm) {
-        searchInfo.textContent = `Found ${filteredProducts.length} products matching "${state.productsSearchTerm}"`;
-      } else {
-        searchInfo.textContent = `Showing all ${filteredProducts.length} products`;
+        infoText += ` matching "${state.productsSearchTerm}"`;
       }
+      if (countryFilter !== 'all') {
+        infoText += ` in ${countryFilter}`;
+      }
+      if (state.productsSortBy === 'totalPieces') {
+        infoText += ` (sorted by most pieces)`;
+      } else if (state.productsSortBy === 'totalStock') {
+        infoText += ` (sorted by most stock)`;
+      }
+      searchInfo.textContent = infoText;
     }
 
     // Pagination
     const productsPerPage = 15;
-    const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+    const totalPages = Math.ceil(sortedProducts.length / productsPerPage);
     const startIndex = (state.currentProductsPage - 1) * productsPerPage;
     const endIndex = startIndex + productsPerPage;
-    const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+    const paginatedProducts = sortedProducts.slice(startIndex, endIndex);
 
-    // Build table header
+    // Build table header with colored columns
+    const countryColors = {
+      'kenya': '#e3f2fd',
+      'tanzania': '#f3e5f5', 
+      'uganda': '#e8f5e8',
+      'zambia': '#fff3e0',
+      'zimbabwe': '#fce4ec'
+    };
+    
     let headerHTML = `
       <th>Name</th>
       <th>SKU</th>
@@ -1035,8 +1102,9 @@ function renderProductsTable() {
     if (state.countries && Array.isArray(state.countries)) {
       state.countries.forEach(country => {
         if (country !== 'china') {
-          headerHTML += `<th>${country.charAt(0).toUpperCase() + country.slice(1)} Stock</th>`;
-          headerHTML += `<th>${country.charAt(0).toUpperCase() + country.slice(1)} Ad Spend</th>`;
+          const color = countryColors[country] || '#f5f5f5';
+          headerHTML += `<th style="background-color: ${color}">${country.charAt(0).toUpperCase() + country.slice(1)} Stock</th>`;
+          headerHTML += `<th style="background-color: ${color}">${country.charAt(0).toUpperCase() + country.slice(1)} Ad Spend</th>`;
         }
       });
     }
@@ -1076,9 +1144,10 @@ function renderProductsTable() {
             if (country !== 'china') {
               const stock = p.stockByCountry?.[country] || 0;
               const adSpend = p.adSpendByCountry?.[country] || 0;
+              const color = countryColors[country] || '#f5f5f5';
               rowHTML += `
-                <td>${fmt(stock)}</td>
-                <td>${fmt(adSpend)}</td>
+                <td style="background-color: ${color}">${fmt(stock)}</td>
+                <td style="background-color: ${color}">${fmt(adSpend)}</td>
               `;
             }
           });
@@ -1098,7 +1167,7 @@ function renderProductsTable() {
     }
 
     // Render pagination
-    renderProductsPagination(filteredProducts.length, productsPerPage);
+    renderProductsPagination(sortedProducts.length, productsPerPage);
 
     // Add event listeners for product actions
     tb.onclick = async (e) => {
@@ -1130,7 +1199,6 @@ function renderProductsTable() {
   }
 }
 
-// Products Pagination
 function renderProductsPagination(totalItems, itemsPerPage) {
   try {
     const container = Q('#productsPagination');
@@ -1159,14 +1227,12 @@ function renderProductsPagination(totalItems, itemsPerPage) {
 
     container.innerHTML = html;
 
-    // Add pagination event listeners
     container.addEventListener('click', (e) => {
       if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
         const page = parseInt(e.target.dataset.page);
         state.currentProductsPage = page;
         renderProductsTable();
         
-        // Scroll to top of table
         const table = Q('#productsTable');
         if (table) {
           table.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1237,7 +1303,6 @@ function renderCompactCountryStats() {
   }
 }
 
-// FIXED: Enhanced renderAdvertisingOverview with proper data refresh
 async function renderAdvertisingOverview() {
   return new Promise((resolve) => {
     try {
@@ -1247,14 +1312,11 @@ async function renderAdvertisingOverview() {
         return;
       }
 
-      // Show loading state
       container.innerHTML = '<div class="card"><div class="muted">Loading advertising data...</div></div>';
 
-      // First, refresh the adspend data from server
       api('/api/adspend').then(adData => {
         const adSpends = adData.adSpends || [];
         
-        // Also refresh products data to ensure we have the latest
         return api('/api/products').then(productsData => {
           state.products = productsData.products || [];
           return adSpends;
@@ -1407,7 +1469,6 @@ function renderPerformancePage() {
   bindRemittanceAdd();
   bindRefundAdd();
   
-  // Auto-run analytics on page load
   setTimeout(() => {
     if (Q('#pcaRun')) Q('#pcaRun').click();
     if (Q('#remAnalyticsRun')) Q('#remAnalyticsRun').click();
@@ -1648,24 +1709,47 @@ function renderRemittanceAnalytics(analytics) {
   let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0;
   let totalDeliveredOrders = 0, totalRefundedOrders = 0, totalRefundedAmount = 0, totalInfluencerSpend = 0;
   let totalBoxleoPerOrder = 0, totalBoxleoPerPiece = 0, totalAdCostPerOrder = 0, totalAdCostPerPiece = 0;
-  let totalAOV = 0;
+  let totalAOV = 0, totalProfitPerOrder = 0, totalProfitPerPiece = 0;
   let itemCount = 0;
 
-  analytics.sort((a, b) => b.totalDeliveredPieces - a.totalDeliveredPieces);
+  // Sort by profit and delivered pieces by default
+  analytics.sort((a, b) => {
+    const aScore = (a.profit || 0) + (a.totalDeliveredPieces || 0);
+    const bScore = (b.profit || 0) + (b.totalDeliveredPieces || 0);
+    return bScore - aScore;
+  });
+
+  // Column colors for better visualization
+  const columnColors = {
+    'Product Name': '#e3f2fd',
+    'Country': '#f3e5f5',
+    'Orders': '#e8f5e8',
+    'Delivered Orders': '#fff3e0',
+    'Refunded Orders': '#fce4ec',
+    'Delivered Pieces': '#e0f2f1',
+    'Revenue': '#f1f8e9',
+    'Refunded Amount': '#ffebee',
+    'Advertising Spend': '#e8eaf6',
+    'Influencer Spend': '#f3e5f5',
+    'Boxleo Fees': '#e0f2f1',
+    'Product Cost China': '#fff3e0',
+    'Shipping Costs': '#fce4ec',
+    'Boxleo/Order': '#e3f2fd',
+    'Boxleo/Piece': '#f3e5f5',
+    'Ad Cost/Order': '#e8f5e8',
+    'Ad Cost/Piece': '#fff3e0',
+    'Profit/Order': '#f1f8e9',
+    'Profit/Piece': '#e0f2f1',
+    'Delivery Rate': '#ffebee',
+    'Avg Order Value': '#e8eaf6',
+    'Profit': '#f3e5f5'
+  };
 
   tb.innerHTML = analytics.map(item => {
     const product = state.products.find(p => p.id === item.productId) || { name: item.productId };
 
-    // Debug each item
-    console.log('📊 DEBUG - Item data:', {
-      product: product.name,
-      country: item.country,
-      adCostPerDeliveredOrder: item.adCostPerDeliveredOrder,
-      adCostPerDeliveredPiece: item.adCostPerDeliveredPiece,
-      totalAdSpend: item.totalAdSpend,
-      totalDeliveredOrders: item.totalDeliveredOrders,
-      totalDeliveredPieces: item.totalDeliveredPieces
-    });
+    const profitPerOrder = item.totalDeliveredOrders > 0 ? (item.profit || 0) / item.totalDeliveredOrders : 0;
+    const profitPerPiece = item.totalDeliveredPieces > 0 ? (item.profit || 0) / item.totalDeliveredPieces : 0;
 
     totalPieces += item.totalDeliveredPieces || 0;
     totalRevenue += item.totalRevenue || 0;
@@ -1683,47 +1767,45 @@ function renderRemittanceAnalytics(analytics) {
     totalBoxleoPerPiece += item.boxleoPerDeliveredPiece || 0;
     totalAdCostPerOrder += item.adCostPerDeliveredOrder || 0;
     totalAdCostPerPiece += item.adCostPerDeliveredPiece || 0;
+    totalProfitPerOrder += profitPerOrder || 0;
+    totalProfitPerPiece += profitPerPiece || 0;
     totalAOV += item.averageOrderValue || 0;
     itemCount++;
 
     return `<tr>
-      <td>${product.name}</td>
-      <td>${item.country}</td>
-      <td><strong>${fmt(item.totalOrders)}</strong></td>
-      <td><strong>${fmt(item.totalDeliveredOrders)}</strong></td>
-      <td><strong>${fmt(item.totalRefundedOrders)}</strong></td>
-      <td><strong>${fmt(item.totalDeliveredPieces)}</strong></td>
-      <td>${fmt(item.totalRevenue)}</td>
-      <td class="number-negative">${fmt(item.totalRefundedAmount)}</td>
-      <td>${fmt(item.totalAdSpend)}</td>
-      <td>${fmt(item.totalInfluencerSpend)}</td>
-      <td>${fmt(item.totalBoxleoFees)}</td>
-      <td>${fmt(item.totalProductChinaCost)}</td>
-      <td>${fmt(item.totalShippingCost)}</td>
-      <td>$${fmt(item.boxleoPerDeliveredOrder)}</td>
-      <td>$${fmt(item.boxleoPerDeliveredPiece)}</td>
-      <td style="background-color: #ffeb3b; font-weight: bold;">$${fmt(item.adCostPerDeliveredOrder)}</td>
-      <td style="background-color: #ffeb3b; font-weight: bold;">$${fmt(item.adCostPerDeliveredPiece)}</td>
-      <td>${fmt(item.deliveryRate)}%</td>
-      <td>$${fmt(item.averageOrderValue)}</td>
-      <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(item.profit)}</td>
+      <td style="background-color: ${columnColors['Product Name']}">${product.name}</td>
+      <td style="background-color: ${columnColors['Country']}">${item.country}</td>
+      <td style="background-color: ${columnColors['Orders']}"><strong>${fmt(item.totalOrders)}</strong></td>
+      <td style="background-color: ${columnColors['Delivered Orders']}"><strong>${fmt(item.totalDeliveredOrders)}</strong></td>
+      <td style="background-color: ${columnColors['Refunded Orders']}"><strong>${fmt(item.totalRefundedOrders)}</strong></td>
+      <td style="background-color: ${columnColors['Delivered Pieces']}"><strong>${fmt(item.totalDeliveredPieces)}</strong></td>
+      <td style="background-color: ${columnColors['Revenue']}">${fmt(item.totalRevenue)}</td>
+      <td style="background-color: ${columnColors['Refunded Amount']}" class="number-negative">${fmt(item.totalRefundedAmount)}</td>
+      <td style="background-color: ${columnColors['Advertising Spend']}">${fmt(item.totalAdSpend)}</td>
+      <td style="background-color: ${columnColors['Influencer Spend']}">${fmt(item.totalInfluencerSpend)}</td>
+      <td style="background-color: ${columnColors['Boxleo Fees']}">${fmt(item.totalBoxleoFees)}</td>
+      <td style="background-color: ${columnColors['Product Cost China']}">${fmt(item.totalProductChinaCost)}</td>
+      <td style="background-color: ${columnColors['Shipping Costs']}">${fmt(item.totalShippingCost)}</td>
+      <td style="background-color: ${columnColors['Boxleo/Order']}">$${fmt(item.boxleoPerDeliveredOrder)}</td>
+      <td style="background-color: ${columnColors['Boxleo/Piece']}">$${fmt(item.boxleoPerDeliveredPiece)}</td>
+      <td style="background-color: ${columnColors['Ad Cost/Order']}">$${fmt(item.adCostPerDeliveredOrder)}</td>
+      <td style="background-color: ${columnColors['Ad Cost/Piece']}">$${fmt(item.adCostPerDeliveredPiece)}</td>
+      <td style="background-color: ${columnColors['Profit/Order']}" class="${profitPerOrder >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(profitPerOrder)}</td>
+      <td style="background-color: ${columnColors['Profit/Piece']}" class="${profitPerPiece >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(profitPerPiece)}</td>
+      <td style="background-color: ${columnColors['Delivery Rate']}">${fmt(item.deliveryRate)}%</td>
+      <td style="background-color: ${columnColors['Avg Order Value']}">$${fmt(item.averageOrderValue)}</td>
+      <td style="background-color: ${columnColors['Profit']}" class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(item.profit)}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="20" class="muted">No data for selected period</td></tr>`;
+  }).join('') || `<tr><td colspan="22" class="muted">No data for selected period</td></tr>`;
 
   const totalDeliveryRate = totalOrders > 0 ? (totalDeliveredOrders / totalOrders) * 100 : 0;
   const avgBoxleoPerOrder = itemCount > 0 ? totalBoxleoPerOrder / itemCount : 0;
   const avgBoxleoPerPiece = itemCount > 0 ? totalBoxleoPerPiece / itemCount : 0;
   const avgAdCostPerOrder = itemCount > 0 ? totalAdCostPerOrder / itemCount : 0;
   const avgAdCostPerPiece = itemCount > 0 ? totalAdCostPerPiece / itemCount : 0;
+  const avgProfitPerOrder = itemCount > 0 ? totalProfitPerOrder / itemCount : 0;
+  const avgProfitPerPiece = itemCount > 0 ? totalProfitPerPiece / itemCount : 0;
   const avgAOV = itemCount > 0 ? totalAOV / itemCount : 0;
-
-  console.log('📈 DEBUG - Calculated averages:', {
-    avgAdCostPerOrder,
-    avgAdCostPerPiece,
-    itemCount,
-    totalAdCostPerOrder,
-    totalAdCostPerPiece
-  });
 
   Q('#remAnalyticsOrdersT') && (Q('#remAnalyticsOrdersT').textContent = fmt(totalOrders));
   Q('#remAnalyticsDeliveredOrdersT') && (Q('#remAnalyticsDeliveredOrdersT').textContent = fmt(totalDeliveredOrders));
@@ -1740,10 +1822,13 @@ function renderRemittanceAnalytics(analytics) {
   Q('#remAnalyticsBoxleoPieceT') && (Q('#remAnalyticsBoxleoPieceT').textContent = '$' + fmt(avgBoxleoPerPiece));
   Q('#remAnalyticsAdOrderT') && (Q('#remAnalyticsAdOrderT').textContent = '$' + fmt(avgAdCostPerOrder));
   Q('#remAnalyticsAdPieceT') && (Q('#remAnalyticsAdPieceT').textContent = '$' + fmt(avgAdCostPerPiece));
+  Q('#remAnalyticsProfitOrderT') && (Q('#remAnalyticsProfitOrderT').textContent = '$' + fmt(avgProfitPerOrder));
+  Q('#remAnalyticsProfitPieceT') && (Q('#remAnalyticsProfitPieceT').textContent = '$' + fmt(avgProfitPerPiece));
   Q('#remAnalyticsDeliveryRateT') && (Q('#remAnalyticsDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%');
   Q('#remAnalyticsAOVT') && (Q('#remAnalyticsAOVT').textContent = '$' + fmt(avgAOV));
   Q('#remAnalyticsProfitT') && (Q('#remAnalyticsProfitT').textContent = fmt(totalProfit));
 }
+
 function bindProfitByCountry() {
   const btn = Q('#pcRun');
   if (!btn) return;
@@ -1766,7 +1851,7 @@ function bindProfitByCountry() {
 }
 
 function renderProfitByCountry(analytics) {
-   console.log('DEBUG - Profit by country data received:', analytics);
+  console.log('DEBUG - Profit by country data received:', analytics);
   const tb = Q('#profitCountryBody');
   if (!tb) return;
 
@@ -1774,10 +1859,38 @@ function renderProfitByCountry(analytics) {
   let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0;
   let totalDeliveredOrders = 0, totalPieces = 0, totalRefundedOrders = 0, totalRefundedAmount = 0, totalInfluencerSpend = 0;
   let totalBoxleoPerOrder = 0, totalBoxleoPerPiece = 0, totalAdCostPerOrder = 0, totalAdCostPerPiece = 0;
-  let totalAOV = 0;
+  let totalProfitPerOrder = 0, totalProfitPerPiece = 0, totalAOV = 0;
   let itemCount = 0;
 
+  // Column colors for better visualization
+  const columnColors = {
+    'Country': '#e3f2fd',
+    'Orders': '#f3e5f5',
+    'Delivered Orders': '#e8f5e8',
+    'Refunded Orders': '#fff3e0',
+    'Delivered Pieces': '#fce4ec',
+    'Revenue': '#e0f2f1',
+    'Refunded Amount': '#f1f8e9',
+    'Advertising Spend': '#ffebee',
+    'Influencer Spend': '#e8eaf6',
+    'Product Cost China': '#f3e5f5',
+    'Shipping Cost': '#e0f2f1',
+    'Boxleo Fees': '#fff3e0',
+    'Boxleo/Order': '#fce4ec',
+    'Boxleo/Piece': '#e3f2fd',
+    'Ad Cost/Order': '#f3e5f5',
+    'Ad Cost/Piece': '#e8f5e8',
+    'Profit/Order': '#fff3e0',
+    'Profit/Piece': '#fce4ec',
+    'Delivery Rate': '#e0f2f1',
+    'Avg Order Value': '#f1f8e9',
+    'Profit': '#ffebee'
+  };
+
   tb.innerHTML = Object.entries(analytics).map(([country, metrics]) => {
+    const profitPerOrder = metrics.totalDeliveredOrders > 0 ? (metrics.profit || 0) / metrics.totalDeliveredOrders : 0;
+    const profitPerPiece = metrics.totalDeliveredPieces > 0 ? (metrics.profit || 0) / metrics.totalDeliveredPieces : 0;
+
     totalRevenue += metrics.totalRevenue || 0;
     totalAdSpend += metrics.totalAdSpend || 0;
     totalBoxleo += metrics.totalBoxleoFees || 0;
@@ -1794,37 +1907,43 @@ function renderProfitByCountry(analytics) {
     totalBoxleoPerPiece += metrics.boxleoPerDeliveredPiece || 0;
     totalAdCostPerOrder += metrics.adCostPerDeliveredOrder || 0;
     totalAdCostPerPiece += metrics.adCostPerDeliveredPiece || 0;
+    totalProfitPerOrder += profitPerOrder || 0;
+    totalProfitPerPiece += profitPerPiece || 0;
     totalAOV += metrics.averageOrderValue || 0;
     itemCount++;
 
     return `<tr>
-      <td>${country}</td>
-      <td>${fmt(metrics.totalOrders)}</td>
-      <td>${fmt(metrics.totalDeliveredOrders)}</td>
-      <td>${fmt(metrics.totalRefundedOrders)}</td>
-      <td>${fmt(metrics.totalDeliveredPieces)}</td>
-      <td>${fmt(metrics.totalRevenue)}</td>
-      <td class="number-negative">${fmt(metrics.totalRefundedAmount)}</td>
-      <td>${fmt(metrics.totalAdSpend)}</td>
-      <td>${fmt(metrics.totalInfluencerSpend)}</td>
-      <td>${fmt(metrics.totalProductChinaCost)}</td>
-      <td>${fmt(metrics.totalShippingCost)}</td>
-      <td>${fmt(metrics.totalBoxleoFees)}</td>
-      <td>$${fmt(metrics.boxleoPerDeliveredOrder)}</td>
-      <td>$${fmt(metrics.boxleoPerDeliveredPiece)}</td>
-      <td>$${fmt(metrics.adCostPerDeliveredOrder)}</td>
-      <td>$${fmt(metrics.adCostPerDeliveredPiece)}</td>
-      <td>${fmt(metrics.deliveryRate)}%</td>
-      <td>$${fmt(metrics.averageOrderValue)}</td>
-      <td class="${metrics.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(metrics.profit)}</td>
+      <td style="background-color: ${columnColors['Country']}">${country}</td>
+      <td style="background-color: ${columnColors['Orders']}">${fmt(metrics.totalOrders)}</td>
+      <td style="background-color: ${columnColors['Delivered Orders']}">${fmt(metrics.totalDeliveredOrders)}</td>
+      <td style="background-color: ${columnColors['Refunded Orders']}">${fmt(metrics.totalRefundedOrders)}</td>
+      <td style="background-color: ${columnColors['Delivered Pieces']}">${fmt(metrics.totalDeliveredPieces)}</td>
+      <td style="background-color: ${columnColors['Revenue']}">${fmt(metrics.totalRevenue)}</td>
+      <td style="background-color: ${columnColors['Refunded Amount']}" class="number-negative">${fmt(metrics.totalRefundedAmount)}</td>
+      <td style="background-color: ${columnColors['Advertising Spend']}">${fmt(metrics.totalAdSpend)}</td>
+      <td style="background-color: ${columnColors['Influencer Spend']}">${fmt(metrics.totalInfluencerSpend)}</td>
+      <td style="background-color: ${columnColors['Product Cost China']}">${fmt(metrics.totalProductChinaCost)}</td>
+      <td style="background-color: ${columnColors['Shipping Cost']}">${fmt(metrics.totalShippingCost)}</td>
+      <td style="background-color: ${columnColors['Boxleo Fees']}">${fmt(metrics.totalBoxleoFees)}</td>
+      <td style="background-color: ${columnColors['Boxleo/Order']}">$${fmt(metrics.boxleoPerDeliveredOrder)}</td>
+      <td style="background-color: ${columnColors['Boxleo/Piece']}">$${fmt(metrics.boxleoPerDeliveredPiece)}</td>
+      <td style="background-color: ${columnColors['Ad Cost/Order']}">$${fmt(metrics.adCostPerDeliveredOrder)}</td>
+      <td style="background-color: ${columnColors['Ad Cost/Piece']}">$${fmt(metrics.adCostPerDeliveredPiece)}</td>
+      <td style="background-color: ${columnColors['Profit/Order']}" class="${profitPerOrder >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(profitPerOrder)}</td>
+      <td style="background-color: ${columnColors['Profit/Piece']}" class="${profitPerPiece >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(profitPerPiece)}</td>
+      <td style="background-color: ${columnColors['Delivery Rate']}">${fmt(metrics.deliveryRate)}%</td>
+      <td style="background-color: ${columnColors['Avg Order Value']}">$${fmt(metrics.averageOrderValue)}</td>
+      <td style="background-color: ${columnColors['Profit']}" class="${metrics.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(metrics.profit)}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="19" class="muted">No data</td></tr>`;
+  }).join('') || `<tr><td colspan="21" class="muted">No data</td></tr>`;
 
   const totalDeliveryRate = totalOrders > 0 ? (totalDeliveredOrders / totalOrders) * 100 : 0;
   const avgBoxleoPerOrder = itemCount > 0 ? totalBoxleoPerOrder / itemCount : 0;
   const avgBoxleoPerPiece = itemCount > 0 ? totalBoxleoPerPiece / itemCount : 0;
   const avgAdCostPerOrder = itemCount > 0 ? totalAdCostPerOrder / itemCount : 0;
   const avgAdCostPerPiece = itemCount > 0 ? totalAdCostPerPiece / itemCount : 0;
+  const avgProfitPerOrder = itemCount > 0 ? totalProfitPerOrder / itemCount : 0;
+  const avgProfitPerPiece = itemCount > 0 ? totalProfitPerPiece / itemCount : 0;
   const avgAOV = itemCount > 0 ? totalAOV / itemCount : 0;
 
   Q('#pcOrdersT') && (Q('#pcOrdersT').textContent = fmt(totalOrders));
@@ -1842,6 +1961,8 @@ function renderProfitByCountry(analytics) {
   Q('#pcBoxleoPieceT') && (Q('#pcBoxleoPieceT').textContent = '$' + fmt(avgBoxleoPerPiece));
   Q('#pcAdOrderT') && (Q('#pcAdOrderT').textContent = '$' + fmt(avgAdCostPerOrder));
   Q('#pcAdPieceT') && (Q('#pcAdPieceT').textContent = '$' + fmt(avgAdCostPerPiece));
+  Q('#pcProfitOrderT') && (Q('#pcProfitOrderT').textContent = '$' + fmt(avgProfitPerOrder));
+  Q('#pcProfitPieceT') && (Q('#pcProfitPieceT').textContent = '$' + fmt(avgProfitPerPiece));
   Q('#pcDeliveryRateT') && (Q('#pcDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%');
   Q('#pcAOVT') && (Q('#pcAOVT').textContent = '$' + fmt(avgAOV));
   Q('#pcProfitT') && (Q('#pcProfitT').textContent = fmt(totalProfit));
@@ -2079,6 +2200,7 @@ async function handleShipmentActions(e) {
     }
   }
 }
+
 // ======== ADSPEND PAGE ========
 function renderAdspendPage() {
   initDateRangeSelectors();
@@ -2088,7 +2210,6 @@ function renderAdspendPage() {
 }
 
 function fillAdspendSelects() {
-  // Fill product dropdowns
   const productSelects = ['#adspendProduct', '#adspendFilterProduct'];
   productSelects.forEach(sel => QA(sel).forEach(el => {
     if (!el) return;
@@ -2105,7 +2226,6 @@ function fillAdspendSelects() {
     }
   }));
 
-  // Fill country dropdowns
   const countrySelects = ['#adspendCountry', '#adspendFilterCountry'];
   countrySelects.forEach(sel => QA(sel).forEach(el => {
     if (!el) return;
@@ -2119,7 +2239,6 @@ function fillAdspendSelects() {
   }));
 }
 
-// FIXED: Updated adspend save with immediate refresh
 function bindAdspendSave() {
   const btn = Q('#adspendSave');
   if (!btn) return;
@@ -2140,12 +2259,10 @@ function bindAdspendSave() {
     try {
       await api('/api/adspend', { method: 'POST', body: JSON.stringify(payload) });
       
-      // Refresh all relevant data
       await renderCountryStockSpend();
       await renderCompactKpis();
-      await renderAdvertisingOverview(); // Refresh advertising overview
+      await renderAdvertisingOverview();
       
-      // Clear the form
       Q('#adspendAmount').value = '';
       
       alert('Ad spend saved successfully!');
@@ -2177,17 +2294,13 @@ function bindAdspendAnalytics() {
 
 function filterAdSpends(adSpends, dateRange, country, productId, platform) {
   return adSpends.filter(spend => {
-    // Filter by date range
     if (dateRange.start && spend.date < dateRange.start) return false;
     if (dateRange.end && spend.date > dateRange.end) return false;
     
-    // Filter by country
     if (country && spend.country !== country) return false;
     
-    // Filter by product
     if (productId && productId !== 'all' && spend.productId !== productId) return false;
     
-    // Filter by platform
     if (platform && spend.platform !== platform) return false;
     
     return true;
@@ -2203,20 +2316,16 @@ function renderAdspendResults(adSpends) {
     return;
   }
 
-  // Calculate totals
   const totalSpend = adSpends.reduce((sum, spend) => sum + (+spend.amount || 0), 0);
   const byPlatform = {};
   const byCountry = {};
   const byProduct = {};
 
   adSpends.forEach(spend => {
-    // Platform breakdown
     byPlatform[spend.platform] = (byPlatform[spend.platform] || 0) + (+spend.amount || 0);
     
-    // Country breakdown
     byCountry[spend.country] = (byCountry[spend.country] || 0) + (+spend.amount || 0);
     
-    // Product breakdown
     const product = state.products.find(p => p.id === spend.productId) || { name: spend.productId };
     byProduct[product.name] = (byProduct[product.name] || 0) + (+spend.amount || 0);
   });
@@ -2239,7 +2348,6 @@ function renderAdspendResults(adSpends) {
       </div>
   `;
 
-  // Platform breakdown
   html += `
       <div class="breakdown-section">
         <h4>By Platform</h4>
@@ -2259,7 +2367,6 @@ function renderAdspendResults(adSpends) {
   });
   html += `</div></div>`;
 
-  // Country breakdown
   html += `
       <div class="breakdown-section">
         <h4>By Country</h4>
@@ -2279,7 +2386,6 @@ function renderAdspendResults(adSpends) {
   });
   html += `</div></div>`;
 
-  // Detailed table
   html += `
       <div class="breakdown-section">
         <h4>Detailed History</h4>
@@ -2320,6 +2426,7 @@ function renderAdspendResults(adSpends) {
 
   container.innerHTML = html;
 }
+
 // ======== FINANCE PAGE ========
 function renderFinancePage() {
   refreshFinanceCategories();
@@ -3235,7 +3342,6 @@ function renderPagination(containerId, pagination, type) {
 }
 
 // ======== GLOBAL NAVIGATION ========
-// FIXED: Updated navigation to refresh data when switching pages
 function bindGlobalNav() {
   QA('.nav a[data-view]')?.forEach(a => a.addEventListener('click', e => {
     e.preventDefault();
@@ -3251,7 +3357,6 @@ function bindGlobalNav() {
       renderCountryStockSpend(); 
     }
     if (v === 'products') { 
-      // Refresh data when navigating to products page
       preload().then(() => {
         renderCompactCountryStats(); 
         renderAdvertisingOverview();
@@ -3259,7 +3364,6 @@ function bindGlobalNav() {
       });
     }
     if (v === 'adspend') { 
-      // Refresh data when navigating to adspend page
       preload().then(() => {
         renderAdspendPage();
         renderAdvertisingOverview();
