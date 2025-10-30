@@ -1851,6 +1851,7 @@ function renderProductCostsAnalysis(analysis) {
     `;
   }
 }
+
 function bindRemittanceAnalytics() {
   const btn = Q('#remAnalyticsRun');
   if (!btn) return;
