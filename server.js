@@ -21,7 +21,7 @@ fs.ensureDirSync(SNAPSHOT_DIR);
 app.use(morgan('dev'));
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(cookieParser());
-app.use(express.static(ROOT)); // Serve static files from root
+app.use(express.static(ROOT));
 app.use('/public', express.static(path.join(ROOT, 'public')));
 
 function ensureDB() {
@@ -70,7 +70,7 @@ function requireAuth(req, res, next) {
   return res.status(403).json({ error: 'Unauthorized' });
 }
 
-// ======== ENHANCED SHIPPING COST CALCULATION LOGIC ========
+// Enhanced shipping cost calculation
 function calculateShippingCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
   const productShipments = shipments.filter(s => 
@@ -129,62 +129,7 @@ function calculateProductCostPerPiece(db, productId) {
   return totalPieces > 0 ? totalProductCost / totalPieces : 0;
 }
 
-// ======== BASIC STOCK CALCULATION ========
-function calculateProductStock(db, productId = null, country = null) {
-  const shipments = db.shipments || [];
-  const remittances = db.remittances || [];
-  const refunds = db.refunds || [];
-  
-  let stock = {};
-  
-  // Initialize stock for all countries (except China)
-  db.countries.filter(c => c !== 'china').forEach(c => {
-    stock[c] = 0;
-  });
-
-  // Process shipments
-  shipments.forEach(shipment => {
-    if (productId && shipment.productId !== productId) return;
-    
-    const fromCountry = shipment.fromCountry;
-    const toCountry = shipment.toCountry;
-    const quantity = +shipment.qty || 0;
-    const hasArrived = !!shipment.arrivedAt;
-
-    if (fromCountry === 'china') {
-      if (hasArrived && stock[toCountry] !== undefined) {
-        stock[toCountry] += quantity;
-      }
-    } else {
-      if (hasArrived) {
-        if (stock[fromCountry] !== undefined) stock[fromCountry] -= quantity;
-        if (stock[toCountry] !== undefined) stock[toCountry] += quantity;
-      }
-    }
-  });
-
-  // Subtract remittances (sales)
-  remittances.filter(r => (!productId || r.productId === productId)).forEach(remittance => {
-    if (stock[remittance.country] !== undefined) {
-      stock[remittance.country] -= (+remittance.pieces || 0);
-    }
-  });
-
-  // Add refunds back to stock
-  refunds.filter(rf => (!productId || rf.productId === productId)).forEach(refund => {
-    if (stock[refund.country] !== undefined) {
-      stock[refund.country] += (+refund.pieces || 0);
-    }
-  });
-
-  if (country) {
-    return stock[country] || 0;
-  }
-
-  return stock;
-}
-
-// ======== ENHANCED PROFIT CALCULATION ========
+// Enhanced profit calculation
 function calculateProfitMetrics(db, productId, country = null, startDate = null, endDate = null) {
   const remittances = db.remittances || [];
   const refunds = db.refunds || [];
@@ -335,7 +280,7 @@ function calculateProfitMetrics(db, productId, country = null, startDate = null,
   };
 }
 
-// ======== ROUTES ========
+// Routes
 
 // Authentication
 app.post('/api/auth', (req, res) => {
@@ -361,7 +306,7 @@ app.post('/api/auth', (req, res) => {
   return res.status(403).json({ error: 'Wrong password' });
 });
 
-// Meta data - NO AUTH REQUIRED (for initial check)
+// Meta data
 app.get('/api/meta', (req, res) => {
   const db = loadDB();
   res.json({ 
@@ -394,7 +339,7 @@ app.delete('/api/countries/:name', requireAuth, (req, res) => {
   res.json({ ok: true, countries: db.countries });
 });
 
-// Products with Enhanced Sorting
+// Products
 app.get('/api/products', requireAuth, (req, res) => { 
   const db = loadDB();
   
@@ -835,7 +780,7 @@ app.delete('/api/finance/entries/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// ======== ENHANCED ANALYTICS WITH SORTING ========
+// Enhanced Analytics with Sorting
 app.get('/api/analytics/remittance', requireAuth, (req, res) => {
   const db = loadDB();
   const { start, end, country, productId } = req.query || {};
@@ -1022,7 +967,7 @@ app.delete('/api/snapshots/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// ======== BACKUP PUSH ROUTE ========
+// Backup Push Route
 app.post('/api/backup/push-snapshot', requireAuth, async (req, res) => {
   try {
     const { snapshotFile } = req.body || {};
@@ -1057,6 +1002,61 @@ app.post('/api/backup/push-snapshot', requireAuth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Stock calculation function
+function calculateProductStock(db, productId = null, country = null) {
+  const shipments = db.shipments || [];
+  const remittances = db.remittances || [];
+  const refunds = db.refunds || [];
+  
+  let stock = {};
+  
+  // Initialize stock for all countries (except China)
+  db.countries.filter(c => c !== 'china').forEach(c => {
+    stock[c] = 0;
+  });
+
+  // Process shipments
+  shipments.forEach(shipment => {
+    if (productId && shipment.productId !== productId) return;
+    
+    const fromCountry = shipment.fromCountry;
+    const toCountry = shipment.toCountry;
+    const quantity = +shipment.qty || 0;
+    const hasArrived = !!shipment.arrivedAt;
+
+    if (fromCountry === 'china') {
+      if (hasArrived && stock[toCountry] !== undefined) {
+        stock[toCountry] += quantity;
+      }
+    } else {
+      if (hasArrived) {
+        if (stock[fromCountry] !== undefined) stock[fromCountry] -= quantity;
+        if (stock[toCountry] !== undefined) stock[toCountry] += quantity;
+      }
+    }
+  });
+
+  // Subtract remittances (sales)
+  remittances.filter(r => (!productId || r.productId === productId)).forEach(remittance => {
+    if (stock[remittance.country] !== undefined) {
+      stock[remittance.country] -= (+remittance.pieces || 0);
+    }
+  });
+
+  // Add refunds back to stock
+  refunds.filter(rf => (!productId || rf.productId === productId)).forEach(refund => {
+    if (stock[refund.country] !== undefined) {
+      stock[refund.country] += (+refund.pieces || 0);
+    }
+  });
+
+  if (country) {
+    return stock[country] || 0;
+  }
+
+  return stock;
+}
 
 // Routes
 app.get('/product.html', (req, res) => res.sendFile(path.join(ROOT, 'product.html')));
