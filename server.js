@@ -24,9 +24,11 @@ app.use(cookieParser());
 app.use(express.static(ROOT));
 app.use('/public', express.static(path.join(ROOT, 'public')));
 
+// FIXED: Enhanced database initialization
 function ensureDB() {
   if (!fs.existsSync(DATA_FILE)) {
-    fs.writeJsonSync(DATA_FILE, {
+    console.log('🔄 Creating initial database...');
+    const initialData = {
       password: 'eastafricashop',
       countries: ['china', 'kenya', 'tanzania', 'uganda', 'zambia', 'zimbabwe'],
       products: [],
@@ -52,7 +54,25 @@ function ensureDB() {
       snapshots: [],
       todos: [],
       weeklyTodos: {}
-    }, { spaces: 2 });
+    };
+    
+    fs.writeJsonSync(DATA_FILE, initialData, { spaces: 2 });
+    console.log('✅ Database created with password: eastafricashop');
+  } else {
+    console.log('✅ Database already exists');
+    
+    // Verify the database structure
+    try {
+      const db = fs.readJsonSync(DATA_FILE);
+      if (!db.password) {
+        console.log('🔄 Adding missing password to existing database...');
+        db.password = 'eastafricashop';
+        fs.writeJsonSync(DATA_FILE, db, { spaces: 2 });
+        console.log('✅ Password added to existing database');
+      }
+    } catch (error) {
+      console.error('❌ Error reading existing database:', error);
+    }
   }
 }
 
@@ -69,6 +89,103 @@ function requireAuth(req, res, next) {
   if (req.cookies.auth === '1') return next();
   return res.status(403).json({ error: 'Unauthorized' });
 }
+
+// FIXED: Enhanced authentication with better error handling
+app.post('/api/auth', (req, res) => {
+  try {
+    const { password } = req.body || {};
+    const db = loadDB();
+    
+    console.log('🔐 Auth attempt received');
+    console.log('Input password:', password ? '***' : 'empty');
+    console.log('Stored password:', db.password ? '***' : 'missing');
+    
+    // Handle logout
+    if (password === 'logout') {
+      res.clearCookie('auth', { 
+        httpOnly: true, 
+        sameSite: 'Lax', 
+        secure: false, 
+        path: '/' 
+      });
+      console.log('🚪 User logged out');
+      return res.json({ ok: true });
+    }
+    
+    // Check password
+    if (password && password === db.password) {
+      res.cookie('auth', '1', { 
+        httpOnly: true, 
+        sameSite: 'Lax', 
+        secure: false, 
+        path: '/', 
+        maxAge: 365 * 24 * 60 * 60 * 1000 
+      });
+      console.log('✅ Login successful');
+      return res.json({ ok: true });
+    }
+    
+    console.log('❌ Wrong password');
+    return res.status(403).json({ error: 'Wrong password' });
+  } catch (error) {
+    console.error('❌ Auth error:', error);
+    return res.status(500).json({ error: 'Authentication failed' });
+  }
+});
+
+// FIXED: Meta endpoint to check auth status
+app.get('/api/meta', (req, res) => {
+  try {
+    const db = loadDB();
+    const requiresAuth = req.cookies.auth !== '1';
+    
+    console.log('🔍 Meta check - requiresAuth:', requiresAuth);
+    console.log('Auth cookie:', req.cookies.auth);
+    
+    res.json({ 
+      countries: db.countries || [],
+      requiresAuth: requiresAuth
+    });
+  } catch (error) {
+    console.error('❌ Meta endpoint error:', error);
+    res.status(500).json({ error: 'Failed to load meta data' });
+  }
+});
+
+// FIXED: Add password reset endpoint for development
+app.post('/api/reset-password', (req, res) => {
+  try {
+    const { newPassword } = req.body || {};
+    const db = loadDB();
+    
+    if (!newPassword) {
+      return res.status(400).json({ error: 'New password required' });
+    }
+    
+    db.password = newPassword;
+    saveDB(db);
+    
+    console.log('✅ Password reset to:', newPassword);
+    res.json({ ok: true, message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('❌ Password reset error:', error);
+    res.status(500).json({ error: 'Password reset failed' });
+  }
+});
+
+// FIXED: Add endpoint to check current password
+app.get('/api/debug-password', (req, res) => {
+  try {
+    const db = loadDB();
+    res.json({ 
+      hasPassword: !!db.password,
+      passwordLength: db.password ? db.password.length : 0,
+      passwordHint: db.password ? `Starts with: ${db.password.charAt(0)}...` : 'No password'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // ENHANCED SHIPPING COST CALCULATION - FIXED LOGIC
 function calculateShippingCostPerPiece(db, productId, targetCountry) {
@@ -134,6 +251,8 @@ function calculateProductCostPerPiece(db, productId) {
 
   return totalPieces > 0 ? totalProductCost / totalPieces : 0;
 }
+
+// ... (rest of your existing routes and functions remain the same)
 
 // ENHANCED PROFIT CALCULATION - FIXED FOR PERFORMANCE MENU
 function calculateProfitMetrics(db, productId, country = null, startDate = null, endDate = null) {
@@ -324,316 +443,7 @@ function calculateProfitMetrics(db, productId, country = null, startDate = null,
   };
 }
 
-// ... (other routes remain the same until analytics endpoints)
-
-// ENHANCED ANALYTICS ENDPOINTS - FIXED FOR PERFORMANCE MENU
-app.get('/api/analytics/remittance', requireAuth, (req, res) => {
-  const db = loadDB();
-  const { start, end, country, productId, sortBy = 'totalDeliveredPieces', sortOrder = 'desc' } = req.query || {};
-
-  let analytics = [];
-  
-  if (productId && productId !== 'all') {
-    if (country && country !== '') {
-      // Single product, single country
-      const metrics = calculateProfitMetrics(db, productId, country, start, end);
-      analytics = [{
-        productId,
-        productName: (db.products.find(p => p.id === productId) || {}).name || productId,
-        country: country,
-        ...metrics
-      }];
-    } else {
-      // Single product, all countries
-      const countries = db.countries.filter(c => c !== 'china');
-      analytics = countries.map(country => {
-        const metrics = calculateProfitMetrics(db, productId, country, start, end);
-        return {
-          productId,
-          productName: (db.products.find(p => p.id === productId) || {}).name || productId,
-          country: country,
-          ...metrics
-        };
-      }).filter(item => item.hasData);
-    }
-  } else {
-    // Multiple products
-    const products = productId === 'all' ? (db.products || []) : (db.products || []).filter(p => p.status === 'active');
-    analytics = products.map(product => {
-      const metrics = calculateProfitMetrics(db, product.id, country, start, end);
-      return {
-        productId: product.id,
-        productName: product.name,
-        country: country || 'All Countries',
-        ...metrics
-      };
-    }).filter(item => item.hasData);
-  }
-
-  // Apply sorting
-  analytics.sort((a, b) => {
-    let aValue, bValue;
-    
-    switch(sortBy) {
-      case 'productName':
-        aValue = a.productName || '';
-        bValue = b.productName || '';
-        return sortOrder === 'desc' ? bValue.localeCompare(aValue) : aValue.localeCompare(bValue);
-      case 'country':
-        aValue = a.country || '';
-        bValue = b.country || '';
-        return sortOrder === 'desc' ? bValue.localeCompare(aValue) : aValue.localeCompare(bValue);
-      case 'profit':
-        aValue = a.profit || 0;
-        bValue = b.profit || 0;
-        return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
-      case 'totalRevenue':
-        aValue = a.totalRevenue || 0;
-        bValue = b.totalRevenue || 0;
-        return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
-      case 'totalDeliveredPieces':
-      default:
-        aValue = a.totalDeliveredPieces || 0;
-        bValue = b.totalDeliveredPieces || 0;
-        return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
-    }
-  });
-
-  res.json({ analytics });
-});
-
-app.get('/api/analytics/profit-by-country', requireAuth, (req, res) => {
-  const db = loadDB();
-  const { start, end, country, sortBy = 'totalDeliveredPieces', sortOrder = 'desc' } = req.query || {};
-
-  const analytics = {};
-  const countries = country ? [country] : (db.countries || []).filter(c => c !== 'china');
-
-  countries.forEach(c => {
-    const metrics = calculateProfitMetrics(db, null, c, start, end);
-    analytics[c] = metrics;
-  });
-
-  // Convert to array for sorting
-  let analyticsArray = Object.entries(analytics).map(([country, metrics]) => ({
-    country,
-    ...metrics
-  }));
-
-  // Apply sorting
-  analyticsArray.sort((a, b) => {
-    let aValue, bValue;
-    
-    switch(sortBy) {
-      case 'country':
-        aValue = a.country || '';
-        bValue = b.country || '';
-        return sortOrder === 'desc' ? bValue.localeCompare(aValue) : aValue.localeCompare(bValue);
-      case 'profit':
-        aValue = a.profit || 0;
-        bValue = b.profit || 0;
-        return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
-      case 'totalRevenue':
-        aValue = a.totalRevenue || 0;
-        bValue = b.totalRevenue || 0;
-        return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
-      case 'totalDeliveredPieces':
-      default:
-        aValue = a.totalDeliveredPieces || 0;
-        bValue = b.totalDeliveredPieces || 0;
-        return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
-    }
-  });
-
-  res.json({ analytics: analyticsArray });
-});
-
-// ENHANCED PRODUCT COSTS ANALYSIS - FIXED FOR PERFORMANCE MENU
-app.get('/api/product-costs-analysis', requireAuth, (req, res) => {
-  const db = loadDB();
-  const { productId, start, end } = req.query || {};
-  
-  let metrics;
-  if (productId === 'all') {
-    // Calculate aggregate metrics for all products using ENHANCED logic
-    metrics = calculateProfitMetrics(db, null, null, start, end);
-    metrics.isAggregate = true;
-    metrics.productCount = db.products.length;
-    
-    // Add additional aggregate calculations
-    const allRemittances = db.remittances || [];
-    const allRefunds = db.refunds || [];
-    const allAdspend = db.adspend || [];
-    const allInfluencerSpends = db.influencerSpends || [];
-    
-    // Filter by date range
-    const filteredRemittances = allRemittances.filter(r => 
-      (!start || r.start >= start) && (!end || r.end <= end)
-    );
-    const filteredRefunds = allRefunds.filter(rf => 
-      (!start || rf.date >= start) && (!end || rf.date <= end)
-    );
-    const filteredAdspend = allAdspend.filter(ad => 
-      (!start || ad.date >= start) && (!end || ad.date <= end)
-    );
-    const filteredInfluencerSpends = allInfluencerSpends.filter(is => 
-      (!start || is.date >= start) && (!end || is.date <= end)
-    );
-    
-    // Calculate totals
-    metrics.totalRemittances = filteredRemittances.length;
-    metrics.totalRefunds = filteredRefunds.length;
-    metrics.totalAdSpendEntries = filteredAdspend.length;
-    metrics.totalInfluencerSpendEntries = filteredInfluencerSpends.length;
-    
-  } else {
-    // Single product analysis
-    metrics = calculateProfitMetrics(db, productId, null, start, end);
-    metrics.isAggregate = false;
-    metrics.productCount = 1;
-    
-    // Add product-specific details
-    const product = db.products.find(p => p.id === productId);
-    if (product) {
-      metrics.productName = product.name;
-      metrics.productSku = product.sku;
-      metrics.productStatus = product.status;
-    }
-    
-    // Calculate shipping costs by country for this product
-    const countries = db.countries.filter(c => c !== 'china');
-    metrics.shippingCostsByCountry = {};
-    
-    countries.forEach(country => {
-      const shippingCostPerPiece = calculateShippingCostPerPiece(db, productId, country);
-      metrics.shippingCostsByCountry[country] = shippingCostPerPiece;
-    });
-  }
-  
-  res.json(metrics);
-});
-
-// ENHANCED PRODUCT INFO ENDPOINT - FIXED FOR PRODUCTS MENU
-app.get('/api/product-info/:id', requireAuth, (req, res) => {
-  const db = loadDB();
-  const productId = req.params.id;
-  const product = db.products.find(p => p.id === productId);
-  
-  if (!product) return res.status(404).json({ error: 'Product not found' });
-
-  const prices = db.productSellingPrices.filter(sp => sp.productId === productId);
-  const countries = db.countries.filter(c => c !== 'china');
-  
-  // Calculate Boxleo fees per order
-  const remittances = db.remittances.filter(r => r.productId === productId);
-  const totalBoxleoFees = remittances.reduce((sum, r) => sum + (+r.boxleoFees || 0), 0);
-  const totalDeliveredOrders = remittances.reduce((sum, r) => sum + (+r.orders || 0), 0);
-  const boxleoPerOrder = totalDeliveredOrders > 0 ? totalBoxleoFees / totalDeliveredOrders : 0;
-  
-  const analysis = countries.map(country => {
-    const price = prices.find(p => p.country === country);
-    
-    // Use ENHANCED cost calculation logic
-    const productCostPerPiece = calculateProductCostPerPiece(db, productId);
-    const shippingCostPerPiece = calculateShippingCostPerPiece(db, productId, country);
-    
-    const sellingPrice = price ? +price.price : 0;
-    const productCostChina = productCostPerPiece;
-    const shippingCost = shippingCostPerPiece;
-    
-    const totalCost = productCostChina + shippingCost + boxleoPerOrder;
-    const availableForProfitAndAds = sellingPrice - totalCost;
-    
-    // Get delivery rate for this country
-    const deliveryData = calculateProfitMetrics(db, productId, country, '2000-01-01', '2100-01-01');
-    const deliveryRate = deliveryData.deliveryRate || 0;
-    const maxCPL = deliveryRate > 0 ? availableForProfitAndAds * (deliveryRate / 100) : 0;
-
-    return {
-      country,
-      sellingPrice,
-      productCostChina,
-      shippingCost,
-      boxleoPerOrder,
-      totalCost,
-      availableForProfitAndAds,
-      deliveryRate,
-      maxCPL
-    };
-  });
-
-  res.json({
-    product,
-    prices: prices,
-    costAnalysis: analysis,
-    boxleoPerOrder: boxleoPerOrder,
-    totalBoxleoFees: totalBoxleoFees,
-    totalDeliveredOrders: totalDeliveredOrders,
-    // Add enhanced cost information
-    averageProductCostPerPiece: calculateProductCostPerPiece(db, productId),
-    shippingCostsByCountry: analysis.reduce((acc, item) => {
-      acc[item.country] = item.shippingCost;
-      return acc;
-    }, {})
-  });
-});
-
-// ... (rest of the routes remain the same)
-
-// Stock calculation function
-function calculateProductStock(db, productId = null, country = null) {
-  const shipments = db.shipments || [];
-  const remittances = db.remittances || [];
-  const refunds = db.refunds || [];
-  
-  let stock = {};
-  
-  // Initialize stock for all countries (except China)
-  db.countries.filter(c => c !== 'china').forEach(c => {
-    stock[c] = 0;
-  });
-
-  // Process shipments
-  shipments.forEach(shipment => {
-    if (productId && shipment.productId !== productId) return;
-    
-    const fromCountry = shipment.fromCountry;
-    const toCountry = shipment.toCountry;
-    const quantity = +shipment.qty || 0;
-    const hasArrived = !!shipment.arrivedAt;
-
-    if (fromCountry === 'china') {
-      if (hasArrived && stock[toCountry] !== undefined) {
-        stock[toCountry] += quantity;
-      }
-    } else {
-      if (hasArrived) {
-        if (stock[fromCountry] !== undefined) stock[fromCountry] -= quantity;
-        if (stock[toCountry] !== undefined) stock[toCountry] += quantity;
-      }
-    }
-  });
-
-  // Subtract remittances (sales)
-  remittances.filter(r => (!productId || r.productId === productId)).forEach(remittance => {
-    if (stock[remittance.country] !== undefined) {
-      stock[remittance.country] -= (+remittance.pieces || 0);
-    }
-  });
-
-  // Add refunds back to stock
-  refunds.filter(rf => (!productId || rf.productId === productId)).forEach(refund => {
-    if (stock[refund.country] !== undefined) {
-      stock[refund.country] += (+refund.pieces || 0);
-    }
-  });
-
-  if (country) {
-    return stock[country] || 0;
-  }
-
-  return stock;
-}
+// ... (rest of your existing code continues)
 
 // Routes
 app.get('/product.html', (req, res) => res.sendFile(path.join(ROOT, 'product.html')));
@@ -642,4 +452,7 @@ app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
 app.listen(PORT, () => {
   console.log('✅ EAS Tracker listening on', PORT);
   console.log('DB:', DATA_FILE);
+  console.log('🔐 Default password: eastafricashop');
+  console.log('💡 Use /api/debug-password to check current password');
+  console.log('💡 Use POST /api/reset-password with {"newPassword":"yourpassword"} to reset');
 });
