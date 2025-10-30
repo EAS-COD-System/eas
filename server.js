@@ -1120,6 +1120,27 @@ app.get('/api/analytics/profit-by-country', requireAuth, (req, res) => {
   res.json({ analytics: analyticsArray });
 });
 
+app.get('/api/analytics/profit-by-country', requireAuth, (req, res) => {
+  const db = loadDB();
+  const { start, end, country } = req.query || {};
+
+  const analytics = {};
+  const countries = country ? [country] : (db.countries || []).filter(c => c !== 'china');
+
+  countries.forEach(c => {
+    const metrics = calculateProfitMetrics(db, null, c, start, end);
+    analytics[c] = metrics;
+  });
+
+  // Convert to array for sorting
+  let analyticsArray = Object.entries(analytics).map(([country, metrics]) => ({
+    country,
+    ...metrics
+  }));
+
+  res.json({ analytics: analyticsArray });
+});
+
 // Product Info with Enhanced Cost Calculation
 app.get('/api/product-info/:id', requireAuth, (req, res) => {
   const db = loadDB();
