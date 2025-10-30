@@ -1,0 +1,5251 @@
+File structure is on root there is db.json and package.json and server.js and index.html and product.html and backup.js and restore.js and snapshot.js and on public folder there is app.js and styles.css so my app.js is styles.css /* =========================================================
+   EAS Tracker — Advanced Professional Dashboard System
+   ========================================================= */
+
+/* ---------- CSS Reset ---------- */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
+img { max-width: 100%; display: block; }
+
+/* ---------- Modern Professional Color Theme - WHITE BACKGROUND ---------- */
+:root {
+  /* Primary Colors - Professional Blue Theme */
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --primary-light: #3b82f6;
+  --primary-50: #eff6ff;
+  --primary-100: #dbeafe;
+  
+  /* Accent Colors */
+  --accent-green: #059669;
+  --accent-teal: #0d9488;
+  --accent-blue: #0284c7;
+  --accent-orange: #ea580c;
+  --accent-red: #dc2626;
+  --accent-amber: #d97706;
+  
+  /* Neutral Colors - Light Theme */
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  
+  /* Background Colors - WHITE THEME */
+  --bg-body: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-light: #f8fafc;
+  --bg-hover: #f1f5f9;
+  --bg-sidebar: #f8fafc;
+  
+  /* Text Colors - Dark for white background */
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --text-light: #374151;
+  
+  /* Border Colors */
+  --border: #e5e7eb;
+  --border-light: #d1d5db;
+  --border-dark: #e5e7eb;
+  
+  /* Status Colors */
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --info: #2563eb;
+  --success-light: rgba(5, 150, 105, 0.1);
+  --warning-light: rgba(217, 119, 6, 0.1);
+  --danger-light: rgba(220, 38, 38, 0.1);
+  --info-light: rgba(37, 99, 235, 0.1);
+  
+  /* Gradients - Professional Blue Theme */
+  --gradient-primary: linear-gradient(135deg, #2563eb, #3b82f6);
+  --gradient-success: linear-gradient(135deg, #059669, #10b981);
+  --gradient-warning: linear-gradient(135deg, #d97706, #f59e0b);
+  --gradient-danger: linear-gradient(135deg, #dc2626, #ef4444);
+  
+  /* Shadows - Lighter for white background */
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-nav: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
+/* ---------- Base Styles - WHITE BACKGROUND ---------- */
+body {
+  background: var(--bg-body) !important;
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  padding-top: 0 !important;
+}
+
+/* ---------- Enhanced Fixed Navigation - MOBILE FRIENDLY ---------- */
+.nav {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 1000 !important;
+  background: #ffffff !important;
+  border-bottom: 1px solid #e5e5e5 !important;
+  padding: 12px 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  min-height: 80px !important;
+  height: auto !important;
+  width: 100% !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+  transition: transform 0.3s ease, opacity 0.3s ease !important;
+  transform: translateY(0) !important;
+  opacity: 1 !important;
+}
+
+/* Hide nav when scrolling - COMPLETELY HIDDEN */
+.nav.nav-hidden {
+  transform: translateY(-100%) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Show nav only at top */
+.nav.nav-visible {
+  transform: translateY(0) !important;
+  opacity: 1 !important;
+  pointer-events: all !important;
+}
+
+.nav a {
+  padding: 10px 14px !important;
+  color: #333 !important;
+  text-decoration: none !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background: transparent !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.nav a:hover {
+  background: #f8f9fa !important;
+  color: #007cba !important;
+}
+
+.nav a.active {
+  background: #007cba !important;
+  color: white !important;
+  box-shadow: none !important;
+  font-weight: 500 !important;
+}
+
+.nav .nav-right {
+  margin-left: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  flex-shrink: 0 !important;
+}
+
+/* Main content starts below the fixed nav */
+#main {
+  margin-top: 80px !important;
+  padding-top: 20px !important;
+  transition: margin-top 0.3s ease !important;
+}
+
+#main.main-expanded {
+  margin-top: 0 !important;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+  padding-top: 0 !important;
+}
+
+/* ---------- Typography ---------- */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 0.5em;
+  color: var(--text-primary);
+}
+
+h1 { 
+  font-size: 2rem; 
+  background: var(--gradient-primary); 
+  -webkit-background-clip: text; 
+  background-clip: text; 
+  color: transparent;
+  font-weight: 700;
+}
+
+h2 { 
+  font-size: 1.5rem; 
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+h3 { 
+  font-size: 1.25rem; 
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+h4 { 
+  font-size: 1.1rem; 
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* ---------- Auth Styles ---------- */
+.auth {
+  max-width: 440px;
+  margin: 10vh auto;
+  padding: 40px;
+  background: var(--bg-card);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.brand {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---------- Advanced KPI Grid - COMPACT ---------- */
+.kpis-compact {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.kpi-compact {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-compact::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-primary);
+}
+
+.kpi-compact:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary);
+}
+
+.kpi-compact .label {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.kpi-compact .value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Color-coded KPIs */
+.kpi-compact:nth-child(1)::before { background: var(--gradient-primary); }
+.kpi-compact:nth-child(2)::before { background: var(--gradient-success); }
+.kpi-compact:nth-child(3)::before { background: var(--gradient-warning); }
+.kpi-compact:nth-child(4)::before { background: var(--accent-teal); }
+.kpi-compact:nth-child(5)::before { background: var(--accent-orange); }
+
+/* ---------- Professional Cards ---------- */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-normal);
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-primary);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+.card:hover::before {
+  opacity: 1;
+}
+
+.card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-light);
+}
+
+.card .h {
+  font-weight: 600;
+  margin-bottom: 14px;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--primary);
+}
+
+/* ---------- Country Stats Grid - COMPACT ---------- */
+.country-stats-grid-compact {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.country-stat-card-compact {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.country-stat-card-compact::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--gradient-primary);
+}
+
+.country-stat-card-compact:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--primary);
+}
+
+.country-name-compact {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.stats-row-compact {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.stat-item-compact {
+  text-align: center;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all var(--transition-fast);
+}
+
+.stat-item-compact.active {
+  background: var(--success-light);
+  border: 1px solid var(--success);
+}
+
+.stat-item-compact.paused {
+  background: var(--warning-light);
+  border: 1px solid var(--warning);
+}
+
+.stat-item-compact.total {
+  background: var(--info-light);
+  border: 1px solid var(--info);
+}
+
+.stat-label-compact {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 3px;
+  font-weight: 500;
+}
+
+.stat-value-compact {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.stat-item-compact.active .stat-value-compact { color: var(--success); }
+.stat-item-compact.paused .stat-value-compact { color: var(--warning); }
+.stat-item-compact.total .stat-value-compact { color: var(--info); }
+
+/* ---------- Big Balance Display ---------- */
+.big-balance {
+  text-align: center;
+  padding: 30px;
+  background: var(--gradient-success);
+  border-radius: 12px;
+  color: white;
+  margin-bottom: 24px;
+}
+
+.big-balance .h {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+  border-bottom: none;
+}
+
+.big-balance .balance {
+  font-size: 3rem !important;
+  font-weight: 800 !important;
+  color: white !important;
+}
+
+/* ---------- Professional Inputs ---------- */
+.input {
+  background: var(--bg-card-light);
+  border: 2px solid var(--border);
+  color: var(--text-primary);
+  padding: 9px 12px;
+  border-radius: 6px;
+  outline: none;
+  transition: all var(--transition-fast);
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+
+.input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  background: var(--bg-card);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+select.input {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 12px center;
+  background-repeat: no-repeat;
+  background-size: 16px;
+  padding-right: 40px;
+}
+
+/* ---------- Professional Buttons ---------- */
+.btn {
+  background: var(--gradient-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 9px 18px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  background: var(--primary-dark);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn.outline {
+  background: transparent;
+  color: var(--primary);
+  border: 2px solid var(--primary);
+}
+
+.btn.outline:hover {
+  background: var(--primary);
+  color: white;
+}
+
+.btn.danger {
+  background: var(--gradient-danger);
+}
+
+.btn.danger.outline {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.btn.danger.outline:hover {
+  background: var(--danger);
+  color: white;
+}
+
+.btn.small {
+  padding: 7px 14px;
+  font-size: 0.85rem;
+}
+
+/* ---------- Professional Tables - SCROLLABLE ---------- */
+.table-scroll {
+  overflow-x: auto !important;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin: 14px 0;
+  max-width: 100%;
+  box-shadow: var(--shadow-sm);
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
+.table-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.table-scroll::-webkit-scrollbar-track {
+  background: var(--gray-100);
+  border-radius: 3px;
+}
+
+.table-scroll::-webkit-scrollbar-thumb {
+  background: var(--gray-400);
+  border-radius: 3px;
+}
+
+.table-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1000px !important;
+  background: var(--bg-card);
+  table-layout: auto;
+}
+
+.table thead th {
+  background: var(--primary);
+  color: white;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--primary-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  transition: background var(--transition-fast);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.table tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tfoot th, .table tfoot td {
+  padding: 12px 14px;
+  border-top: 2px solid var(--border);
+  font-weight: 800 !important;
+  background: var(--bg-card-light);
+  text-align: center !important;
+  font-size: 0.9rem !important;
+}
+
+.table .totals th, .table .totals td {
+  font-weight: 800 !important;
+  background: var(--bg-card-light);
+  color: var(--text-primary);
+  text-align: center !important;
+}
+
+.table .muted {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 30px;
+  font-style: italic;
+}
+
+/* ---------- Profit/Loss Row Styles ---------- */
+.profit-row {
+  background: linear-gradient(90deg, rgba(5, 150, 105, 0.1) 0%, transparent 100%) !important;
+}
+
+.loss-row {
+  background: linear-gradient(90deg, rgba(220, 38, 38, 0.1) 0%, transparent 100%) !important;
+}
+
+.no-data-row {
+  background: linear-gradient(90deg, rgba(217, 119, 6, 0.1) 0%, transparent 100%) !important;
+}
+
+.profit-bg {
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, transparent 50%) !important;
+  border-left: 4px solid var(--success) !important;
+}
+
+.loss-bg {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, transparent 50%) !important;
+  border-left: 4px solid var(--danger) !important;
+}
+
+/* ---------- PRODUCT PAGE SPECIFIC FIXES ---------- */
+#product .container {
+  max-width: 100%;
+  overflow-x: hidden;
+  padding: 20px;
+}
+
+#product .section {
+  max-width: 100%;
+  overflow: hidden;
+  margin-bottom: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Ensure ALL tables in product page are scrollable */
+#product .table-scroll {
+  max-width: 100% !important;
+  margin: 12px 0 !important;
+  min-width: auto !important;
+  overflow-x: auto !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  display: block !important;
+}
+
+/* Make sure all tables in product page don't break layout */
+#product table {
+  min-width: 1000px !important;
+  width: 100% !important;
+}
+
+/* Product page specific table styling */
+#product .table {
+  min-width: 1000px !important;
+}
+
+#product .table tbody tr:nth-child(even) {
+  background: var(--bg-card-light);
+}
+
+/* ---------- Number Formatting for Financial Data ---------- */
+.number-positive {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.number-negative {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.number-neutral {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.currency {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+}
+
+/* ---------- Chips / Tags ---------- */
+.chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  background: var(--bg-card-light);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 5px 10px;
+  border-radius: 14px;
+  font-weight: 500;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all var(--transition-fast);
+}
+
+.chip:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.chip .chip-x {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 50%;
+  transition: all var(--transition-fast);
+  font-size: 0.7rem;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chip .chip-x:hover {
+  background: var(--danger);
+  color: white;
+}
+
+/* ---------- Badges & Status ---------- */
+.badge {
+  display: inline-block;
+  padding: 3px 8px;
+  background: var(--bg-card-light);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-primary);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge.success {
+  background: var(--success-light);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.badge.warning {
+  background: var(--warning-light);
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.badge.danger {
+  background: var(--danger-light);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.badge.info {
+  background: var(--info-light);
+  border-color: var(--info);
+  color: var(--info);
+}
+
+/* Payment Status Badges */
+.badge.paid {
+  background: var(--success-light);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.badge.pending {
+  background: var(--warning-light);
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+/* ---------- Advertising Overview ---------- */
+.country-section {
+  margin-bottom: 18px;
+  border-left: 3px solid var(--primary);
+}
+
+.product-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  margin: 8px 0;
+  background: var(--bg-card-light);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  transition: all var(--transition-fast);
+}
+
+.product-row:hover {
+  transform: translateX(1px);
+  border-color: var(--primary);
+}
+
+.product-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.platform-spends {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.platform-badge {
+  padding: 5px 10px;
+  border-radius: 14px;
+  background: var(--bg-card-light);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.platform-badge.active {
+  background: var(--info-light);
+  border-color: var(--info);
+  color: var(--info);
+}
+
+.total-badge {
+  padding: 5px 10px;
+  border-radius: 14px;
+  background: var(--gradient-primary);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* ---------- Brainstorming Styles ---------- */
+.ideas-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.idea-card {
+  background: var(--bg-card-light);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 15px;
+  transition: all var(--transition-normal);
+}
+
+.idea-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--primary);
+}
+
+.idea-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.idea-header strong {
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.idea-category {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.idea-category.product {
+  background: var(--primary-light);
+  color: white;
+}
+
+.idea-category.marketing {
+  background: var(--accent-teal);
+  color: white;
+}
+
+.idea-category.operation {
+  background: var(--accent-amber);
+  color: white;
+}
+
+.idea-category.improvement {
+  background: var(--accent-blue);
+  color: white;
+}
+
+.idea-category.general {
+  background: var(--gray-500);
+  color: white;
+}
+
+.idea-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.idea-description {
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.idea-date {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* ---------- Tested Products Styles ---------- */
+.tested-products-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.tested-product-card {
+  background: var(--bg-card-light);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 15px;
+  transition: all var(--transition-normal);
+}
+
+.tested-product-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--primary);
+}
+
+.tested-product-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tested-product-header strong {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.tested-product-countries {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.country-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+}
+
+.country-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 100px;
+}
+
+.country-stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stat-badge {
+  padding: 4px 8px;
+  background: var(--primary-50);
+  border: 1px solid var(--primary-light);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--primary);
+}
+
+/* ---------- Product Notes Styles ---------- */
+.notes-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.note-card {
+  background: var(--bg-card-light);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 15px;
+  transition: all var(--transition-normal);
+}
+
+.note-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--primary);
+}
+
+.note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.note-country {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.note-content {
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+}
+
+.note-date {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* ---------- Product Info Results ---------- */
+.product-info-results {
+  margin-top: 20px;
+}
+
+.product-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid var(--border);
+}
+
+.product-info-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.product-status {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.product-status.active {
+  background: var(--success-light);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+.product-status.paused {
+  background: var(--warning-light);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+}
+
+.profit-budgets-section,
+.product-notes-section {
+  margin-bottom: 25px;
+}
+
+.profit-budgets-section h4,
+.product-notes-section h4 {
+  color: var(--text-primary);
+  margin-bottom: 15px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 15px;
+}
+
+/* ---------- Costs Analysis Styles ---------- */
+.costs-analysis-summary {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-top: 15px;
+}
+
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid var(--border);
+}
+
+.summary-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.net-profit {
+  font-size: 1.5rem;
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: 8px;
+}
+
+/* ---------- Date Range Selector ---------- */
+.date-range-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.custom-range {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ---------- Pagination Styles ---------- */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+.pagination-btn {
+  padding: 8px 12px;
+  background: var(--bg-card-light);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.85rem;
+  transition: all var(--transition-fast);
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.pagination-info {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0 10px;
+}
+
+/* ---------- Utilities ---------- */
+.hide { display: none !important; }
+.muted { color: var(--text-muted); }
+.row { display: flex; gap: 10px; align-items: center; }
+.wrap { flex-wrap: wrap; }
+.flex { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.right { margin-left: auto; }
+
+/* ---------- Compact Todo Lists ---------- */
+.todo-list .flex {
+  background: var(--bg-card-light);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  margin: 5px 0;
+  transition: all var(--transition-fast);
+}
+
+.todo-list .flex:hover {
+  border-color: var(--primary);
+  transform: translateX(1px);
+}
+
+/* ---------- Weekly Grid ---------- */
+.weekly-table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin: 14px 0;
+}
+
+/* ---------- Financial Numbers Styling ---------- */
+.financial-number {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.revenue { color: var(--success); }
+.expense { color: var(--danger); }
+.profit { color: var(--accent-teal); }
+.neutral { color: var(--text-secondary); }
+
+/* ---------- Section Spacing ---------- */
+.section {
+  margin-bottom: 20px;
+}
+
+.section h2 {
+  margin-bottom: 14px;
+}
+
+.section h3 {
+  margin-bottom: 10px;
+}
+
+/* ---------- Compact Utilities ---------- */
+.compact { padding: 10px !important; }
+.compact-sm { padding: 6px !important; }
+.mb-compact { margin-bottom: 10px !important; }
+.mb-tight { margin-bottom: 6px !important; }
+
+/* Compact form rows */
+.row.compact { gap: 6px; }
+.row.compact .input { min-height: auto; }
+
+/* ---------- Top Products Ranking Styles ---------- */
+.table .rank-column {
+  text-align: center;
+  font-weight: 700;
+  background: var(--primary-50);
+}
+
+.table .highlight-column {
+  background: var(--success-light);
+  font-weight: 700;
+}
+
+/* Analytics Table Improvements */
+.table-scroll .table {
+  font-size: 0.82rem;
+}
+
+.table-scroll .table th {
+  white-space: nowrap;
+  padding: 8px 10px;
+}
+
+.table-scroll .table td {
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+/* Financial table specific styles */
+.financial-table .cost-column {
+  background: var(--warning-light);
+}
+
+.financial-table .profit-column {
+  background: var(--success-light);
+}
+
+/* Compact financial inputs */
+.finance-input-compact {
+  max-width: 120px;
+}
+
+/* Date range compact */
+.date-range-compact {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.date-range-compact .input {
+  min-width: 140px;
+}
+
+/* Performance section specific */
+#performance .card {
+  margin-bottom: 20px;
+}
+
+#performance .section {
+  margin-bottom: 25px;
+}
+
+/* Top products highlight */
+.top-product-row {
+  background: linear-gradient(90deg, var(--success-light) 0%, transparent 100%);
+}
+
+.top-product-row:nth-child(1) {
+  background: linear-gradient(90deg, var(--accent-amber) 0%, transparent 100%);
+  font-weight: 700;
+}
+
+.top-product-row:nth-child(2) {
+  background: linear-gradient(90deg, var(--primary-100) 0%, transparent 100%);
+  font-weight: 600;
+}
+
+.top-product-row:nth-child(3) {
+  background: linear-gradient(90deg, var(--primary-50) 0%, transparent 100%);
+  font-weight: 500;
+}
+
+/* ---------- Enhanced CSS for refunds and payment tracking ---------- */
+
+/* Refund specific styles */
+.refund-amount {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.refund-row {
+  background: linear-gradient(90deg, rgba(220, 38, 38, 0.05) 0%, transparent 100%) !important;
+}
+
+/* Enhanced table headers for new columns */
+.table th.stock-column {
+  background: var(--accent-teal);
+}
+
+.table th.transit-column {
+  background: var(--accent-amber);
+}
+
+.table th.total-column {
+  background: var(--accent-blue);
+}
+
+/* Payment action buttons */
+.btn.payment {
+  background: var(--gradient-success);
+}
+
+.btn.payment.outline {
+  background: transparent;
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.btn.payment.outline:hover {
+  background: var(--success);
+  color: white;
+}
+
+/* Enhanced product table styling */
+.products-table {
+  font-size: 0.8rem;
+}
+
+.products-table th {
+  white-space: nowrap;
+  padding: 8px 6px;
+}
+
+.products-table td {
+  padding: 8px 6px;
+  text-align: center;
+}
+
+/* Stock number styling */
+.stock-number {
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+}
+
+.stock-number.positive {
+  color: var(--success);
+}
+
+.stock-number.negative {
+  color: var(--danger);
+}
+
+.stock-number.zero {
+  color: var(--text-muted);
+}
+
+/* Transit status indicators */
+.transit-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.transit-indicator.china {
+  background: var(--accent-orange);
+}
+
+.transit-indicator.intercountry {
+  background: var(--accent-blue);
+}
+
+/* Enhanced dashboard KPIs */
+.kpi-compact.transit-china::before {
+  background: var(--accent-orange);
+}
+
+.kpi-compact.transit-between::before {
+  background: var(--accent-blue);
+}
+
+.kpi-compact.active-stock::before {
+  background: var(--success);
+}
+
+.kpi-compact.inactive-stock::before {
+  background: var(--warning);
+}
+
+/* Refund form styling */
+.refund-form .input {
+  border-left: 3px solid var(--danger);
+}
+
+.refund-form .card {
+  border-left: 4px solid var(--danger);
+}
+
+/* Payment form styling */
+.payment-form .input {
+  border-left: 3px solid var(--success);
+}
+
+.payment-form .card {
+  border-left: 4px solid var(--success);
+}
+
+/* Enhanced analytics table */
+.analytics-table .refund-cell {
+  background: rgba(220, 38, 38, 0.05);
+}
+
+.analytics-table .influencer-cell {
+  background: rgba(139, 69, 19, 0.05);
+}
+
+/* ---------- Mobile Navigation Styles ---------- */
+@media (max-width: 1024px) {
+  .nav {
+    padding: 10px 12px !important;
+    min-height: 70px !important;
+    gap: 6px !important;
+  }
+  
+  .nav a {
+    padding: 8px 10px !important;
+    font-size: 13px !important;
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    max-width: 120px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  
+  .nav .nav-right {
+    flex: 0 0 auto !important;
+    margin-left: auto !important;
+  }
+  
+  #main {
+    margin-top: 75px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .container { padding: 16px; }
+  
+  .kpis-compact { grid-template-columns: repeat(2, 1fr); }
+  .country-stats-grid-compact { grid-template-columns: 1fr; }
+  
+  .nav {
+    padding: 8px 10px !important;
+    min-height: 65px !important;
+    gap: 4px !important;
+  }
+  
+  .nav a {
+    padding: 6px 8px !important;
+    font-size: 12px !important;
+    max-width: 100px !important;
+  }
+  
+  .product-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .platform-spends {
+    justify-content: flex-start;
+    width: 100%;
+  }
+  
+  .stats-row-compact {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  
+  .notes-list,
+  .notes-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .country-stats {
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .country-result {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  h1 { font-size: 1.8rem; }
+  h2 { font-size: 1.4rem; }
+  h3 { font-size: 1.2rem; }
+  
+  .big-balance .balance {
+    font-size: 2.5rem !important;
+  }
+  
+  /* Mobile optimizations for new columns */
+  .products-table th.stock-column,
+  .products-table td.stock-column {
+    display: none;
+  }
+  
+  .analytics-table .refund-cell,
+  .analytics-table .influencer-cell {
+    font-size: 0.7rem;
+  }
+  
+  #main {
+    margin-top: 70px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .kpis-compact { grid-template-columns: 1fr; }
+  
+  .auth {
+    margin: 5vh auto;
+    padding: 24px;
+  }
+  
+  .brand {
+    font-size: 2rem;
+  }
+  
+  .input {
+    min-width: 100%;
+  }
+  
+  .row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .row.wrap {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  
+  .nav {
+    padding: 6px 8px !important;
+    min-height: 60px !important;
+  }
+  
+  .nav a {
+    font-size: 11px;
+    padding: 5px 6px !important;
+    max-width: 90px !important;
+  }
+  
+  /* Stack navigation items vertically on very small screens */
+  @media (max-width: 360px) {
+    .nav {
+      flex-direction: column;
+      height: auto;
+      min-height: 120px;
+    }
+    
+    .nav a {
+      width: 100%;
+      text-align: center;
+      max-width: none !important;
+    }
+    
+    .nav .nav-right {
+      width: 100%;
+      justify-content: center;
+    }
+    
+    #main {
+      margin-top: 130px !important;
+    }
+  }
+}
+
+/* ---------- Scrollbar Styling ---------- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--gray-100);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gray-400);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* ---------- Animation Keyframes ---------- */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease;
+}
+
+.slide-in {
+  animation: slideIn 0.3s ease;
+}
+
+/* ---------- Loading States ---------- */
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+  position: relative;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--primary);
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* ---------- Print Styles ---------- */
+@media print {
+  .nav, .btn { display: none; }
+  .card { break-inside: avoid; }
+  body { padding-top: 0; }
+  
+  .badge.paid,
+  .badge.pending {
+    background: white !important;
+    color: black !important;
+    border: 1px solid black !important;
+  }
+  
+  .refund-amount {
+    color: black !important;
+  }
+}
+
+/* ---------- Data Visualization Enhancements ---------- */
+.data-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.data-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  transition: all var(--transition-normal);
+}
+
+.data-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.data-card .title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+}
+
+.data-card .value {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.data-card .subtitle {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+/* Adspend Page Styles */
+.adspend-summary {
+  margin-top: 20px;
+}
+
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.stat-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.breakdown-section {
+  margin-bottom: 30px;
+}
+
+.breakdown-section h4 {
+  margin-bottom: 15px;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--primary);
+  padding-bottom: 5px;
+}
+
+.breakdown-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.breakdown-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 10px;
+  background: var(--card-bg);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.breakdown-label {
+  min-width: 100px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.breakdown-bar {
+  flex: 1;
+  height: 20px;
+  background: var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.breakdown-bar-fill {
+  height: 100%;
+  background: var(--primary);
+  transition: width 0.3s ease;
+}
+
+.breakdown-value {
+  min-width: 120px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--text-primary);
+} backup.js : #!/usr/bin/env node
+
+const fs = require('fs-extra');
+const path = require('path');
+const { exec } = require('child_process');
+const { v4: uuidv4 } = require('uuid');
+
+const ROOT = __dirname;
+const DATA_FILE = path.join(ROOT, 'db.json');
+const BACKUP_DIR = path.join(ROOT, 'data', 'backups');
+const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
+
+// Backup destinations (configure these for your setup)
+const BACKUP_DESTINATIONS = [
+  // Local backup (keep 7 days)
+  path.join(ROOT, 'data', 'backups', 'local'),
+  
+  // Add your remote backup destinations here:
+  // '/path/to/network/share/eas-backups',
+  // '/mnt/external-drive/eas-backups',
+  // 'user@remote-server:/backup/eas-tracker'
+];
+
+// Cloud storage configurations (uncomment and configure as needed)
+const CLOUD_CONFIG = {
+  // AWS S3 example:
+  // s3: {
+  //   bucket: 'your-backup-bucket',
+  //   region: 'us-east-1',
+  //   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  //   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  // },
+  
+  // Google Drive example (would need rclone setup):
+  // gdrive: {
+  //   remoteName: 'your-google-drive',
+  //   folderId: 'your-folder-id'
+  // },
+  
+  // Dropbox example:
+  // dropbox: {
+  //   accessToken: process.env.DROPBOX_ACCESS_TOKEN
+  // }
+};
+
+async function ensureBackupDirs() {
+  for (const dest of BACKUP_DESTINATIONS) {
+    await fs.ensureDir(dest);
+  }
+  await fs.ensureDir(BACKUP_DIR);
+}
+
+async function createBackup() {
+  try {
+    console.log('🔄 Starting EAS Tracker backup...');
+    await ensureBackupDirs();
+    
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupId = `auto-${timestamp}`;
+    
+    // Create backup entry in database
+    const db = await fs.readJson(DATA_FILE);
+    db.snapshots = db.snapshots || [];
+    
+    const backupEntry = {
+      id: uuidv4(),
+      name: backupId,
+      file: path.join(BACKUP_DIR, `${backupId}.json`),
+      createdAt: new Date().toISOString(),
+      kind: 'auto'
+    };
+    
+    // Create backup file
+    const backupData = {
+      metadata: {
+        version: '1.0',
+        backupId: backupId,
+        timestamp: new Date().toISOString(),
+        dataSize: JSON.stringify(db).length
+      },
+      data: db
+    };
+    
+    const backupFile = path.join(BACKUP_DIR, `${backupId}.json`);
+    await fs.writeJson(backupFile, backupData, { spaces: 2 });
+    
+    // Add to snapshots list
+    db.snapshots.unshift(backupEntry);
+    await fs.writeJson(DATA_FILE, db, { spaces: 2 });
+    
+    console.log('✅ Local backup created:', backupId);
+    
+    // Copy to all backup destinations
+    await copyToBackupDestinations(backupFile, backupId);
+    
+    // Upload to cloud storage (if configured)
+    await uploadToCloud(backupFile, backupId);
+    
+    // Clean up old backups (keep last 30 days locally, 7 days in other destinations)
+    await cleanupOldBackups();
+    
+    console.log('🎉 Backup completed successfully!');
+    return backupId;
+    
+  } catch (error) {
+    console.error('❌ Backup failed:', error.message);
+    process.exit(1);
+  }
+}
+
+async function copyToBackupDestinations(backupFile, backupId) {
+  for (const dest of BACKUP_DESTINATIONS.slice(1)) { // Skip first (local)
+    try {
+      if (dest.includes('@')) {
+        // Remote server via SCP
+        await execPromise(`scp "${backupFile}" "${dest}/${backupId}.json"`);
+      } else {
+        // Local/network path
+        const destFile = path.join(dest, `${backupId}.json`);
+        await fs.copy(backupFile, destFile);
+      }
+      console.log(`✅ Copied to: ${dest}`);
+    } catch (error) {
+      console.error(`❌ Failed to copy to ${dest}:`, error.message);
+    }
+  }
+}
+
+async function uploadToCloud(backupFile, backupId) {
+  // AWS S3 Upload
+  if (CLOUD_CONFIG.s3) {
+    try {
+      const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+      const s3Client = new S3Client(CLOUD_CONFIG.s3);
+      
+      const fileContent = await fs.readFile(backupFile);
+      const command = new PutObjectCommand({
+        Bucket: CLOUD_CONFIG.s3.bucket,
+        Key: `eas-tracker/${backupId}.json`,
+        Body: fileContent,
+        ContentType: 'application/json'
+      });
+      
+      await s3Client.send(command);
+      console.log('✅ Uploaded to AWS S3');
+    } catch (error) {
+      console.error('❌ AWS S3 upload failed:', error.message);
+    }
+  }
+  
+  // Add other cloud providers as needed
+  // Google Drive, Dropbox, etc.
+}
+
+async function cleanupOldBackups() {
+  const now = new Date();
+  const localKeepDays = 30;
+  const remoteKeepDays = 7;
+  
+  try {
+    // Clean local backups (keep 30 days)
+    const localBackupDir = BACKUP_DESTINATIONS[0];
+    const files = await fs.readdir(localBackupDir);
+    
+    for (const file of files) {
+      if (file.endsWith('.json')) {
+        const filePath = path.join(localBackupDir, file);
+        const stats = await fs.stat(filePath);
+        const fileAgeDays = (now - stats.mtime) / (1000 * 60 * 60 * 24);
+        
+        if (fileAgeDays > localKeepDays) {
+          await fs.remove(filePath);
+          console.log(`🗑️  Deleted old local backup: ${file}`);
+        }
+      }
+    }
+    
+    // Clean main backup directory (keep 30 days)
+    const backupFiles = await fs.readdir(BACKUP_DIR);
+    for (const file of backupFiles) {
+      if (file.endsWith('.json') && file.startsWith('auto-')) {
+        const filePath = path.join(BACKUP_DIR, file);
+        const stats = await fs.stat(filePath);
+        const fileAgeDays = (now - stats.mtime) / (1000 * 60 * 60 * 24);
+        
+        if (fileAgeDays > localKeepDays) {
+          await fs.remove(filePath);
+          console.log(`🗑️  Deleted old backup: ${file}`);
+        }
+      }
+    }
+    
+    // Clean remote destinations (keep 7 days)
+    for (const dest of BACKUP_DESTINATIONS.slice(1)) {
+      if (!dest.includes('@')) {
+        // Local/network path
+        try {
+          const files = await fs.readdir(dest);
+          for (const file of files) {
+            if (file.endsWith('.json')) {
+              const filePath = path.join(dest, file);
+              const stats = await fs.stat(filePath);
+              const fileAgeDays = (now - stats.mtime) / (1000 * 60 * 60 * 24);
+              
+              if (fileAgeDays > remoteKeepDays) {
+                await fs.remove(filePath);
+                console.log(`🗑️  Deleted old remote backup: ${file}`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`❌ Error cleaning ${dest}:`, error.message);
+        }
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Cleanup error:', error.message);
+  }
+}
+
+function execPromise(command) {
+  return new Promise((resolve, reject) => {
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(stdout);
+      }
+    });
+  });
+}
+
+// List available backups
+async function listBackups() {
+  try {
+    console.log('📂 Available Backups:');
+    console.log('='.repeat(50));
+    
+    const files = await fs.readdir(BACKUP_DIR);
+    const backupFiles = files.filter(f => f.endsWith('.json')).sort().reverse();
+    
+    for (const file of backupFiles) {
+      const filePath = path.join(BACKUP_DIR, file);
+      const stats = await fs.stat(filePath);
+      console.log(`📁 ${file}`);
+      console.log(`   Size: ${(stats.size / 1024).toFixed(2)} KB`);
+      console.log(`   Modified: ${stats.mtime.toLocaleString()}`);
+      console.log('');
+    }
+    
+    if (backupFiles.length === 0) {
+      console.log('No backups found.');
+    }
+    
+  } catch (error) {
+    console.error('❌ Error listing backups:', error.message);
+  }
+}
+
+// Main function
+async function main() {
+  const command = process.argv[2];
+  
+  switch (command) {
+    case 'create':
+    case 'c':
+      await createBackup();
+      break;
+      
+    case 'list':
+    case 'ls':
+      await listBackups();
+      break;
+      
+    case 'cleanup':
+      await cleanupOldBackups();
+      break;
+      
+    case 'help':
+    case 'h':
+    case undefined:
+      console.log(`
+🛡️ EAS Tracker Backup Manager
+
+Usage:
+  node backup.js <command>
+
+Commands:
+  create, c     Create a new backup
+  list, ls      List all available backups
+  cleanup       Clean up old backups manually
+  help, h       Show this help message
+
+Automated Backups:
+  Add to crontab for daily backups at 2 AM:
+  0 2 * * * cd /path/to/eas-tracker && node backup.js create
+
+Backup Destinations:
+  Configure BACKUP_DESTINATIONS in backup.js for:
+  - Local backups (30 days retention)
+  - Network shares
+  - Remote servers (via SCP)
+  - Cloud storage (AWS S3, etc.)
+
+Environment Variables:
+  AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY for S3
+  DROPBOX_ACCESS_TOKEN for Dropbox
+      `);
+      break;
+      
+    default:
+      console.error('❌ Unknown command:', command);
+      console.log('Use "node backup.js help" for usage information.');
+  }
+}
+
+if (require.main === module) {
+  main().catch(console.error);
+}
+
+module.exports = { createBackup, listBackups, cleanupOldBackups }; db.json {
+  "password": "eastafricashop",
+  "countries": [
+    "china",
+    "kenya",
+    "tanzania",
+    "uganda",
+    "zambia",
+    "zimbabwe"
+  ],
+  "products": [],
+  "productNotes": [],
+  "productSellingPrices": [],
+  "productOrders": [],
+  "brainstorming": [],
+  "testedProducts": [],
+  "adspend": [],
+  "deliveries": [],
+  "shipments": [],
+  "remittances": [],
+  "refunds": [],
+  "finance": {
+    "categories": {
+      "debit": [],
+      "credit": []
+    },
+    "entries": []
+  },
+  "influencers": [],
+  "influencerSpends": [],
+  "snapshots": []
+} index.html <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EAS Tracker - Business Dashboard</title>
+  <link rel="stylesheet" href="/public/styles.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body> 
+  <div id="app">
+    <!-- LOGIN -->
+    <div id="login" class="auth">
+      <h1 class="brand">EAS Tracker</h1>
+      <p>Enter password to access your business dashboard</p>
+      <div class="row">
+        <input id="pw" type="password" class="input" placeholder="Enter password"/>
+        <button id="loginBtn" class="btn">Login</button>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div id="main" style="display:none">
+<nav class="nav">
+  <a data-view="home" class="active">📊 Dashboard</a>
+  <a data-view="products">📦 Products</a>
+  <a data-view="performance">📈 Performance</a>
+  <a data-view="stockMovement">🚚 Stock Movement</a>
+  <a data-view="adspend">🎯 Adspend</a>
+  <a data-view="finance">💰 Finance</a>
+  <a data-view="settings">⚙️ Settings</a>
+  <a id="logoutLink" class="nav-right">🚪 Logout</a>
+</nav>
+
+      <div class="container">
+
+        <!-- DASHBOARD -->
+        <section id="home">
+          <div class="section">
+            <h2>Business Overview</h2>
+            <div class="kpis-compact">
+              <div class="kpi-compact"><div class="label">Products</div><div id="kpiProducts">0</div></div>
+              <div class="kpi-compact"><div class="label">Countries</div><div id="kpiCountries">0</div></div>
+              <div class="kpi-compact"><div class="label">China Transit Pieces</div><div id="kpiChinaTransit">0</div></div>
+              <div class="kpi-compact"><div class="label">Inter-country Transit</div><div id="kpiInterTransit">0</div></div>
+              <div class="kpi-compact"><div class="label">Active Stock</div><div id="kpiActiveStock">0</div></div>
+              <div class="kpi-compact"><div class="label">Inactive Stock</div><div id="kpiInactiveStock">0</div></div>
+              <div class="kpi-compact"><div class="label">Total Ad Spend</div><div id="kpiAdSpend">0 USD</div></div>
+              <div class="kpi-compact"><div class="label">Weekly Delivered</div><div id="kpiDelivered">0</div></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Daily Advertising Spend</h2>
+            <div class="card">
+              <div class="h">Add Daily Advertising Spend</div>
+              <div class="row wrap">
+                <select id="adPlatform" class="input">
+                  <option value="facebook">Facebook</option>
+                  <option value="tiktok">TikTok</option>
+                  <option value="google">Google</option>
+                </select>
+                <select id="adProduct" class="input"></select>
+                <select id="adCountry" class="input"></select>
+                <input id="adAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
+                <button id="adSave" class="btn">💾 Save / Replace</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Total Stock &amp; Ad Spend by Country (Active Products Only)</h2>
+            <div class="table-scroll">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Country</th>
+                    <th>Stock</th>
+                    <th>Facebook</th>
+                    <th>TikTok</th>
+                    <th>Google</th>
+                    <th>Total Ad Spend</th>
+                  </tr>
+                </thead>
+                <tbody id="stockByCountryBody"></tbody>
+                <tfoot>
+                  <tr class="totals">
+                    <th>Totals</th>
+                    <th id="stockTotal">0</th>
+                    <th id="fbTotal">0</th>
+                    <th id="ttTotal">0</th>
+                    <th id="ggTotal">0</th>
+                    <th id="adTotal">0</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Weekly Delivered (Mon → Sun)</h2>
+            <div class="card">
+              <div class="row wrap">
+                <button id="weeklyPrev" class="btn outline">◀ Previous Week</button>
+                <div id="weeklyRange" class="badge">Week:</div>
+                <button id="weeklyNext" class="btn outline">Next Week ▶</button>
+                <button id="weeklySave" class="btn">💾 Save</button>
+                <button id="weeklyReset" class="btn danger outline">🔄 Reset</button>
+              </div>
+            </div>
+            <div class="weekly-table-container">
+              <table id="weeklyTable" class="table compact">
+                <thead id="weeklyHead"></thead>
+                <tbody id="weeklyBody"></tbody>
+                <tfoot>
+                  <tr class="totals"><th>Totals</th>
+                    <th id="wMonT">0</th><th id="wTueT">0</th><th id="wWedT">0</th>
+                    <th id="wThuT">0</th><th id="wFriT">0</th><th id="wSatT">0</th><th id="wSunT">0</th>
+                    <th id="wAllT">0</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          <!-- Brainstorming Section -->
+          <div class="section">
+            <h2>💡 Brainstorming</h2>
+            <div id="brainstormingSection"></div>
+          </div>
+
+          <div class="section">
+            <h2>To-Do List</h2>
+            <div class="row">
+              <input id="todoText" class="input" placeholder="Enter new task..."/>
+              <button id="todoAdd" class="btn">➕ Add Task</button>
+            </div>
+            <div id="todoList" class="todo-list"></div>
+          </div>
+
+          <div class="section">
+            <h2>Weekly To-Do</h2>
+            <div id="weeklyWrap" class="weeks"></div>
+          </div>
+
+          <!-- Tested Products Section -->
+          <div class="section">
+            <h2>🧪 Notes for Tested Products</h2>
+            <div id="testedProductsSection"></div>
+          </div>
+
+        </section>
+
+   <!-- PRODUCTS -->
+<section id="products" style="display:none">
+  <h2>Products Management</h2>
+
+  <!-- Add Product -->
+  <div class="card">
+    <div class="h">➕ Add New Product</div>
+    <div class="row wrap">
+      <input id="pName" class="input" placeholder="Product Name"/>
+      <input id="pSku" class="input" placeholder="SKU"/>
+      <button id="pAdd" class="btn">🚀 Add Product</button>
+    </div>
+  </div>
+
+  <!-- Add Selling Prices -->
+  <div class="card">
+    <div class="h">💰 Set Selling Prices by Country</div>
+    <div class="row wrap">
+      <select id="spProduct" class="input">
+        <option value="">Select product...</option>
+      </select>
+      <select id="spCountry" class="input">
+        <option value="">Select country...</option>
+      </select>
+      <input id="spPrice" type="number" class="input" placeholder="Selling Price (USD)" step="0.01"/>
+      <button id="spSave" class="btn">💾 Save Price</button>
+    </div>
+  </div>
+
+  <!-- Product Info Section -->
+  <div class="section">
+    <h2>📋 Product Info & Analytics</h2>
+    <div class="card">
+      <div class="h">Search Product Details</div>
+      <div class="row wrap">
+        <select id="productInfoSelect" class="input">
+          <option value="">Select product...</option>
+        </select>
+        <button id="productInfoRun" class="btn">🔍 Get Product Info</button>
+      </div>
+      <div id="productInfoResults"></div>
+    </div>
+  </div>
+
+  <!-- Products Table with Search and Pagination -->
+  <div class="section">
+    <h2>📦 All Products</h2>
+    
+    <!-- Search Box -->
+    <div class="card">
+      <div class="h">🔍 Search Products</div>
+      <div class="row">
+        <input 
+          id="productSearch" 
+          class="input" 
+          placeholder="Type to search products by name..." 
+          style="flex: 1;"
+        />
+        <button id="clearSearch" class="btn outline">Clear</button>
+      </div>
+      <div id="searchResultsInfo" class="muted" style="margin-top: 8px;"></div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="table-scroll">
+      <table id="productsTable" class="table">
+        <thead>
+          <tr>
+            <!-- JavaScript will populate this -->
+          </tr>
+        </thead>
+        <tbody>
+          <!-- JavaScript will populate this -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="productsPagination" style="margin-top: 15px;"></div>
+  </div>
+
+  <!-- Country Product Stats -->
+  <div class="section">
+    <h2>📊 Products by Country</h2>
+    <div id="countryProductStats" class="country-stats-grid-compact"></div>
+  </div>
+</section>
+        
+  <!-- PERFORMANCE -->
+<section id="performance" style="display:none">
+  <h2>Performance Analytics</h2>
+
+ <!-- Remittance Analytics -->
+<div class="card">
+  <div class="h">📈 Remittance Analytics (🏆 Filtered By Top Delivered)</div>
+  <div class="row wrap">
+    <select id="remAnalyticsRange" class="input date-range-select">
+      <option value="8days">Last 8 days</option>
+      <option value="15days">Last 15 days</option>
+      <option value="1month">Last 1 month</option>
+      <option value="2months">Last 2 months</option>
+      <option value="6months">Last 6 months</option>
+      <option value="1year">Last 1 year</option>
+      <option value="2years">Last 2 years</option>
+      <option value="lifetime">Lifetime</option>
+      <option value="custom">Custom range</option>
+    </select>
+    <div class="custom-range" style="display: none;">
+      <input type="date" class="input custom-start"/>
+      <input type="date" class="input custom-end"/>
+    </div>
+    <select id="remAnalyticsCountry" class="input">
+      <option value="">All countries</option>
+    </select>
+    <select id="remAnalyticsProduct" class="input">
+      <option value="all">All products</option>
+    </select>
+    <button id="remAnalyticsRun" class="btn">📊 Generate Analytics</button>
+  </div>
+  
+  <!-- Remittance Analytics Table -->
+  <div class="table-scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Product Name</th>
+          <th>Country</th>
+          <th>Orders</th>
+          <th>Delivered Orders</th>
+          <th>Refunded Orders</th>
+          <th>Delivered Pieces</th>
+          <th>Revenue</th>
+          <th>Refunded Amount</th>
+          <th>Advertising Spend</th>
+          <th>Influencer Spend</th>
+          <th>Boxleo Fees</th>
+          <th>Product Cost China</th>
+          <th>Total Shipping Cost</th>
+          <th>Boxleo/Order</th>
+          <th>Boxleo/Piece</th>
+          <th>Ad Cost/Order</th>
+          <th>Ad Cost/Piece</th>
+          <th>Delivery Rate</th>
+          <th>Avg Order Value</th>
+          <th>Profit</th>
+        </tr>
+      </thead>
+      <tbody id="remAnalyticsBody"></tbody>
+      <tfoot>
+        <tr class="totals">
+          <th colspan="2">Totals</th>
+          <th id="remAnalyticsOrdersT">0</th>
+          <th id="remAnalyticsDeliveredOrdersT">0</th>
+          <th id="remAnalyticsRefundedOrdersT">0</th>
+          <th id="remAnalyticsDeliveredPiecesT">0</th>
+          <th id="remAnalyticsRevenueT">0</th>
+          <th id="remAnalyticsRefundedAmountT">0</th>
+          <th id="remAnalyticsAdSpendT">0</th>
+          <th id="remAnalyticsInfluencerSpendT">0</th>
+          <th id="remAnalyticsBoxleoT">0</th>
+          <th id="remAnalyticsProductCostT">0</th>
+          <th id="remAnalyticsShippingCostT">0</th>
+          <th id="remAnalyticsBoxleoOrderT">$0</th>
+          <th id="remAnalyticsBoxleoPieceT">$0</th>
+          <th id="remAnalyticsAdOrderT">$0</th>
+          <th id="remAnalyticsAdPieceT">$0</th>
+          <th id="remAnalyticsDeliveryRateT">0%</th>
+          <th id="remAnalyticsAOVT">$0</th>
+          <th id="remAnalyticsProfitT">0</th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+  
+  <!-- Product Costs Analysis -->
+  <div class="card">
+    <div class="h">💰 Lifetime Product Costs Analysis</div>
+    <div class="row wrap">
+      <select id="pcaProduct" class="input">
+        <option value="all">All products</option>
+      </select>
+      <select id="pcaRange" class="input date-range-select">
+        <option value="8days">Last 8 days</option>
+        <option value="15days">Last 15 days</option>
+        <option value="1month">Last 1 month</option>
+        <option value="2months">Last 2 months</option>
+        <option value="6months">Last 6 months</option>
+        <option value="1year">Last 1 year</option>
+        <option value="2years">Last 2 years</option>
+        <option value="lifetime">Lifetime</option>
+        <option value="custom">Custom range</option>
+      </select>
+      <div class="custom-range" style="display: none;">
+        <input type="date" class="input custom-start"/>
+        <input type="date" class="input custom-end"/>
+      </div>
+      <button id="pcaRun" class="btn">📊 Generate Analysis</button>
+    </div>
+    <div id="pcaResults"></div>
+  </div>
+
+  <!-- Profit by Country -->
+<div class="card">
+  <div class="h">💰 Profit by Country</div>
+  <div class="row wrap">
+    <select id="pcRange" class="input date-range-select">
+      <option value="8days">Last 8 days</option>
+      <option value="15days">Last 15 days</option>
+      <option value="1month">Last 1 month</option>
+      <option value="2months">Last 2 months</option>
+      <option value="6months">Last 6 months</option>
+      <option value="1year">Last 1 year</option>
+      <option value="2years">Last 2 years</option>
+      <option value="lifetime">Lifetime</option>
+      <option value="custom">Custom range</option>
+    </select>
+    <div class="custom-range" style="display: none;">
+      <input type="date" class="input custom-start"/>
+      <input type="date" class="input custom-end"/>
+    </div>
+    <select id="pcCountry" class="input"><option value="">All countries</option></select>
+    <button id="pcRun" class="btn">📈 Calculate</button>
+  </div>
+  
+  <!-- Profit by Country Table -->
+  <div class="table-scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Country</th>
+          <th>Orders</th>
+          <th>Delivered Orders</th>
+          <th>Refunded Orders</th>
+          <th>Delivered Pieces</th>
+          <th>Revenue</th>
+          <th>Refunded Amount</th>
+          <th>Total Advertising Spend</th>
+          <th>Influencer Spend</th>
+          <th>Product Cost China</th>
+          <th>Total Shipping Cost</th>
+          <th>Total Boxleo Fees</th>
+          <th>Boxleo/Order</th>
+          <th>Boxleo/Piece</th>
+          <th>Ad Cost/Order</th>
+          <th>Ad Cost/Piece</th>
+          <th>Delivery Rate</th>
+          <th>Avg Order Value</th>
+          <th>Profit</th>
+        </tr>
+      </thead>
+      <tbody id="profitCountryBody"></tbody>
+      <tfoot>
+        <tr class="totals">
+          <th>Totals</th>
+          <th id="pcOrdersT">0</th>
+          <th id="pcDeliveredOrdersT">0</th>
+          <th id="pcRefundedOrdersT">0</th>
+          <th id="pcDeliveredPiecesT">0</th>
+          <th id="pcRevT">0</th>
+          <th id="pcRefundedAmountT">0</th>
+          <th id="pcAdT">0</th>
+          <th id="pcInfluencerSpendT">0</th>
+          <th id="pcProductCostT">0</th>
+          <th id="pcShippingCostT">0</th>
+          <th id="pcBoxleoT">0</th>
+          <th id="pcBoxleoOrderT">$0</th>
+          <th id="pcBoxleoPieceT">$0</th>
+          <th id="pcAdOrderT">$0</th>
+          <th id="pcAdPieceT">$0</th>
+          <th id="pcDeliveryRateT">0%</th>
+          <th id="pcAOVT">$0</th>
+          <th id="pcProfitT">0</th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+  
+  <!-- Rest of the performance section remains the same -->
+  <!-- Product Orders Tracking -->
+  <div class="card">
+    <div class="h">📦 Product Orders Tracking</div>
+    <div class="row wrap">
+      <select id="poProduct" class="input">
+        <option value="">Select product...</option>
+      </select>
+      <select id="poCountry" class="input">
+        <option value="">Select country...</option>
+      </select>
+      <input id="poStartDate" type="date" class="input" placeholder="Start Date"/>
+      <input id="poEndDate" type="date" class="input" placeholder="End Date"/>
+      <input id="poOrders" type="number" class="input" placeholder="Orders" min="0"/>
+      <button id="poSave" class="btn">💾 Save Orders</button>
+    </div>
+  </div>
+  
+  <!-- Add Remittance Entry -->
+  <div class="card">
+    <div class="h">➕ Add Remittance Entry</div>
+    <div class="row wrap">
+      <input id="remAddStart" type="date" class="input" placeholder="Start Date"/>
+      <input id="remAddEnd" type="date" class="input" placeholder="End Date"/>
+      <select id="remAddCountry" class="input">
+        <option value="">Select Country</option>
+      </select>
+      <select id="remAddProduct" class="input">
+        <option value="">Select Product</option>
+      </select>
+      <input id="remAddOrders" type="number" class="input" placeholder="Orders" min="0"/>
+      <input id="remAddPieces" type="number" class="input" placeholder="Pieces" min="0"/>
+      <input id="remAddRevenue" type="number" class="input" placeholder="Revenue (USD)" step="0.01"/>
+      <input id="remAddAdSpend" type="number" class="input" placeholder="Ad Spend (USD)" step="0.01"/>
+      <input id="remAddBoxleo" type="number" class="input" placeholder="Boxleo Fees (USD)" step="0.01"/>
+      <button id="remAddSave" class="btn">💾 Save Remittance</button>
+    </div>
+  </div>
+
+  <!-- Add Refund Entry -->
+  <div class="card">
+    <div class="h">💸 Add Refund Entry</div>
+    <div class="row wrap">
+      <input id="refundDate" type="date" class="input" placeholder="Date"/>
+      <select id="refundCountry" class="input">
+        <option value="">Select Country</option>
+      </select>
+      <select id="refundProduct" class="input">
+        <option value="">Select Product</option>
+      </select>
+      <input id="refundOrders" type="number" class="input" placeholder="Orders Refunded" min="0"/>
+      <input id="refundPieces" type="number" class="input" placeholder="Pieces Refunded" min="0"/>
+      <input id="refundAmount" type="number" class="input" placeholder="Amount Refunded (USD)" step="0.01"/>
+      <input id="refundReason" class="input" placeholder="Reason (optional)"/>
+      <button id="refundSave" class="btn">💾 Save Refund</button>
+    </div>
+  </div>
+
+</section>
+        <!-- STOCK MOVEMENT -->
+        <section id="stockMovement" style="display:none">
+          <h2>Stock Movement & Transit</h2>
+
+          <!-- Stock Movement Form -->
+          <div class="card">
+            <div class="h">🚚 Create Stock Movement</div>
+            <div class="row wrap">
+              <select id="mvFrom" class="input">
+                <option value="">From Country...</option>
+              </select>
+              <span>→</span>
+              <select id="mvTo" class="input">
+                <option value="">To Country...</option>
+              </select>
+              <select id="mvProduct" class="input">
+                <option value="">Select Product...</option>
+              </select>
+              <input id="mvQty" type="number" class="input" placeholder="Quantity" min="0"/>
+              <input id="mvShip" type="number" class="input" placeholder="Estimated Shipping Cost (USD)" min="0" step="0.01"/>
+              <div id="chinaCostField" style="display: none;">
+                <input id="mvChinaCost" type="number" class="input" placeholder="China Cost (USD)" min="0" step="0.01"/>
+              </div>
+              <input id="mvNote" class="input" placeholder="Note (optional)"/>
+              <button id="mvAdd" class="btn">📦 Add Movement</button>
+            </div>
+          </div>
+
+          <!-- Transit Tables -->
+          <div class="section">
+            <h2>🌍 Transit (China → Kenya)</h2>
+            <div class="table-scroll">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Product</th>
+                    <th>Route</th>
+                    <th>Qty</th>
+                    <th>Est. Ship Cost</th>
+                    <th>Final Ship Cost</th>
+                    <th>China Cost</th>
+                    <th>Departed</th>
+                    <th>Arrived</th>
+                    <th>Payment Status</th>
+                    <th>Note</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="shipCKBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>🔄 Transit (Inter-country)</h2>
+            <div class="table-scroll">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Product</th>
+                    <th>Route</th>
+                    <th>Qty</th>
+                    <th>Est. Ship Cost</th>
+                    <th>Final Ship Cost</th>
+                    <th>Departed</th>
+                    <th>Arrived</th>
+                    <th>Payment Status</th>
+                    <th>Note</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="shipICBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+<!-- ADSPEND -->
+<section id="adspend" style="display:none">
+  <h2>Advertising Spend Management</h2>
+
+  <!-- Daily Advertising Spend -->
+  <div class="section">
+    <h2>Daily Advertising Spend</h2>
+    <div class="card">
+      <div class="h">Add Daily Advertising Spend</div>
+      <div class="row wrap">
+        <select id="adspendPlatform" class="input">
+          <option value="facebook">Facebook</option>
+          <option value="tiktok">TikTok</option>
+          <option value="google">Google</option>
+        </select>
+        <select id="adspendProduct" class="input"></select>
+        <select id="adspendCountry" class="input"></select>
+        <input id="adspendAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
+        <button id="adspendSave" class="btn">💾 Save / Replace</button>
+      </div>
+    </div>
+  </div>
+  <!-- Advertising Overview -->
+  <div class="section">
+    <h2>🎯 Advertising Overview by Country</h2>
+    <div id="advertisingOverview"></div>
+  </div>       
+</section>
+        <!-- FINANCE -->
+        <section id="finance" style="display:none">
+          <h2>Financial Management</h2>
+          
+          <!-- Running Balance -->
+          <div class="big-balance">
+            <div class="h">💰 Running Balance (All-time)</div>
+            <div id="runBalance" class="balance">0.00 USD</div>
+          </div>
+
+          <!-- Category Search -->
+          <div class="card">
+            <div class="h">🔍 Category Spending Analysis</div>
+            <div class="row wrap">
+              <select id="fcSearchType" class="input">
+                <option value="">All Types</option>
+                <option value="debit">Debit Only</option>
+                <option value="credit">Credit Only</option>
+              </select>
+              <select id="fcSearchCat" class="input"></select>
+              <input id="fcSearchStart" type="date" class="input" placeholder="Start Date"/>
+              <input id="fcSearchEnd" type="date" class="input" placeholder="End Date"/>
+              <button id="fcSearchRun" class="btn">📊 Analyze</button>
+            </div>
+            <div class="row" style="margin-top: 15px;">
+              <div id="fcSearchResult" class="badge success" style="font-size: 1.1rem;">Total: 0 USD</div>
+              <div id="fcSearchCount" class="badge info" style="font-size: 1.1rem;">Entries: 0</div>
+            </div>
+          </div>
+
+          <!-- Categories Management -->
+          <div class="card">
+            <div class="h">📂 Categories</div>
+            <div class="row wrap">
+              <select id="fcType" class="input">
+                <option value="debit">Debit</option>
+                <option value="credit">Credit</option>
+              </select>
+              <input id="fcName" class="input" placeholder="Category name"/>
+              <button id="fcAdd" class="btn">➕ Add Category</button>
+            </div>
+            <div class="row cats" style="margin-top: 15px; gap: 25px;">
+              <div style="flex: 1;">
+                <h4 style="color: var(--danger);">💸 Debits</h4>
+                <div id="fcDebits" class="chips deletable"></div>
+              </div>
+              <div style="flex: 1;">
+                <h4 style="color: var(--success);">💰 Credits</h4>
+                <div id="fcCredits" class="chips deletable"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Entries Management -->
+          <div class="card">
+            <div class="h">📝 Financial Entries</div>
+            <div class="row wrap">
+              <input id="feDate" type="date" class="input" placeholder="Date"/>
+              <select id="feCat" class="input"></select>
+              <input id="feAmt" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
+              <input id="feNote" class="input" placeholder="Note"/>
+              <button id="feAdd" class="btn">💾 Add Entry</button>
+            </div>
+
+            <div class="row wrap" style="margin-top: 15px;">
+              <input id="fes" type="date" class="input"/>
+              <input id="fee" type="date" class="input"/>
+              <button id="feRun" class="btn outline">🔍 Filter Period</button>
+              <div id="feBalance" class="badge">Period Balance: —</div>
+            </div>
+
+            <div class="table-scroll" style="margin-top: 15px;">
+              <table id="feTable" class="table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>Amount</th>
+                    <th>Note</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- SETTINGS -->
+        <section id="settings" style="display:none">
+          <h2>System Settings</h2>
+
+          <!-- Countries Management -->
+          <div class="card">
+            <div class="h">🌍 Countries Management</div>
+            <div class="row">
+              <input id="cty" class="input" placeholder="Add new country"/>
+              <button id="ctyAdd" class="btn">➕ Add Country</button>
+            </div>
+            <div id="ctyList" class="chips deletable" style="margin-top: 12px;"></div>
+          </div>
+
+          <!-- Edit Product Info -->
+          <div class="card">
+            <div class="h">✏️ Edit Product Information</div>
+            <div class="row wrap">
+              <select id="epSelect" class="input">
+                <option value="">Select product…</option>
+              </select>
+              <input id="epName" class="input" placeholder="Product name"/>
+              <input id="epSku" class="input" placeholder="SKU"/>
+              <button id="epSave" class="btn">💾 Save Changes</button>
+            </div>
+          </div>
+
+          <!-- Manual Save & Restore -->
+          <div class="card">
+            <div class="h">💾 Manual Save &amp; Restore</div>
+            <div class="row wrap">
+              <input id="snapName" class="input" placeholder="Name this snapshot"/>
+              <button id="snapSave" class="btn">📸 Save Current System</button>
+              <button id="createDailyBackup" class="btn" style="background: var(--accent-teal);">📅 Create Daily Backup</button>
+            </div>
+            
+            <div class="card" style="background: var(--primary-50); border: 1px solid var(--primary); margin-top: 10px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 1.2rem;">💡</span>
+                <div>
+                  <strong>Auto-Daily Backups:</strong> 
+                  <span style="color: var(--text-secondary); font-size: 0.9rem;">
+                    System automatically keeps last 7 days. Manual snapshots are kept forever.
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="table-scroll" style="margin-top: 15px;">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>File</th>
+                    <th>Date</th>
+                    <th style="width: 200px;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="snapList">
+                  <tr>
+                    <td colspan="4" class="muted" style="text-align: center;">Loading snapshots...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="/public/app.js"></script>
+</body>
+</html> package.json {
+  "name": "eas-tracker",
+  "version": "1.0.0",
+  "description": "East Africa Shop Business Tracker",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "snapshot": "node snapshot.js",
+    "snapshot:create": "node snapshot.js create",
+    "snapshot:list": "node snapshot.js list",
+    "backup": "node backup.js",
+    "backup:create": "node backup.js create",
+    "backup:list": "node backup.js list",
+    "backup:cleanup": "node backup.js cleanup",
+    "restore": "node restore.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "fs-extra": "^11.2.0",
+    "body-parser": "^1.20.2",
+    "cookie-parser": "^1.4.6",
+    "morgan": "^1.10.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-s3": "^3.490.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+} product.html : <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Product – EAS Tracker</title>
+  <link rel="stylesheet" href="/public/styles.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="nav">
+    <a href="/">← Back to Dashboard</a>
+    <span class="nav-right brand">EAS Tracker</span>
+  </nav>
+
+  <div id="product" class="container">
+    <!-- Product Header -->
+    <div class="section">
+      <h2 id="pdTitle">Product</h2>
+      <div id="pdSku" class="muted"></div>
+    </div>
+
+    <!-- Stock & Ad Spend by Country -->
+    <div class="section">
+      <h3>Stock &amp; Ad Spend by Country (this product)</h3>
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Country</th>
+              <th>Stock</th>
+              <th>Facebook</th>
+              <th>TikTok</th>
+              <th>Google</th>
+              <th>Total Ad Spend</th>
+            </tr>
+          </thead>
+          <tbody id="pdStockBody"></tbody>
+          <tfoot>
+            <tr class="totals">
+              <th>Totals</th>
+              <th id="pdStockTotal">0</th>
+              <th id="pdFbTotal">0</th>
+              <th id="pdTtTotal">0</th>
+              <th id="pdGgTotal">0</th>
+              <th id="pdAdTotal">0</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Product Notes Section -->
+    <div class="section">
+      <h3>📝 Product Notes & Testing Results</h3>
+      <div class="card">
+        <div class="h">Add Testing Results by Country</div>
+        <div class="row wrap">
+          <select id="pdNoteCountry" class="input">
+            <option value="">Select country...</option>
+          </select>
+          <textarea id="pdNoteText" class="input" placeholder="Enter testing results, observations, or notes for this country..." rows="3" style="width: 100%;"></textarea>
+          <button id="pdNoteSave" class="btn">💾 Save Note</button>
+        </div>
+        <div id="pdNotesList" class="notes-list" style="margin-top: 15px;"></div>
+      </div>
+    </div>
+
+    <!-- Profit + Advertising Budget (Automated) -->
+    <div class="section">
+      <h3>Profit + Advertising Budget (Automated Calculation)</h3>
+      <div class="card">
+        <div class="h">💰 Automated Budget Calculation by Country</div>
+        <div class="table-scroll">
+          <table class="table">
+<thead>
+  <tr>
+    <th>Country</th>
+    <th>Max CPL</th>
+    <th>Available for Profit & Ads</th>
+    <th>Delivery Rate</th>
+    <th>Selling Price</th>
+    <th>Product Cost China</th>
+    <th>Shipping Cost</th>
+    <th>Boxleo/Order</th>
+    <th>Total Cost</th>
+  </tr>
+</thead>
+            <tbody id="pdPBBBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transit Tables -->
+    <div class="section">
+      <h3>Transit (China → Kenya)</h3>
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Route</th>
+              <th>Qty</th>
+              <th>Est. Ship Cost</th>
+              <th>Final Ship Cost</th>
+              <th>China Cost</th>
+              <th>Departed</th>
+              <th>Arrived</th>
+              <th>Payment Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="pdShipCKBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Transit (Inter-country)</h3>
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Route</th>
+              <th>Qty</th>
+              <th>Est. Ship Cost</th>
+              <th>Final Ship Cost</th>
+              <th>Departed</th>
+              <th>Arrived</th>
+              <th>Payment Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="pdShipICBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Arrived Shipments -->
+    <div class="section">
+      <h3>Arrived Shipments</h3>
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Route</th>
+              <th>Qty</th>
+              <th>Est. Ship Cost</th>
+              <th>Final Ship Cost</th>
+              <th>China Cost</th>
+              <th>Departed</th>
+              <th>Arrived</th>
+              <th>Days</th>
+              <th>Payment Status</th>
+              <th>Note</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="pdArrivedBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Lifetime Performance -->
+    <div class="section">
+      <h3>Lifetime (This Product)</h3>
+      <div class="card">
+        <div class="row wrap">
+          <select id="pdLPRange" class="input date-range-select">
+            <option value="8days">Last 8 days</option>
+            <option value="15days">Last 15 days</option>
+            <option value="1month">Last 1 month</option>
+            <option value="2months">Last 2 months</option>
+            <option value="6months">Last 6 months</option>
+            <option value="1year">Last 1 year</option>
+            <option value="2years">Last 2 years</option>
+            <option value="lifetime">Lifetime</option>
+            <option value="custom">Custom range</option>
+          </select>
+          <div class="custom-range" style="display: none;">
+            <input type="date" class="input custom-start"/>
+            <input type="date" class="input custom-end"/>
+          </div>
+          <button id="pdLPRun" class="btn">Run</button>
+        </div>
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Country</th>
+                <th>Revenue</th>
+                <th>Refunded Amount</th>
+                <th>Ad Spend</th>
+                <th>Influencer Spend</th>
+                <th>Boxleo Fees</th>
+                <th>Product Cost China</th>
+                <th>Shipping</th>
+                <th>Total Cost</th>
+                <th>Orders</th>
+                <th>Delivered Orders</th>
+                <th>Refunded Orders</th>
+                <th>Delivered Pieces</th>
+                <th>Delivery Rate</th>
+                <th>Profit</th>
+              </tr>
+            </thead>
+            <tbody id="pdLPBody"></tbody>
+            <tfoot>
+              <tr class="totals">
+                <th>Totals</th>
+                <th id="pdLPRevT">0</th>
+                <th id="pdLPRefundedT">0</th>
+                <th id="pdLPAdT">0</th>
+                <th id="pdLPInfluencerT">0</th>
+                <th id="pdLPBoxleoT">0</th>
+                <th id="pdLPProductCostT">0</th>
+                <th id="pdLPShipT">0</th>
+                <th id="pdLPTotalCostT">0</th>
+                <th id="pdLPOrdersT">0</th>
+                <th id="pdLPDeliveredOrdersT">0</th>
+                <th id="pdLPRefundedOrdersT">0</th>
+                <th id="pdLPDeliveredPiecesT">0</th>
+                <th id="pdLPDeliveryRateT">0%</th>
+                <th id="pdLPProfitT">0</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Store Orders Section -->
+    <div class="section">
+      <h3>📦 Store Orders for This Product</h3>
+      <div class="card">
+        <div class="h">Store Orders Tracking</div>
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Period</th>
+                <th>Country</th>
+                <th>Orders</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="pdStoreOrdersBody"></tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <div class="pagination" id="pdStoreOrdersPagination" style="margin-top: 15px;"></div>
+      </div>
+    </div>
+
+    <!-- Remittances -->
+    <div class="section">
+      <h3>Remittances for This Product</h3>
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Period</th>
+              <th>Country</th>
+              <th>Orders</th>
+              <th>Pieces</th>
+              <th>Revenue</th>
+              <th>Ad Spend</th>
+              <th>Boxleo Fees</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="pdRemittancesBody"></tbody>
+        </table>
+      </div>
+      <!-- Pagination -->
+      <div class="pagination" id="pdRemittancesPagination" style="margin-top: 15px;"></div>
+    </div>
+
+    <!-- Refunds Section -->
+    <div class="section">
+      <h3>💸 Refunds for This Product</h3>
+      <div class="card">
+        <div class="h">Refund Management</div>
+        <div class="table-scroll" style="margin-top: 15px;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Country</th>
+                <th>Orders Refunded</th>
+                <th>Pieces Refunded</th>
+                <th>Amount</th>
+                <th>Reason</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="pdRefundsBody"></tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <div class="pagination" id="pdRefundsPagination" style="margin-top: 15px;"></div>
+      </div>
+    </div>
+
+    <!-- Influencer Spend -->
+    <div class="section">
+      <h3>Influencer Spend</h3>
+      <div class="card">
+        <!-- Add Influencer -->
+        <div class="row wrap">
+          <input id="pdInfName" class="input" placeholder="Influencer name"/>
+          <input id="pdInfSocial" class="input" placeholder="Social @handle"/>
+          <select id="pdInfCountry" class="input"></select>
+          <button id="pdInfAdd" class="btn">Add Influencer</button>
+        </div>
+
+        <!-- Add Spend -->
+        <div class="row wrap">
+          <input id="pdInfDate" type="date" class="input"/>
+          <select id="pdInfSelect" class="input"></select>
+          <select id="pdInfFilterCountry" class="input">
+            <option value="">All countries</option>
+          </select>
+          <input id="pdInfAmount" type="number" class="input" placeholder="Spend (USD)" step="0.01"/>
+          <button id="pdInfSpendAdd" class="btn">Add Spend</button>
+        </div>
+
+        <!-- Filter -->
+        <div class="row wrap">
+          <select id="pdInfRange" class="input date-range-select">
+            <option value="8days">Last 8 days</option>
+            <option value="15days">Last 15 days</option>
+            <option value="1month">Last 1 month</option>
+            <option value="2months">Last 2 months</option>
+            <option value="6months">Last 6 months</option>
+            <option value="1year">Last 1 year</option>
+            <option value="2years">Last 2 years</option>
+            <option value="lifetime">Lifetime</option>
+            <option value="custom">Custom range</option>
+          </select>
+          <div class="custom-range" style="display: none;">
+            <input type="date" class="input custom-start"/>
+            <input type="date" class="input custom-end"/>
+          </div>
+          <button id="pdInfRun" class="btn outline">Filter</button>
+          <div class="badge">Total: <span id="pdInfTotal">0</span> USD</div>
+        </div>
+
+        <!-- Influencer Table -->
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Country</th>
+                <th>Influencer</th>
+                <th>Social</th>
+                <th>Amount</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="pdInfBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/public/app.js"></script>
+</body>
+</html> restore.js #!/usr/bin/env node
+
+const fs = require('fs-extra');
+const path = require('path');
+const readline = require('readline');
+
+const ROOT = __dirname;
+const DATA_FILE = path.join(ROOT, 'db.json');
+const BACKUP_DIR = path.join(ROOT, 'data', 'backups');
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+function question(prompt) {
+  return new Promise((resolve) => {
+    rl.question(prompt, resolve);
+  });
+}
+
+async function listBackups() {
+  try {
+    const files = await fs.readdir(BACKUP_DIR);
+    const backupFiles = files.filter(f => f.endsWith('.json')).sort().reverse();
+    
+    console.log('\n📂 Available Backups:');
+    console.log('='.repeat(50));
+    
+    backupFiles.forEach((file, index) => {
+      console.log(`${index + 1}. ${file}`);
+    });
+    
+    return backupFiles;
+  } catch (error) {
+    console.error('❌ Error listing backups:', error.message);
+    return [];
+  }
+}
+
+async function restoreBackup(backupFile) {
+  try {
+    const backupPath = path.join(BACKUP_DIR, backupFile);
+    
+    // Verify backup exists
+    if (!await fs.pathExists(backupPath)) {
+      throw new Error(`Backup file not found: ${backupFile}`);
+    }
+    
+    // Read backup data
+    const backupData = await fs.readJson(backupPath);
+    
+    // Verify backup structure
+    if (!backupData.data || !backupData.metadata) {
+      throw new Error('Invalid backup file format');
+    }
+    
+    // Create backup of current data before restore
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const currentBackup = path.join(BACKUP_DIR, `pre-restore-${timestamp}.json`);
+    const currentData = await fs.readJson(DATA_FILE);
+    
+    await fs.writeJson(currentBackup, {
+      metadata: {
+        version: '1.0',
+        type: 'pre-restore',
+        timestamp: new Date().toISOString(),
+        originalFile: DATA_FILE
+      },
+      data: currentData
+    }, { spaces: 2 });
+    
+    console.log('✅ Current data backed up to:', path.basename(currentBackup));
+    
+    // Restore the backup
+    await fs.writeJson(DATA_FILE, backupData.data, { spaces: 2 });
+    
+    console.log('✅ Restore completed successfully!');
+    console.log(`📊 Restored from: ${backupFile}`);
+    console.log(`📅 Backup date: ${backupData.metadata.timestamp}`);
+    console.log(`💾 Data size: ${backupData.metadata.dataSize} bytes`);
+    
+  } catch (error) {
+    console.error('❌ Restore failed:', error.message);
+    process.exit(1);
+  }
+}
+
+async function main() {
+  try {
+    console.log('🛡️ EAS Tracker Restore Manager');
+    console.log('='.repeat(40));
+    
+    // List available backups
+    const backups = await listBackups();
+    
+    if (backups.length === 0) {
+      console.log('\n❌ No backups found in:', BACKUP_DIR);
+      process.exit(1);
+    }
+    
+    // Ask user to select backup
+    const choice = await question('\n🔢 Enter the number of the backup to restore: ');
+    const index = parseInt(choice) - 1;
+    
+    if (isNaN(index) || index < 0 || index >= backups.length) {
+      console.log('❌ Invalid selection');
+      process.exit(1);
+    }
+    
+    const selectedBackup = backups[index];
+    
+    // Confirm restoration
+    console.log(`\n⚠️  WARNING: This will overwrite ALL current data!`);
+    console.log(`📁 You are about to restore: ${selectedBackup}`);
+    
+    const confirm = await question('❓ Are you sure you want to continue? (yes/NO): ');
+    
+    if (confirm.toLowerCase() !== 'yes') {
+      console.log('❌ Restore cancelled.');
+      process.exit(0);
+    }
+    
+    // Perform restore
+    await restoreBackup(selectedBackup);
+    
+  } catch (error) {
+    console.error('❌ Error:', error.message);
+    process.exit(1);
+  } finally {
+    rl.close();
+  }
+}
+
+if (require.main === module) {
+  main().catch(console.error);
+}
+
+module.exports = { restoreBackup, listBackups }; server.js #!/usr/bin/env node
+
+const fs = require('fs-extra');
+const path = require('path');
+const readline = require('readline');
+
+const ROOT = __dirname;
+const DATA_FILE = path.join(ROOT, 'db.json');
+const BACKUP_DIR = path.join(ROOT, 'data', 'backups');
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+function question(prompt) {
+  return new Promise((resolve) => {
+    rl.question(prompt, resolve);
+  });
+}
+
+async function listBackups() {
+  try {
+    const files = await fs.readdir(BACKUP_DIR);
+    const backupFiles = files.filter(f => f.endsWith('.json')).sort().reverse();
+    
+    console.log('\n📂 Available Backups:');
+    console.log('='.repeat(50));
+    
+    backupFiles.forEach((file, index) => {
+      console.log(`${index + 1}. ${file}`);
+    });
+    
+    return backupFiles;
+  } catch (error) {
+    console.error('❌ Error listing backups:', error.message);
+    return [];
+  }
+}
+
+async function restoreBackup(backupFile) {
+  try {
+    const backupPath = path.join(BACKUP_DIR, backupFile);
+    
+    // Verify backup exists
+    if (!await fs.pathExists(backupPath)) {
+      throw new Error(`Backup file not found: ${backupFile}`);
+    }
+    
+    // Read backup data
+    const backupData = await fs.readJson(backupPath);
+    
+    // Verify backup structure
+    if (!backupData.data || !backupData.metadata) {
+      throw new Error('Invalid backup file format');
+    }
+    
+    // Create backup of current data before restore
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const currentBackup = path.join(BACKUP_DIR, `pre-restore-${timestamp}.json`);
+    const currentData = await fs.readJson(DATA_FILE);
+    
+    await fs.writeJson(currentBackup, {
+      metadata: {
+        version: '1.0',
+        type: 'pre-restore',
+        timestamp: new Date().toISOString(),
+        originalFile: DATA_FILE
+      },
+      data: currentData
+    }, { spaces: 2 });
+    
+    console.log('✅ Current data backed up to:', path.basename(currentBackup));
+    
+    // Restore the backup
+    await fs.writeJson(DATA_FILE, backupData.data, { spaces: 2 });
+    
+    console.log('✅ Restore completed successfully!');
+    console.log(`📊 Restored from: ${backupFile}`);
+    console.log(`📅 Backup date: ${backupData.metadata.timestamp}`);
+    console.log(`💾 Data size: ${backupData.metadata.dataSize} bytes`);
+    
+  } catch (error) {
+    console.error('❌ Restore failed:', error.message);
+    process.exit(1);
+  }
+}
+
+async function main() {
+  try {
+    console.log('🛡️ EAS Tracker Restore Manager');
+    console.log('='.repeat(40));
+    
+    // List available backups
+    const backups = await listBackups();
+    
+    if (backups.length === 0) {
+      console.log('\n❌ No backups found in:', BACKUP_DIR);
+      process.exit(1);
+    }
+    
+    // Ask user to select backup
+    const choice = await question('\n🔢 Enter the number of the backup to restore: ');
+    const index = parseInt(choice) - 1;
+    
+    if (isNaN(index) || index < 0 || index >= backups.length) {
+      console.log('❌ Invalid selection');
+      process.exit(1);
+    }
+    
+    const selectedBackup = backups[index];
+    
+    // Confirm restoration
+    console.log(`\n⚠️  WARNING: This will overwrite ALL current data!`);
+    console.log(`📁 You are about to restore: ${selectedBackup}`);
+    
+    const confirm = await question('❓ Are you sure you want to continue? (yes/NO): ');
+    
+    if (confirm.toLowerCase() !== 'yes') {
+      console.log('❌ Restore cancelled.');
+      process.exit(0);
+    }
+    
+    // Perform restore
+    await restoreBackup(selectedBackup);
+    
+  } catch (error) {
+    console.error('❌ Error:', error.message);
+    process.exit(1);
+  } finally {
+    rl.close();
+  }
+}
+
+if (require.main === module) {
+  main().catch(console.error);
+}
+
+module.exports = { restoreBackup, listBackups }; server.js : const express = require('express');
+const fs = require('fs-extra');
+const path = require('path');
+const bodyParser = require('body-parser');
+const cookieParser = require('cookie-parser');
+const morgan = require('morgan');
+const { v4: uuidv4 } = require('uuid');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+const ROOT = __dirname;
+const PERSIST_DIR = process.env.RENDER ? '/data' : path.join(ROOT, 'data');
+const DATA_FILE = path.join(PERSIST_DIR, 'db.json');
+const SNAPSHOT_DIR = path.join(PERSIST_DIR, 'snapshots');
+
+// Ensure directories exist
+fs.ensureDirSync(PERSIST_DIR);
+fs.ensureDirSync(SNAPSHOT_DIR);
+
+app.use(morgan('dev'));
+app.use(bodyParser.json({ limit: '1mb' }));
+app.use(cookieParser());
+app.use('/public', express.static(path.join(ROOT, 'public')));
+
+function ensureDB() {
+  if (!fs.existsSync(DATA_FILE)) {
+    fs.writeJsonSync(DATA_FILE, {
+      password: 'eastafricashop',
+      countries: ['china', 'kenya', 'tanzania', 'uganda', 'zambia', 'zimbabwe'],
+      products: [],
+      productNotes: [],
+      productSellingPrices: [],
+      productOrders: [],
+      brainstorming: [],
+      testedProducts: [],
+      adspend: [],
+      deliveries: [],
+      shipments: [],
+      remittances: [],
+      refunds: [],
+      finance: {
+        categories: {
+          debit: [],
+          credit: []
+        },
+        entries: []
+      },
+      influencers: [],
+      influencerSpends: [],
+      snapshots: []
+    }, { spaces: 2 });
+  }
+}
+
+function loadDB() { ensureDB(); return fs.readJsonSync(DATA_FILE); }
+function saveDB(db) { fs.writeJsonSync(DATA_FILE, db, { spaces: 2 }); }
+
+function requireAuth(req, res, next) {
+  if (req.cookies.auth === '1') return next();
+  return res.status(403).json({ error: 'Unauthorized' });
+}
+
+// ======== FIXED STOCK CALCULATION LOGIC ========
+function calculateProductStock(db, productId = null, country = null) {
+  const shipments = db.shipments || [];
+  const remittances = db.remittances || [];
+  const refunds = db.refunds || [];
+  
+  let stock = {};
+  
+  // Initialize stock for all countries (except China)
+  db.countries.filter(c => c !== 'china').forEach(c => {
+    stock[c] = 0;
+  });
+
+  // Process all shipments chronologically
+  const sortedShipments = [...shipments].sort((a, b) => 
+    new Date(a.departedAt || '2000-01-01') - new Date(b.departedAt || '2000-01-01')
+  );
+
+  sortedShipments.forEach(shipment => {
+    // Skip if product doesn't match
+    if (productId && shipment.productId !== productId) return;
+    
+    const fromCountry = shipment.fromCountry;
+    const toCountry = shipment.toCountry;
+    const quantity = +shipment.qty || 0;
+    const hasArrived = !!shipment.arrivedAt;
+
+    console.log(`Processing shipment: ${fromCountry} → ${toCountry}, Qty: ${quantity}, Arrived: ${hasArrived}`);
+
+    if (fromCountry === 'china') {
+      // Shipment FROM China
+      if (hasArrived) {
+        // Add to destination country
+        if (stock[toCountry] !== undefined) {
+          stock[toCountry] += quantity;
+          console.log(`✅ Added ${quantity} to ${toCountry}, now: ${stock[toCountry]}`);
+        }
+      } else {
+        // In transit from China - no effect on destination stock yet
+        console.log(`⏳ In transit from China to ${toCountry} - no stock change`);
+      }
+    } else {
+      // Inter-country shipment
+      if (hasArrived) {
+        // Remove from source, add to destination
+        if (stock[fromCountry] !== undefined) {
+          stock[fromCountry] -= quantity;
+          console.log(`➖ Removed ${quantity} from ${fromCountry}, now: ${stock[fromCountry]}`);
+        }
+        if (stock[toCountry] !== undefined) {
+          stock[toCountry] += quantity;
+          console.log(`✅ Added ${quantity} to ${toCountry}, now: ${stock[toCountry]}`);
+        }
+      } else {
+        // In transit - remove from source only
+        if (stock[fromCountry] !== undefined) {
+          stock[fromCountry] -= quantity;
+          console.log(`➖ Removed ${quantity} from ${fromCountry} (in transit), now: ${stock[fromCountry]}`);
+        }
+      }
+    }
+  });
+
+  // Subtract remittances (sales)
+  remittances.filter(r => (!productId || r.productId === productId)).forEach(remittance => {
+    if (stock[remittance.country] !== undefined) {
+      stock[remittance.country] -= (+remittance.pieces || 0);
+      console.log(`🛒 Sold ${remittance.pieces} from ${remittance.country}`);
+    }
+  });
+
+  // Add refunds back to stock
+  refunds.filter(rf => (!productId || rf.productId === productId)).forEach(refund => {
+    if (stock[refund.country] !== undefined) {
+      stock[refund.country] += (+refund.pieces || 0);
+      console.log(`🔄 Refunded ${refund.pieces} back to ${refund.country}`);
+    }
+  });
+
+  console.log('Final stock:', stock);
+
+  if (country) {
+    return stock[country] || 0;
+  }
+
+  return stock;
+}
+
+function calculateTransitPieces(db, productId = null) {
+  const shipments = db.shipments || [];
+  const transitShipments = shipments.filter(s => !s.arrivedAt && (!productId || s.productId === productId));
+  
+  const chinaTransit = transitShipments
+    .filter(s => s.fromCountry === 'china')
+    .reduce((sum, s) => sum + (+s.qty || 0), 0);
+  
+  const interCountryTransit = transitShipments
+    .filter(s => s.fromCountry !== 'china')
+    .reduce((sum, s) => sum + (+s.qty || 0), 0);
+
+  return {
+    chinaTransit,
+    interCountryTransit,
+    totalTransit: chinaTransit + interCountryTransit
+  };
+}
+
+function calculateActiveInactiveStock(db) {
+  const products = db.products || [];
+  let activeStock = 0;
+  let inactiveStock = 0;
+
+  products.forEach(product => {
+    const stock = calculateProductStock(db, product.id);
+    const totalStock = Object.values(stock).reduce((sum, qty) => sum + qty, 0);
+    
+    if (product.status === 'active') {
+      activeStock += totalStock;
+    } else {
+      inactiveStock += totalStock;
+    }
+  });
+
+  return { activeStock, inactiveStock };
+}
+
+// ======== ENHANCED PROFIT CALCULATION WITH REFUNDS & INFLUENCER SPEND ========
+function calculateProductCosts(db, productId, targetCountry = null) {
+  const shipments = db.shipments || [];
+  const arrivedShipments = shipments.filter(s => s.productId === productId && s.arrivedAt);
+
+  let totalPiecesFromChina = 0;
+  let totalChinaCost = 0;
+  let totalShippingCostFromChina = 0;
+  const countryCosts = {};
+
+  // Process China shipments
+  arrivedShipments.forEach(shipment => {
+    if (shipment.fromCountry === 'china') {
+      const pieces = +shipment.qty || 0;
+      const chinaCost = +shipment.chinaCost || 0;
+      const shippingCost = +shipment.shipCost || 0;
+      const toCountry = shipment.toCountry;
+
+      totalPiecesFromChina += pieces;
+      totalChinaCost += chinaCost;
+      totalShippingCostFromChina += shippingCost;
+
+      if (pieces > 0) {
+        countryCosts[toCountry] = {
+          chinaCostPerPiece: chinaCost / pieces,
+          shippingCostPerPiece: shippingCost / pieces,
+          totalCostPerPiece: (chinaCost + shippingCost) / pieces,
+          pieces: pieces
+        };
+      }
+    }
+  });
+
+  // Process inter-country shipments
+  let hasChanges = true;
+  while (hasChanges) {
+    hasChanges = false;
+    arrivedShipments.forEach(shipment => {
+      if (shipment.fromCountry !== 'china') {
+        const fromCountry = shipment.fromCountry;
+        const toCountry = shipment.toCountry;
+        const pieces = +shipment.qty || 0;
+        const shippingCost = +shipment.shipCost || 0;
+
+        if (countryCosts[fromCountry] && !countryCosts[toCountry] && pieces > 0) {
+          const additionalShippingPerPiece = shippingCost / pieces;
+          
+          countryCosts[toCountry] = {
+            chinaCostPerPiece: countryCosts[fromCountry].chinaCostPerPiece,
+            shippingCostPerPiece: countryCosts[fromCountry].shippingCostPerPiece + additionalShippingPerPiece,
+            totalCostPerPiece: countryCosts[fromCountry].totalCostPerPiece + additionalShippingPerPiece,
+            pieces: pieces
+          };
+          hasChanges = true;
+        }
+      }
+    });
+  }
+
+  if (targetCountry && countryCosts[targetCountry]) {
+    const country = countryCosts[targetCountry];
+    return {
+      costPerPiece: country.totalCostPerPiece,
+      chinaCostPerPiece: country.chinaCostPerPiece,
+      shippingCostPerPiece: country.shippingCostPerPiece,
+      totalPieces: country.pieces,
+      totalChinaCost: country.chinaCostPerPiece * country.pieces,
+      totalShippingCost: country.shippingCostPerPiece * country.pieces
+    };
+  }
+
+  let totalWeightedChinaCost = 0;
+  let totalWeightedShippingCost = 0;
+  let totalAllPieces = 0;
+
+  Object.values(countryCosts).forEach(country => {
+    totalWeightedChinaCost += country.chinaCostPerPiece * country.pieces;
+    totalWeightedShippingCost += country.shippingCostPerPiece * country.pieces;
+    totalAllPieces += country.pieces;
+  });
+
+  return {
+    costPerPiece: totalAllPieces > 0 ? (totalWeightedChinaCost + totalWeightedShippingCost) / totalAllPieces : 0,
+    chinaCostPerPiece: totalAllPieces > 0 ? totalWeightedChinaCost / totalAllPieces : 0,
+    shippingCostPerPiece: totalAllPieces > 0 ? totalWeightedShippingCost / totalAllPieces : 0,
+    totalPieces: totalAllPieces,
+    totalChinaCost: totalWeightedChinaCost,
+    totalShippingCost: totalWeightedShippingCost
+  };
+}
+
+function calculateProfitMetrics(db, productId = null, country = null, startDate = null, endDate = null) {
+  const remittances = db.remittances || [];
+  const refunds = db.refunds || [];
+  const influencerSpends = db.influencerSpends || [];
+
+  let totalRevenue = 0;
+  let totalAdSpend = 0;
+  let totalBoxleoFees = 0;
+  let totalDeliveredPieces = 0;
+  let totalDeliveredOrders = 0;
+  let totalRefundedOrders = 0;
+  let totalRefundedAmount = 0;
+  let totalInfluencerSpend = 0;
+
+  // Calculate from remittances (ONLY source for profit calculations)
+  remittances.forEach(remittance => {
+    if ((!productId || remittance.productId === productId) &&
+        (!country || remittance.country === country) &&
+        (!startDate || remittance.start >= startDate) &&
+        (!endDate || remittance.end <= endDate)) {
+      totalRevenue += +remittance.revenue || 0;
+      totalAdSpend += +remittance.adSpend || 0;
+      totalBoxleoFees += +remittance.boxleoFees || 0;
+      totalDeliveredPieces += +remittance.pieces || 0;
+      totalDeliveredOrders += +remittance.orders || 0;
+    }
+  });
+
+  // Calculate refunds
+  refunds.forEach(refund => {
+    if ((!productId || refund.productId === productId) &&
+        (!country || refund.country === country) &&
+        (!startDate || refund.date >= startDate) &&
+        (!endDate || refund.date <= endDate)) {
+      totalRefundedOrders += +refund.orders || 0;
+      totalRefundedAmount += +refund.amount || 0;
+    }
+  });
+
+  // Calculate influencer spend
+  influencerSpends.forEach(spend => {
+    if ((!productId || spend.productId === productId) &&
+        (!country || spend.country === country) &&
+        (!startDate || spend.date >= startDate) &&
+        (!endDate || spend.date <= endDate)) {
+      totalInfluencerSpend += +spend.amount || 0;
+    }
+  });
+
+  // Calculate product costs
+  let totalProductChinaCost = 0;
+  let totalShippingCost = 0;
+
+  if (productId) {
+    const productCosts = calculateProductCosts(db, productId);
+    if (totalDeliveredPieces > 0) {
+      if (country) {
+        const countryCosts = calculateProductCosts(db, productId, country);
+        totalProductChinaCost = totalDeliveredPieces * (countryCosts.chinaCostPerPiece || 0);
+        totalShippingCost = totalDeliveredPieces * (countryCosts.shippingCostPerPiece || 0);
+      } else {
+        totalProductChinaCost = totalDeliveredPieces * (productCosts.chinaCostPerPiece || 0);
+        totalShippingCost = totalDeliveredPieces * (productCosts.shippingCostPerPiece || 0);
+      }
+    }
+  } else {
+    const products = db.products || [];
+    products.forEach(product => {
+      const productCosts = calculateProductCosts(db, product.id);
+      const productRemittances = remittances.filter(r => 
+        r.productId === product.id &&
+        (!country || r.country === country) &&
+        (!startDate || r.start >= startDate) &&
+        (!endDate || r.end <= endDate)
+      );
+      
+      const productDeliveredPieces = productRemittances.reduce((sum, r) => sum + (+r.pieces || 0), 0);
+      
+      if (productDeliveredPieces > 0) {
+        totalProductChinaCost += productDeliveredPieces * (productCosts.chinaCostPerPiece || 0);
+        totalShippingCost += productDeliveredPieces * (productCosts.shippingCostPerPiece || 0);
+      }
+    });
+  }
+
+  // Adjust revenue for refunds
+  const adjustedRevenue = totalRevenue - totalRefundedAmount;
+  
+  // Total costs including influencer spend
+  const totalCost = totalProductChinaCost + totalShippingCost + totalAdSpend + totalBoxleoFees + totalInfluencerSpend;
+  const profit = adjustedRevenue - totalCost;
+
+  // Calculate delivery rate (excluding refunded orders)
+  const productOrders = db.productOrders || [];
+  let totalOrders = 0;
+
+  productOrders.forEach(order => {
+    if ((!productId || order.productId === productId) &&
+        (!country || order.country === country) &&
+        (!startDate || order.startDate >= startDate) &&
+        (!endDate || order.endDate <= endDate)) {
+      totalOrders += (+order.orders || 0);
+    }
+  });
+
+  const netDeliveredOrders = totalDeliveredOrders - totalRefundedOrders;
+  const deliveryRate = totalOrders > 0 ? (netDeliveredOrders / totalOrders) * 100 : 0;
+
+  // ======== FIXED AD COST CALCULATIONS ========
+  const costPerDeliveredOrder = netDeliveredOrders > 0 ? totalCost / netDeliveredOrders : 0;
+  const costPerDeliveredPiece = totalDeliveredPieces > 0 ? totalCost / totalDeliveredPieces : 0;
+  
+  // FIXED: Use consistent metrics for ad cost calculations
+  const adCostPerDeliveredOrder = netDeliveredOrders > 0 ? totalAdSpend / netDeliveredOrders : 0;
+  const adCostPerDeliveredPiece = totalDeliveredPieces > 0 ? totalAdSpend / totalDeliveredPieces : 0;
+  
+  const boxleoPerDeliveredOrder = netDeliveredOrders > 0 ? totalBoxleoFees / netDeliveredOrders : 0;
+  const boxleoPerDeliveredPiece = totalDeliveredPieces > 0 ? totalBoxleoFees / totalDeliveredPieces : 0;
+  const influencerPerDeliveredOrder = netDeliveredOrders > 0 ? totalInfluencerSpend / netDeliveredOrders : 0;
+  const averageOrderValue = netDeliveredOrders > 0 ? adjustedRevenue / netDeliveredOrders : 0;
+
+  // DEBUG: Log the calculated values
+  console.log('🔍 SERVER DEBUG - Profit Metrics:', {
+    productId,
+    country,
+    totalAdSpend,
+    netDeliveredOrders,
+    totalDeliveredPieces,
+    adCostPerDeliveredOrder,
+    adCostPerDeliveredPiece,
+    calculation: {
+      adCostPerDeliveredOrder: `${totalAdSpend} / ${netDeliveredOrders} = ${adCostPerDeliveredOrder}`,
+      adCostPerDeliveredPiece: `${totalAdSpend} / ${totalDeliveredPieces} = ${adCostPerDeliveredPiece}`
+    }
+  });
+
+  const hasData = totalDeliveredPieces > 0 || adjustedRevenue > 0 || totalAdSpend > 0;
+  
+  return {
+    totalRevenue: adjustedRevenue,
+    totalAdSpend,
+    totalBoxleoFees,
+    totalProductChinaCost,
+    totalShippingCost,
+    totalInfluencerSpend,
+    totalRefundedAmount,
+    totalRefundedOrders,
+    totalCost,
+    profit,
+    totalDeliveredPieces,
+    totalDeliveredOrders: netDeliveredOrders,
+    totalOrders,
+    deliveryRate,
+    costPerDeliveredOrder,
+    costPerDeliveredPiece,
+    adCostPerDeliveredOrder,
+    adCostPerDeliveredPiece,
+    boxleoPerDeliveredOrder,
+    boxleoPerDeliveredPiece,
+    influencerPerDeliveredOrder,
+    averageOrderValue,
+    isProfitable: profit > 0,
+    hasData: hasData
+  };
+}
+// ======== STARTUP BACKUP ========
+async function createStartupBackup() {
+  try {
+    const db = loadDB();
+    const today = new Date().toISOString().slice(0, 10);
+    const backupName = `Daily-${today}`;
+    
+    const existingBackup = db.snapshots.find(snap => 
+      snap.name && snap.name.includes(today)
+    );
+    
+    if (!existingBackup) {
+      const snapshotFileName = `auto-daily-${today}.json`;
+      await fs.copy(DATA_FILE, path.join(SNAPSHOT_DIR, snapshotFileName));
+      
+      const backupEntry = {
+        id: uuidv4(),
+        name: backupName,
+        file: snapshotFileName,
+        createdAt: new Date().toISOString(),
+        kind: 'auto-daily'
+      };
+      
+      db.snapshots.unshift(backupEntry);
+      
+      // Clean up old backups (keep 7 days)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      db.snapshots = db.snapshots.filter(snapshot => {
+        if (snapshot.name && snapshot.name.startsWith('Daily-')) {
+          const snapshotDate = new Date(snapshot.createdAt);
+          return snapshotDate >= sevenDaysAgo;
+        }
+        return true;
+      });
+      
+      saveDB(db);
+      console.log(`✅ Auto-created startup backup: ${backupName}`);
+    }
+  } catch (error) {
+    console.error('❌ Startup backup error:', error.message);
+  }
+}
+
+// ======== ROUTES ========
+
+// Authentication
+app.post('/api/auth', (req, res) => {
+  const { password } = req.body || {};
+  const db = loadDB();
+  if (password === 'logout') {
+    res.clearCookie('auth', { httpOnly: true, sameSite: 'Lax', secure: false, path: '/' });
+    return res.json({ ok: true });
+  }
+  if (password && password === db.password) {
+    res.cookie('auth', '1', { httpOnly: true, sameSite: 'Lax', secure: false, path: '/', maxAge: 365 * 24 * 60 * 60 * 1000 });
+    return res.json({ ok: true });
+  }
+  return res.status(403).json({ error: 'Wrong password' });
+});
+
+// Meta data
+app.get('/api/meta', requireAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ countries: db.countries || [] });
+});
+
+// Countries
+app.get('/api/countries', requireAuth, (req, res) => {
+  const db = loadDB(); res.json({ countries: db.countries || [] });
+});
+
+app.post('/api/countries', requireAuth, (req, res) => {
+  const { name } = req.body || {};
+  if (!name) return res.status(400).json({ error: 'Missing name' });
+  const db = loadDB(); db.countries = db.countries || [];
+  if (!db.countries.includes(name)) db.countries.push(name);
+  saveDB(db); res.json({ ok: true, countries: db.countries });
+});
+
+app.delete('/api/countries/:name', requireAuth, (req, res) => {
+  const n = req.params.name;
+  const db = loadDB(); db.countries = (db.countries || []).filter(c => c !== n);
+  saveDB(db); res.json({ ok: true, countries: db.countries });
+});
+
+// Products
+app.get('/api/products', requireAuth, (req, res) => { 
+  const db = loadDB();
+  const products = (db.products || []).map(product => {
+    const metrics = calculateProfitMetrics(db, product.id, null, '2000-01-01', '2100-01-01');
+    const stock = calculateProductStock(db, product.id);
+    const transit = calculateTransitPieces(db, product.id);
+    const totalStock = Object.values(stock).reduce((sum, qty) => sum + qty, 0);
+    
+    // Calculate ad spend per country
+    const adSpendByCountry = {};
+    (db.adspend || []).filter(ad => ad.productId === product.id).forEach(ad => {
+      adSpendByCountry[ad.country] = (adSpendByCountry[ad.country] || 0) + (+ad.amount || 0);
+    });
+
+    return {
+      ...product,
+      isProfitable: metrics.isProfitable,
+      hasData: metrics.hasData,
+      stockByCountry: stock,
+      totalStock: totalStock,
+      transitPieces: transit.totalTransit,
+      totalPiecesIncludingTransit: totalStock + transit.totalTransit,
+      adSpendByCountry: adSpendByCountry
+    };
+  });
+  res.json({ products });
+});
+
+app.post('/api/products', requireAuth, (req, res) => {
+  const db = loadDB(); db.products = db.products || [];
+  const p = {
+    id: uuidv4(),
+    status: 'active',
+    name: req.body.name || '',
+    sku: req.body.sku || '',
+    createdAt: new Date().toISOString()
+  };
+  if (!p.name) return res.status(400).json({ error: 'Name required' });
+  db.products.push(p); saveDB(db); res.json({ ok: true, product: p });
+});
+
+app.put('/api/products/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  const p = (db.products || []).find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: 'Not found' });
+  const up = req.body || {};
+  if (up.name !== undefined) p.name = up.name;
+  if (up.sku !== undefined) p.sku = up.sku;
+  saveDB(db); res.json({ ok: true, product: p });
+});
+
+app.post('/api/products/:id/status', requireAuth, (req, res) => {
+  const db = loadDB(); const p = (db.products || []).find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: 'Not found' });
+  p.status = req.body.status || 'active'; saveDB(db); res.json({ ok: true, product: p });
+});
+
+app.delete('/api/products/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  const id = req.params.id;
+  db.products = (db.products || []).filter(p => p.id !== id);
+  db.productNotes = (db.productNotes || []).filter(n => n.productId !== id);
+  db.productSellingPrices = (db.productSellingPrices || []).filter(sp => sp.productId !== id);
+  db.productOrders = (db.productOrders || []).filter(o => o.productId !== id);
+  db.adspend = (db.adspend || []).filter(a => a.productId !== id);
+  db.shipments = (db.shipments || []).filter(s => s.productId !== id);
+  db.remittances = (db.remittances || []).filter(r => r.productId !== id);
+  db.refunds = (db.refunds || []).filter(rf => rf.productId !== id);
+  db.influencerSpends = (db.influencerSpends || []).filter(sp => sp.productId !== id);
+  saveDB(db);
+  res.json({ ok: true });
+});
+
+// Product Prices
+app.get('/api/products/:id/prices', requireAuth, (req, res) => {
+  const db = loadDB();
+  const prices = (db.productSellingPrices || []).filter(sp => sp.productId === req.params.id);
+  res.json({ prices });
+});
+
+app.post('/api/products/:id/prices', requireAuth, (req, res) => {
+  const db = loadDB(); db.productSellingPrices = db.productSellingPrices || [];
+  const { country, price } = req.body || {};
+  if (!country || !price) return res.status(400).json({ error: 'Missing country/price' });
+
+  const existing = db.productSellingPrices.find(sp =>
+    sp.productId === req.params.id && sp.country === country
+  );
+
+  if (existing) {
+    existing.price = +price || 0;
+  } else {
+    db.productSellingPrices.push({
+      id: uuidv4(),
+      productId: req.params.id,
+      country,
+      price: +price || 0
+    });
+  }
+
+  saveDB(db); res.json({ ok: true });
+});
+
+// Product Notes
+app.get('/api/products/:id/notes', requireAuth, (req, res) => {
+  const db = loadDB();
+  const notes = (db.productNotes || []).filter(n => n.productId === req.params.id);
+  res.json({ notes });
+});
+
+app.post('/api/products/:id/notes', requireAuth, (req, res) => {
+  const db = loadDB(); db.productNotes = db.productNotes || [];
+  const { country, note } = req.body || {};
+  if (!country || !note) return res.status(400).json({ error: 'Missing country/note' });
+
+  const existing = db.productNotes.find(n =>
+    n.productId === req.params.id && n.country === country
+  );
+
+  if (existing) {
+    existing.note = note;
+    existing.updatedAt = new Date().toISOString();
+  } else {
+    db.productNotes.push({
+      id: uuidv4(),
+      productId: req.params.id,
+      country,
+      note,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  saveDB(db); res.json({ ok: true });
+});
+
+app.delete('/api/products/notes/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  db.productNotes = (db.productNotes || []).filter(n => n.id !== req.params.id);
+  saveDB(db); res.json({ ok: true });
+});
+
+// Product Orders
+app.get('/api/product-orders', requireAuth, (req, res) => {
+  const db = loadDB();
+  const { productId, country, start, end, page = 1, limit = 8 } = req.query || {};
+  let orders = db.productOrders || [];
+
+  if (productId) orders = orders.filter(o => o.productId === productId);
+  if (country) orders = orders.filter(o => o.country === country);
+  if (start) orders = orders.filter(o => o.startDate >= start);
+  if (end) orders = orders.filter(o => o.endDate <= end);
+
+  orders.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+
+  const startIndex = (page - 1) * limit;
+  const endIndex = startIndex + parseInt(limit);
+  const paginatedOrders = orders.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(orders.length / limit);
+
+  res.json({ 
+    orders: paginatedOrders,
+    pagination: {
+      currentPage: parseInt(page),
+      totalPages,
+      totalItems: orders.length,
+      hasNextPage: endIndex < orders.length,
+      hasPrevPage: startIndex > 0
+    }
+  });
+});
+
+app.post('/api/product-orders', requireAuth, (req, res) => {
+  const db = loadDB(); db.productOrders = db.productOrders || [];
+  const { productId, country, startDate, endDate, orders } = req.body || {};
+  if (!productId || !country || !startDate || !endDate) return res.status(400).json({ error: 'Missing fields' });
+
+  const existingOrder = db.productOrders.find(o => 
+    o.productId === productId && 
+    o.country === country && 
+    o.startDate === startDate && 
+    o.endDate === endDate
+  );
+
+  if (existingOrder) {
+    return res.status(409).json({ 
+      error: 'Duplicate order period', 
+      message: 'You already entered orders in that period for that product. Are you sure you want to enter again?',
+      existingOrder 
+    });
+  }
+
+  db.productOrders.push({
+    id: uuidv4(),
+    productId,
+    country,
+    startDate,
+    endDate,
+    orders: +orders || 0
+  });
+
+  saveDB(db); res.json({ ok: true });
+});
+
+app.post('/api/product-orders/force', requireAuth, (req, res) => {
+  const db = loadDB(); db.productOrders = db.productOrders || [];
+  const { productId, country, startDate, endDate, orders } = req.body || {};
+  if (!productId || !country || !startDate || !endDate) return res.status(400).json({ error: 'Missing fields' });
+
+  db.productOrders.push({
+    id: uuidv4(),
+    productId,
+    country,
+    startDate,
+    endDate,
+    orders: +orders || 0
+  });
+
+  saveDB(db); res.json({ ok: true });
+});
+
+app.delete('/api/product-orders/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  db.productOrders = (db.productOrders || []).filter(o => o.id !== req.params.id);
+  saveDB(db); res.json({ ok: true });
+});
+
+// Brainstorming
+app.get('/api/brainstorming', requireAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ ideas: db.brainstorming || [] });
+});
+
+app.post('/api/brainstorming', requireAuth, (req, res) => {
+  const db = loadDB(); db.brainstorming = db.brainstorming || [];
+  const { title, description, category } = req.body || {};
+  if (!title) return res.status(400).json({ error: 'Missing title' });
+
+  const idea = {
+    id: uuidv4(),
+    title,
+    description: description || '',
+    category: category || 'general',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  db.brainstorming.push(idea);
+  saveDB(db); res.json({ ok: true, idea });
+});
+
+app.delete('/api/brainstorming/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  db.brainstorming = (db.brainstorming || []).filter(i => i.id !== req.params.id);
+  saveDB(db); res.json({ ok: true });
+});
+
+// Tested Products
+app.get('/api/tested-products', requireAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ testedProducts: db.testedProducts || [] });
+});
+
+app.post('/api/tested-products', requireAuth, (req, res) => {
+  const db = loadDB(); db.testedProducts = db.testedProducts || [];
+  const { productName, country, costPerLead, confirmationRate, sellingPrice } = req.body || {};
+  if (!productName || !country) return res.status(400).json({ error: 'Missing product name/country' });
+
+  let product = db.testedProducts.find(tp => tp.productName === productName);
+
+  if (product) {
+    const countryIndex = product.countryData.findIndex(cd => cd.country === country);
+    if (countryIndex >= 0) {
+      product.countryData[countryIndex] = {
+        country,
+        costPerLead: +costPerLead || 0,
+        confirmationRate: +confirmationRate || 0,
+        sellingPrice: +sellingPrice || 0,
+        updatedAt: new Date().toISOString()
+      };
+    } else {
+      product.countryData.push({
+        country,
+        costPerLead: +costPerLead || 0,
+        confirmationRate: +confirmationRate || 0,
+        sellingPrice: +sellingPrice || 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+    product.updatedAt = new Date().toISOString();
+  } else {
+    product = {
+      id: uuidv4(),
+      productName,
+      countryData: [{
+        country,
+        costPerLead: +costPerLead || 0,
+        confirmationRate: +confirmationRate || 0,
+        sellingPrice: +sellingPrice || 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    db.testedProducts.push(product);
+  }
+
+  saveDB(db); res.json({ ok: true, product });
+});
+
+app.delete('/api/tested-products/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  db.testedProducts = (db.testedProducts || []).filter(tp => tp.id !== req.params.id);
+  saveDB(db); res.json({ ok: true });
+});
+
+// Ad Spend - FIXED: Added date field
+app.get('/api/adspend', requireAuth, (req, res) => { 
+  const db = loadDB(); 
+  res.json({ adSpends: db.adspend || [] });
+});
+
+app.post('/api/adspend', requireAuth, (req, res) => {
+  const db = loadDB(); db.adspend = db.adspend || [];
+  const { productId, country, platform, amount, date } = req.body || {};
+  if (!productId || !country || !platform || !date) return res.status(400).json({ error: 'Missing fields' });
+  
+  // FIXED: Include date in the search to allow multiple entries per day for same product/country/platform
+  const ex = db.adspend.find(a => 
+    a.productId === productId && 
+    a.country === country && 
+    a.platform === platform &&
+    a.date === date
+  );
+  
+  if (ex) {
+    ex.amount = +amount || 0;
+  } else {
+    db.adspend.push({ 
+      id: uuidv4(), 
+      productId, 
+      country, 
+      platform, 
+      amount: +amount || 0,
+      date: date // FIXED: Add date field
+    });
+  }
+  
+  saveDB(db); 
+  res.json({ ok: true });
+});
+
+// Deliveries
+app.get('/api/deliveries', requireAuth, (req, res) => {
+  const db = loadDB(); res.json({ deliveries: db.deliveries || [] });
+});
+
+app.post('/api/deliveries', requireAuth, (req, res) => {
+  const db = loadDB(); db.deliveries = db.deliveries || [];
+  const { date, country, delivered, productId } = req.body || {};
+  if (!date || !country) return res.status(400).json({ error: 'Missing date/country' });
+  db.deliveries.push({ id: uuidv4(), date, country, delivered: +delivered || 0, productId: productId || '' });
+  saveDB(db); res.json({ ok: true });
+});
+
+// ======== ENHANCED SHIPMENTS WITH PAYMENT STATUS ========
+app.get('/api/shipments', requireAuth, (req, res) => {
+  const db = loadDB(); res.json({ shipments: db.shipments || [] });
+});
+
+app.post('/api/shipments', requireAuth, (req, res) => {
+  const db = loadDB(); db.shipments = db.shipments || [];
+  const s = {
+    id: uuidv4(),
+    productId: req.body.productId,
+    fromCountry: req.body.fromCountry,
+    toCountry: req.body.toCountry,
+    qty: +req.body.qty || 0,
+    shipCost: +req.body.shipCost || 0,
+    finalShipCost: null,
+    chinaCost: req.body.fromCountry === 'china' ? +req.body.chinaCost || 0 : 0,
+    note: req.body.note || '',
+    departedAt: req.body.departedAt || new Date().toISOString().slice(0, 10),
+    arrivedAt: req.body.arrivedAt || null,
+    paymentStatus: 'pending',
+    paidAt: null
+  };
+  if (!s.productId || !s.fromCountry || !s.toCountry) return res.status(400).json({ error: 'Missing fields' });
+  db.shipments.push(s); saveDB(db); res.json({ ok: true, shipment: s });
+});
+
+app.put('/api/shipments/:id', requireAuth, (req, res) => {
+  const db = loadDB(); const s = (db.shipments || []).find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ error: 'Not found' });
+  const up = req.body || {};
+  if (up.qty !== undefined) s.qty = +up.qty || 0;
+  if (up.shipCost !== undefined) s.shipCost = +up.shipCost || 0;
+  if (up.finalShipCost !== undefined) s.finalShipCost = +up.finalShipCost || 0;
+  if (up.chinaCost !== undefined) s.chinaCost = +up.chinaCost || 0;
+  if (up.note !== undefined) s.note = up.note;
+  if (up.departedAt !== undefined) s.departedAt = up.departedAt;
+  if (up.arrivedAt !== undefined) s.arrivedAt = up.arrivedAt;
+  saveDB(db); res.json({ ok: true, shipment: s });
+});
+
+app.post('/api/shipments/:id/mark-paid', requireAuth, (req, res) => {
+  const db = loadDB(); const s = (db.shipments || []).find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ error: 'Not found' });
+  
+  const { finalShipCost } = req.body || {};
+  if (!finalShipCost) return res.status(400).json({ error: 'Final shipping cost required' });
+  
+  s.finalShipCost = +finalShipCost || 0;
+  s.paymentStatus = 'paid';
+  s.paidAt = new Date().toISOString();
+  
+  saveDB(db); res.json({ ok: true, shipment: s });
+});
+
+app.delete('/api/shipments/:id', requireAuth, (req, res) => {
+  const db = loadDB(); db.shipments = (db.shipments || []).filter(x => x.id !== req.params.id);
+  saveDB(db); res.json({ ok: true });
+});
+
+// Remittances
+app.get('/api/remittances', requireAuth, (req, res) => {
+  const db = loadDB(); let list = db.remittances || [];
+  const { start, end, country, productId, page = 1, limit = 8 } = req.query || {};
+  if (start) list = list.filter(r => r.start >= start);
+  if (end) list = list.filter(r => r.end <= end);
+  if (country) list = list.filter(r => r.country === country);
+  if (productId) list = list.filter(r => r.productId === productId);
+
+  list.sort((a, b) => new Date(b.start) - new Date(a.start));
+
+  const startIndex = (page - 1) * limit;
+  const endIndex = startIndex + parseInt(limit);
+  const paginatedList = list.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(list.length / limit);
+
+  res.json({ 
+    remittances: paginatedList,
+    pagination: {
+      currentPage: parseInt(page),
+      totalPages,
+      totalItems: list.length,
+      hasNextPage: endIndex < list.length,
+      hasPrevPage: startIndex > 0
+    }
+  });
+});
+
+app.post('/api/remittances', requireAuth, (req, res) => {
+  const db = loadDB(); db.remittances = db.remittances || [];
+  const { start, end, country, productId, orders, pieces, revenue, adSpend, boxleoFees } = req.body || {};
+  
+  if (!start || !end || !country || !productId) return res.status(400).json({ error: 'Missing required fields' });
+
+  const existingRemittance = db.remittances.find(r => 
+    r.productId === productId && 
+    r.country === country && 
+    r.start === start && 
+    r.end === end
+  );
+
+  if (existingRemittance) {
+    return res.status(409).json({ 
+      error: 'Duplicate remittance period', 
+      message: 'You already entered a remittance for this product in this country during this period. Are you sure you want to enter again?',
+      existingRemittance 
+    });
+  }
+
+  const r = {
+    id: uuidv4(),
+    start,
+    end,
+    country,
+    productId,
+    orders: +orders || 0,
+    pieces: +pieces || 0,
+    revenue: +revenue || 0,
+    adSpend: +adSpend || 0,
+    boxleoFees: +boxleoFees || 0
+  };
+
+  db.remittances.push(r); saveDB(db); res.json({ ok: true, remittance: r });
+});
+
+app.post('/api/remittances/force', requireAuth, (req, res) => {
+  const db = loadDB(); db.remittances = db.remittances || [];
+  const { start, end, country, productId, orders, pieces, revenue, adSpend, boxleoFees } = req.body || {};
+  
+  if (!start || !end || !country || !productId) return res.status(400).json({ error: 'Missing required fields' });
+
+  const r = {
+    id: uuidv4(),
+    start,
+    end,
+    country,
+    productId,
+    orders: +orders || 0,
+    pieces: +pieces || 0,
+    revenue: +revenue || 0,
+    adSpend: +adSpend || 0,
+    boxleoFees: +boxleoFees || 0
+  };
+
+  db.remittances.push(r); saveDB(db); res.json({ ok: true, remittance: r });
+});
+
+app.delete('/api/remittances/:id', requireAuth, (req, res) => {
+  const db = loadDB(); db.remittances = (db.remittances || []).filter(r => r.id !== req.params.id);
+  saveDB(db); res.json({ ok: true });
+});
+
+// ======== REFUNDS MANAGEMENT ========
+app.get('/api/refunds', requireAuth, (req, res) => {
+  const db = loadDB(); let list = db.refunds || [];
+  const { start, end, country, productId, page = 1, limit = 8 } = req.query || {};
+  if (start) list = list.filter(r => r.date >= start);
+  if (end) list = list.filter(r => r.date <= end);
+  if (country) list = list.filter(r => r.country === country);
+  if (productId) list = list.filter(r => r.productId === productId);
+
+  list.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const startIndex = (page - 1) * limit;
+  const endIndex = startIndex + parseInt(limit);
+  const paginatedList = list.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(list.length / limit);
+
+  res.json({ 
+    refunds: paginatedList,
+    pagination: {
+      currentPage: parseInt(page),
+      totalPages,
+      totalItems: list.length,
+      hasNextPage: endIndex < list.length,
+      hasPrevPage: startIndex > 0
+    }
+  });
+});
+
+app.post('/api/refunds', requireAuth, (req, res) => {
+  const db = loadDB(); db.refunds = db.refunds || [];
+  const { date, country, productId, orders, pieces, amount, reason } = req.body || {};
+  
+  if (!date || !country || !productId) return res.status(400).json({ error: 'Missing required fields' });
+
+  const refund = {
+    id: uuidv4(),
+    date,
+    country,
+    productId,
+    orders: +orders || 0,
+    pieces: +pieces || 0,
+    amount: +amount || 0,
+    reason: reason || '',
+    createdAt: new Date().toISOString()
+  };
+
+  db.refunds.push(refund); saveDB(db); res.json({ ok: true, refund });
+});
+
+app.delete('/api/refunds/:id', requireAuth, (req, res) => {
+  const db = loadDB(); db.refunds = (db.refunds || []).filter(r => r.id !== req.params.id);
+  saveDB(db); res.json({ ok: true });
+});
+
+// Finance Categories
+app.get('/api/finance/categories', requireAuth, (req, res) => {
+  const db = loadDB(); res.json(db.finance?.categories || { debit: [], credit: [] });
+});
+
+app.post('/api/finance/categories', requireAuth, (req, res) => {
+  const db = loadDB(); db.finance = db.finance || { categories: { debit: [], credit: [] }, entries: [] };
+  const { type, name } = req.body || {};
+  if (!type || !name) return res.status(400).json({ error: 'Missing type/name' });
+  if (!Array.isArray(db.finance.categories[type])) db.finance.categories[type] = [];
+  if (!db.finance.categories[type].includes(name)) db.finance.categories[type].push(name);
+  saveDB(db); res.json({ ok: true, categories: db.finance.categories });
+});
+
+app.delete('/api/finance/categories', requireAuth, (req, res) => {
+  const db = loadDB();
+  const { type, name } = req.query || {};
+  if (!type || !name) return res.status(400).json({ error: 'Missing type/name' });
+  if (db.finance?.categories?.[type]) db.finance.categories[type] = db.finance.categories[type].filter(c => c !== name);
+  saveDB(db); res.json({ ok: true, categories: db.finance.categories });
+});
+
+// Finance Entries
+app.get('/api/finance/entries', requireAuth, (req, res) => {
+  const db = loadDB(); let list = db.finance?.entries || [];
+  const { start, end, category, type } = req.query || {};
+  if (start) list = list.filter(e => e.date >= start);
+  if (end) list = list.filter(e => e.date <= end);
+  if (category) list = list.filter(e => e.category === category);
+  if (type) list = list.filter(e => e.type === type);
+
+  const total = list.reduce((sum, e) => sum + (e.type === 'credit' ? +e.amount : -(+e.amount)), 0);
+  const running = list.reduce((sum, e) => sum + (e.type === 'credit' ? +e.amount : -(+e.amount)), 0);
+
+  res.json({
+    entries: list,
+    running: running,
+    balance: list.reduce((a, e) => a + (e.type === 'credit' ? +e.amount || 0 : -(+e.amount || 0)), 0),
+    categoryTotal: total
+  });
+});
+
+app.post('/api/finance/entries', requireAuth, (req, res) => {
+  const db = loadDB(); db.finance = db.finance || { categories: { debit: [], credit: [] }, entries: [] };
+  const { date, type, category, amount, note } = req.body || {};
+  if (!date || !type || !category) return res.status(400).json({ error: 'Missing fields' });
+
+  const entry = {
+    id: uuidv4(),
+    date,
+    type,
+    category,
+    amount: +amount || 0,
+    note: note || ''
+  };
+
+  db.finance.entries.push(entry);
+  saveDB(db);
+  res.json({ ok: true, entry });
+});
+
+app.delete('/api/finance/entries/:id', requireAuth, (req, res) => {
+  const db = loadDB(); db.finance.entries = (db.finance.entries || []).filter(e => e.id !== req.params.id);
+  saveDB(db); res.json({ ok: true });
+});
+
+// Influencers
+app.get('/api/influencers', requireAuth, (req, res) => {
+  const db = loadDB(); res.json({ influencers: db.influencers || [] });
+});
+
+app.post('/api/influencers', requireAuth, (req, res) => {
+  const db = loadDB(); db.influencers = db.influencers || [];
+  const { name, social, country } = req.body || {};
+  if (!name) return res.status(400).json({ error: 'Missing name' });
+  const inf = { id: uuidv4(), name, social: social || '', country: country || '' };
+  db.influencers.push(inf); saveDB(db); res.json({ ok: true, influencer: inf });
+});
+
+app.delete('/api/influencers/:id', requireAuth, (req, res) => {
+  const db = loadDB(); db.influencers = (db.influencers || []).filter(i => i.id !== req.params.id);
+  saveDB(db); res.json({ ok: true });
+});
+
+// Influencer Spend
+app.get('/api/influencers/spend', requireAuth, (req, res) => {
+  const db = loadDB(); res.json({ spends: db.influencerSpends || [] });
+});
+
+app.post('/api/influencers/spend', requireAuth, (req, res) => {
+  const db = loadDB(); db.influencerSpends = db.influencerSpends || [];
+  const { date, influencerId, country, productId, amount } = req.body || {};
+  if (!influencerId) return res.status(400).json({ error: 'Missing influencerId' });
+  const sp = { id: uuidv4(), date: date || new Date().toISOString().slice(0, 10), influencerId, country: country || '', productId: productId || '', amount: +amount || 0 };
+  db.influencerSpends.push(sp); saveDB(db); res.json({ ok: true, spend: sp });
+});
+
+app.delete('/api/influencers/spend/:id', requireAuth, (req, res) => {
+  const db = loadDB(); db.influencerSpends = (db.influencerSpends || []).filter(s => s.id !== req.params.id);
+  saveDB(db); res.json({ ok: true });
+});
+
+// Analytics
+app.get('/api/analytics/remittance', requireAuth, (req, res) => {
+  const db = loadDB();
+  const { start, end, country, productId } = req.query || {};
+
+  let analytics = [];
+  
+  if (productId && productId !== 'all') {
+    if (country && country !== '') {
+      const metrics = calculateProfitMetrics(db, productId, country, start, end);
+      analytics = [{
+        productId,
+        productName: (db.products.find(p => p.id === productId) || {}).name || productId,
+        country: country,
+        ...metrics
+      }];
+    } else {
+      const countries = db.countries.filter(c => c !== 'china');
+      analytics = countries.map(country => {
+        const metrics = calculateProfitMetrics(db, productId, country, start, end);
+        return {
+          productId,
+          productName: (db.products.find(p => p.id === productId) || {}).name || productId,
+          country: country,
+          ...metrics
+        };
+      }).filter(item => item.hasData);
+    }
+  } else {
+    const products = productId === 'all' ? (db.products || []) : (db.products || []).filter(p => p.status === 'active');
+    analytics = products.map(product => {
+      const metrics = calculateProfitMetrics(db, product.id, country, start, end);
+      return {
+        productId: product.id,
+        productName: product.name,
+        country: country || 'All Countries',
+        ...metrics
+      };
+    }).filter(item => item.hasData);
+  }
+
+  analytics.sort((a, b) => b.totalDeliveredPieces - a.totalDeliveredPieces);
+
+  res.json({ analytics });
+});
+
+app.get('/api/analytics/profit-by-country', requireAuth, (req, res) => {
+  const db = loadDB();
+  const { start, end, country } = req.query || {};
+
+  const analytics = {};
+  const countries = country ? [country] : (db.countries || []).filter(c => c !== 'china');
+
+  countries.forEach(c => {
+    const metrics = calculateProfitMetrics(db, null, c, start, end);
+    analytics[c] = metrics;
+  });
+
+  res.json({ analytics });
+});
+
+// Product Info with Boxleo Fees per Order - FIXED DATA MAPPING
+app.get('/api/product-info/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  const productId = req.params.id;
+  const product = db.products.find(p => p.id === productId);
+  
+  if (!product) return res.status(404).json({ error: 'Product not found' });
+
+  const prices = db.productSellingPrices.filter(sp => sp.productId === productId);
+  const countries = db.countries.filter(c => c !== 'china');
+  
+  // Calculate Boxleo fees per order
+  const remittances = db.remittances.filter(r => r.productId === productId);
+  const totalBoxleoFees = remittances.reduce((sum, r) => sum + (+r.boxleoFees || 0), 0);
+  const totalDeliveredOrders = remittances.reduce((sum, r) => sum + (+r.orders || 0), 0);
+  const boxleoPerOrder = totalDeliveredOrders > 0 ? totalBoxleoFees / totalDeliveredOrders : 0;
+  
+  const analysis = countries.map(country => {
+    const price = prices.find(p => p.country === country);
+    const productCosts = calculateProductCosts(db, productId, country);
+    
+    // FIXED: Ensure proper data mapping
+    const sellingPrice = price ? +price.price : 0;
+    const productCostChina = productCosts.chinaCostPerPiece || 0;
+    const shippingCost = productCosts.shippingCostPerPiece || 0;
+    
+    // NEW CALCULATION: Include Boxleo fees in total cost
+    const totalCost = productCostChina + shippingCost + boxleoPerOrder;
+    const availableForProfitAndAds = sellingPrice - totalCost;
+    
+    // Get delivery rate
+    const deliveryData = calculateProfitMetrics(db, productId, country, '2000-01-01', '2100-01-01');
+    const deliveryRate = deliveryData.deliveryRate || 0;
+    const maxCPL = deliveryRate > 0 ? availableForProfitAndAds * (deliveryRate / 100) : 0;
+
+    return {
+      country,
+      sellingPrice,
+      productCostChina,
+      shippingCost,
+      boxleoPerOrder,
+      totalCost,
+      availableForProfitAndAds,
+      deliveryRate,
+      maxCPL
+    };
+  });
+
+  res.json({
+    product,
+    prices: prices,
+    costAnalysis: analysis,
+    boxleoPerOrder: boxleoPerOrder,
+    totalBoxleoFees: totalBoxleoFees,
+    totalDeliveredOrders: totalDeliveredOrders
+  });
+});
+
+// Product Costs Analysis - FIXED FOR "ALL PRODUCTS"
+app.get('/api/product-costs-analysis', requireAuth, (req, res) => {
+  const db = loadDB();
+  const { productId, start, end } = req.query || {};
+  
+  // FIX: Handle "all" products case properly
+  let metrics;
+  if (productId === 'all') {
+    // Calculate aggregate metrics for all products
+    metrics = calculateProfitMetrics(db, null, null, start, end);
+    metrics.isAggregate = true;
+    metrics.productCount = db.products.length;
+  } else {
+    metrics = calculateProfitMetrics(db, productId, null, start, end);
+    metrics.isAggregate = false;
+    metrics.productCount = 1;
+  }
+  
+  res.json(metrics);
+});
+
+// Dashboard Data
+app.get('/api/dashboard/overview', requireAuth, (req, res) => {
+  const db = loadDB();
+  
+  const transitData = calculateTransitPieces(db);
+  const stockData = calculateActiveInactiveStock(db);
+  
+  // Calculate total stock by country (only active products)
+  const totalStockByCountry = {};
+  const activeProducts = db.products.filter(p => p.status === 'active');
+  
+  activeProducts.forEach(product => {
+    const stock = calculateProductStock(db, product.id);
+    Object.keys(stock).forEach(country => {
+      totalStockByCountry[country] = (totalStockByCountry[country] || 0) + stock[country];
+    });
+  });
+
+  // Calculate ad spend by country
+  const adSpendByCountry = {};
+  (db.adspend || []).forEach(ad => {
+    const product = db.products.find(p => p.id === ad.productId);
+    if (product && product.status === 'active') {
+      adSpendByCountry[ad.country] = (adSpendByCountry[ad.country] || 0) + (+ad.amount || 0);
+    }
+  });
+
+  res.json({
+    transitData,
+    stockData,
+    totalStockByCountry,
+    adSpendByCountry
+  });
+});
+
+// Snapshots
+app.get('/api/snapshots', requireAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ snapshots: db.snapshots || [] });
+});
+
+app.post('/api/snapshots', requireAuth, async (req, res) => {
+  try {
+    const db = loadDB();
+    const { name } = req.body || {};
+    
+    await fs.ensureDir(SNAPSHOT_DIR);
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const snapshotName = name || `Manual-${stamp}`;
+    const snapshotFileName = `${stamp}-${snapshotName.replace(/\s+/g, '-')}.json`;
+    
+    await fs.copy(DATA_FILE, path.join(SNAPSHOT_DIR, snapshotFileName));
+    
+    const snapshotEntry = {
+      id: uuidv4(),
+      name: snapshotName,
+      file: snapshotFileName,
+      createdAt: new Date().toISOString(),
+      kind: 'manual'
+    };
+    
+    db.snapshots = db.snapshots || [];
+    db.snapshots.unshift(snapshotEntry);
+    saveDB(db);
+    
+    res.json({ ok: true, snapshot: snapshotEntry });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/snapshots/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  db.snapshots = (db.snapshots || []).filter(s => s.id !== req.params.id);
+  saveDB(db);
+  res.json({ ok: true });
+});
+
+// Routes
+app.get('/product.html', (req, res) => res.sendFile(path.join(ROOT, 'product.html')));
+app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
+
+app.listen(PORT, async () => {
+  await createStartupBackup();
+  console.log('✅ EAS Tracker listening on', PORT);
+  console.log('DB:', DATA_FILE);
+}); snapshot.js const fs = require('fs-extra');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
+
+const ROOT = __dirname;
+const DATA_FILE = path.join(ROOT, 'db.json');
+const SNAPSHOT_DIR = path.join(ROOT, 'data', 'snapshots');
+
+async function createSnapshot(name = null) {
+  try {
+    await fs.ensureDir(SNAPSHOT_DIR);
+    
+    const db = await fs.readJson(DATA_FILE);
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const snapshotName = name || `Manual-${stamp}`;
+    const snapshotFile = path.join(SNAPSHOT_DIR, `${stamp}-${snapshotName.replace(/\s+/g, '_')}.json`);
+    
+    await fs.copy(DATA_FILE, snapshotFile);
+    
+    const snapshotEntry = {
+      id: uuidv4(),
+      name: snapshotName,
+      file: snapshotFile,
+      createdAt: new Date().toISOString(),
+      kind: 'manual'
+    };
+    
+    db.snapshots = db.snapshots || [];
+    db.snapshots.unshift(snapshotEntry);
+    await fs.writeJson(DATA_FILE, db, { spaces: 2 });
+    
+    console.log('✅ Snapshot created successfully!');
+    console.log(`📁 File: ${path.basename(snapshotFile)}`);
+    console.log(`📛 Name: ${snapshotName}`);
+    
+  } catch (error) {
+    console.error('❌ Error creating snapshot:', error.message);
+  }
+}
+
+async function listSnapshots() {
+  try {
+    const db = await fs.readJson(DATA_FILE);
+    const snapshots = db.snapshots || [];
+    
+    console.log('📸 Available Snapshots:');
+    console.log('='.repeat(50));
+    
+    if (snapshots.length === 0) {
+      console.log('No snapshots found.');
+      return;
+    }
+    
+    snapshots.forEach((snap, index) => {
+      console.log(`${index + 1}. ${snap.name}`);
+      console.log(`   File: ${path.basename(snap.file)}`);
+      console.log(`   Date: ${new Date(snap.createdAt).toLocaleString()}`);
+      console.log(`   ID: ${snap.id}`);
+      console.log('');
+    });
+    
+  } catch (error) {
+    console.error('❌ Error listing snapshots:', error.message);
+  }
+}
+
+async function main() {
+  const command = process.argv[2];
+  
+  switch (command) {
+    case 'create':
+    case 'c':
+      await createSnapshot(process.argv[3]);
+      break;
+      
+    case 'list':
+    case 'ls':
+      await listSnapshots();
+      break;
+      
+    case 'help':
+    case 'h':
+    case undefined:
+      console.log(`
+📸 EAS Tracker Snapshot Manager
+
+Usage:
+  node snapshot.js <command> [options]
+
+Commands:
+  create [name]    Create a new snapshot
+  list             List all available snapshots
+  help             Show this help message
+
+Examples:
+  node snapshot.js create
+  node snapshot.js create "Backup name"
+  node snapshot.js list
+      `);
+      break;
+      
+    default:
+      console.error('❌ Unknown command:', command);
+      console.log('Use "node snapshot.js help" for usage information.');
+  }
+}
+
+if (require.main === module) {
+  main().catch(console.error);
+}
+
+module.exports = { createSnapshot, listSnapshots }; On the dashboard on to do list and weekly to do list when i add a to do list and i access the website from different phone the to do list i did it before it appears only from the phone i did it from and browser i created it from and doesn’t appear from different phone or browser 
+
+And on products menu on all products section i want you to filter by default the products with most pieces in all countries and active and also add a filter to filter by most stock on each country so if i select Uganda for example it will appear products that have high stock at first and then go to low in stock and active also make each country columns on different  color
+
+
+And on performance menu on 📈 Remittance Analytics (🏆 Filtered By Top Delivered) and 💰 Profit by Country add new columns for profit per order and profit per piece 
+
+And on 📈 Remittance Analytics (🏆 Filtered By Top Delivered) section i want you filter by default for products with most profit and most delivered pieces at the same time and also add option to filter by whatever I want for example i can click on the orders column and orders will appear from high to low and if i click again it will be from low to high and same thing for all columns 
+
+Also on 📈 Remittance Analytics (🏆 Filtered By Top Delivered) section and 💰 Profit by Country i want you to make each column on different color feel free to select the colors 
+
+
+Also i can see that all of the system logic when it comes to product cost and shipping is incorrect so on these sections 📈 Remittance Analytics (🏆 Filtered By Top Delivered) on performance menu and 💰 Profit by Country on performance menu and 📋 Product Info & Analytics on products menu so these sections correct the logic on them so on product cost you will see how much we paid in total for all pieces in that product to buy it from china ( we add it when we create a stock movement ) so like that you will know product cost and for shipping you will see how much it cost to reach that country so for example if we sent 100 pieces from China to kenya for 200$ the cost will be 2$ per piece in kenya for what product and if we sent it from kenya to Tanzania 50 pieces of the same product for 150$ so that means we shipped for 3$ from kenya to tanzania so the total cost of shipping until tanzania per piece will be  2$ ( shipping from china to kenya ) + 3$( cost to ship a piece from kenya to tanzania )  = 5$ 
+Total shipping for each piece in tanzania of that product is 5$ 
+And also if i send from tanzania to zambia for example 25 pieces of that product for 50$ that means 2$ per piece to ship from tanzania to zambia so the total shipping per piece is 5$ + 2$ ‎ = $7,00 so the 5$ is total shipping until tanzania and 2$ is to ship from tanzania to zambia so the total is 7$ of shipping until Zambia so you will always follow those pieces since beginning until end and keep staking cost to ship it to give accurate cost of shipping
+
+So please please use that logic on the sections i told you only  
+
+And for the section on performance menu 💰 Lifetime Product Costs Analysis and Lifetime (This Product) section on product page those both sections they will use different logic so on product cost the shipping you will add there just how much we paid for the shipments in that period so lets say in 18th of October i created a shipment movement from china to kenya of 400 pieces of a product and i added i paid for that product 3000$ on product cost china and for shipping from china to kenya i added 4000$ so immediately it will show on those 2 sections if i select that period of 18th of October immediately will show 3000$ on product cost and 4000$ on shipping even tho still havent sold any piece of it so those 2 will not be attached to the remittance and you will not see those delivered piece how much we paid on them No big no just use the logic i told you because i want to see how much am paying and keep track on that and for boxleo fees and influencer spend and  advertising spend it will be like before from the remittance in that period i select 
+
+So please do what i told you and send me file structure and if a file need to be edited dont tell me add this code on it send it full to me fixed with all codes and keep in mind i have so many entires and data on my system please be aware of that so that when you do those edits i will not lose anything i have this system already deployed on render and i have the files on github and i already did the disk backup so that i will not lose anything on deployment am just letting you know so that when you do the edits you will bot messup anything and please first tell me all what you’re going to do then start sending what you’re going to send
