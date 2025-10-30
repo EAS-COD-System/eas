@@ -1623,11 +1623,13 @@ async function renderAdvertisingOverview() {
 
         container.innerHTML = html || '<div class="card"><div class="muted">No advertising data yet</div></div>';
         
-        // Add click handlers for editable badges
-        container.addEventListener('click', (e) => {
-          if (e.target.classList.contains('editable')) {
-            editAdSpendEntry(e.target);
-          }
+        // Add click handlers for editable badges - FIXED to prevent double popups
+        const badges = container.querySelectorAll('.platform-badge.editable');
+        badges.forEach(badge => {
+          badge.addEventListener('click', (e) => {
+            e.stopPropagation();
+            editAdSpendEntry(badge);
+          }, { once: true }); // Use once to prevent multiple listeners
         });
         
         resolve();
@@ -1643,14 +1645,18 @@ async function renderAdvertisingOverview() {
   });
 }
 
-// Edit ad spend entry function
+// Edit ad spend entry function - FIXED to prevent double popups
 function editAdSpendEntry(badge) {
-  const entryId = badge.dataset.id;
-  const currentAmount = badge.dataset.amount;
-  const platform = badge.dataset.platform;
-  const date = badge.dataset.date;
-  const productId = badge.dataset.product;
-  const country = badge.dataset.country;
+  // Remove any existing event listeners to prevent duplicates
+  const newBadge = badge.cloneNode(true);
+  badge.parentNode.replaceChild(newBadge, badge);
+  
+  const entryId = newBadge.dataset.id;
+  const currentAmount = newBadge.dataset.amount;
+  const platform = newBadge.dataset.platform;
+  const date = newBadge.dataset.date;
+  const productId = newBadge.dataset.product;
+  const country = newBadge.dataset.country;
   
   const newAmount = prompt(`Edit ${platform} spend for ${date}:`, currentAmount);
   
@@ -2425,7 +2431,7 @@ async function renderShipmentTables() {
   }
 }
 
-// Update the renderShipmentTable function to include all 4 buttons
+// FIXED: Enhanced renderShipmentTable function with proper event delegation
 function renderShipmentTable(selector, shipments, showChinaCost) {
   const tbody = Q(selector);
   if (!tbody) return;
@@ -2465,15 +2471,18 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
     `;
   }).join('');
 
-  // Enhanced event listeners for shipment actions
-  tbody.onclick = async (e) => {
-    const id = e.target.dataset?.id;
+  // FIXED: Enhanced event listeners with proper event delegation
+  tbody.addEventListener('click', async (e) => {
+    const button = e.target.closest('button');
+    if (!button) return;
+    
+    const id = button.dataset.id;
     if (!id) return;
 
     const shipment = state.allShipments.find(s => s.id === id);
     if (!shipment) return;
 
-    if (e.target.classList.contains('act-arrive')) {
+    if (button.classList.contains('act-arrive')) {
       await api(`/api/shipments/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ arrivedAt: isoToday() })
@@ -2483,7 +2492,7 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
       renderCompactKpis();
     }
 
-    if (e.target.classList.contains('act-pay')) {
+    if (button.classList.contains('act-pay')) {
       const finalCost = prompt('Enter final shipping cost:');
       if (finalCost && !isNaN(finalCost)) {
         await api(`/api/shipments/${id}/mark-paid`, {
@@ -2494,11 +2503,11 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
       }
     }
 
-    if (e.target.classList.contains('act-edit')) {
+    if (button.classList.contains('act-edit')) {
       editShipment(shipment);
     }
 
-    if (e.target.classList.contains('act-del-ship')) {
+    if (button.classList.contains('act-del-ship')) {
       if (confirm('Delete this shipment?')) {
         await api(`/api/shipments/${id}`, { method: 'DELETE' });
         renderShipmentTables();
@@ -2506,7 +2515,7 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
         renderCompactKpis();
       }
     }
-  };
+  });
 }
 
 // Edit shipment function
@@ -3084,6 +3093,9 @@ function renderProductPage() {
   renderProductProfitBudgets();
   renderProductShipments();
   renderProductLifetimePerformance();
+  renderProductRemittances();
+  renderProductRefunds();
+  renderProductStoreOrders();
   
   fillProductPageSelects();
 }
@@ -3289,11 +3301,14 @@ function renderProductArrivedShipments(shipments) {
   }).join('');
 
   // Add event listeners
-  tbody.onclick = async (e) => {
-    const id = e.target.dataset?.id;
+  tbody.addEventListener('click', async (e) => {
+    const button = e.target.closest('button');
+    if (!button) return;
+    
+    const id = button.dataset.id;
     if (!id) return;
 
-    if (e.target.classList.contains('act-pay')) {
+    if (button.classList.contains('act-pay')) {
       const finalCost = prompt('Enter final shipping cost:');
       if (finalCost && !isNaN(finalCost)) {
         await api(`/api/shipments/${id}/mark-paid`, {
@@ -3304,13 +3319,13 @@ function renderProductArrivedShipments(shipments) {
       }
     }
 
-    if (e.target.classList.contains('act-del-ship')) {
+    if (button.classList.contains('act-del-ship')) {
       if (confirm('Delete this shipment?')) {
         await api(`/api/shipments/${id}`, { method: 'DELETE' });
         renderProductShipments();
       }
     }
-  };
+  });
 }
 
 function renderProductTransitShipments(selector, shipments, showChinaCost) {
@@ -3348,11 +3363,14 @@ function renderProductTransitShipments(selector, shipments, showChinaCost) {
   }).join('');
 
   // Add event listeners
-  tbody.onclick = async (e) => {
-    const id = e.target.dataset?.id;
+  tbody.addEventListener('click', async (e) => {
+    const button = e.target.closest('button');
+    if (!button) return;
+    
+    const id = button.dataset.id;
     if (!id) return;
 
-    if (e.target.classList.contains('act-arrive')) {
+    if (button.classList.contains('act-arrive')) {
       await api(`/api/shipments/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ arrivedAt: isoToday() })
@@ -3360,7 +3378,7 @@ function renderProductTransitShipments(selector, shipments, showChinaCost) {
       renderProductShipments();
     }
 
-    if (e.target.classList.contains('act-pay')) {
+    if (button.classList.contains('act-pay')) {
       const finalCost = prompt('Enter final shipping cost:');
       if (finalCost && !isNaN(finalCost)) {
         await api(`/api/shipments/${id}/mark-paid`, {
@@ -3371,13 +3389,13 @@ function renderProductTransitShipments(selector, shipments, showChinaCost) {
       }
     }
 
-    if (e.target.classList.contains('act-del-ship')) {
+    if (button.classList.contains('act-del-ship')) {
       if (confirm('Delete this shipment?')) {
         await api(`/api/shipments/${id}`, { method: 'DELETE' });
         renderProductShipments();
       }
     }
-  };
+  });
 }
 
 function renderProductLifetimePerformance() {
@@ -3449,6 +3467,121 @@ function renderProductLifetimePerformanceResults(metrics) {
   updateTotal('#pdLPProfitPieceT', `$${fmt(metrics.profitPerPiece)}`);
   updateTotal('#pdLPDeliveryRateT', `${fmt(metrics.deliveryRate)}%`);
   updateTotal('#pdLPProfitT', metrics.profit);
+}
+
+// NEW: Render product remittances
+function renderProductRemittances() {
+  const tbody = Q('#pdRemittancesBody');
+  if (!tbody) return;
+
+  api('/api/remittances').then(data => {
+    const remittances = data.remittances.filter(r => r.productId === state.productId);
+    
+    if (remittances.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="muted">No remittances found</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = remittances.map(remittance => `
+      <tr>
+        <td>${remittance.start} to ${remittance.end}</td>
+        <td>${remittance.country}</td>
+        <td>${fmt(remittance.orders)}</td>
+        <td>${fmt(remittance.pieces)}</td>
+        <td>$${fmt(remittance.revenue)}</td>
+        <td>$${fmt(remittance.adSpend)}</td>
+        <td>$${fmt(remittance.boxleoFees)}</td>
+        <td>
+          <button class="btn small outline act-del-remittance" data-id="${remittance.id}">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+
+    // Add delete handlers
+    tbody.addEventListener('click', async (e) => {
+      if (e.target.classList.contains('act-del-remittance')) {
+        if (confirm('Delete this remittance?')) {
+          await api(`/api/remittances/${e.target.dataset.id}`, { method: 'DELETE' });
+          renderProductRemittances();
+        }
+      }
+    });
+  }).catch(console.error);
+}
+
+// NEW: Render product refunds
+function renderProductRefunds() {
+  const tbody = Q('#pdRefundsBody');
+  if (!tbody) return;
+
+  api('/api/refunds').then(data => {
+    const refunds = data.refunds.filter(r => r.productId === state.productId);
+    
+    if (refunds.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="muted">No refunds found</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = refunds.map(refund => `
+      <tr>
+        <td>${refund.date}</td>
+        <td>${refund.country}</td>
+        <td>${fmt(refund.orders)}</td>
+        <td>${fmt(refund.pieces)}</td>
+        <td>$${fmt(refund.amount)}</td>
+        <td>${refund.reason || '-'}</td>
+        <td>
+          <button class="btn small outline act-del-refund" data-id="${refund.id}">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+
+    // Add delete handlers
+    tbody.addEventListener('click', async (e) => {
+      if (e.target.classList.contains('act-del-refund')) {
+        if (confirm('Delete this refund?')) {
+          await api(`/api/refunds/${e.target.dataset.id}`, { method: 'DELETE' });
+          renderProductRefunds();
+        }
+      }
+    });
+  }).catch(console.error);
+}
+
+// NEW: Render product store orders
+function renderProductStoreOrders() {
+  const tbody = Q('#pdStoreOrdersBody');
+  if (!tbody) return;
+
+  api('/api/product-orders').then(data => {
+    const orders = data.orders.filter(o => o.productId === state.productId);
+    
+    if (orders.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="muted">No store orders found</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = orders.map(order => `
+      <tr>
+        <td>${order.startDate} to ${order.endDate}</td>
+        <td>${order.country}</td>
+        <td>${fmt(order.orders)}</td>
+        <td>
+          <button class="btn small outline act-del-order" data-id="${order.id}">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+
+    // Add delete handlers
+    tbody.addEventListener('click', async (e) => {
+      if (e.target.classList.contains('act-del-order')) {
+        if (confirm('Delete this order entry?')) {
+          await api(`/api/product-orders/${e.target.dataset.id}`, { method: 'DELETE' });
+          renderProductStoreOrders();
+        }
+      }
+    });
+  }).catch(console.error);
 }
 
 function fillProductPageSelects() {
