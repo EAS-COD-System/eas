@@ -33,133 +33,6 @@ async function api(path, opts = {}) {
   }
 }
 
-// Enhanced calculation functions
-async function calculateEnhancedProductCosts(productId, country) {
-  try {
-    const shipments = await api('/api/shipments');
-    const productShipments = shipments.shipments.filter(s => s.productId === productId && s.arrivedAt);
-    
-    let totalProductCost = 0;
-    let totalShippingCost = 0;
-    let totalPieces = 0;
-    
-    // Function to calculate shipping cost for a specific country
-    function calculateShippingToCountry(targetCountry) {
-      let shippingCostPerPiece = 0;
-      
-      // Find all shipment paths that lead to this country
-      function traceShipmentPath(currentCountry, accumulatedCost = 0) {
-        const incomingShipments = productShipments.filter(s => s.toCountry === currentCountry);
-        
-        incomingShipments.forEach(shipment => {
-          const pieces = +shipment.qty || 0;
-          const shipCost = +shipment.shipCost || 0;
-          const costPerPiece = shipCost / pieces;
-          
-          if (shipment.fromCountry === 'china') {
-            // This is direct from China
-            shippingCostPerPiece = accumulatedCost + costPerPiece;
-          } else {
-            // This is inter-country, trace back
-            traceShipmentPath(shipment.fromCountry, accumulatedCost + costPerPiece);
-          }
-        });
-      }
-      
-      traceShipmentPath(targetCountry, 0);
-      return shippingCostPerPiece;
-    }
-    
-    // Calculate product cost from China shipments
-    const chinaShipments = productShipments.filter(s => s.fromCountry === 'china');
-    chinaShipments.forEach(shipment => {
-      const pieces = +shipment.qty || 0;
-      const chinaCost = +shipment.chinaCost || 0;
-      const costPerPiece = chinaCost / pieces;
-      
-      totalProductCost += chinaCost;
-      totalPieces += pieces;
-    });
-    
-    const avgProductCostPerPiece = totalPieces > 0 ? totalProductCost / totalPieces : 0;
-    const shippingCostPerPiece = calculateShippingToCountry(country);
-    
-    return {
-      productCostPerPiece: avgProductCostPerPiece,
-      shippingCostPerPiece: shippingCostPerPiece,
-      totalCostPerPiece: avgProductCostPerPiece + shippingCostPerPiece
-    };
-  } catch (error) {
-    console.error('Error calculating enhanced costs:', error);
-    return { productCostPerPiece: 0, shippingCostPerPiece: 0, totalCostPerPiece: 0 };
-  }
-}
-
-// Enhanced profit calculation for analytics
-async function calculateEnhancedProfitMetrics(productId, country, startDate, endDate) {
-  try {
-    const costs = await calculateEnhancedProductCosts(productId, country);
-    const remittances = await api('/api/remittances');
-    const refunds = await api('/api/refunds');
-    const adspend = await api('/api/adspend');
-    
-    // Filter data by date range and product/country
-    const filteredRemittances = remittances.remittances.filter(r => 
-      r.productId === productId && 
-      r.country === country &&
-      (!startDate || r.start >= startDate) &&
-      (!endDate || r.end <= endDate)
-    );
-    
-    const filteredRefunds = refunds.refunds.filter(rf =>
-      rf.productId === productId &&
-      rf.country === country &&
-      (!startDate || rf.date >= startDate) &&
-      (!endDate || rf.date <= endDate)
-    );
-    
-    const filteredAdspend = adspend.adSpends.filter(ad =>
-      ad.productId === productId &&
-      ad.country === country &&
-      (!startDate || ad.date >= startDate) &&
-      (!endDate || ad.date <= endDate)
-    );
-    
-    // Calculate totals
-    const totalRevenue = filteredRemittances.reduce((sum, r) => sum + (+r.revenue || 0), 0);
-    const totalRefundedAmount = filteredRefunds.reduce((sum, rf) => sum + (+rf.amount || 0), 0);
-    const totalAdSpend = filteredAdspend.reduce((sum, ad) => sum + (+ad.amount || 0), 0);
-    const totalBoxleoFees = filteredRemittances.reduce((sum, r) => sum + (+r.boxleoFees || 0), 0);
-    const totalDeliveredPieces = filteredRemittances.reduce((sum, r) => sum + (+r.pieces || 0), 0);
-    const totalDeliveredOrders = filteredRemittances.reduce((sum, r) => sum + (+r.orders || 0), 0);
-    
-    // Calculate costs using enhanced logic
-    const totalProductCost = totalDeliveredPieces * costs.productCostPerPiece;
-    const totalShippingCost = totalDeliveredPieces * costs.shippingCostPerPiece;
-    
-    const totalCost = totalProductCost + totalShippingCost + totalAdSpend + totalBoxleoFees;
-    const profit = (totalRevenue - totalRefundedAmount) - totalCost;
-    
-    return {
-      totalRevenue: totalRevenue - totalRefundedAmount,
-      totalAdSpend,
-      totalBoxleoFees,
-      totalProductChinaCost: totalProductCost,
-      totalShippingCost: totalShippingCost,
-      totalCost,
-      profit,
-      totalDeliveredPieces,
-      totalDeliveredOrders,
-      productCostPerPiece: costs.productCostPerPiece,
-      shippingCostPerPiece: costs.shippingCostPerPiece,
-      isProfitable: profit > 0
-    };
-  } catch (error) {
-    console.error('Error calculating enhanced profit metrics:', error);
-    return null;
-  }
-}
-
 const state = {
   productId: getQuery('id'),
   countries: [],
@@ -571,7 +444,8 @@ async function calculateStockByCountry(productId = null) {
 }
 
 async function renderCountryStockSpend() {
-  const body = Q('#stockByCountryBody'); if (!body) return;
+  const body = Q('#stockByCountryBody');
+  if (!body) return;
   body.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
 
   try {
