@@ -1,4 +1,4 @@
- /* ================================================================
+/* ================================================================
    EAS Tracker – Frontend (Complete Rebuild)
    ================================================================ */
 
@@ -47,9 +47,12 @@ const state = {
   currentRemittancesPage: 1,
   currentRefundsPage: 1,
   allShipments: [],
-  // Add these new properties for products pagination and search
   currentProductsPage: 1,
-  productsSearchTerm: ''
+  productsSearchTerm: '',
+  productsSortBy: 'pieces',
+  productsCountryFilter: '',
+  remittanceSortBy: 'profit_pieces',
+  remittanceSortOrder: 'desc'
 };
 
 async function boot() {
@@ -342,7 +345,7 @@ function getDateRange(container) {
 function renderDashboardPage() {
   renderCompactKpis();
   renderCountryStockSpend();
-  bindDailyAdSpend(); // FIXED: Now includes date field
+  bindDailyAdSpend();
   renderWeeklyDelivered();
   initBrainstorming();
   initTodos();
@@ -496,13 +499,12 @@ async function renderCountryStockSpend() {
   }
 }
 
-// FIXED: Added date field to daily ad spend and auto-refresh advertising overview
 function bindDailyAdSpend() {
   const btn = Q('#adSave');
   if (!btn) return;
   btn.onclick = async () => {
     const payload = {
-      date: isoToday(), // FIXED: Add current date
+      date: isoToday(),
       productId: Q('#adProduct')?.value,
       country: Q('#adCountry')?.value,
       platform: Q('#adPlatform')?.value,
@@ -514,12 +516,10 @@ function bindDailyAdSpend() {
       await renderCountryStockSpend();
       await renderCompactKpis();
       
-      // Refresh the advertising overview immediately
       await renderAdvertisingOverview();
       
       alert('Ad spend saved');
       
-      // Clear the form
       Q('#adAmount').value = '';
     } catch (e) { alert(e.message); }
   };
@@ -695,67 +695,163 @@ function initBrainstorming() {
   }
 }
 
+// ======== ENHANCED TODO SYSTEM WITH CLOUD SYNC ========
 function initTodos() {
-  const KEY = 'eas_todos', WKEY = 'eas_weekly';
-  const load = k => safeJSON(localStorage.getItem(k)) || (k === WKEY ? {} : []);
-  const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+  const loadTodos = async () => {
+    try {
+      const response = await api('/api/todos');
+      return response.todos || [];
+    } catch (error) {
+      console.error('Failed to load todos:', error);
+      return [];
+    }
+  };
 
-  const listEl = Q('#todoList'); const addBtn = Q('#todoAdd');
-  function renderQuick() {
-    const arr = load(KEY);
-    listEl.innerHTML = arr.map(t => `<div class="flex">
-      <span>${t.done ? '✅ ' : ''}${t.text}</span>
-      <button class="btn outline" data-done="${t.id}">${t.done ? 'Undo' : 'Done'}</button>
-      <button class="btn outline" data-del="${t.id}">Delete</button>
-    </div>`).join('') || '<div class="muted">No tasks</div>';
-  }
-  addBtn?.addEventListener('click', () => {
-    const v = Q('#todoText')?.value.trim(); if (!v) return;
-    const arr = load(KEY); arr.push({ id: crypto.randomUUID(), text: v, done: false }); save(KEY, arr); Q('#todoText').value = ''; renderQuick();
+  const saveTodos = async (todos) => {
+    try {
+      await api('/api/todos', {
+        method: 'POST',
+        body: JSON.stringify({ todos })
+      });
+    } catch (error) {
+      console.error('Failed to save todos:', error);
+    }
+  };
+
+  const loadWeeklyTodos = async () => {
+    try {
+      const response = await api('/api/weekly-todos');
+      return response.weeklyTodos || {};
+    } catch (error) {
+      console.error('Failed to load weekly todos:', error);
+      return {};
+    }
+  };
+
+  const saveWeeklyTodos = async (weeklyTodos) => {
+    try {
+      await api('/api/weekly-todos', {
+        method: 'POST',
+        body: JSON.stringify({ weeklyTodos })
+      });
+    } catch (error) {
+      console.error('Failed to save weekly todos:', error);
+    }
+  };
+
+  // Quick Todos
+  const listEl = Q('#todoList');
+  const addBtn = Q('#todoAdd');
+
+  const renderQuickTodos = async () => {
+    const todos = await loadTodos();
+    listEl.innerHTML = todos.map(t => `
+      <div class="flex">
+        <span>${t.done ? '✅ ' : ''}${t.text}</span>
+        <button class="btn outline" data-done="${t.id}">${t.done ? 'Undo' : 'Done'}</button>
+        <button class="btn outline" data-del="${t.id}">Delete</button>
+      </div>
+    `).join('') || '<div class="muted">No tasks</div>';
+  };
+
+  addBtn?.addEventListener('click', async () => {
+    const v = Q('#todoText')?.value.trim();
+    if (!v) return;
+    
+    const todos = await loadTodos();
+    todos.push({ id: crypto.randomUUID(), text: v, done: false });
+    
+    await saveTodos(todos);
+    Q('#todoText').value = '';
+    await renderQuickTodos();
   });
-  listEl?.addEventListener('click', (e) => {
+
+  listEl?.addEventListener('click', async (e) => {
+    const todos = await loadTodos();
+    
     if (e.target.dataset.done) {
-      const arr = load(KEY);
-      const it = arr.find(x => x.id === e.target.dataset.done);
-      it.done = !it.done; save(KEY, arr); renderQuick();
+      const todo = todos.find(x => x.id === e.target.dataset.done);
+      if (todo) {
+        todo.done = !todo.done;
+        await saveTodos(todos);
+        await renderQuickTodos();
+      }
     }
+    
     if (e.target.dataset.del) {
-      const arr = load(KEY);
-      const idx = arr.findIndex(x => x.id === e.target.dataset.del); arr.splice(idx, 1); save(KEY, arr); renderQuick();
+      const filteredTodos = todos.filter(x => x.id !== e.target.dataset.del);
+      await saveTodos(filteredTodos);
+      await renderQuickTodos();
     }
   });
-  renderQuick();
 
+  // Weekly Todos
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const wrap = Q('#weeklyWrap');
-  function renderWeekly() {
-    const data = load(WKEY);
+
+  const renderWeeklyTodos = async () => {
+    const weeklyTodos = await loadWeeklyTodos();
+    
     wrap.innerHTML = days.map(d => {
-      const arr = data[d] || [];
-      return `<div class="card">
-        <div class="h">${d}</div>
-        <div class="row"><input id="w_${d}" class="input" placeholder="Task"/><button class="btn" data-add="${d}">Add</button></div>
-        <div class="list">${arr.map(t => `<div class="flex"><span>${t.done ? '✅ ' : ''}${t.text}</span>
-          <button class="btn outline" data-tgl="${d}|${t.id}">${t.done ? 'Undo' : 'Done'}</button>
-          <button class="btn outline" data-del="${d}|${t.id}">Delete</button>
-        </div>`).join('')}</div>
-      </div>`;
+      const dayTodos = weeklyTodos[d] || [];
+      return `
+        <div class="card">
+          <div class="h">${d}</div>
+          <div class="row">
+            <input id="w_${d}" class="input" placeholder="Task"/>
+            <button class="btn" data-add="${d}">Add</button>
+          </div>
+          <div class="list">
+            ${dayTodos.map(t => `
+              <div class="flex">
+                <span>${t.done ? '✅ ' : ''}${t.text}</span>
+                <button class="btn outline" data-tgl="${d}|${t.id}">${t.done ? 'Undo' : 'Done'}</button>
+                <button class="btn outline" data-del="${d}|${t.id}">Delete</button>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
     }).join('');
-  }
-  wrap?.addEventListener('click', (e) => {
-    const data = load(WKEY);
+  };
+
+  wrap?.addEventListener('click', async (e) => {
+    const weeklyTodos = await loadWeeklyTodos();
+    
     if (e.target.dataset.add) {
-      const d = e.target.dataset.add, v = Q('#w_' + d)?.value.trim(); if (!v) return;
-      data[d] = data[d] || []; data[d].push({ id: crypto.randomUUID(), text: v, done: false }); save(WKEY, data); renderWeekly();
+      const day = e.target.dataset.add;
+      const v = Q(`#w_${day}`)?.value.trim();
+      if (!v) return;
+      
+      if (!weeklyTodos[day]) weeklyTodos[day] = [];
+      weeklyTodos[day].push({ id: crypto.randomUUID(), text: v, done: false });
+      
+      await saveWeeklyTodos(weeklyTodos);
+      Q(`#w_${day}`).value = '';
+      await renderWeeklyTodos();
     }
+    
     if (e.target.dataset.tgl) {
-      const [d, id] = e.target.dataset.tgl.split('|'); const it = (data[d] || []).find(x => x.id === id); it.done = !it.done; save(WKEY, data); renderWeekly();
+      const [day, id] = e.target.dataset.tgl.split('|');
+      const todo = (weeklyTodos[day] || []).find(x => x.id === id);
+      if (todo) {
+        todo.done = !todo.done;
+        await saveWeeklyTodos(weeklyTodos);
+        await renderWeeklyTodos();
+      }
     }
+    
     if (e.target.dataset.del) {
-      const [d, id] = e.target.dataset.del.split('|'); const arr = (data[d] || []); const i = arr.findIndex(x => x.id === id); arr.splice(i, 1); data[d] = arr; save(WKEY, data); renderWeekly();
+      const [day, id] = e.target.dataset.del.split('|');
+      weeklyTodos[day] = (weeklyTodos[day] || []).filter(x => x.id !== id);
+      await saveWeeklyTodos(weeklyTodos);
+      await renderWeeklyTodos();
     }
   });
-  renderWeekly();
+
+  // Initial render
+  renderQuickTodos();
+  renderWeeklyTodos();
 }
 
 function initTestedProducts() {
@@ -869,22 +965,23 @@ function renderProductsPage() {
     renderAdvertisingOverview();
     initDateRangeSelectors();
 
-    // Initialize products table with pagination - only if products exist
+    // Initialize products table with enhanced filtering
     if (state.products && state.products.length > 0) {
       state.currentProductsPage = 1;
       state.productsSearchTerm = '';
-      // Add search functionality
+      state.productsSortBy = 'pieces';
+      state.productsCountryFilter = '';
+      
       initProductSearch();
+      initProductFilters();
       renderProductsTable();
     } else {
-      // If no products, show empty state
       const tb = Q('#productsTable tbody');
       if (tb) {
         tb.innerHTML = '<tr><td colspan="20" class="muted">No products found. Add your first product above.</td></tr>';
       }
     }
 
-    // FIXED: Updated product addition with immediate refresh
     Q('#pAdd')?.addEventListener('click', async () => {
       const p = {
         name: Q('#pName')?.value.trim(),
@@ -895,19 +992,15 @@ function renderProductsPage() {
       try {
         await api('/api/products', { method: 'POST', body: JSON.stringify(p) });
         
-        // Refresh the data and re-render
         await preload();
         
-        // Clear the form
         Q('#pName').value = '';
         Q('#pSku').value = '';
         
-        // Re-render all product-related components
         renderProductsTable();
         renderCompactCountryStats();
         renderAdvertisingOverview();
         
-        // Also update the product dropdowns
         fillCommonSelects();
         
         alert('Product added');
@@ -939,7 +1032,7 @@ function renderProductsPage() {
   }
 }
 
-// Product Search Functionality
+// Enhanced Product Search and Filtering
 function initProductSearch() {
   try {
     const searchInput = Q('#productSearch');
@@ -947,7 +1040,6 @@ function initProductSearch() {
     
     if (!searchInput) return;
 
-    // Real-time search with debouncing
     let searchTimeout;
     searchInput.addEventListener('input', (e) => {
       clearTimeout(searchTimeout);
@@ -958,7 +1050,6 @@ function initProductSearch() {
       }, 300);
     });
 
-    // Clear search
     clearBtn?.addEventListener('click', () => {
       searchInput.value = '';
       state.productsSearchTerm = '';
@@ -966,7 +1057,6 @@ function initProductSearch() {
       renderProductsTable();
     });
 
-    // Enter key to search
     searchInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
         state.productsSearchTerm = e.target.value.toLowerCase().trim();
@@ -979,7 +1069,36 @@ function initProductSearch() {
   }
 }
 
-// Filter products based on search term
+function initProductFilters() {
+  try {
+    const sortSelect = Q('#productsSort');
+    const countrySelect = Q('#productsCountryFilter');
+    
+    if (!sortSelect || !countrySelect) return;
+
+    // Populate country filter
+    countrySelect.innerHTML = `
+      <option value="">All Countries</option>
+      ${state.countries.map(country => `<option value="${country}">${country}</option>`).join('')}
+    `;
+
+    sortSelect.addEventListener('change', (e) => {
+      state.productsSortBy = e.target.value;
+      state.currentProductsPage = 1;
+      renderProductsTable();
+    });
+
+    countrySelect.addEventListener('change', (e) => {
+      state.productsCountryFilter = e.target.value;
+      state.currentProductsPage = 1;
+      renderProductsTable();
+    });
+
+  } catch (error) {
+    console.error('Error in initProductFilters:', error);
+  }
+}
+
 function filterProducts(products, searchTerm) {
   if (!products || !Array.isArray(products)) return [];
   if (!searchTerm) return products;
@@ -990,29 +1109,46 @@ function filterProducts(products, searchTerm) {
   );
 }
 
-function renderProductsTable() {
+async function renderProductsTable() {
   try {
     const tb = Q('#productsTable tbody'); 
     const thead = Q('#productsTable thead tr');
     const searchInfo = Q('#searchResultsInfo');
     if (!tb || !thead) return;
 
-    // Check if products exist
     if (!state.products || !Array.isArray(state.products)) {
       tb.innerHTML = '<tr><td colspan="20" class="muted">Loading products...</td></tr>';
       return;
     }
 
-    // Filter products based on search term
-    const filteredProducts = filterProducts(state.products, state.productsSearchTerm);
-    
+    // Get products with sorting and filtering
+    const params = new URLSearchParams({
+      sortBy: state.productsSortBy,
+      country: state.productsCountryFilter
+    });
+
+    const response = await api(`/api/products?${params}`);
+    let filteredProducts = response.products || [];
+
+    // Apply client-side search filter
+    if (state.productsSearchTerm) {
+      filteredProducts = filterProducts(filteredProducts, state.productsSearchTerm);
+    }
+
     // Update search results info
     if (searchInfo) {
+      let infoText = `Showing ${filteredProducts.length} products`;
       if (state.productsSearchTerm) {
-        searchInfo.textContent = `Found ${filteredProducts.length} products matching "${state.productsSearchTerm}"`;
-      } else {
-        searchInfo.textContent = `Showing all ${filteredProducts.length} products`;
+        infoText += ` matching "${state.productsSearchTerm}"`;
       }
+      if (state.productsSortBy === 'pieces') {
+        infoText += ' (sorted by most pieces)';
+      } else if (state.productsSortBy === 'profit') {
+        infoText += ' (sorted by most profit)';
+      } else if (state.productsSortBy === 'stock' && state.productsCountryFilter) {
+        infoText += ` (sorted by stock in ${state.productsCountryFilter})`;
+      }
+      searchInfo.textContent = infoText;
     }
 
     // Pagination
@@ -1022,7 +1158,7 @@ function renderProductsTable() {
     const endIndex = startIndex + productsPerPage;
     const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
 
-    // Build table header
+    // Build table header with colored country columns
     let headerHTML = `
       <th>Name</th>
       <th>SKU</th>
@@ -1033,10 +1169,21 @@ function renderProductsTable() {
     `;
 
     if (state.countries && Array.isArray(state.countries)) {
+      const countryColors = {
+        'kenya': '#e8f5e8',
+        'tanzania': '#e8f0f8', 
+        'uganda': '#f8f0e8',
+        'zambia': '#f0e8f8',
+        'zimbabwe': '#f8e8e8'
+      };
+
       state.countries.forEach(country => {
         if (country !== 'china') {
-          headerHTML += `<th>${country.charAt(0).toUpperCase() + country.slice(1)} Stock</th>`;
-          headerHTML += `<th>${country.charAt(0).toUpperCase() + country.slice(1)} Ad Spend</th>`;
+          const color = countryColors[country] || '#f8f8f8';
+          headerHTML += `
+            <th style="background-color: ${color};">${country.charAt(0).toUpperCase() + country.slice(1)} Stock</th>
+            <th style="background-color: ${color};">${country.charAt(0).toUpperCase() + country.slice(1)} Ad Spend</th>
+          `;
         }
       });
     }
@@ -1072,13 +1219,22 @@ function renderProductsTable() {
         `;
 
         if (state.countries && Array.isArray(state.countries)) {
+          const countryColors = {
+            'kenya': '#f0f8f0',
+            'tanzania': '#f0f5ff',
+            'uganda': '#fff8f0',
+            'zambia': '#f8f0ff',
+            'zimbabwe': '#fff0f0'
+          };
+
           state.countries.forEach(country => {
             if (country !== 'china') {
+              const color = countryColors[country] || '#f8f8f8';
               const stock = p.stockByCountry?.[country] || 0;
               const adSpend = p.adSpendByCountry?.[country] || 0;
               rowHTML += `
-                <td>${fmt(stock)}</td>
-                <td>${fmt(adSpend)}</td>
+                <td style="background-color: ${color};">${fmt(stock)}</td>
+                <td style="background-color: ${color};">${fmt(adSpend)}</td>
               `;
             }
           });
@@ -1097,10 +1253,8 @@ function renderProductsTable() {
       }).join('');
     }
 
-    // Render pagination
     renderProductsPagination(filteredProducts.length, productsPerPage);
 
-    // Add event listeners for product actions
     tb.onclick = async (e) => {
       const id = e.target.dataset?.id; 
       if (!id) return;
@@ -1130,7 +1284,6 @@ function renderProductsTable() {
   }
 }
 
-// Products Pagination
 function renderProductsPagination(totalItems, itemsPerPage) {
   try {
     const container = Q('#productsPagination');
@@ -1159,14 +1312,12 @@ function renderProductsPagination(totalItems, itemsPerPage) {
 
     container.innerHTML = html;
 
-    // Add pagination event listeners
     container.addEventListener('click', (e) => {
       if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
         const page = parseInt(e.target.dataset.page);
         state.currentProductsPage = page;
         renderProductsTable();
         
-        // Scroll to top of table
         const table = Q('#productsTable');
         if (table) {
           table.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1237,7 +1388,6 @@ function renderCompactCountryStats() {
   }
 }
 
-// FIXED: Enhanced renderAdvertisingOverview with proper data refresh
 async function renderAdvertisingOverview() {
   return new Promise((resolve) => {
     try {
@@ -1247,14 +1397,11 @@ async function renderAdvertisingOverview() {
         return;
       }
 
-      // Show loading state
       container.innerHTML = '<div class="card"><div class="muted">Loading advertising data...</div></div>';
 
-      // First, refresh the adspend data from server
       api('/api/adspend').then(adData => {
         const adSpends = adData.adSpends || [];
         
-        // Also refresh products data to ensure we have the latest
         return api('/api/products').then(productsData => {
           state.products = productsData.products || [];
           return adSpends;
@@ -1277,7 +1424,8 @@ async function renderAdvertisingOverview() {
               facebook: 0,
               tiktok: 0,
               google: 0,
-              total: 0
+              total: 0,
+              entries: []
             };
           }
 
@@ -1286,6 +1434,7 @@ async function renderAdvertisingOverview() {
           else if (platform === 'google') byCountry[country][productId].google += amount;
 
           byCountry[country][productId].total += amount;
+          byCountry[country][productId].entries.push({ ...spend });
         });
 
         let html = '';
@@ -1307,10 +1456,10 @@ async function renderAdvertisingOverview() {
             <div class="product-row">
               <div class="product-name">${product ? product.name : productId}</div>
               <div class="platform-spends">
-                <span class="platform-badge ${data.facebook > 0 ? 'active' : ''}">Facebook: ${fmt(data.facebook)}</span>
-                <span class="platform-badge ${data.tiktok > 0 ? 'active' : ''}">TikTok: ${fmt(data.tiktok)}</span>
-                <span class="platform-badge ${data.google > 0 ? 'active' : ''}">Google: ${fmt(data.google)}</span>
-                <span class="total-badge">Total: ${fmt(data.total)}</span>
+                <span class="platform-badge ${data.facebook > 0 ? 'active' : ''}" data-id="${data.entries.find(e => e.platform === 'facebook')?.id}" data-platform="facebook">Facebook: $${fmt(data.facebook)}</span>
+                <span class="platform-badge ${data.tiktok > 0 ? 'active' : ''}" data-id="${data.entries.find(e => e.platform === 'tiktok')?.id}" data-platform="tiktok">TikTok: $${fmt(data.tiktok)}</span>
+                <span class="platform-badge ${data.google > 0 ? 'active' : ''}" data-id="${data.entries.find(e => e.platform === 'google')?.id}" data-platform="google">Google: $${fmt(data.google)}</span>
+                <span class="total-badge">Total: $${fmt(data.total)}</span>
               </div>
             </div>`;
           });
@@ -1319,6 +1468,9 @@ async function renderAdvertisingOverview() {
         });
 
         container.innerHTML = html || '<div class="card"><div class="muted">No advertising data yet</div></div>';
+        
+        // Add click handlers for editing ad spend
+        container.addEventListener('click', handleAdSpendEdit);
         resolve();
       }).catch(error => {
         console.error('Error loading advertising overview:', error);
@@ -1330,6 +1482,29 @@ async function renderAdvertisingOverview() {
       resolve();
     }
   });
+}
+
+function handleAdSpendEdit(e) {
+  if (e.target.classList.contains('platform-badge')) {
+    const adId = e.target.dataset.id;
+    const platform = e.target.dataset.platform;
+    const currentAmount = parseFloat(e.target.textContent.match(/\$([\d,]+\.?\d*)/)[1].replace(/,/g, ''));
+    
+    const newAmount = prompt(`Enter new ${platform} spend amount:`, currentAmount);
+    
+    if (newAmount !== null && !isNaN(parseFloat(newAmount)) && parseFloat(newAmount) >= 0) {
+      api(`/api/adspend/${adId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ amount: parseFloat(newAmount) })
+      }).then(() => {
+        renderAdvertisingOverview();
+        renderCountryStockSpend();
+        renderCompactKpis();
+      }).catch(error => {
+        alert('Error updating ad spend: ' + error.message);
+      });
+    }
+  }
 }
 
 function renderProductInfoResults(productInfo) {
@@ -1360,6 +1535,7 @@ function renderProductInfoResults(productInfo) {
                 <th>Shipping Cost</th>
                 <th>Boxleo/Order</th>
                 <th>Total Cost</th>
+                <th>Shipping Path</th>
               </tr>
             </thead>
             <tbody>
@@ -1382,6 +1558,7 @@ function renderProductInfoResults(productInfo) {
         <td>$${fmt(analysis.shippingCost)}</td>
         <td>$${fmt(boxleoPerOrderValue)}</td>
         <td>$${fmt(totalCost)}</td>
+        <td>${analysis.shippingPath ? analysis.shippingPath.join(' → ') : 'Direct'}</td>
       </tr>
     `;
   });
@@ -1407,7 +1584,6 @@ function renderPerformancePage() {
   bindRemittanceAdd();
   bindRefundAdd();
   
-  // Auto-run analytics on page load
   setTimeout(() => {
     if (Q('#pcaRun')) Q('#pcaRun').click();
     if (Q('#remAnalyticsRun')) Q('#remAnalyticsRun').click();
@@ -1628,7 +1804,8 @@ function bindRemittanceAnalytics() {
       const analytics = await api('/api/analytics/remittance?' + new URLSearchParams({
         ...dateRange,
         country,
-        productId
+        productId,
+        sortBy: state.remittanceSortBy
       }));
 
       renderRemittanceAnalytics(analytics.analytics || []);
@@ -1642,31 +1819,14 @@ function renderRemittanceAnalytics(analytics) {
   const tb = Q('#remAnalyticsBody');
   if (!tb) return;
 
-  console.log('🔍 DEBUG - Analytics data received:', analytics);
-
   let totalPieces = 0, totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
   let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0;
   let totalDeliveredOrders = 0, totalRefundedOrders = 0, totalRefundedAmount = 0, totalInfluencerSpend = 0;
   let totalBoxleoPerOrder = 0, totalBoxleoPerPiece = 0, totalAdCostPerOrder = 0, totalAdCostPerPiece = 0;
-  let totalAOV = 0;
+  let totalAOV = 0, totalProfitPerOrder = 0, totalProfitPerPiece = 0;
   let itemCount = 0;
 
-  analytics.sort((a, b) => b.totalDeliveredPieces - a.totalDeliveredPieces);
-
   tb.innerHTML = analytics.map(item => {
-    const product = state.products.find(p => p.id === item.productId) || { name: item.productId };
-
-    // Debug each item
-    console.log('📊 DEBUG - Item data:', {
-      product: product.name,
-      country: item.country,
-      adCostPerDeliveredOrder: item.adCostPerDeliveredOrder,
-      adCostPerDeliveredPiece: item.adCostPerDeliveredPiece,
-      totalAdSpend: item.totalAdSpend,
-      totalDeliveredOrders: item.totalDeliveredOrders,
-      totalDeliveredPieces: item.totalDeliveredPieces
-    });
-
     totalPieces += item.totalDeliveredPieces || 0;
     totalRevenue += item.totalRevenue || 0;
     totalAdSpend += item.totalAdSpend || 0;
@@ -1684,10 +1844,12 @@ function renderRemittanceAnalytics(analytics) {
     totalAdCostPerOrder += item.adCostPerDeliveredOrder || 0;
     totalAdCostPerPiece += item.adCostPerDeliveredPiece || 0;
     totalAOV += item.averageOrderValue || 0;
+    totalProfitPerOrder += item.profitPerOrder || 0;
+    totalProfitPerPiece += item.profitPerPiece || 0;
     itemCount++;
 
     return `<tr>
-      <td>${product.name}</td>
+      <td>${item.productName}</td>
       <td>${item.country}</td>
       <td><strong>${fmt(item.totalOrders)}</strong></td>
       <td><strong>${fmt(item.totalDeliveredOrders)}</strong></td>
@@ -1707,8 +1869,10 @@ function renderRemittanceAnalytics(analytics) {
       <td>${fmt(item.deliveryRate)}%</td>
       <td>$${fmt(item.averageOrderValue)}</td>
       <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(item.profit)}</td>
+      <td class="${item.profitPerOrder >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(item.profitPerOrder)}</td>
+      <td class="${item.profitPerPiece >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(item.profitPerPiece)}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="20" class="muted">No data for selected period</td></tr>`;
+  }).join('') || `<tr><td colspan="22" class="muted">No data for selected period</td></tr>`;
 
   const totalDeliveryRate = totalOrders > 0 ? (totalDeliveredOrders / totalOrders) * 100 : 0;
   const avgBoxleoPerOrder = itemCount > 0 ? totalBoxleoPerOrder / itemCount : 0;
@@ -1716,14 +1880,8 @@ function renderRemittanceAnalytics(analytics) {
   const avgAdCostPerOrder = itemCount > 0 ? totalAdCostPerOrder / itemCount : 0;
   const avgAdCostPerPiece = itemCount > 0 ? totalAdCostPerPiece / itemCount : 0;
   const avgAOV = itemCount > 0 ? totalAOV / itemCount : 0;
-
-  console.log('📈 DEBUG - Calculated averages:', {
-    avgAdCostPerOrder,
-    avgAdCostPerPiece,
-    itemCount,
-    totalAdCostPerOrder,
-    totalAdCostPerPiece
-  });
+  const avgProfitPerOrder = itemCount > 0 ? totalProfitPerOrder / itemCount : 0;
+  const avgProfitPerPiece = itemCount > 0 ? totalProfitPerPiece / itemCount : 0;
 
   Q('#remAnalyticsOrdersT') && (Q('#remAnalyticsOrdersT').textContent = fmt(totalOrders));
   Q('#remAnalyticsDeliveredOrdersT') && (Q('#remAnalyticsDeliveredOrdersT').textContent = fmt(totalDeliveredOrders));
@@ -1743,7 +1901,34 @@ function renderRemittanceAnalytics(analytics) {
   Q('#remAnalyticsDeliveryRateT') && (Q('#remAnalyticsDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%');
   Q('#remAnalyticsAOVT') && (Q('#remAnalyticsAOVT').textContent = '$' + fmt(avgAOV));
   Q('#remAnalyticsProfitT') && (Q('#remAnalyticsProfitT').textContent = fmt(totalProfit));
+  Q('#remAnalyticsProfitOrderT') && (Q('#remAnalyticsProfitOrderT').textContent = '$' + fmt(avgProfitPerOrder));
+  Q('#remAnalyticsProfitPieceT') && (Q('#remAnalyticsProfitPieceT').textContent = '$' + fmt(avgProfitPerPiece));
+
+  // Add column sorting
+  addRemittanceColumnSorting();
 }
+
+function addRemittanceColumnSorting() {
+  const headers = QA('#remAnalyticsTable th');
+  headers.forEach((header, index) => {
+    header.style.cursor = 'pointer';
+    header.addEventListener('click', () => {
+      const columns = ['productName', 'country', 'totalOrders', 'totalDeliveredOrders', 'totalRefundedOrders', 
+                      'totalDeliveredPieces', 'totalRevenue', 'totalRefundedAmount', 'totalAdSpend', 
+                      'totalInfluencerSpend', 'totalBoxleoFees', 'totalProductChinaCost', 'totalShippingCost',
+                      'boxleoPerDeliveredOrder', 'boxleoPerDeliveredPiece', 'adCostPerDeliveredOrder', 
+                      'adCostPerDeliveredPiece', 'deliveryRate', 'averageOrderValue', 'profit', 
+                      'profitPerOrder', 'profitPerPiece'];
+      
+      if (columns[index]) {
+        state.remittanceSortBy = columns[index];
+        state.remittanceSortOrder = state.remittanceSortOrder === 'asc' ? 'desc' : 'asc';
+        Q('#remAnalyticsRun')?.click();
+      }
+    });
+  });
+}
+
 function bindProfitByCountry() {
   const btn = Q('#pcRun');
   if (!btn) return;
@@ -1766,7 +1951,6 @@ function bindProfitByCountry() {
 }
 
 function renderProfitByCountry(analytics) {
-   console.log('DEBUG - Profit by country data received:', analytics);
   const tb = Q('#profitCountryBody');
   if (!tb) return;
 
@@ -1774,7 +1958,7 @@ function renderProfitByCountry(analytics) {
   let totalProductCost = 0, totalShippingCost = 0, totalProfit = 0, totalOrders = 0;
   let totalDeliveredOrders = 0, totalPieces = 0, totalRefundedOrders = 0, totalRefundedAmount = 0, totalInfluencerSpend = 0;
   let totalBoxleoPerOrder = 0, totalBoxleoPerPiece = 0, totalAdCostPerOrder = 0, totalAdCostPerPiece = 0;
-  let totalAOV = 0;
+  let totalAOV = 0, totalProfitPerOrder = 0, totalProfitPerPiece = 0;
   let itemCount = 0;
 
   tb.innerHTML = Object.entries(analytics).map(([country, metrics]) => {
@@ -1795,6 +1979,8 @@ function renderProfitByCountry(analytics) {
     totalAdCostPerOrder += metrics.adCostPerDeliveredOrder || 0;
     totalAdCostPerPiece += metrics.adCostPerDeliveredPiece || 0;
     totalAOV += metrics.averageOrderValue || 0;
+    totalProfitPerOrder += metrics.profitPerOrder || 0;
+    totalProfitPerPiece += metrics.profitPerPiece || 0;
     itemCount++;
 
     return `<tr>
@@ -1817,8 +2003,10 @@ function renderProfitByCountry(analytics) {
       <td>${fmt(metrics.deliveryRate)}%</td>
       <td>$${fmt(metrics.averageOrderValue)}</td>
       <td class="${metrics.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(metrics.profit)}</td>
+      <td class="${metrics.profitPerOrder >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(metrics.profitPerOrder)}</td>
+      <td class="${metrics.profitPerPiece >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(metrics.profitPerPiece)}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="19" class="muted">No data</td></tr>`;
+  }).join('') || `<tr><td colspan="21" class="muted">No data</td></tr>`;
 
   const totalDeliveryRate = totalOrders > 0 ? (totalDeliveredOrders / totalOrders) * 100 : 0;
   const avgBoxleoPerOrder = itemCount > 0 ? totalBoxleoPerOrder / itemCount : 0;
@@ -1826,6 +2014,8 @@ function renderProfitByCountry(analytics) {
   const avgAdCostPerOrder = itemCount > 0 ? totalAdCostPerOrder / itemCount : 0;
   const avgAdCostPerPiece = itemCount > 0 ? totalAdCostPerPiece / itemCount : 0;
   const avgAOV = itemCount > 0 ? totalAOV / itemCount : 0;
+  const avgProfitPerOrder = itemCount > 0 ? totalProfitPerOrder / itemCount : 0;
+  const avgProfitPerPiece = itemCount > 0 ? totalProfitPerPiece / itemCount : 0;
 
   Q('#pcOrdersT') && (Q('#pcOrdersT').textContent = fmt(totalOrders));
   Q('#pcDeliveredOrdersT') && (Q('#pcDeliveredOrdersT').textContent = fmt(totalDeliveredOrders));
@@ -1845,6 +2035,8 @@ function renderProfitByCountry(analytics) {
   Q('#pcDeliveryRateT') && (Q('#pcDeliveryRateT').textContent = fmt(totalDeliveryRate) + '%');
   Q('#pcAOVT') && (Q('#pcAOVT').textContent = '$' + fmt(avgAOV));
   Q('#pcProfitT') && (Q('#pcProfitT').textContent = fmt(totalProfit));
+  Q('#pcProfitOrderT') && (Q('#pcProfitOrderT').textContent = '$' + fmt(avgProfitPerOrder));
+  Q('#pcProfitPieceT') && (Q('#pcProfitPieceT').textContent = '$' + fmt(avgProfitPerPiece));
 }
 
 function bindRemittanceAdd() {
@@ -1927,6 +2119,33 @@ function bindRefundAdd() {
     }
   };
 }
+
+// ======== TODO API ROUTES (Add to server.js) ========
+// Note: These routes need to be added to your server.js file
+
+app.get('/api/todos', requireAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ todos: db.todos || [] });
+});
+
+app.post('/api/todos', requireAuth, (req, res) => {
+  const db = loadDB();
+  db.todos = req.body.todos || [];
+  saveDB(db);
+  res.json({ ok: true });
+});
+
+app.get('/api/weekly-todos', requireAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ weeklyTodos: db.weeklyTodos || {} });
+});
+
+app.post('/api/weekly-todos', requireAuth, (req, res) => {
+  const db = loadDB();
+  db.weeklyTodos = req.body.weeklyTodos || {};
+  saveDB(db);
+  res.json({ ok: true });
+});
 
 // ======== STOCK MOVEMENT PAGE ========
 function renderStockMovementPage() {
@@ -2079,6 +2298,7 @@ async function handleShipmentActions(e) {
     }
   }
 }
+
 // ======== ADSPEND PAGE ========
 function renderAdspendPage() {
   initDateRangeSelectors();
@@ -2088,7 +2308,6 @@ function renderAdspendPage() {
 }
 
 function fillAdspendSelects() {
-  // Fill product dropdowns
   const productSelects = ['#adspendProduct', '#adspendFilterProduct'];
   productSelects.forEach(sel => QA(sel).forEach(el => {
     if (!el) return;
@@ -2105,7 +2324,6 @@ function fillAdspendSelects() {
     }
   }));
 
-  // Fill country dropdowns
   const countrySelects = ['#adspendCountry', '#adspendFilterCountry'];
   countrySelects.forEach(sel => QA(sel).forEach(el => {
     if (!el) return;
@@ -2119,7 +2337,6 @@ function fillAdspendSelects() {
   }));
 }
 
-// FIXED: Updated adspend save with immediate refresh
 function bindAdspendSave() {
   const btn = Q('#adspendSave');
   if (!btn) return;
@@ -2140,12 +2357,10 @@ function bindAdspendSave() {
     try {
       await api('/api/adspend', { method: 'POST', body: JSON.stringify(payload) });
       
-      // Refresh all relevant data
       await renderCountryStockSpend();
       await renderCompactKpis();
-      await renderAdvertisingOverview(); // Refresh advertising overview
+      await renderAdvertisingOverview();
       
-      // Clear the form
       Q('#adspendAmount').value = '';
       
       alert('Ad spend saved successfully!');
@@ -2177,17 +2392,13 @@ function bindAdspendAnalytics() {
 
 function filterAdSpends(adSpends, dateRange, country, productId, platform) {
   return adSpends.filter(spend => {
-    // Filter by date range
     if (dateRange.start && spend.date < dateRange.start) return false;
     if (dateRange.end && spend.date > dateRange.end) return false;
     
-    // Filter by country
     if (country && spend.country !== country) return false;
     
-    // Filter by product
     if (productId && productId !== 'all' && spend.productId !== productId) return false;
     
-    // Filter by platform
     if (platform && spend.platform !== platform) return false;
     
     return true;
@@ -2203,20 +2414,16 @@ function renderAdspendResults(adSpends) {
     return;
   }
 
-  // Calculate totals
   const totalSpend = adSpends.reduce((sum, spend) => sum + (+spend.amount || 0), 0);
   const byPlatform = {};
   const byCountry = {};
   const byProduct = {};
 
   adSpends.forEach(spend => {
-    // Platform breakdown
     byPlatform[spend.platform] = (byPlatform[spend.platform] || 0) + (+spend.amount || 0);
     
-    // Country breakdown
     byCountry[spend.country] = (byCountry[spend.country] || 0) + (+spend.amount || 0);
     
-    // Product breakdown
     const product = state.products.find(p => p.id === spend.productId) || { name: spend.productId };
     byProduct[product.name] = (byProduct[product.name] || 0) + (+spend.amount || 0);
   });
@@ -2239,7 +2446,6 @@ function renderAdspendResults(adSpends) {
       </div>
   `;
 
-  // Platform breakdown
   html += `
       <div class="breakdown-section">
         <h4>By Platform</h4>
@@ -2259,7 +2465,6 @@ function renderAdspendResults(adSpends) {
   });
   html += `</div></div>`;
 
-  // Country breakdown
   html += `
       <div class="breakdown-section">
         <h4>By Country</h4>
@@ -2279,7 +2484,6 @@ function renderAdspendResults(adSpends) {
   });
   html += `</div></div>`;
 
-  // Detailed table
   html += `
       <div class="breakdown-section">
         <h4>Detailed History</h4>
@@ -2320,6 +2524,7 @@ function renderAdspendResults(adSpends) {
 
   container.innerHTML = html;
 }
+
 // ======== FINANCE PAGE ========
 function renderFinancePage() {
   refreshFinanceCategories();
@@ -2603,11 +2808,12 @@ function renderProductBudgets(product) {
         <td>$${fmt(analysis.shippingCost)}</td>
         <td>$${fmt(boxleoPerOrderValue)}</td>
         <td>$${fmt(totalCost)}</td>
+        <td>${analysis.shippingPath ? analysis.shippingPath.join(' → ') : 'Direct'}</td>
       </tr>`;
-    }).join('') || `<tr><td colspan="9" class="muted">No data available</td></tr>`;
+    }).join('') || `<tr><td colspan="10" class="muted">No data available</td></tr>`;
   }).catch((error) => {
     console.error('Error loading product budgets:', error);
-    tb.innerHTML = `<tr><td colspan="9" class="muted">Error loading cost data: ${error.message}</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="10" class="muted">Error loading cost data: ${error.message}</td></tr>`;
   });
 }
 
@@ -2787,80 +2993,102 @@ async function handleArrivedShipmentActions(e) {
   }
 }
 
-// ======== PRODUCT LIFETIME WITH REFUNDS & INFLUENCER SPEND ========
+// ======== PRODUCT LIFETIME WITH NEW LOGIC ========
 function bindProductLifetime(product) {
   const run = async () => {
     const dateRange = getDateRange(Q('#pdLPRun').closest('.row'));
 
-    const analytics = await api('/api/analytics/remittance?' + new URLSearchParams({
+    // Use new logic for product lifetime (period-based costs)
+    const analysis = await api('/api/product-costs-analysis?' + new URLSearchParams({
       productId: product.id,
       ...dateRange
     }));
 
-    renderProductLifetime(analytics.analytics || []);
+    renderProductLifetime(analysis);
   };
 
   Q('#pdLPRun')?.addEventListener('click', run);
   run();
 }
 
-function renderProductLifetime(analytics) {
-  const tb = Q('#pdLPBody');
-  if (!tb) return;
+function renderProductLifetime(analysis) {
+  const container = Q('#pcaResults');
+  if (!container) return;
 
-  let totalRevenue = 0, totalAdSpend = 0, totalBoxleo = 0;
-  let totalProductCost = 0, totalShipCost = 0, totalTotalCost = 0, totalPieces = 0;
-  let totalProfit = 0, totalOrders = 0, totalDeliveredOrders = 0, totalRefundedOrders = 0;
-  let totalRefundedAmount = 0, totalInfluencerSpend = 0;
+  const profitClass = analysis.profit >= 0 ? 'number-positive' : 'number-negative';
+  const bgClass = analysis.profit >= 0 ? 'profit-bg' : 'loss-bg';
 
-  tb.innerHTML = analytics.map(item => {
-    totalRevenue += item.totalRevenue || 0;
-    totalAdSpend += item.totalAdSpend || 0;
-    totalBoxleo += item.totalBoxleoFees || 0;
-    totalProductCost += item.totalProductChinaCost || 0;
-    totalShipCost += item.totalShippingCost || 0;
-    totalTotalCost += item.totalCost || 0;
-    totalPieces += item.totalDeliveredPieces || 0;
-    totalProfit += item.profit || 0;
-    totalOrders += item.totalOrders || 0;
-    totalDeliveredOrders += item.totalDeliveredOrders || 0;
-    totalRefundedOrders += item.totalRefundedOrders || 0;
-    totalRefundedAmount += item.totalRefundedAmount || 0;
-    totalInfluencerSpend += item.totalInfluencerSpend || 0;
-
-    return `<tr>
-      <td>${item.country}</td>
-      <td>${fmt(item.totalRevenue)}</td>
-      <td class="number-negative">${fmt(item.totalRefundedAmount)}</td>
-      <td>${fmt(item.totalAdSpend)}</td>
-      <td>${fmt(item.totalInfluencerSpend)}</td>
-      <td>${fmt(item.totalBoxleoFees)}</td>
-      <td>${fmt(item.totalProductChinaCost)}</td>
-      <td>${fmt(item.totalShippingCost)}</td>
-      <td>${fmt(item.totalCost)}</td>
-      <td>${fmt(item.totalOrders)}</td>
-      <td>${fmt(item.totalDeliveredOrders)}</td>
-      <td>${fmt(item.totalRefundedOrders)}</td>
-      <td>${fmt(item.totalDeliveredPieces)}</td>
-      <td>${fmt(item.deliveryRate)}%</td>
-      <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">${fmt(item.profit)}</td>
-    </tr>`;
-  }).join('') || `<tr><td colspan="15" class="muted">No data</td></tr>`;
-
-  Q('#pdLPRevT') && (Q('#pdLPRevT').textContent = fmt(totalRevenue));
-  Q('#pdLPRefundedT') && (Q('#pdLPRefundedT').textContent = fmt(totalRefundedAmount));
-  Q('#pdLPAdT') && (Q('#pdLPAdT').textContent = fmt(totalAdSpend));
-  Q('#pdLPInfluencerT') && (Q('#pdLPInfluencerT').textContent = fmt(totalInfluencerSpend));
-  Q('#pdLPBoxleoT') && (Q('#pdLPBoxleoT').textContent = fmt(totalBoxleo));
-  Q('#pdLPProductCostT') && (Q('#pdLPProductCostT').textContent = fmt(totalProductCost));
-  Q('#pdLPShipT') && (Q('#pdLPShipT').textContent = fmt(totalShipCost));
-  Q('#pdLPTotalCostT') && (Q('#pdLPTotalCostT').textContent = fmt(totalTotalCost));
-  Q('#pdLPOrdersT') && (Q('#pdLPOrdersT').textContent = fmt(totalOrders));
-  Q('#pdLPDeliveredOrdersT') && (Q('#pdLPDeliveredOrdersT').textContent = fmt(totalDeliveredOrders));
-  Q('#pdLPRefundedOrdersT') && (Q('#pdLPRefundedOrdersT').textContent = fmt(totalRefundedOrders));
-  Q('#pdLPDeliveredPiecesT') && (Q('#pdLPDeliveredPiecesT').textContent = fmt(totalPieces));
-  Q('#pdLPDeliveryRateT') && (Q('#pdLPDeliveryRateT').textContent = fmt(totalOrders > 0 ? (totalDeliveredOrders / totalOrders * 100) : 0) + '%');
-  Q('#pdLPProfitT') && (Q('#pdLPProfitT').textContent = fmt(totalProfit));
+  container.innerHTML = `
+    <div class="costs-analysis-summary ${bgClass}">
+      <div class="summary-header">
+        <h3>📊 Product Costs Analysis Summary</h3>
+        <div class="net-profit ${profitClass}">Net Profit: $${fmt(analysis.profit)}</div>
+      </div>
+      
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Amount</th>
+              <th>Metric</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Total Revenue</strong></td>
+              <td class="number-positive">$${fmt(analysis.totalRevenue)}</td>
+              <td><strong>Total Cost</strong></td>
+              <td class="number-negative">$${fmt(analysis.totalCost)}</td>
+            </tr>
+            <tr>
+              <td>Refunded Amount</td>
+              <td class="number-negative">$${fmt(analysis.totalRefundedAmount)}</td>
+              <td>Influencer Spend</td>
+              <td>$${fmt(analysis.totalInfluencerSpend)}</td>
+            </tr>
+            <tr>
+              <td>Product Cost China (Period)</td>
+              <td>$${fmt(analysis.totalProductChinaCost)}</td>
+              <td>Shipping Costs (Period)</td>
+              <td>$${fmt(analysis.totalShippingCost)}</td>
+            </tr>
+            <tr>
+              <td>Advertising Spend</td>
+              <td>$${fmt(analysis.totalAdSpend)}</td>
+              <td>Boxleo Fees</td>
+              <td>$${fmt(analysis.totalBoxleoFees)}</td>
+            </tr>
+            <tr>
+              <td><strong>Total Orders</strong></td>
+              <td>${fmt(analysis.totalOrders)}</td>
+              <td><strong>Delivered Orders</strong></td>
+              <td>${fmt(analysis.totalDeliveredOrders)}</td>
+            </tr>
+            <tr>
+              <td><strong>Refunded Orders</strong></td>
+              <td>${fmt(analysis.totalRefundedOrders)}</td>
+              <td><strong>Delivery Rate</strong></td>
+              <td>${fmt(analysis.deliveryRate)}%</td>
+            </tr>
+            <tr>
+              <td><strong>Cost per Delivered Piece</strong></td>
+              <td>$${fmt(analysis.costPerDeliveredPiece)}</td>
+              <td><strong>Cost per Delivered Order</strong></td>
+              <td>$${fmt(analysis.costPerDeliveredOrder)}</td>
+            </tr>
+            <tr>
+              <td><strong>Ad Cost per Delivered Order</strong></td>
+              <td>$${fmt(analysis.adCostPerDeliveredOrder)}</td>
+              <td><strong>Influencer per Delivered Order</strong></td>
+              <td>$${fmt(analysis.influencerPerDeliveredOrder)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
 }
 
 // ======== PRODUCT STORE ORDERS ========
@@ -3235,7 +3463,6 @@ function renderPagination(containerId, pagination, type) {
 }
 
 // ======== GLOBAL NAVIGATION ========
-// FIXED: Updated navigation to refresh data when switching pages
 function bindGlobalNav() {
   QA('.nav a[data-view]')?.forEach(a => a.addEventListener('click', e => {
     e.preventDefault();
@@ -3251,7 +3478,6 @@ function bindGlobalNav() {
       renderCountryStockSpend(); 
     }
     if (v === 'products') { 
-      // Refresh data when navigating to products page
       preload().then(() => {
         renderCompactCountryStats(); 
         renderAdvertisingOverview();
@@ -3259,7 +3485,6 @@ function bindGlobalNav() {
       });
     }
     if (v === 'adspend') { 
-      // Refresh data when navigating to adspend page
       preload().then(() => {
         renderAdspendPage();
         renderAdvertisingOverview();
