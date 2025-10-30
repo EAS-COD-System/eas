@@ -127,29 +127,27 @@
 
           <!-- Brainstorming Section -->
           <div class="section">
-            <h2>💡 Brainstorming & Idea Management</h2>
+            <h2>💡 Brainstorming</h2>
             <div id="brainstormingSection"></div>
           </div>
 
           <div class="section">
-            <h2>📝 To-Do List</h2>
-            <div class="card">
-              <div class="row">
-                <input id="todoText" class="input" placeholder="Enter new task..."/>
-                <button id="todoAdd" class="btn">➕ Add Task</button>
-              </div>
-              <div id="todoList" class="todo-list"></div>
+            <h2>To-Do List</h2>
+            <div class="row">
+              <input id="todoText" class="input" placeholder="Enter new task..."/>
+              <button id="todoAdd" class="btn">➕ Add Task</button>
             </div>
+            <div id="todoList" class="todo-list"></div>
           </div>
 
           <div class="section">
-            <h2>📅 Weekly To-Do</h2>
+            <h2>Weekly To-Do</h2>
             <div id="weeklyWrap" class="weeks"></div>
           </div>
 
           <!-- Tested Products Section -->
           <div class="section">
-            <h2>🧪 Product Testing Results & Analysis</h2>
+            <h2>🧪 Notes for Tested Products</h2>
             <div id="testedProductsSection"></div>
           </div>
 
@@ -277,31 +275,29 @@
   
   <!-- Remittance Analytics Table -->
   <div class="table-scroll">
-    <table class="table analytics-table">
+    <table class="table">
       <thead>
         <tr>
-          <th class="sortable">Product Name</th>
-          <th class="sortable">Country</th>
-          <th class="sortable">Orders</th>
-          <th class="sortable">Delivered Orders</th>
-          <th class="sortable">Refunded Orders</th>
-          <th class="sortable">Delivered Pieces</th>
-          <th class="sortable">Revenue</th>
-          <th class="sortable">Refunded Amount</th>
-          <th class="sortable">Advertising Spend</th>
-          <th class="sortable">Influencer Spend</th>
-          <th class="sortable">Boxleo Fees</th>
-          <th class="sortable">Product Cost China</th>
-          <th class="sortable">Total Shipping Cost</th>
-          <th class="sortable">Boxleo/Order</th>
-          <th class="sortable">Boxleo/Piece</th>
-          <th class="sortable">Ad Cost/Order</th>
-          <th class="sortable">Ad Cost/Piece</th>
-          <th class="sortable">Profit/Order</th>
-          <th class="sortable">Profit/Piece</th>
-          <th class="sortable">Delivery Rate</th>
-          <th class="sortable">Avg Order Value</th>
-          <th class="sortable">Profit</th>
+          <th>Product Name</th>
+          <th>Country</th>
+          <th>Orders</th>
+          <th>Delivered Orders</th>
+          <th>Refunded Orders</th>
+          <th>Delivered Pieces</th>
+          <th>Revenue</th>
+          <th>Refunded Amount</th>
+          <th>Advertising Spend</th>
+          <th>Influencer Spend</th>
+          <th>Boxleo Fees</th>
+          <th>Product Cost China</th>
+          <th>Total Shipping Cost</th>
+          <th>Boxleo/Order</th>
+          <th>Boxleo/Piece</th>
+          <th>Ad Cost/Order</th>
+          <th>Ad Cost/Piece</th>
+          <th>Delivery Rate</th>
+          <th>Avg Order Value</th>
+          <th>Profit</th>
         </tr>
       </thead>
       <tbody id="remAnalyticsBody"></tbody>
@@ -323,8 +319,6 @@
           <th id="remAnalyticsBoxleoPieceT">$0</th>
           <th id="remAnalyticsAdOrderT">$0</th>
           <th id="remAnalyticsAdPieceT">$0</th>
-          <th id="remAnalyticsProfitOrderT">$0</th>
-          <th id="remAnalyticsProfitPieceT">$0</th>
           <th id="remAnalyticsDeliveryRateT">0%</th>
           <th id="remAnalyticsAOVT">$0</th>
           <th id="remAnalyticsProfitT">0</th>
@@ -386,30 +380,28 @@
   
   <!-- Profit by Country Table -->
   <div class="table-scroll">
-    <table class="table profit-country-table">
+    <table class="table">
       <thead>
         <tr>
-          <th class="sortable">Country</th>
-          <th class="sortable">Orders</th>
-          <th class="sortable">Delivered Orders</th>
-          <th class="sortable">Refunded Orders</th>
-          <th class="sortable">Delivered Pieces</th>
-          <th class="sortable">Revenue</th>
-          <th class="sortable">Refunded Amount</th>
-          <th class="sortable">Total Advertising Spend</th>
-          <th class="sortable">Influencer Spend</th>
-          <th class="sortable">Product Cost China</th>
-          <th class="sortable">Total Shipping Cost</th>
-          <th class="sortable">Total Boxleo Fees</th>
-          <th class="sortable">Boxleo/Order</th>
-          <th class="sortable">Boxleo/Piece</th>
-          <th class="sortable">Ad Cost/Order</th>
-          <th class="sortable">Ad Cost/Piece</th>
-          <th class="sortable">Profit/Order</th>
-          <th class="sortable">Profit/Piece</th>
-          <th class="sortable">Delivery Rate</th>
-          <th class="sortable">Avg Order Value</th>
-          <th class="sortable">Profit</th>
+          <th>Country</th>
+          <th>Orders</th>
+          <th>Delivered Orders</th>
+          <th>Refunded Orders</th>
+          <th>Delivered Pieces</th>
+          <th>Revenue</th>
+          <th>Refunded Amount</th>
+          <th>Total Advertising Spend</th>
+          <th>Influencer Spend</th>
+          <th>Product Cost China</th>
+          <th>Total Shipping Cost</th>
+          <th>Total Boxleo Fees</th>
+          <th>Boxleo/Order</th>
+          <th>Boxleo/Piece</th>
+          <th>Ad Cost/Order</th>
+          <th>Ad Cost/Piece</th>
+          <th>Delivery Rate</th>
+          <th>Avg Order Value</th>
+          <th>Profit</th>
         </tr>
       </thead>
       <tbody id="profitCountryBody"></tbody>
@@ -431,8 +423,6 @@
           <th id="pcBoxleoPieceT">$0</th>
           <th id="pcAdOrderT">$0</th>
           <th id="pcAdPieceT">$0</th>
-          <th id="pcProfitOrderT">$0</th>
-          <th id="pcProfitPieceT">$0</th>
           <th id="pcDeliveryRateT">0%</th>
           <th id="pcAOVT">$0</th>
           <th id="pcProfitT">0</th>
@@ -442,6 +432,7 @@
   </div>
 </div>
   
+  <!-- Rest of the performance section remains the same -->
   <!-- Product Orders Tracking -->
   <div class="card">
     <div class="h">📦 Product Orders Tracking</div>
@@ -600,46 +591,6 @@
       </div>
     </div>
   </div>
-
-  <!-- Ad Spend Analytics -->
-  <div class="section">
-    <h2>📊 Ad Spend Analytics</h2>
-    <div class="card">
-      <div class="h">Filter Ad Spend Data</div>
-      <div class="row wrap">
-        <select id="adspendFilterRange" class="input date-range-select">
-          <option value="8days">Last 8 days</option>
-          <option value="15days">Last 15 days</option>
-          <option value="1month">Last 1 month</option>
-          <option value="2months">Last 2 months</option>
-          <option value="6months">Last 6 months</option>
-          <option value="1year">Last 1 year</option>
-          <option value="2years">Last 2 years</option>
-          <option value="lifetime">Lifetime</option>
-          <option value="custom">Custom range</option>
-        </select>
-        <div class="custom-range" style="display: none;">
-          <input type="date" class="input custom-start"/>
-          <input type="date" class="input custom-end"/>
-        </div>
-        <select id="adspendFilterCountry" class="input">
-          <option value="">All countries</option>
-        </select>
-        <select id="adspendFilterProduct" class="input">
-          <option value="all">All products</option>
-        </select>
-        <select id="adspendFilterPlatform" class="input">
-          <option value="">All platforms</option>
-          <option value="facebook">Facebook</option>
-          <option value="tiktok">TikTok</option>
-          <option value="google">Google</option>
-        </select>
-        <button id="adspendRun" class="btn">📊 Generate Report</button>
-      </div>
-      <div id="adspendResults"></div>
-    </div>
-  </div>
-
   <!-- Advertising Overview -->
   <div class="section">
     <h2>🎯 Advertising Overview by Country</h2>
