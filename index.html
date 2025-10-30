@@ -215,7 +215,20 @@
       </div>
       <div id="searchResultsInfo" class="muted" style="margin-top: 8px;"></div>
     </div>
-
+<!-- Add these filter controls above the products table -->
+<div class="card">
+  <div class="h">🔍 Filter & Sort Products</div>
+  <div class="row wrap">
+    <select id="productsSort" class="input">
+      <option value="pieces">Most Pieces Delivered</option>
+      <option value="profit">Most Profit</option>
+      <option value="stock">Stock by Country</option>
+    </select>
+    <select id="productsCountryFilter" class="input">
+      <option value="">All Countries</option>
+    </select>
+  </div>
+</div>
     <!-- Products Table -->
     <div class="table-scroll">
       <table id="productsTable" class="table">
