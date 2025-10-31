@@ -1337,7 +1337,7 @@ app.get('/api/analytics/remittance', requireAuth, (req, res) => {
   if (productId && productId !== 'all') {
     if (country && country !== '') {
       const metrics = calculateProfitMetrics(db, productId, country, start, end);
-      analytics = [{{
+      analytics = [{
         productId,
         productName: (db.products.find(p => p.id === productId) || {}).name || productId,
         country: country,
