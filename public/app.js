@@ -78,7 +78,7 @@ async function boot() {
     console.log('Data preloaded');
     
     console.log('Initializing navigation...');
-    bindGlobalNav();
+    bindGlobalNav(); // FIXED: Call the navigation function
     console.log('Navigation initialized');
 
     if (state.productId) {
@@ -90,7 +90,7 @@ async function boot() {
       renderProductsPage();
       renderPerformancePage();
       renderStockMovementPage();
-      renderAdspendPage();
+      renderAdspendPage(); // ADDED: This was missing
       renderFinancePage();
       renderSettingsPage();
     }
@@ -119,6 +119,56 @@ Q('#logoutLink')?.addEventListener('click', async (e) => {
   try { await api('/api/auth', { method: 'POST', body: JSON.stringify({ password: 'logout' }) }); } catch { }
   location.reload();
 });
+
+function initSimpleNavigation() {
+  const nav = Q('.nav');
+  const main = Q('#main');
+  if (!nav) return;
+
+  let lastScrollY = window.scrollY;
+
+  function hideNav() {
+    nav.classList.remove('nav-visible');
+    nav.classList.add('nav-hidden');
+    if (main) main.classList.add('main-expanded');
+  }
+
+  function showNav() {
+    nav.classList.remove('nav-hidden');
+    nav.classList.add('nav-visible');
+    if (main) main.classList.remove('main-expanded');
+  }
+
+  function handleScroll() {
+    const currentScrollY = window.scrollY;
+
+    if (currentScrollY < 10) {
+      showNav();
+      lastScrollY = currentScrollY;
+      return;
+    }
+
+    if (currentScrollY > 50) {
+      hideNav();
+    }
+
+    lastScrollY = currentScrollY;
+  }
+
+  window.addEventListener('scroll', handleScroll, { passive: true });
+
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches[0].clientY < 10) {
+      showNav();
+    }
+  }, { passive: true });
+
+  if (window.scrollY === 0) {
+    showNav();
+  } else {
+    hideNav();
+  }
+}
 
 async function preload() {
   const meta = await api('/api/meta');
@@ -394,8 +444,7 @@ async function calculateStockByCountry(productId = null) {
 }
 
 async function renderCountryStockSpend() {
-  const body = Q('#stockByCountryBody');
-  if (!body) return;
+  const body = Q('#stockByCountryBody'); if (!body) return;
   body.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
 
   try {
@@ -649,6 +698,7 @@ function initBrainstorming() {
   }
 }
 
+// FIXED: Todo lists using server-side storage
 function initTodos() {
   const listEl = Q('#todoList'); 
   const addBtn = Q('#todoAdd');
@@ -693,6 +743,7 @@ function initTodos() {
   renderQuick();
 }
 
+// FIXED: Weekly Todo lists using server-side storage
 function initWeeklyTodos() {
   const container = Q('#weeklyWrap');
   if (!container) return;
@@ -731,6 +782,7 @@ function initWeeklyTodos() {
         `;
       }).join('');
       
+      // Add event listeners
       container.addEventListener('click', handleWeeklyTodoActions);
       QA('.weekly-todo-add').forEach(btn => {
         btn.addEventListener('click', addWeeklyTodo);
@@ -1096,7 +1148,7 @@ function renderProductsTable() {
       return;
     }
 
-    // Filter and sort products - INCLUDE PAUSED PRODUCTS
+    // Filter and sort products
     const filteredProducts = filterProducts(state.products, state.productsSearchTerm);
     const countryFilter = Q('#productsCountryFilter')?.value || 'all';
     const sortedProducts = sortProducts(filteredProducts, state.productsSortBy, countryFilter);
@@ -1129,11 +1181,11 @@ function renderProductsTable() {
 
     // Build table header with colored columns
     const countryColors = {
-      'kenya': '#1e3a8a',
-      'tanzania': '#7c2d12',
-      'uganda': '#166534',
-      'zambia': '#9d174d',
-      'zimbabwe': '#701a75'
+      'kenya': '#1e3a8a', // Dark blue
+      'tanzania': '#7c2d12', // Dark brown
+      'uganda': '#166534', // Dark green
+      'zambia': '#9d174d', // Dark pink
+      'zimbabwe': '#701a75' // Dark purple
     };
     
     let headerHTML = `
@@ -1159,7 +1211,7 @@ function renderProductsTable() {
     
     thead.innerHTML = headerHTML;
 
-    // Build table body - INCLUDE PAUSED PRODUCTS
+    // Build table body
     if (paginatedProducts.length === 0) {
       tb.innerHTML = `<tr><td colspan="${6 + (state.countries ? (state.countries.length - 1) * 2 : 0) + 1}" class="muted">No products found</td></tr>`;
     } else {
@@ -1215,7 +1267,7 @@ function renderProductsTable() {
     // Render pagination
     renderProductsPagination(sortedProducts.length, productsPerPage);
 
-    // Event handlers for product actions
+    // Add event listeners for product actions
     tb.onclick = async (e) => {
       const id = e.target.dataset?.id; 
       if (!id) return;
@@ -1385,25 +1437,15 @@ async function renderAdvertisingOverview() {
               facebook: 0,
               tiktok: 0,
               google: 0,
-              entries: [] // Store individual entries for editing
+              total: 0
             };
           }
-
-          // Store individual entry for editing
-          byCountry[country][productId].entries.push({
-            id: spend.id,
-            platform: spend.platform,
-            amount: spend.amount,
-            date: spend.date
-          });
 
           if (platform === 'facebook') byCountry[country][productId].facebook += amount;
           else if (platform === 'tiktok') byCountry[country][productId].tiktok += amount;
           else if (platform === 'google') byCountry[country][productId].google += amount;
 
-          byCountry[country][productId].total = byCountry[country][productId].facebook + 
-                                              byCountry[country][productId].tiktok + 
-                                              byCountry[country][productId].google;
+          byCountry[country][productId].total += amount;
         });
 
         let html = '';
@@ -1425,17 +1467,9 @@ async function renderAdvertisingOverview() {
             <div class="product-row">
               <div class="product-name">${product ? product.name : productId}</div>
               <div class="platform-spends">
-                ${data.entries.map(entry => `
-                  <span class="platform-badge ${entry.amount > 0 ? 'active editable' : ''}" 
-                         data-id="${entry.id}"
-                         data-platform="${entry.platform}"
-                         data-amount="${entry.amount}"
-                         data-date="${entry.date}"
-                         data-product="${productId}"
-                         data-country="${country}">
-                    ${entry.platform}: ${fmt(entry.amount)}
-                  </span>
-                `).join('')}
+                <span class="platform-badge ${data.facebook > 0 ? 'active' : ''}">Facebook: ${fmt(data.facebook)}</span>
+                <span class="platform-badge ${data.tiktok > 0 ? 'active' : ''}">TikTok: ${fmt(data.tiktok)}</span>
+                <span class="platform-badge ${data.google > 0 ? 'active' : ''}">Google: ${fmt(data.google)}</span>
                 <span class="total-badge">Total: ${fmt(data.total)}</span>
               </div>
             </div>`;
@@ -1445,16 +1479,6 @@ async function renderAdvertisingOverview() {
         });
 
         container.innerHTML = html || '<div class="card"><div class="muted">No advertising data yet</div></div>';
-        
-        // Add click handlers for editable badges
-        const badges = container.querySelectorAll('.platform-badge.editable');
-        badges.forEach(badge => {
-          badge.addEventListener('click', (e) => {
-            e.stopPropagation();
-            editAdSpendEntry(badge);
-          }, { once: true });
-        });
-        
         resolve();
       }).catch(error => {
         console.error('Error loading advertising overview:', error);
@@ -1466,40 +1490,6 @@ async function renderAdvertisingOverview() {
       resolve();
     }
   });
-}
-
-// Edit ad spend entry function
-function editAdSpendEntry(badge) {
-  // Remove any existing event listeners to prevent duplicates
-  const newBadge = badge.cloneNode(true);
-  badge.parentNode.replaceChild(newBadge, badge);
-  
-  const entryId = newBadge.dataset.id;
-  const currentAmount = newBadge.dataset.amount;
-  const platform = newBadge.dataset.platform;
-  const date = newBadge.dataset.date;
-  const productId = newBadge.dataset.product;
-  const country = newBadge.dataset.country;
-  
-  const newAmount = prompt(`Edit ${platform} spend for ${date}:`, currentAmount);
-  
-  if (newAmount !== null && !isNaN(newAmount) && newAmount !== currentAmount) {
-    api('/api/adspend', {
-      method: 'POST',
-      body: JSON.stringify({
-        id: entryId, // Include ID for update
-        productId: productId,
-        country: country,
-        platform: platform,
-        amount: +newAmount,
-        date: date
-      })
-    }).then(() => {
-      renderAdvertisingOverview();
-      renderCountryStockSpend();
-      renderCompactKpis();
-    }).catch(alert);
-  }
 }
 
 function renderProductInfoResults(productInfo) {
@@ -1623,7 +1613,16 @@ function bindProductOrders() {
       alert('Orders data saved successfully!');
       Q('#poOrders').value = '';
     } catch (e) {
-      alert('Error saving orders: ' + e.message);
+      if (e.message.includes('Duplicate order period')) {
+        const confirmAdd = confirm('You already entered orders in that period for that product. Are you sure you want to enter again?');
+        if (confirmAdd) {
+          await api('/api/product-orders/force', { method: 'POST', body: JSON.stringify(payload) });
+          alert('Orders data saved successfully!');
+          Q('#poOrders').value = '';
+        }
+      } else {
+        alert('Error saving orders: ' + e.message);
+      }
     }
   };
 }
@@ -2110,7 +2109,21 @@ function bindRemittanceAdd() {
         if (el) el.value = '';
       });
     } catch (e) {
-      alert('Error saving remittance: ' + e.message);
+      if (e.message.includes('Duplicate remittance period')) {
+        const confirmAdd = confirm('You already entered a remittance for this product in this country during this period. Are you sure you want to enter again?');
+        if (confirmAdd) {
+          await api('/api/remittances/force', { method: 'POST', body: JSON.stringify(payload) });
+          alert('Remittance entry saved successfully!');
+          
+          // Clear form
+          ['#remAddStart', '#remAddEnd', '#remAddOrders', '#remAddPieces', '#remAddRevenue', '#remAddAdSpend', '#remAddBoxleo'].forEach(sel => {
+            const el = Q(sel);
+            if (el) el.value = '';
+          });
+        }
+      } else {
+        alert('Error saving remittance: ' + e.message);
+      }
     }
   };
 }
@@ -2212,17 +2225,14 @@ async function renderShipmentTables() {
   try {
     const shipments = await api('/api/shipments');
     
-    // Filter out arrived shipments from transit tables
-    const transitShipments = shipments.shipments.filter(s => !s.arrivedAt);
-    
-    // China → Kenya shipments (transit only)
-    const chinaKenyaShipments = transitShipments.filter(s => 
+    // China → Kenya shipments
+    const chinaKenyaShipments = shipments.shipments.filter(s => 
       s.fromCountry === 'china' && s.toCountry === 'kenya'
     );
     renderShipmentTable('#shipCKBody', chinaKenyaShipments, true);
     
-    // Inter-country shipments (transit only, excluding China → Kenya)
-    const interCountryShipments = transitShipments.filter(s => 
+    // Inter-country shipments (excluding China → Kenya)
+    const interCountryShipments = shipments.shipments.filter(s => 
       s.fromCountry !== 'china' || s.toCountry !== 'kenya'
     );
     renderShipmentTable('#shipICBody', interCountryShipments, false);
@@ -2236,7 +2246,7 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
   if (!tbody) return;
 
   if (shipments.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="12" class="muted">No shipments in transit</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="muted">No shipments</td></tr>';
     return;
   }
 
@@ -2259,29 +2269,20 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
         <td>${shipment.note || '-'}</td>
         <td>
-          <div class="action-buttons">
-            ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
-            ${shipment.paymentStatus === 'pending' ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
-            <button class="btn small outline act-edit" data-id="${shipment.id}">Edit</button>
-            <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
-          </div>
+          ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
+          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
+          <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
       </tr>
     `;
   }).join('');
 
-  // Event listeners
-  tbody.addEventListener('click', async (e) => {
-    const button = e.target.closest('button');
-    if (!button) return;
-    
-    const id = button.dataset.id;
+  // Add event listeners for shipment actions
+  tbody.onclick = async (e) => {
+    const id = e.target.dataset?.id;
     if (!id) return;
 
-    const shipment = state.allShipments.find(s => s.id === id);
-    if (!shipment) return;
-
-    if (button.classList.contains('act-arrive')) {
+    if (e.target.classList.contains('act-arrive')) {
       await api(`/api/shipments/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ arrivedAt: isoToday() })
@@ -2291,7 +2292,7 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
       renderCompactKpis();
     }
 
-    if (button.classList.contains('act-pay')) {
+    if (e.target.classList.contains('act-pay')) {
       const finalCost = prompt('Enter final shipping cost:');
       if (finalCost && !isNaN(finalCost)) {
         await api(`/api/shipments/${id}/mark-paid`, {
@@ -2302,11 +2303,7 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
       }
     }
 
-    if (button.classList.contains('act-edit')) {
-      editShipment(shipment);
-    }
-
-    if (button.classList.contains('act-del-ship')) {
+    if (e.target.classList.contains('act-del-ship')) {
       if (confirm('Delete this shipment?')) {
         await api(`/api/shipments/${id}`, { method: 'DELETE' });
         renderShipmentTables();
@@ -2314,38 +2311,7 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
         renderCompactKpis();
       }
     }
-  });
-}
-
-// Edit shipment function
-function editShipment(shipment) {
-  const newQty = prompt('Enter new quantity:', shipment.qty);
-  const newShipCost = prompt('Enter new shipping cost:', shipment.shipCost);
-  const newNote = prompt('Enter new note:', shipment.note || '');
-  
-  if (newQty !== null && newShipCost !== null) {
-    const updateData = {
-      qty: +newQty || 0,
-      shipCost: +newShipCost || 0,
-      note: newNote || ''
-    };
-    
-    if (shipment.fromCountry === 'china') {
-      const newChinaCost = prompt('Enter new China cost:', shipment.chinaCost || 0);
-      if (newChinaCost !== null) {
-        updateData.chinaCost = +newChinaCost || 0;
-      }
-    }
-    
-    api(`/api/shipments/${shipment.id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updateData)
-    }).then(() => {
-      renderShipmentTables();
-      renderProductsTable();
-      renderCompactKpis();
-    }).catch(alert);
-  }
+  };
 }
 
 // ======== ADSPEND PAGE ========
@@ -2758,7 +2724,7 @@ function bindProductEdit() {
 
   // Populate product select
   select.innerHTML = '<option value="">Select product…</option>' +
-    state.products.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+    state.products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
 
   select.addEventListener('change', function() {
     const product = state.products.find(p => p.id === this.value);
@@ -2769,19 +2735,19 @@ function bindProductEdit() {
   });
 
   Q('#epSave')?.addEventListener('click', async () => {
-    const productId = select.value;
+    const id = select.value;
     const name = Q('#epName')?.value?.trim();
     const sku = Q('#epSku')?.value?.trim();
 
-    if (!productId || !name) return alert('Select product and enter name');
+    if (!id || !name) return alert('Select product and enter name');
 
-    await api(`/api/products/${productId}`, {
+    await api(`/api/products/${id}`, {
       method: 'PUT',
       body: JSON.stringify({ name, sku })
     });
 
     await preload();
-    fillCommonSelects();
+    renderProductsTable();
     alert('Product updated');
   });
 }
@@ -2791,52 +2757,44 @@ function renderSnapshots() {
   if (!tbody) return;
 
   api('/api/snapshots').then(data => {
-    const snapshots = data.snapshots || [];
-    
-    if (snapshots.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="muted">No snapshots yet</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = snapshots.map(snap => `
+    const snaps = data.snapshots || [];
+    tbody.innerHTML = snaps.map(snap => `
       <tr>
         <td>${snap.name}</td>
-        <td><code>${snap.file}</code></td>
+        <td>${snap.file}</td>
         <td>${new Date(snap.createdAt).toLocaleString()}</td>
         <td>
-          <button class="btn small outline snap-restore" data-file="${snap.file}">Restore</button>
-          <button class="btn small outline snap-del" data-id="${snap.id}">Delete</button>
+          <button class="btn small outline act-restore" data-file="${snap.file}">Restore</button>
+          <button class="btn small outline act-del-snap" data-id="${snap.id}">Delete</button>
         </td>
       </tr>
-    `).join('');
+    `).join('') || '<tr><td colspan="4" class="muted">No snapshots</td></tr>';
   }).catch(console.error);
 }
 
 function bindSnapshotActions() {
+  const container = Q('#snapList')?.closest('.card');
+  if (!container) return;
+
   // Save snapshot
   Q('#snapSave')?.addEventListener('click', async () => {
-    const name = Q('#snapName')?.value?.trim();
-    if (!name) return alert('Enter snapshot name');
-
-    try {
-      await api('/api/snapshots', {
-        method: 'POST',
-        body: JSON.stringify({ name })
-      });
-      
-      Q('#snapName').value = '';
-      renderSnapshots();
-      alert('Snapshot saved');
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
+    const name = Q('#snapName')?.value?.trim() || `Manual-${new Date().toISOString().slice(0, 10)}`;
+    
+    await api('/api/snapshots', {
+      method: 'POST',
+      body: JSON.stringify({ name })
+    });
+    
+    Q('#snapName').value = '';
+    renderSnapshots();
+    alert('Snapshot saved');
   });
 
-  // Snapshot actions
-  Q('#snapList')?.addEventListener('click', async (e) => {
-    if (e.target.classList.contains('snap-restore')) {
+  // Handle snapshot actions
+  container.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('act-restore')) {
       const file = e.target.dataset.file;
-      if (confirm('Restore this snapshot? Current data will be replaced.')) {
+      if (confirm(`Restore snapshot: ${file}? This will replace current data.`)) {
         try {
           await api('/api/backup/push-snapshot', {
             method: 'POST',
@@ -2845,12 +2803,12 @@ function bindSnapshotActions() {
           alert('Snapshot restored! Page will reload.');
           setTimeout(() => location.reload(), 1000);
         } catch (error) {
-          alert('Error restoring: ' + error.message);
+          alert('Restore failed: ' + error.message);
         }
       }
     }
 
-    if (e.target.classList.contains('snap-del')) {
+    if (e.target.classList.contains('act-del-snap')) {
       const id = e.target.dataset.id;
       if (confirm('Delete this snapshot?')) {
         await api(`/api/snapshots/${id}`, { method: 'DELETE' });
@@ -2861,23 +2819,16 @@ function bindSnapshotActions() {
 }
 
 function setupDailyBackupButton() {
-  const btn = Q('#createDailyBackup');
-  if (!btn) return;
-
-  btn.addEventListener('click', async () => {
+  Q('#createDailyBackup')?.addEventListener('click', async () => {
     try {
-      const today = new Date().toISOString().slice(0, 10);
-      const backupName = `Manual-Daily-${today}`;
-      
       await api('/api/snapshots', {
         method: 'POST',
-        body: JSON.stringify({ name: backupName })
+        body: JSON.stringify({ name: `Daily-${new Date().toISOString().slice(0, 10)}` })
       });
-      
-      renderSnapshots();
       alert('Daily backup created successfully!');
+      renderSnapshots();
     } catch (error) {
-      alert('Error creating backup: ' + error.message);
+      alert('Backup creation failed: ' + error.message);
     }
   });
 }
@@ -2887,53 +2838,45 @@ function renderProductPage() {
   if (!state.productId) return;
   
   renderProductHeader();
-  renderProductStockSpend();
-  renderProductNotes();
-  renderProductProfitBudgets();
+  renderProductStockAdSpend();
+  bindProductNotes();
+  renderProfitAdvertisingBudget();
   renderProductShipments();
   renderProductLifetimePerformance();
+  renderProductStoreOrders();
   renderProductRemittances();
   renderProductRefunds();
-  renderProductStoreOrders();
-  
-  fillProductPageSelects();
+  bindProductInfluencers();
 }
 
-function renderProductHeader() {
-  const product = state.products.find(p => p.id === state.productId);
-  if (!product) return;
-
-  Q('#pdTitle').textContent = product.name;
-  Q('#pdSku').textContent = product.sku ? `SKU: ${product.sku}` : '';
+async function renderProductHeader() {
+  try {
+    const product = state.products.find(p => p.id === state.productId);
+    if (product) {
+      Q('#pdTitle').textContent = product.name;
+      Q('#pdSku').textContent = product.sku ? `SKU: ${product.sku}` : '';
+    }
+  } catch (error) {
+    console.error('Error loading product header:', error);
+  }
 }
 
-async function renderProductStockSpend() {
+async function renderProductStockAdSpend() {
   const tbody = Q('#pdStockBody');
   if (!tbody) return;
 
   try {
-    const stockByCountry = await calculateStockByCountry(state.productId);
-    const adSpends = await api('/api/adspend');
-    
+    const product = state.products.find(p => p.id === state.productId);
+    if (!product) return;
+
+    const stockByCountry = product.stockByCountry || {};
+    const adSpendByCountry = product.adSpendByCountry || {};
+
     let totalStock = 0, totalFb = 0, totalTt = 0, totalGg = 0, totalAd = 0;
-    
-    const adBreakdown = {};
-    state.countries.forEach(country => {
-      adBreakdown[country] = { facebook: 0, tiktok: 0, google: 0 };
-    });
 
-    (adSpends.adSpends || []).forEach(ad => {
-      if (ad.productId === state.productId && adBreakdown[ad.country]) {
-        const amount = +ad.amount || 0;
-        if (ad.platform === 'facebook') adBreakdown[ad.country].facebook += amount;
-        else if (ad.platform === 'tiktok') adBreakdown[ad.country].tiktok += amount;
-        else if (ad.platform === 'google') adBreakdown[ad.country].google += amount;
-      }
-    });
-
-    tbody.innerHTML = state.countries.map(country => {
+    const rows = state.countries.map(country => {
       const stock = stockByCountry[country] || 0;
-      const adData = adBreakdown[country] || { facebook: 0, tiktok: 0, google: 0 };
+      const adData = adSpendByCountry[country] || { facebook: 0, tiktok: 0, google: 0 };
       const countryAdTotal = adData.facebook + adData.tiktok + adData.google;
 
       totalStock += stock;
@@ -2954,112 +2897,185 @@ async function renderProductStockSpend() {
       `;
     }).join('');
 
+    tbody.innerHTML = rows || '<tr><td colspan="6" class="muted">No data</td></tr>';
+    
     Q('#pdStockTotal').textContent = fmt(totalStock);
     Q('#pdFbTotal').textContent = fmt(totalFb);
     Q('#pdTtTotal').textContent = fmt(totalTt);
     Q('#pdGgTotal').textContent = fmt(totalGg);
     Q('#pdAdTotal').textContent = fmt(totalAd);
   } catch (error) {
+    console.error('Error loading product stock data:', error);
     tbody.innerHTML = '<tr><td colspan="6" class="muted">Error loading data</td></tr>';
   }
 }
 
-function renderProductNotes() {
-  const container = Q('#pdNotesList');
-  if (!container) return;
+function bindProductNotes() {
+  const btn = Q('#pdNoteSave');
+  if (!btn) return;
 
-  api(`/api/products/${state.productId}/notes`).then(data => {
-    const notes = data.notes || [];
-    
-    if (notes.length === 0) {
-      container.innerHTML = '<div class="muted">No notes yet. Add your first note above.</div>';
-      return;
-    }
+  // Load existing notes
+  loadProductNotes();
 
-    container.innerHTML = notes.map(note => `
-      <div class="note-card">
-        <div class="note-header">
-          <span class="note-country">${note.country}</span>
-          <button class="btn small outline note-del" data-id="${note.id}">Delete</button>
-        </div>
-        <div class="note-content">${note.note}</div>
-        <div class="note-date">Last updated: ${new Date(note.updatedAt).toLocaleDateString()}</div>
-      </div>
-    `).join('');
-
-    // Add delete handlers
-    container.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('note-del')) {
-        if (confirm('Delete this note?')) {
-          await api(`/api/products/notes/${e.target.dataset.id}`, { method: 'DELETE' });
-          renderProductNotes();
-        }
-      }
-    });
-  }).catch(console.error);
-
-  // Bind save note
-  Q('#pdNoteSave')?.addEventListener('click', async () => {
+  btn.onclick = async () => {
     const country = Q('#pdNoteCountry')?.value;
     const note = Q('#pdNoteText')?.value?.trim();
 
     if (!country || !note) return alert('Select country and enter note');
 
-    await api(`/api/products/${state.productId}/notes`, {
-      method: 'POST',
-      body: JSON.stringify({ country, note })
-    });
-
-    Q('#pdNoteText').value = '';
-    renderProductNotes();
-  });
+    try {
+      await api(`/api/products/${state.productId}/notes`, {
+        method: 'POST',
+        body: JSON.stringify({ country, note })
+      });
+      
+      Q('#pdNoteText').value = '';
+      loadProductNotes();
+      alert('Note saved');
+    } catch (error) {
+      alert('Error saving note: ' + error.message);
+    }
+  };
 }
 
-function renderProductProfitBudgets() {
+async function loadProductNotes() {
+  const container = Q('#pdNotesList');
+  if (!container) return;
+
+  try {
+    const data = await api(`/api/products/${state.productId}/notes`);
+    const notes = data.notes || [];
+
+    container.innerHTML = notes.map(note => `
+      <div class="note-card">
+        <div class="note-header">
+          <strong>${note.country}</strong>
+          <button class="btn outline small act-del-note" data-id="${note.id}">Delete</button>
+        </div>
+        <div class="note-content">${note.note}</div>
+        <div class="note-date">Last updated: ${new Date(note.updatedAt).toLocaleString()}</div>
+      </div>
+    `).join('') || '<div class="muted">No notes yet</div>';
+
+    // Add delete handlers
+    container.addEventListener('click', async (e) => {
+      if (e.target.classList.contains('act-del-note')) {
+        const noteId = e.target.dataset.id;
+        if (confirm('Delete this note?')) {
+          await api(`/api/products/notes/${noteId}`, { method: 'DELETE' });
+          loadProductNotes();
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error loading notes:', error);
+  }
+}
+
+async function renderProfitAdvertisingBudget() {
   const tbody = Q('#pdPBBBody');
   if (!tbody) return;
 
-  // This would require additional API endpoints for the automated calculation
-  // For now, we'll show a placeholder
-  tbody.innerHTML = '<tr><td colspan="8" class="muted">Profit budget calculation coming soon</td></tr>';
+  try {
+    const productInfo = await api(`/api/product-info/${state.productId}`);
+    const { costAnalysis, boxleoPerOrder } = productInfo;
+
+    tbody.innerHTML = costAnalysis.map(analysis => {
+      const boxleoPerOrderValue = analysis.boxleoPerOrder || boxleoPerOrder || 0;
+      const totalCost = analysis.productCostChina + analysis.shippingCost + boxleoPerOrderValue;
+      const availableForProfitAndAds = analysis.sellingPrice - totalCost;
+      const maxCPL = analysis.deliveryRate > 0 ? availableForProfitAndAds * (analysis.deliveryRate / 100) : 0;
+
+      return `
+        <tr>
+          <td>${analysis.country}</td>
+          <td>$${fmt(maxCPL)}</td>
+          <td class="${availableForProfitAndAds >= 0 ? 'number-positive' : 'number-negative'}">
+            $${fmt(availableForProfitAndAds)}
+          </td>
+          <td>${fmt(analysis.deliveryRate)}%</td>
+          <td>$${fmt(analysis.sellingPrice)}</td>
+          <td>$${fmt(analysis.productCostChina)}</td>
+          <td>$${fmt(analysis.shippingCost)}</td>
+          <td>$${fmt(boxleoPerOrderValue)}</td>
+          <td>$${fmt(totalCost)}</td>
+        </tr>
+      `;
+    }).join('') || '<tr><td colspan="9" class="muted">No data</td></tr>';
+  } catch (error) {
+    console.error('Error loading profit budget:', error);
+    tbody.innerHTML = '<tr><td colspan="9" class="muted">Error loading data</td></tr>';
+  }
 }
 
 async function renderProductShipments() {
   try {
     const shipments = await api('/api/shipments');
-    
-    // Filter shipments for this product
     const productShipments = shipments.shipments.filter(s => s.productId === state.productId);
-    
-    // Arrived shipments
-    const arrivedShipments = productShipments.filter(s => s.arrivedAt);
-    
-    // Transit shipments
-    const transitShipments = productShipments.filter(s => !s.arrivedAt);
-    
-    // China → Kenya shipments (transit)
-    const chinaKenyaShipments = transitShipments.filter(s => 
+
+    // China → Kenya shipments
+    const chinaKenyaShipments = productShipments.filter(s => 
       s.fromCountry === 'china' && s.toCountry === 'kenya'
     );
-    
-    // Inter-country shipments (transit)
-    const interCountryShipments = transitShipments.filter(s => 
+    renderProductShipmentTable('#pdShipCKBody', chinaKenyaShipments, true);
+
+    // Inter-country shipments
+    const interCountryShipments = productShipments.filter(s => 
       s.fromCountry !== 'china' || s.toCountry !== 'kenya'
     );
-    
-    // Render arrived shipments
-    renderProductArrivedShipments(arrivedShipments);
-    
-    // Render transit shipments
-    renderProductTransitShipments('#pdShipCKBody', chinaKenyaShipments, true);
-    renderProductTransitShipments('#pdShipICBody', interCountryShipments, false);
-    
+    renderProductShipmentTable('#pdShipICBody', interCountryShipments, false);
+
+    // Arrived shipments
+    const arrivedShipments = productShipments.filter(s => s.arrivedAt);
+    renderArrivedShipmentsTable(arrivedShipments);
+
   } catch (error) {
     console.error('Error loading product shipments:', error);
   }
 }
 
-function renderProductArrivedShipments(shipments) {
+function renderProductShipmentTable(selector, shipments, showChinaCost) {
+  const tbody = Q(selector);
+  if (!tbody) return;
+
+  if (shipments.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10" class="muted">No shipments</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = shipments.map(shipment => {
+    const route = `${shipment.fromCountry} → ${shipment.toCountry}`;
+    
+    return `
+      <tr>
+        <td>${shipment.id.slice(0, 8)}</td>
+        <td>${route}</td>
+        <td>${fmt(shipment.qty)}</td>
+        <td>${fmt(shipment.shipCost)}</td>
+        <td>${shipment.finalShipCost ? fmt(shipment.finalShipCost) : '-'}</td>
+        ${showChinaCost ? `<td>${shipment.chinaCost ? fmt(shipment.chinaCost) : '-'}</td>` : ''}
+        <td>${shipment.departedAt || '-'}</td>
+        <td>${shipment.arrivedAt || '-'}</td>
+        <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
+        <td>
+          ${!shipment.arrivedAt ? `
+            <button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>
+          ` : ''}
+          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `
+            <button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>
+          ` : ''}
+          <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
+          <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // Add event listeners
+  addShipmentEventListeners(tbody);
+}
+
+function renderArrivedShipmentsTable(shipments) {
   const tbody = Q('#pdArrivedBody');
   if (!tbody) return;
 
@@ -3069,11 +3085,7 @@ function renderProductArrivedShipments(shipments) {
   }
 
   tbody.innerHTML = shipments.map(shipment => {
-    const product = state.products.find(p => p.id === shipment.productId);
-    const productName = product ? product.name : shipment.productId;
     const route = `${shipment.fromCountry} → ${shipment.toCountry}`;
-    
-    // Calculate days in transit
     const departed = new Date(shipment.departedAt);
     const arrived = new Date(shipment.arrivedAt);
     const daysInTransit = Math.round((arrived - departed) / (1000 * 60 * 60 * 24));
@@ -3092,7 +3104,7 @@ function renderProductArrivedShipments(shipments) {
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
         <td>${shipment.note || '-'}</td>
         <td>
-          ${shipment.paymentStatus === 'pending' ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
+          <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
       </tr>
@@ -3100,14 +3112,23 @@ function renderProductArrivedShipments(shipments) {
   }).join('');
 
   // Add event listeners
-  tbody.addEventListener('click', async (e) => {
-    const button = e.target.closest('button');
-    if (!button) return;
-    
-    const id = button.dataset.id;
+  addShipmentEventListeners(tbody);
+}
+
+function addShipmentEventListeners(container) {
+  container.addEventListener('click', async (e) => {
+    const id = e.target.dataset?.id;
     if (!id) return;
 
-    if (button.classList.contains('act-pay')) {
+    if (e.target.classList.contains('act-arrive')) {
+      await api(`/api/shipments/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ arrivedAt: isoToday() })
+      });
+      renderProductShipments();
+    }
+
+    if (e.target.classList.contains('act-pay')) {
       const finalCost = prompt('Enter final shipping cost:');
       if (finalCost && !isNaN(finalCost)) {
         await api(`/api/shipments/${id}/mark-paid`, {
@@ -3118,7 +3139,11 @@ function renderProductArrivedShipments(shipments) {
       }
     }
 
-    if (button.classList.contains('act-del-ship')) {
+    if (e.target.classList.contains('act-edit-ship')) {
+      editShipment(id);
+    }
+
+    if (e.target.classList.contains('act-del-ship')) {
       if (confirm('Delete this shipment?')) {
         await api(`/api/shipments/${id}`, { method: 'DELETE' });
         renderProductShipments();
@@ -3127,74 +3152,31 @@ function renderProductArrivedShipments(shipments) {
   });
 }
 
-function renderProductTransitShipments(selector, shipments, showChinaCost) {
-  const tbody = Q(selector);
-  if (!tbody) return;
+async function editShipment(shipmentId) {
+  try {
+    const shipments = await api('/api/shipments');
+    const shipment = shipments.shipments.find(s => s.id === shipmentId);
+    if (!shipment) return;
 
-  if (shipments.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="12" class="muted">No shipments in transit</td></tr>';
-    return;
-  }
+    const newQty = prompt('Enter new quantity:', shipment.qty);
+    const newShipCost = prompt('Enter new shipping cost:', shipment.shipCost);
+    const newNote = prompt('Enter new note:', shipment.note);
 
-  tbody.innerHTML = shipments.map(shipment => {
-    const product = state.products.find(p => p.id === shipment.productId);
-    const productName = product ? product.name : shipment.productId;
-    const route = `${shipment.fromCountry} → ${shipment.toCountry}`;
-    
-    return `
-      <tr>
-        <td>${shipment.id.slice(0, 8)}</td>
-        <td>${route}</td>
-        <td>${fmt(shipment.qty)}</td>
-        <td>${fmt(shipment.shipCost)}</td>
-        <td>${shipment.finalShipCost ? fmt(shipment.finalShipCost) : '-'}</td>
-        ${showChinaCost ? `<td>${shipment.chinaCost ? fmt(shipment.chinaCost) : '-'}</td>` : ''}
-        <td>${shipment.departedAt || '-'}</td>
-        <td>${shipment.arrivedAt || '-'}</td>
-        <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
-        <td>
-          ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
-          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
-          <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
-        </td>
-      </tr>
-    `;
-  }).join('');
-
-  // Add event listeners
-  tbody.addEventListener('click', async (e) => {
-    const button = e.target.closest('button');
-    if (!button) return;
-    
-    const id = button.dataset.id;
-    if (!id) return;
-
-    if (button.classList.contains('act-arrive')) {
-      await api(`/api/shipments/${id}`, {
+    if (newQty !== null && newShipCost !== null) {
+      await api(`/api/shipments/${shipmentId}`, {
         method: 'PUT',
-        body: JSON.stringify({ arrivedAt: isoToday() })
+        body: JSON.stringify({
+          qty: +newQty,
+          shipCost: +newShipCost,
+          note: newNote || shipment.note
+        })
       });
       renderProductShipments();
+      alert('Shipment updated');
     }
-
-    if (button.classList.contains('act-pay')) {
-      const finalCost = prompt('Enter final shipping cost:');
-      if (finalCost && !isNaN(finalCost)) {
-        await api(`/api/shipments/${id}/mark-paid`, {
-          method: 'POST',
-          body: JSON.stringify({ finalShipCost: +finalCost })
-        });
-        renderProductShipments();
-      }
-    }
-
-    if (button.classList.contains('act-del-ship')) {
-      if (confirm('Delete this shipment?')) {
-        await api(`/api/shipments/${id}`, { method: 'DELETE' });
-        renderProductShipments();
-      }
-    }
-  });
+  } catch (error) {
+    alert('Error updating shipment: ' + error.message);
+  }
 }
 
 function renderProductLifetimePerformance() {
@@ -3205,44 +3187,80 @@ function renderProductLifetimePerformance() {
     const dateRange = getDateRange(btn.closest('.row'));
     
     try {
-      const metrics = await api('/api/product-costs-analysis?' + new URLSearchParams({
-        productId: state.productId,
-        ...dateRange
+      const analytics = await api('/api/analytics/remittance?' + new URLSearchParams({
+        ...dateRange,
+        productId: state.productId
       }));
 
-      renderProductLifetimePerformanceResults(metrics);
-    } catch (e) {
-      alert('Error loading performance data: ' + e.message);
+      renderProductLifetimePerformanceTable(analytics.analytics || []);
+    } catch (error) {
+      alert('Error loading lifetime performance: ' + error.message);
     }
   };
+
+  // Trigger initial load
+  setTimeout(() => btn.click(), 500);
 }
 
-function renderProductLifetimePerformanceResults(metrics) {
+function renderProductLifetimePerformanceTable(analytics) {
   const tbody = Q('#pdLPBody');
   if (!tbody) return;
 
-  // For now, show aggregate data
-  tbody.innerHTML = `
-    <tr>
-      <td>All Countries</td>
-      <td>$${fmt(metrics.totalRevenue)}</td>
-      <td>$${fmt(metrics.totalRefundedAmount)}</td>
-      <td>$${fmt(metrics.totalAdSpend)}</td>
-      <td>$${fmt(metrics.totalInfluencerSpend)}</td>
-      <td>$${fmt(metrics.totalBoxleoFees)}</td>
-      <td>$${fmt(metrics.totalProductChinaCost)}</td>
-      <td>$${fmt(metrics.totalShippingCost)}</td>
-      <td>$${fmt(metrics.totalCost)}</td>
-      <td>${fmt(metrics.totalOrders)}</td>
-      <td>${fmt(metrics.totalDeliveredOrders)}</td>
-      <td>${fmt(metrics.totalRefundedOrders)}</td>
-      <td>${fmt(metrics.totalDeliveredPieces)}</td>
-      <td>$${fmt(metrics.profitPerOrder)}</td>
-      <td>$${fmt(metrics.profitPerPiece)}</td>
-      <td>${fmt(metrics.deliveryRate)}%</td>
-      <td class="${metrics.profit >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(metrics.profit)}</td>
-    </tr>
-  `;
+  let totalRevenue = 0, totalRefunded = 0, totalAdSpend = 0, totalInfluencer = 0;
+  let totalBoxleo = 0, totalProductCost = 0, totalShipping = 0, totalCost = 0;
+  let totalOrders = 0, totalDeliveredOrders = 0, totalRefundedOrders = 0, totalPieces = 0;
+  let totalProfit = 0;
+  let itemCount = 0;
+
+  if (analytics.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="17" class="muted">No data found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = analytics.map(item => {
+    totalRevenue += item.totalRevenue || 0;
+    totalRefunded += item.totalRefundedAmount || 0;
+    totalAdSpend += item.totalAdSpend || 0;
+    totalInfluencer += item.totalInfluencerSpend || 0;
+    totalBoxleo += item.totalBoxleoFees || 0;
+    totalProductCost += item.totalProductChinaCost || 0;
+    totalShipping += item.totalShippingCost || 0;
+    totalCost += item.totalCost || 0;
+    totalOrders += item.totalOrders || 0;
+    totalDeliveredOrders += item.totalDeliveredOrders || 0;
+    totalRefundedOrders += item.totalRefundedOrders || 0;
+    totalPieces += item.totalDeliveredPieces || 0;
+    totalProfit += item.profit || 0;
+    itemCount++;
+
+    return `
+      <tr>
+        <td>${item.country}</td>
+        <td>$${fmt(item.totalRevenue)}</td>
+        <td>$${fmt(item.totalRefundedAmount)}</td>
+        <td>$${fmt(item.totalAdSpend)}</td>
+        <td>$${fmt(item.totalInfluencerSpend)}</td>
+        <td>$${fmt(item.totalBoxleoFees)}</td>
+        <td>$${fmt(item.totalProductChinaCost)}</td>
+        <td>$${fmt(item.totalShippingCost)}</td>
+        <td>$${fmt(item.totalCost)}</td>
+        <td>${fmt(item.totalOrders)}</td>
+        <td>${fmt(item.totalDeliveredOrders)}</td>
+        <td>${fmt(item.totalRefundedOrders)}</td>
+        <td>${fmt(item.totalDeliveredPieces)}</td>
+        <td class="${item.profitPerOrder >= 0 ? 'number-positive' : 'number-negative'}">
+          $${fmt(item.profitPerOrder)}
+        </td>
+        <td class="${item.profitPerPiece >= 0 ? 'number-positive' : 'number-negative'}">
+          $${fmt(item.profitPerPiece)}
+        </td>
+        <td>${fmt(item.deliveryRate)}%</td>
+        <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">
+          $${fmt(item.profit)}
+        </td>
+      </tr>
+    `;
+  }).join('');
 
   // Update totals
   const updateTotal = (id, value) => {
@@ -3250,34 +3268,82 @@ function renderProductLifetimePerformanceResults(metrics) {
     if (el) el.textContent = typeof value === 'number' ? fmt(value) : value;
   };
 
-  updateTotal('#pdLPRevT', metrics.totalRevenue);
-  updateTotal('#pdLPRefundedT', metrics.totalRefundedAmount);
-  updateTotal('#pdLPAdT', metrics.totalAdSpend);
-  updateTotal('#pdLPInfluencerT', metrics.totalInfluencerSpend);
-  updateTotal('#pdLPBoxleoT', metrics.totalBoxleoFees);
-  updateTotal('#pdLPProductCostT', metrics.totalProductChinaCost);
-  updateTotal('#pdLPShipT', metrics.totalShippingCost);
-  updateTotal('#pdLPTotalCostT', metrics.totalCost);
-  updateTotal('#pdLPOrdersT', metrics.totalOrders);
-  updateTotal('#pdLPDeliveredOrdersT', metrics.totalDeliveredOrders);
-  updateTotal('#pdLPRefundedOrdersT', metrics.totalRefundedOrders);
-  updateTotal('#pdLPDeliveredPiecesT', metrics.totalDeliveredPieces);
-  updateTotal('#pdLPProfitOrderT', `$${fmt(metrics.profitPerOrder)}`);
-  updateTotal('#pdLPProfitPieceT', `$${fmt(metrics.profitPerPiece)}`);
-  updateTotal('#pdLPDeliveryRateT', `${fmt(metrics.deliveryRate)}%`);
-  updateTotal('#pdLPProfitT', metrics.profit);
+  updateTotal('#pdLPRevT', totalRevenue);
+  updateTotal('#pdLPRefundedT', totalRefunded);
+  updateTotal('#pdLPAdT', totalAdSpend);
+  updateTotal('#pdLPInfluencerT', totalInfluencer);
+  updateTotal('#pdLPBoxleoT', totalBoxleo);
+  updateTotal('#pdLPProductCostT', totalProductCost);
+  updateTotal('#pdLPShipT', totalShipping);
+  updateTotal('#pdLPTotalCostT', totalCost);
+  updateTotal('#pdLPOrdersT', totalOrders);
+  updateTotal('#pdLPDeliveredOrdersT', totalDeliveredOrders);
+  updateTotal('#pdLPRefundedOrdersT', totalRefundedOrders);
+  updateTotal('#pdLPDeliveredPiecesT', totalPieces);
+  updateTotal('#pdLPProfitOrderT', totalDeliveredOrders > 0 ? totalProfit / totalDeliveredOrders : 0);
+  updateTotal('#pdLPProfitPieceT', totalPieces > 0 ? totalProfit / totalPieces : 0);
+  updateTotal('#pdLPDeliveryRateT', totalOrders > 0 ? (totalDeliveredOrders / totalOrders * 100) : 0);
+  updateTotal('#pdLPProfitT', totalProfit);
 }
 
-// Render product remittances
-function renderProductRemittances() {
-  const tbody = Q('#pdRemittancesBody');
+async function renderProductStoreOrders() {
+  const tbody = Q('#pdStoreOrdersBody');
+  const pagination = Q('#pdStoreOrdersPagination');
   if (!tbody) return;
 
-  api('/api/remittances').then(data => {
-    const remittances = data.remittances.filter(r => r.productId === state.productId);
-    
+  try {
+    const data = await api(`/api/product-orders?productId=${state.productId}&page=1&limit=10`);
+    const orders = data.orders || [];
+
+    if (orders.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="muted">No store orders found</td></tr>';
+      pagination.innerHTML = '';
+      return;
+    }
+
+    tbody.innerHTML = orders.map(order => `
+      <tr>
+        <td>${order.startDate} to ${order.endDate}</td>
+        <td>${order.country}</td>
+        <td>${fmt(order.orders)}</td>
+        <td>
+          <button class="btn small outline act-del-order" data-id="${order.id}">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+
+    // Add delete handlers
+    tbody.addEventListener('click', async (e) => {
+      if (e.target.classList.contains('act-del-order')) {
+        const orderId = e.target.dataset.id;
+        if (confirm('Delete this order entry?')) {
+          await api(`/api/product-orders/${orderId}`, { method: 'DELETE' });
+          renderProductStoreOrders();
+        }
+      }
+    });
+
+    // Render pagination
+    renderPagination(pagination, data.pagination, renderProductStoreOrders);
+
+  } catch (error) {
+    console.error('Error loading store orders:', error);
+    tbody.innerHTML = '<tr><td colspan="4" class="muted">Error loading data</td></tr>';
+  }
+}
+
+async function renderProductRemittances() {
+  const tbody = Q('#pdRemittancesBody');
+  const pagination = Q('#pdRemittancesPagination');
+  if (!tbody) return;
+
+  try {
+    const data = await api(`/api/remittances?productId=${state.productId}&page=1&limit=10`);
+    const remittances = data.remittances || [];
+
     if (remittances.length === 0) {
       tbody.innerHTML = '<tr><td colspan="8" class="muted">No remittances found</td></tr>';
+      pagination.innerHTML = '';
       return;
     }
 
@@ -3299,25 +3365,35 @@ function renderProductRemittances() {
     // Add delete handlers
     tbody.addEventListener('click', async (e) => {
       if (e.target.classList.contains('act-del-remittance')) {
+        const remittanceId = e.target.dataset.id;
         if (confirm('Delete this remittance?')) {
-          await api(`/api/remittances/${e.target.dataset.id}`, { method: 'DELETE' });
+          await api(`/api/remittances/${remittanceId}`, { method: 'DELETE' });
           renderProductRemittances();
         }
       }
     });
-  }).catch(console.error);
+
+    // Render pagination
+    renderPagination(pagination, data.pagination, renderProductRemittances);
+
+  } catch (error) {
+    console.error('Error loading remittances:', error);
+    tbody.innerHTML = '<tr><td colspan="8" class="muted">Error loading data</td></tr>';
+  }
 }
 
-// Render product refunds
-function renderProductRefunds() {
+async function renderProductRefunds() {
   const tbody = Q('#pdRefundsBody');
+  const pagination = Q('#pdRefundsPagination');
   if (!tbody) return;
 
-  api('/api/refunds').then(data => {
-    const refunds = data.refunds.filter(r => r.productId === state.productId);
-    
+  try {
+    const data = await api(`/api/refunds?productId=${state.productId}&page=1&limit=10`);
+    const refunds = data.refunds || [];
+
     if (refunds.length === 0) {
       tbody.innerHTML = '<tr><td colspan="7" class="muted">No refunds found</td></tr>';
+      pagination.innerHTML = '';
       return;
     }
 
@@ -3338,116 +3414,256 @@ function renderProductRefunds() {
     // Add delete handlers
     tbody.addEventListener('click', async (e) => {
       if (e.target.classList.contains('act-del-refund')) {
+        const refundId = e.target.dataset.id;
         if (confirm('Delete this refund?')) {
-          await api(`/api/refunds/${e.target.dataset.id}`, { method: 'DELETE' });
+          await api(`/api/refunds/${refundId}`, { method: 'DELETE' });
           renderProductRefunds();
         }
       }
     });
-  }).catch(console.error);
-}
 
-// Render product store orders
-function renderProductStoreOrders() {
-  const tbody = Q('#pdStoreOrdersBody');
-  if (!tbody) return;
+    // Render pagination
+    renderPagination(pagination, data.pagination, renderProductRefunds);
 
-  api('/api/product-orders').then(data => {
-    const orders = data.orders.filter(o => o.productId === state.productId);
-    
-    if (orders.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="muted">No store orders found</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = orders.map(order => `
-      <tr>
-        <td>${order.startDate} to ${order.endDate}</td>
-        <td>${order.country}</td>
-        <td>${fmt(order.orders)}</td>
-        <td>
-          <button class="btn small outline act-del-order" data-id="${order.id}">Delete</button>
-        </td>
-      </tr>
-    `).join('');
-
-    // Add delete handlers
-    tbody.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('act-del-order')) {
-        if (confirm('Delete this order entry?')) {
-          await api(`/api/product-orders/${e.target.dataset.id}`, { method: 'DELETE' });
-          renderProductStoreOrders();
-        }
-      }
-    });
-  }).catch(console.error);
-}
-
-function fillProductPageSelects() {
-  // Fill country selects for product page
-  const countrySelects = ['#pdNoteCountry', '#pdInfCountry', '#pdInfFilterCountry'];
-  countrySelects.forEach(sel => {
-    const el = Q(sel);
-    if (el) {
-      el.innerHTML = '<option value="">Select country...</option>' +
-        state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
-    }
-  });
-}
-
-// ======== FIXED NAVIGATION ========
-function bindGlobalNav() {
-  console.log('🔄 Setting up navigation...');
-  
-  const navLinks = QA('.nav a[data-view]');
-  const mainSections = QA('.container > section');
-  
-  console.log('📍 Found nav links:', navLinks.length);
-  console.log('📍 Found sections:', mainSections.length);
-  
-  // Hide all sections first
-  mainSections.forEach(section => {
-    section.style.display = 'none';
-  });
-  
-  // Add click listeners to nav links
-  navLinks.forEach(link => {
-    link.addEventListener('click', (e) => {
-      e.preventDefault();
-      const viewName = link.getAttribute('data-view');
-      console.log('🎯 Navigation clicked:', viewName);
-      
-      // Remove active class from all links
-      navLinks.forEach(l => l.classList.remove('active'));
-      
-      // Add active class to clicked link
-      link.classList.add('active');
-      
-      // Hide all sections
-      mainSections.forEach(section => {
-        section.style.display = 'none';
-      });
-      
-      // Show the selected section
-      const targetSection = document.getElementById(viewName);
-      if (targetSection) {
-        targetSection.style.display = 'block';
-        console.log('✅ Showing section:', viewName);
-      } else {
-        console.log('❌ Section not found:', viewName);
-      }
-    });
-  });
-  
-  // Show home section by default
-  const homeSection = document.getElementById('home');
-  const homeLink = document.querySelector('.nav a[data-view="home"]');
-  if (homeSection && homeLink) {
-    homeSection.style.display = 'block';
-    homeLink.classList.add('active');
-    console.log('🏠 Default section: home');
+  } catch (error) {
+    console.error('Error loading refunds:', error);
+    tbody.innerHTML = '<tr><td colspan="7" class="muted">Error loading data</td></tr>';
   }
 }
 
-// ======== INITIALIZATION ========
+function renderPagination(container, pagination, renderFunction) {
+  if (!container || !pagination) return;
+
+  const { currentPage, totalPages, totalItems, hasNextPage, hasPrevPage } = pagination;
+
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+
+  let html = '';
+
+  html += `<button class="pagination-btn" ${!hasPrevPage ? 'disabled' : ''} data-page="${currentPage - 1}">◀ Previous</button>`;
+
+  const startPage = Math.max(1, currentPage - 2);
+  const endPage = Math.min(totalPages, startPage + 4);
+
+  for (let i = startPage; i <= endPage; i++) {
+    html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+  }
+
+  html += `<button class="pagination-btn" ${!hasNextPage ? 'disabled' : ''} data-page="${currentPage + 1}">Next ▶</button>`;
+  html += `<span class="pagination-info">Page ${currentPage} of ${totalPages} (${totalItems} items)</span>`;
+
+  container.innerHTML = html;
+
+  container.addEventListener('click', (e) => {
+    if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
+      const page = parseInt(e.target.dataset.page);
+      renderFunction(page);
+    }
+  });
+}
+
+function bindProductInfluencers() {
+  // Add influencer
+  Q('#pdInfAdd')?.addEventListener('click', async () => {
+    const name = Q('#pdInfName')?.value?.trim();
+    const social = Q('#pdInfSocial')?.value?.trim();
+    const country = Q('#pdInfCountry')?.value;
+
+    if (!name) return alert('Enter influencer name');
+
+    await api('/api/influencers', {
+      method: 'POST',
+      body: JSON.stringify({ name, social, country })
+    });
+
+    Q('#pdInfName').value = '';
+    Q('#pdInfSocial').value = '';
+    loadInfluencers();
+    alert('Influencer added');
+  });
+
+  // Add spend
+  Q('#pdInfSpendAdd')?.addEventListener('click', async () => {
+    const date = Q('#pdInfDate')?.value;
+    const influencerId = Q('#pdInfSelect')?.value;
+    const country = Q('#pdInfFilterCountry')?.value;
+    const amount = +Q('#pdInfAmount')?.value || 0;
+
+    if (!influencerId) return alert('Select influencer');
+
+    await api('/api/influencers/spend', {
+      method: 'POST',
+      body: JSON.stringify({
+        date: date || isoToday(),
+        influencerId,
+        country,
+        productId: state.productId,
+        amount
+      })
+    });
+
+    Q('#pdInfAmount').value = '';
+    loadInfluencerSpends();
+    alert('Spend added');
+  });
+
+  // Filter spends
+  Q('#pdInfRun')?.addEventListener('click', loadInfluencerSpends);
+
+  // Initial load
+  loadInfluencers();
+  loadInfluencerSpends();
+}
+
+async function loadInfluencers() {
+  const select = Q('#pdInfSelect');
+  if (!select) return;
+
+  try {
+    const data = await api('/api/influencers');
+    const influencers = data.influencers || [];
+
+    select.innerHTML = '<option value="">Select influencer...</option>' +
+      influencers.map(inf => `<option value="${inf.id}">${inf.name}</option>`).join('');
+  } catch (error) {
+    console.error('Error loading influencers:', error);
+  }
+}
+
+async function loadInfluencerSpends() {
+  const tbody = Q('#pdInfBody');
+  const totalEl = Q('#pdInfTotal');
+  if (!tbody) return;
+
+  try {
+    const data = await api('/api/influencers/spend');
+    let spends = data.spends || [];
+
+    // Filter by current product
+    spends = spends.filter(spend => spend.productId === state.productId);
+
+    // Apply date range filter
+    const dateRange = getDateRange(Q('#pdInfRun')?.closest('.row'));
+    if (dateRange.start) {
+      spends = spends.filter(spend => spend.date >= dateRange.start);
+    }
+    if (dateRange.end) {
+      spends = spends.filter(spend => spend.date <= dateRange.end);
+    }
+
+    // Apply country filter
+    const country = Q('#pdInfFilterCountry')?.value;
+    if (country) {
+      spends = spends.filter(spend => spend.country === country);
+    }
+
+    const total = spends.reduce((sum, spend) => sum + (+spend.amount || 0), 0);
+
+    if (totalEl) totalEl.textContent = fmt(total);
+
+    if (spends.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="muted">No influencer spends found</td></tr>';
+      return;
+    }
+
+    // Get influencer details
+    const influencersData = await api('/api/influencers');
+    const influencers = influencersData.influencers || [];
+
+    tbody.innerHTML = spends.map(spend => {
+      const influencer = influencers.find(inf => inf.id === spend.influencerId);
+      return `
+        <tr>
+          <td>${spend.date}</td>
+          <td>${spend.country || '-'}</td>
+          <td>${influencer ? influencer.name : spend.influencerId}</td>
+          <td>${influencer ? influencer.social : '-'}</td>
+          <td>$${fmt(spend.amount)}</td>
+          <td>
+            <button class="btn small outline act-del-inf-spend" data-id="${spend.id}">Delete</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Add delete handlers
+    tbody.addEventListener('click', async (e) => {
+      if (e.target.classList.contains('act-del-inf-spend')) {
+        const spendId = e.target.dataset.id;
+        if (confirm('Delete this influencer spend?')) {
+          await api(`/api/influencers/spend/${spendId}`, { method: 'DELETE' });
+          loadInfluencerSpends();
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error loading influencer spends:', error);
+    tbody.innerHTML = '<tr><td colspan="6" class="muted">Error loading data</td></tr>';
+  }
+}
+
+// ======== NAVIGATION ========
+function bindGlobalNav() {
+  const nav = Q('.nav');
+  const sections = QA('section');
+  let currentView = 'home';
+
+  function showView(viewId) {
+    sections.forEach(s => s.style.display = 'none');
+    const target = Q(`#${viewId}`);
+    if (target) target.style.display = 'block';
+    
+    // Update nav active state
+    QA('.nav a').forEach(a => a.classList.remove('active'));
+    const navItem = Q(`.nav a[data-view="${viewId}"]`);
+    if (navItem) navItem.classList.add('active');
+    
+    currentView = viewId;
+    
+    // Trigger view-specific rendering
+    setTimeout(() => {
+      switch(viewId) {
+        case 'home':
+          renderDashboardPage();
+          break;
+        case 'products':
+          renderProductsPage();
+          break;
+        case 'performance':
+          renderPerformancePage();
+          break;
+        case 'stockMovement':
+          renderStockMovementPage();
+          break;
+        case 'adspend':
+          renderAdspendPage();
+          break;
+        case 'finance':
+          renderFinancePage();
+          break;
+        case 'settings':
+          renderSettingsPage();
+          break;
+      }
+    }, 100);
+  }
+
+  nav?.addEventListener('click', (e) => {
+    const view = e.target.dataset?.view;
+    if (view) {
+      e.preventDefault();
+      showView(view);
+    }
+  });
+
+  // Initialize first view
+  showView('home');
+  initSimpleNavigation();
+}
+
+// Initialize the application
 document.addEventListener('DOMContentLoaded', boot);
