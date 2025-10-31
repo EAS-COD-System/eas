@@ -474,10 +474,13 @@ async function createStartupBackup() {
 
 // ======== ROUTES ========
 
-// ======== AUTHENTICATION ========
+// ======== AUTHENTICATION (FIXED) ========
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
+  
+  console.log('Auth attempt with password:', password);
+  console.log('Expected password:', db.password);
   
   if (password === 'logout') {
     res.clearCookie('auth', { httpOnly: true, sameSite: 'Lax', secure: false, path: '/' });
@@ -490,11 +493,13 @@ app.post('/api/auth', (req, res) => {
       sameSite: 'Lax', 
       secure: false, 
       path: '/', 
-      maxAge: 365 * 24 * 60 * 60 * 1000 
+      maxAge: 365 * 24 * 60 * 60 * 1000 // 1 year
     });
+    console.log('Login successful');
     return res.json({ ok: true });
   }
   
+  console.log('Login failed');
   return res.status(403).json({ error: 'Wrong password' });
 });
 
