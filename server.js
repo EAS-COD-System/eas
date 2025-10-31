@@ -23,6 +23,19 @@ app.use(bodyParser.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use('/public', express.static(path.join(ROOT, 'public')));
 
+// ======== DEBUG MIDDLEWARE ========
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  console.log('Cookies:', req.cookies);
+  next();
+});
+
+// ======== TODO LIST ROUTES (FIXED) ========
+app.get('/api/todos', requireAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ todos: db.todos || [] });
+});
+
 function ensureDB() {
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeJsonSync(DATA_FILE, {
@@ -468,18 +481,32 @@ async function createStartupBackup() {
 
 // ======== ROUTES ========
 
-// Authentication
+// ======== AUTHENTICATION (FIXED) ========
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
+  
+  console.log('Auth attempt with password:', password);
+  console.log('Expected password:', db.password);
+  
   if (password === 'logout') {
     res.clearCookie('auth', { httpOnly: true, sameSite: 'Lax', secure: false, path: '/' });
     return res.json({ ok: true });
   }
+  
   if (password && password === db.password) {
-    res.cookie('auth', '1', { httpOnly: true, sameSite: 'Lax', secure: false, path: '/', maxAge: 365 * 24 * 60 * 60 * 1000 });
+    res.cookie('auth', '1', { 
+      httpOnly: true, 
+      sameSite: 'Lax', 
+      secure: false, 
+      path: '/', 
+      maxAge: 365 * 24 * 60 * 60 * 1000 
+    });
+    console.log('Login successful');
     return res.json({ ok: true });
   }
+  
+  console.log('Login failed');
   return res.status(403).json({ error: 'Wrong password' });
 });
 
