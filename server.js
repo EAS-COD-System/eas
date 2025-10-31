@@ -26,14 +26,7 @@ app.use('/public', express.static(path.join(ROOT, 'public')));
 // ======== DEBUG MIDDLEWARE ========
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  console.log('Cookies:', req.cookies);
   next();
-});
-
-// ======== TODO LIST ROUTES (FIXED) ========
-app.get('/api/todos', requireAuth, (req, res) => {
-  const db = loadDB();
-  res.json({ todos: db.todos || [] });
 });
 
 function ensureDB() {
@@ -481,13 +474,10 @@ async function createStartupBackup() {
 
 // ======== ROUTES ========
 
-// ======== AUTHENTICATION (FIXED) ========
+// ======== AUTHENTICATION ========
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
-  
-  console.log('Auth attempt with password:', password);
-  console.log('Expected password:', db.password);
   
   if (password === 'logout') {
     res.clearCookie('auth', { httpOnly: true, sameSite: 'Lax', secure: false, path: '/' });
@@ -502,15 +492,13 @@ app.post('/api/auth', (req, res) => {
       path: '/', 
       maxAge: 365 * 24 * 60 * 60 * 1000 
     });
-    console.log('Login successful');
     return res.json({ ok: true });
   }
   
-  console.log('Login failed');
   return res.status(403).json({ error: 'Wrong password' });
 });
 
-// ======== TODO LIST ROUTES (FIXED) ========
+// ======== TODO LIST ROUTES ========
 app.get('/api/todos', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ todos: db.todos || [] });
@@ -553,7 +541,7 @@ app.delete('/api/todos/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// ======== WEEKLY TODO ROUTES (FIXED) ========
+// ======== WEEKLY TODO ROUTES ========
 app.get('/api/weekly-todos', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ weeklyTodos: db.weeklyTodos || {} });
@@ -1349,7 +1337,7 @@ app.get('/api/analytics/remittance', requireAuth, (req, res) => {
   if (productId && productId !== 'all') {
     if (country && country !== '') {
       const metrics = calculateProfitMetrics(db, productId, country, start, end);
-      analytics = [{
+      analytics = [{{
         productId,
         productName: (db.products.find(p => p.id === productId) || {}).name || productId,
         country: country,
