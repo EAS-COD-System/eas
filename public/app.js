@@ -22,9 +22,16 @@ async function api(path, opts = {}) {
     });
     clearTimeout(timeoutId);
     
+    console.log(`API ${path} response status:`, res.status);
+    
     const ct = res.headers.get('content-type') || '';
     const body = ct.includes('application/json') ? await res.json() : await res.text();
-    if (!res.ok) throw new Error(body?.error || body || ('HTTP ' + res.status));
+    
+    if (!res.ok) {
+      console.error(`API error ${res.status}:`, body);
+      throw new Error(body?.error || body || (`HTTP ${res.status}`));
+    }
+    
     return body;
   } catch (error) {
     clearTimeout(timeoutId);
@@ -65,41 +72,31 @@ async function boot() {
     Q('#login')?.classList.add('hide');
     Q('#main')?.removeAttribute('style');
     console.log('Auth successful');
-  } catch (error) {
-    console.error('Auth failed:', error);
-    Q('#login')?.classList.remove('hide');
-    Q('#main')?.setAttribute('style', 'display:none');
-    return;
-  }
-
-  try {
-    console.log('Preloading data...');
-    await preload();
-    console.log('Data preloaded');
     
-    console.log('Initializing navigation...');
-    bindGlobalNav(); // FIXED: Call the navigation function
-    console.log('Navigation initialized');
-
+    // Continue with app initialization...
+    await preload();
+    bindGlobalNav();
+    
     if (state.productId) {
-      console.log('Rendering product page...');
       renderProductPage();
     } else {
-      console.log('Rendering main pages...');
       renderDashboardPage();
       renderProductsPage();
       renderPerformancePage();
       renderStockMovementPage();
-      renderAdspendPage(); // ADDED: This was missing
+      renderAdspendPage();
       renderFinancePage();
       renderSettingsPage();
     }
     
     setupDailyBackupButton();
     console.log('Boot completed successfully');
+    
   } catch (error) {
-    console.error('Boot failed:', error);
-    alert('Application initialization failed. Please refresh the page.');
+    console.error('Auth failed:', error);
+    Q('#login')?.classList.remove('hide');
+    Q('#main')?.setAttribute('style', 'display:none');
+    return;
   }
 }
 
