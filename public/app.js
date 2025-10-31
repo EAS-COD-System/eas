@@ -1467,9 +1467,9 @@ async function renderAdvertisingOverview() {
             <div class="product-row">
               <div class="product-name">${product ? product.name : productId}</div>
               <div class="platform-spends">
-                <span class="platform-badge ${data.facebook > 0 ? 'active' : ''}">Facebook: ${fmt(data.facebook)}</span>
-                <span class="platform-badge ${data.tiktok > 0 ? 'active' : ''}">TikTok: ${fmt(data.tiktok)}</span>
-                <span class="platform-badge ${data.google > 0 ? 'active' : ''}">Google: ${fmt(data.google)}</span>
+                <span class="platform-badge ${data.facebook > 0 ? 'active' : ''}" data-platform="facebook" data-country="${country}" data-product="${productId}">Facebook: ${fmt(data.facebook)}</span>
+                <span class="platform-badge ${data.tiktok > 0 ? 'active' : ''}" data-platform="tiktok" data-country="${country}" data-product="${productId}">TikTok: ${fmt(data.tiktok)}</span>
+                <span class="platform-badge ${data.google > 0 ? 'active' : ''}" data-platform="google" data-country="${country}" data-product="${productId}">Google: ${fmt(data.google)}</span>
                 <span class="total-badge">Total: ${fmt(data.total)}</span>
               </div>
             </div>`;
@@ -1479,6 +1479,10 @@ async function renderAdvertisingOverview() {
         });
 
         container.innerHTML = html || '<div class="card"><div class="muted">No advertising data yet</div></div>';
+        
+        // Add click handlers for platform badges
+        container.addEventListener('click', handlePlatformClick);
+        
         resolve();
       }).catch(error => {
         console.error('Error loading advertising overview:', error);
@@ -1490,6 +1494,44 @@ async function renderAdvertisingOverview() {
       resolve();
     }
   });
+}
+
+function handlePlatformClick(e) {
+  if (e.target.classList.contains('platform-badge')) {
+    const platform = e.target.dataset.platform;
+    const country = e.target.dataset.country;
+    const productId = e.target.dataset.product;
+    
+    const currentAmount = parseFloat(e.target.textContent.split(': ')[1]) || 0;
+    
+    const newAmount = prompt(`Enter new ${platform} spend for ${country}:`, currentAmount);
+    
+    if (newAmount !== null && !isNaN(newAmount)) {
+      const amount = parseFloat(newAmount);
+      
+      if (amount >= 0) {
+        // Update the ad spend
+        api('/api/adspend', {
+          method: 'POST',
+          body: JSON.stringify({
+            date: isoToday(),
+            productId: productId,
+            country: country,
+            platform: platform,
+            amount: amount
+          })
+        }).then(() => {
+          // Refresh the advertising overview
+          renderAdvertisingOverview();
+          alert(`${platform} spend updated successfully!`);
+        }).catch(error => {
+          alert('Error updating spend: ' + error.message);
+        });
+      } else {
+        alert('Please enter a valid amount');
+      }
+    }
+  }
 }
 
 function renderProductInfoResults(productInfo) {
@@ -2225,14 +2267,17 @@ async function renderShipmentTables() {
   try {
     const shipments = await api('/api/shipments');
     
+    // Filter out arrived shipments (they should only appear on product pages)
+    const transitShipments = shipments.shipments.filter(s => !s.arrivedAt);
+    
     // China → Kenya shipments
-    const chinaKenyaShipments = shipments.shipments.filter(s => 
+    const chinaKenyaShipments = transitShipments.filter(s => 
       s.fromCountry === 'china' && s.toCountry === 'kenya'
     );
     renderShipmentTable('#shipCKBody', chinaKenyaShipments, true);
     
     // Inter-country shipments (excluding China → Kenya)
-    const interCountryShipments = shipments.shipments.filter(s => 
+    const interCountryShipments = transitShipments.filter(s => 
       s.fromCountry !== 'china' || s.toCountry !== 'kenya'
     );
     renderShipmentTable('#shipICBody', interCountryShipments, false);
@@ -2246,7 +2291,7 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
   if (!tbody) return;
 
   if (shipments.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="12" class="muted">No shipments</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="muted">No shipments in transit</td></tr>';
     return;
   }
 
@@ -3013,7 +3058,7 @@ async function renderProductShipments() {
     const shipments = await api('/api/shipments');
     const productShipments = shipments.shipments.filter(s => s.productId === state.productId);
 
-    // China → Kenya shipments
+    // Show all shipments for this product (including arrived ones)
     const chinaKenyaShipments = productShipments.filter(s => 
       s.fromCountry === 'china' && s.toCountry === 'kenya'
     );
@@ -3457,7 +3502,11 @@ function renderPagination(container, pagination, renderFunction) {
 
   container.innerHTML = html;
 
+  container.addEventListener('click', (e) = html;
+
   container.addEventListener('click', (e) => {
+    if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
+      const => {
     if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
       const page = parseInt(e.target.dataset.page);
       renderFunction(page);
@@ -3467,35 +3516,75 @@ function renderPagination(container, pagination, renderFunction) {
 
 function bindProductInfluencers() {
   // Add influencer
-  Q('#pdInfAdd')?.addEventListener('click', async () => {
+  Q page = parseInt(e.target.dataset.page);
+      renderFunction(page);
+    }
+  });
+}
+
+function bindProductInfluencers() {
+  // Add influencer
+  Q('#pdInfAdd')('#pdInfAdd')?.addEventListener('click', async () => {
+    const name?.addEventListener('click', async () => {
     const name = Q('#pdInfName')?.value?.trim();
-    const social = Q('#pdInfSocial')?.value?.trim();
+    const = Q('#pdInfName')?.value?.trim();
+    const social = Q('#pdInfSocial')?.value social = Q('#pdInfSocial')?.value?.trim();
+    const country = Q('#pdInfCountry')?.value;
+
+    if (!name) return alert('?.trim();
     const country = Q('#pdInfCountry')?.value;
 
     if (!name) return alert('Enter influencer name');
+
+    await api('/api/influencers', {
+      method: 'Enter influencer name');
 
     await api('/api/influencers', {
       method: 'POST',
       body: JSON.stringify({ name, social, country })
     });
 
+    Q('#pdInfName').valuePOST',
+      body: JSON.stringify({ name, social, country })
+    });
+
     Q('#pdInfName').value = '';
-    Q('#pdInfSocial').value = '';
+    Q('#pd = '';
+    Q('#pdInfSocialInfSocial').value = '';
+    loadInfluencers').value = '';
     loadInfluencers();
+    alert();
     alert('Influencer added');
   });
 
   // Add spend
   Q('#pdInfSpendAdd')?.addEventListener('click', async () => {
+    const date('Influencer added');
+  });
+
+  // Add spend
+  Q('#pdInfSpendAdd')?. = Q('#pdInfDate')?.value;
+    const influencerId = Q('#pdInfSelect')addEventListener('click', async () => {
     const date = Q('#pdInfDate')?.value;
     const influencerId = Q('#pdInfSelect')?.value;
+    const country = Q?.value;
     const country = Q('#pdInfFilterCountry')?.value;
-    const amount = +Q('#pdInfAmount')?.value || 0;
+    const amount =('#pdInfFilterCountry')?.value;
+    const amount = +Q('#pdInfAmount')?. +Q('#pdInfAmount')?.value || 0;
+
+    if (!influencerId)value || 0;
 
     if (!influencerId) return alert('Select influencer');
 
+    await api('/ return alert('Select influencer');
+
     await api('/api/influencers/spend', {
-      method: 'POST',
+      methodapi/influencers/spend', {
+      method: 'POST: 'POST',
+      body: JSON.stringify({
+        date: date || isoToday(),
+        influencerId,
+        country',
       body: JSON.stringify({
         date: date || isoToday(),
         influencerId,
@@ -3505,36 +3594,83 @@ function bindProductInfluencers() {
       })
     });
 
+    Q('#pd,
+        productId: state.productId,
+        amount
+      })
+    });
+
     Q('#pdInfAmount').value = '';
-    loadInfluencerSpends();
+    loadInfAmount').value = '';
+    loadInfluencerSpInfluencerSpends();
+    alert('Spend added');
+  });
+
+  // Filter spends
+ends();
     alert('Spend added');
   });
 
   // Filter spends
   Q('#pdInfRun')?.addEventListener('click', loadInfluencerSpends);
 
+  Q('#pdInfRun')?.addEventListener('click', loadInfluencerSpends);
+
   // Initial load
+   // Initial load
   loadInfluencers();
+  loadIn loadInfluencers();
   loadInfluencerSpends();
 }
 
+asyncfluencerSpends();
+}
+
 async function loadInfluencers() {
+  const select = function loadInfluencers() {
   const select = Q('#pdInfSelect');
   if (!select) return;
 
   try {
+    const data = await api('/api Q('#pdInfSelect');
+  if (!select) return;
+
+  try {
     const data = await api('/api/influencers');
+    const influencers = data.influencers/influencers');
     const influencers = data.influencers || [];
 
+    select.innerHTML = '<option || [];
+
     select.innerHTML = '<option value="">Select influencer...</option>' +
-      influencers.map(inf => `<option value="${inf.id}">${inf.name}</option>`).join('');
+      influencers.map(inf => value="">Select influencer...</option>' +
+      influencers.map(inf => `<option value="${inf.id}"> `<option value="${inf.id}">${inf.name}</option>`).join('');
+  } catch (error${inf.name}</option>`).join('');
   } catch (error) {
+    console.error('Error loading influencers:', error) {
     console.error('Error loading influencers:', error);
+  }
+}
+
+async function loadInflu);
   }
 }
 
 async function loadInfluencerSpends() {
   const tbody = Q('#pdInfBody');
+  const totalElencerSpends() {
+  const tbody = Q('#pdInf = Q('#pdInfTotal');
+  if (!tbody) return;
+
+  try {
+    const data = await api('/api/influencers/spend');
+    let spends = data.spends || [];
+
+    // Filter by current product
+    spends = spends.filter(spend => spend.productId === state.productId);
+
+    // Apply date range filter
+Body');
   const totalEl = Q('#pdInfTotal');
   if (!tbody) return;
 
@@ -3554,13 +3690,37 @@ async function loadInfluencerSpends() {
       spends = spends.filter(spend => spend.date <= dateRange.end);
     }
 
+    //    const dateRange = getDateRange(Q('#pdInfRun')?.closest('.row'));
+    if (dateRange.start) {
+      spends = spends.filter(spend => spend.date >= dateRange.start);
+    }
+    if (dateRange.end) {
+      spends = spends.filter(spend => spend.date <= dateRange.end);
+    }
+
     // Apply country filter
     const country = Q('#pdInfFilterCountry')?.value;
     if (country) {
       spends = spends.filter(spend => spend.country === country);
     }
 
+    const total = spends.reduce((sum, spend) => sum + (+spend.amount || 0), 0 Apply country filter
+    const country = Q('#pdInfFilterCountry')?.value;
+    if (country) {
+      spends = spends.filter(spend => spend.country === country);
+    }
+
     const total = spends.reduce((sum, spend) => sum + (+spend.amount || 0), 0);
+
+    if (totalEl) totalEl.textContent = fmt(total);
+
+    if (spends.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="muted">No influencer spends found</td></tr>';
+      return;
+    }
+
+    // Get influencer details
+    const influencersData = await api);
 
     if (totalEl) totalEl.textContent = fmt(total);
 
@@ -3579,7 +3739,16 @@ async function loadInfluencerSpends() {
         <tr>
           <td>${spend.date}</td>
           <td>${spend.country || '-'}</td>
-          <td>${influencer ? influencer.name : spend.influencerId}</td>
+          <td>${influencer('/api/influencers');
+    const influencers = influencersData.influencers || [];
+
+    tbody.innerHTML = spends.map(spend => {
+      const influencer = influencers.find(inf => inf.id === spend.influencerId);
+      return `
+        <tr>
+          <td>${spend.date}</td>
+          <td>${spend.country || '-'}</td>
+          < ? influencer.name : spend.influencerId}</td>
           <td>${influencer ? influencer.social : '-'}</td>
           <td>$${fmt(spend.amount)}</td>
           <td>
@@ -3592,7 +3761,20 @@ async function loadInfluencerSpends() {
     // Add delete handlers
     tbody.addEventListener('click', async (e) => {
       if (e.target.classList.contains('act-del-inf-spend')) {
-        const spendId = e.target.dataset.id;
+        const spendId = etd>${influencer ? influencer.name : spend.influencerId}</td>
+          <td>${influencer ? influencer.social : '-'}</td>
+          <td>$${fmt(spend.amount)}</td>
+          <td>
+            <button class="btn small outline act-del-inf-spend" data-id="${spend.id}">Delete</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Add delete handlers
+    tbody.addEventListener('click', async (e) => {
+      if (e.target.classList.contains('act-del-inf-spend')) {
+        const spendId = e.target.dat.target.dataset.id;
         if (confirm('Delete this influencer spend?')) {
           await api(`/api/influencers/spend/${spendId}`, { method: 'DELETE' });
           loadInfluencerSpends();
@@ -3606,7 +3788,8 @@ async function loadInfluencerSpends() {
   }
 }
 
-// ======== NAVIGATION ========
+
+// ======= NAVIGATION ========
 function bindGlobalNav() {
   const nav = Q('.nav');
   const sections = QA('section');
