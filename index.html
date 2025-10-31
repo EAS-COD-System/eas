@@ -23,16 +23,16 @@
 
     <!-- MAIN -->
     <div id="main" style="display:none">
-<nav class="nav">
-  <a data-view="home" class="active">📊 Dashboard</a>
-  <a data-view="products">📦 Products</a>
-  <a data-view="performance">📈 Performance</a>
-  <a data-view="stockMovement">🚚 Stock Movement</a>
-  <a data-view="adspend">🎯 Adspend</a>
-  <a data-view="finance">💰 Finance</a>
-  <a data-view="settings">⚙️ Settings</a>
-  <a id="logoutLink" class="nav-right">🚪 Logout</a>
-</nav>
+      <nav class="nav">
+        <a data-view="home" class="active">📊 Dashboard</a>
+        <a data-view="products">📦 Products</a>
+        <a data-view="performance">📈 Performance</a>
+        <a data-view="stockMovement">🚚 Stock Movement</a>
+        <a data-view="adspend">🎯 Adspend</a>
+        <a data-view="finance">💰 Finance</a>
+        <a data-view="settings">⚙️ Settings</a>
+        <a id="logoutLink" class="nav-right">🚪 Logout</a>
+      </nav>
 
       <div class="container">
 
@@ -127,385 +127,380 @@
 
           <!-- Brainstorming Section -->
           <div class="section">
-            <h2>💡 Brainstorming</h2>
+            <h2>💡 Brainstorming & Idea Management</h2>
             <div id="brainstormingSection"></div>
           </div>
 
           <div class="section">
-            <h2>To-Do List</h2>
-            <div class="row">
-              <input id="todoText" class="input" placeholder="Enter new task..."/>
-              <button id="todoAdd" class="btn">➕ Add Task</button>
+            <h2>📝 To-Do List</h2>
+            <div class="card">
+              <div class="row">
+                <input id="todoText" class="input" placeholder="Enter new task..."/>
+                <button id="todoAdd" class="btn">➕ Add Task</button>
+              </div>
+              <div id="todoList" class="todo-list"></div>
             </div>
-            <div id="todoList" class="todo-list"></div>
           </div>
 
           <div class="section">
-            <h2>Weekly To-Do</h2>
+            <h2>📅 Weekly To-Do</h2>
             <div id="weeklyWrap" class="weeks"></div>
           </div>
 
           <!-- Tested Products Section -->
           <div class="section">
-            <h2>🧪 Notes for Tested Products</h2>
+            <h2>🧪 Product Testing Results & Analysis</h2>
             <div id="testedProductsSection"></div>
           </div>
 
         </section>
 
-   <!-- PRODUCTS -->
-<section id="products" style="display:none">
-  <h2>Products Management</h2>
+        <!-- PRODUCTS -->
+        <section id="products" style="display:none">
+          <h2>Products Management</h2>
 
-  <!-- Add Product -->
-  <div class="card">
-    <div class="h">➕ Add New Product</div>
-    <div class="row wrap">
-      <input id="pName" class="input" placeholder="Product Name"/>
-      <input id="pSku" class="input" placeholder="SKU"/>
-      <button id="pAdd" class="btn">🚀 Add Product</button>
-    </div>
-  </div>
+          <!-- Add Product -->
+          <div class="card">
+            <div class="h">➕ Add New Product</div>
+            <div class="row wrap">
+              <input id="pName" class="input" placeholder="Product Name"/>
+              <input id="pSku" class="input" placeholder="SKU"/>
+              <button id="pAdd" class="btn">🚀 Add Product</button>
+            </div>
+          </div>
 
-  <!-- Add Selling Prices -->
-  <div class="card">
-    <div class="h">💰 Set Selling Prices by Country</div>
-    <div class="row wrap">
-      <select id="spProduct" class="input">
-        <option value="">Select product...</option>
-      </select>
-      <select id="spCountry" class="input">
-        <option value="">Select country...</option>
-      </select>
-      <input id="spPrice" type="number" class="input" placeholder="Selling Price (USD)" step="0.01"/>
-      <button id="spSave" class="btn">💾 Save Price</button>
-    </div>
-  </div>
+          <!-- Add Selling Prices -->
+          <div class="card">
+            <div class="h">💰 Set Selling Prices by Country</div>
+            <div class="row wrap">
+              <select id="spProduct" class="input">
+                <option value="">Select product...</option>
+              </select>
+              <select id="spCountry" class="input">
+                <option value="">Select country...</option>
+              </select>
+              <input id="spPrice" type="number" class="input" placeholder="Selling Price (USD)" step="0.01"/>
+              <button id="spSave" class="btn">💾 Save Price</button>
+            </div>
+          </div>
 
-  <!-- Product Info Section -->
-  <div class="section">
-    <h2>📋 Product Info & Analytics</h2>
-    <div class="card">
-      <div class="h">Search Product Details</div>
-      <div class="row wrap">
-        <select id="productInfoSelect" class="input">
-          <option value="">Select product...</option>
-        </select>
-        <button id="productInfoRun" class="btn">🔍 Get Product Info</button>
-      </div>
-      <div id="productInfoResults"></div>
-    </div>
-  </div>
+          <!-- Product Info Section -->
+          <div class="section">
+            <h2>📋 Product Info & Analytics</h2>
+            <div class="card">
+              <div class="h">Search Product Details</div>
+              <div class="row wrap">
+                <select id="productInfoSelect" class="input">
+                  <option value="">Select product...</option>
+                </select>
+                <button id="productInfoRun" class="btn">🔍 Get Product Info</button>
+              </div>
+              <div id="productInfoResults"></div>
+            </div>
+          </div>
 
-  <!-- Products Table with Search and Pagination -->
-  <div class="section">
-    <h2>📦 All Products</h2>
-    
-    <!-- Search Box -->
-    <div class="card">
-      <div class="h">🔍 Search Products</div>
-      <div class="row">
-        <input 
-          id="productSearch" 
-          class="input" 
-          placeholder="Type to search products by name..." 
-          style="flex: 1;"
-        />
-        <button id="clearSearch" class="btn outline">Clear</button>
-      </div>
-      <div id="searchResultsInfo" class="muted" style="margin-top: 8px;"></div>
-    </div>
-<!-- Add these filter controls above the products table -->
-<div class="card">
-  <div class="h">🔍 Filter & Sort Products</div>
-  <div class="row wrap">
-    <select id="productsSort" class="input">
-      <option value="pieces">Most Pieces Delivered</option>
-      <option value="profit">Most Profit</option>
-      <option value="stock">Stock by Country</option>
-    </select>
-    <select id="productsCountryFilter" class="input">
-      <option value="">All Countries</option>
-    </select>
-  </div>
-</div>
-    <!-- Products Table -->
-    <div class="table-scroll">
-      <table id="productsTable" class="table">
-        <thead>
-          <tr>
-            <!-- JavaScript will populate this -->
-          </tr>
-        </thead>
-        <tbody>
-          <!-- JavaScript will populate this -->
-        </tbody>
-      </table>
-    </div>
+          <!-- Products Table with Search and Pagination -->
+          <div class="section">
+            <h2>📦 All Products</h2>
+            
+            <!-- Search Box -->
+            <div class="card">
+              <div class="h">🔍 Search Products</div>
+              <div class="row">
+                <input 
+                  id="productSearch" 
+                  class="input" 
+                  placeholder="Type to search products by name..." 
+                  style="flex: 1;"
+                />
+                <button id="clearSearch" class="btn outline">Clear</button>
+              </div>
+              <div id="searchResultsInfo" class="muted" style="margin-top: 8px;"></div>
+            </div>
 
-    <!-- Pagination -->
-    <div class="pagination" id="productsPagination" style="margin-top: 15px;"></div>
-  </div>
+            <!-- Products Table -->
+            <div class="table-scroll">
+              <table id="productsTable" class="table">
+                <thead>
+                  <tr>
+                    <!-- JavaScript will populate this -->
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- JavaScript will populate this -->
+                </tbody>
+              </table>
+            </div>
 
-  <!-- Country Product Stats -->
-  <div class="section">
-    <h2>📊 Products by Country</h2>
-    <div id="countryProductStats" class="country-stats-grid-compact"></div>
-  </div>
-</section>
+            <!-- Pagination -->
+            <div class="pagination" id="productsPagination" style="margin-top: 15px;"></div>
+          </div>
+
+          <!-- Country Product Stats -->
+          <div class="section">
+            <h2>📊 Products by Country</h2>
+            <div id="countryProductStats" class="country-stats-grid-compact"></div>
+          </div>
+        </section>
         
-  <!-- PERFORMANCE -->
-<section id="performance" style="display:none">
-  <h2>Performance Analytics</h2>
+        <!-- PERFORMANCE -->
+        <section id="performance" style="display:none">
+          <h2>Performance Analytics</h2>
 
- <!-- Remittance Analytics -->
-<div class="card">
-  <div class="h">📈 Remittance Analytics (🏆 Filtered By Top Delivered)</div>
-  <div class="row wrap">
-    <select id="remAnalyticsRange" class="input date-range-select">
-      <option value="8days">Last 8 days</option>
-      <option value="15days">Last 15 days</option>
-      <option value="1month">Last 1 month</option>
-      <option value="2months">Last 2 months</option>
-      <option value="6months">Last 6 months</option>
-      <option value="1year">Last 1 year</option>
-      <option value="2years">Last 2 years</option>
-      <option value="lifetime">Lifetime</option>
-      <option value="custom">Custom range</option>
-    </select>
-    <div class="custom-range" style="display: none;">
-      <input type="date" class="input custom-start"/>
-      <input type="date" class="input custom-end"/>
-    </div>
-    <select id="remAnalyticsCountry" class="input">
-      <option value="">All countries</option>
-    </select>
-    <select id="remAnalyticsProduct" class="input">
-      <option value="all">All products</option>
-    </select>
-    <button id="remAnalyticsRun" class="btn">📊 Generate Analytics</button>
-  </div>
-  
-  <!-- Remittance Analytics Table -->
-  <div class="table-scroll">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Product Name</th>
-          <th>Country</th>
-          <th>Orders</th>
-          <th>Delivered Orders</th>
-          <th>Refunded Orders</th>
-          <th>Delivered Pieces</th>
-          <th>Revenue</th>
-          <th>Refunded Amount</th>
-          <th>Advertising Spend</th>
-          <th>Influencer Spend</th>
-          <th>Boxleo Fees</th>
-          <th>Product Cost China</th>
-          <th>Total Shipping Cost</th>
-          <th>Boxleo/Order</th>
-          <th>Boxleo/Piece</th>
-          <th>Ad Cost/Order</th>
-          <th>Ad Cost/Piece</th>
-          <th>Delivery Rate</th>
-          <th>Avg Order Value</th>
-          <th>Profit/Order</th>
-          <th>Profit/Piece</th>
-          <th>Profit</th>
-        </tr>
-      </thead>
-      <tbody id="remAnalyticsBody"></tbody>
-      <tfoot>
-        <tr class="totals">
-          <th colspan="2">Totals</th>
-          <th id="remAnalyticsOrdersT">0</th>
-          <th id="remAnalyticsDeliveredOrdersT">0</th>
-          <th id="remAnalyticsRefundedOrdersT">0</th>
-          <th id="remAnalyticsDeliveredPiecesT">0</th>
-          <th id="remAnalyticsRevenueT">0</th>
-          <th id="remAnalyticsRefundedAmountT">0</th>
-          <th id="remAnalyticsAdSpendT">0</th>
-          <th id="remAnalyticsInfluencerSpendT">0</th>
-          <th id="remAnalyticsBoxleoT">0</th>
-          <th id="remAnalyticsProductCostT">0</th>
-          <th id="remAnalyticsShippingCostT">0</th>
-          <th id="remAnalyticsBoxleoOrderT">$0</th>
-          <th id="remAnalyticsBoxleoPieceT">$0</th>
-          <th id="remAnalyticsAdOrderT">$0</th>
-          <th id="remAnalyticsAdPieceT">$0</th>
-          <th id="remAnalyticsDeliveryRateT">0%</th>
-          <th id="remAnalyticsAOVT">$0</th>
-          <th id="remAnalyticsProfitT">0</th>
-        </tr>
-      </tfoot>
-    </table>
-  </div>
-</div>
-  
-  <!-- Product Costs Analysis -->
-  <div class="card">
-    <div class="h">💰 Lifetime Product Costs Analysis</div>
-    <div class="row wrap">
-      <select id="pcaProduct" class="input">
-        <option value="all">All products</option>
-      </select>
-      <select id="pcaRange" class="input date-range-select">
-        <option value="8days">Last 8 days</option>
-        <option value="15days">Last 15 days</option>
-        <option value="1month">Last 1 month</option>
-        <option value="2months">Last 2 months</option>
-        <option value="6months">Last 6 months</option>
-        <option value="1year">Last 1 year</option>
-        <option value="2years">Last 2 years</option>
-        <option value="lifetime">Lifetime</option>
-        <option value="custom">Custom range</option>
-      </select>
-      <div class="custom-range" style="display: none;">
-        <input type="date" class="input custom-start"/>
-        <input type="date" class="input custom-end"/>
-      </div>
-      <button id="pcaRun" class="btn">📊 Generate Analysis</button>
-    </div>
-    <div id="pcaResults"></div>
-  </div>
+          <!-- Remittance Analytics -->
+          <div class="card">
+            <div class="h">📈 Remittance Analytics (🏆 Filtered By Top Delivered)</div>
+            <div class="row wrap">
+              <select id="remAnalyticsRange" class="input date-range-select">
+                <option value="8days">Last 8 days</option>
+                <option value="15days">Last 15 days</option>
+                <option value="1month">Last 1 month</option>
+                <option value="2months">Last 2 months</option>
+                <option value="6months">Last 6 months</option>
+                <option value="1year">Last 1 year</option>
+                <option value="2years">Last 2 years</option>
+                <option value="lifetime">Lifetime</option>
+                <option value="custom">Custom range</option>
+              </select>
+              <div class="custom-range" style="display: none;">
+                <input type="date" class="input custom-start"/>
+                <input type="date" class="input custom-end"/>
+              </div>
+              <select id="remAnalyticsCountry" class="input">
+                <option value="">All countries</option>
+              </select>
+              <select id="remAnalyticsProduct" class="input">
+                <option value="all">All products</option>
+              </select>
+              <button id="remAnalyticsRun" class="btn">📊 Generate Analytics</button>
+            </div>
+            
+            <!-- Remittance Analytics Table -->
+            <div class="table-scroll">
+              <table class="table analytics-table">
+                <thead>
+                  <tr>
+                    <th class="sortable">Product Name</th>
+                    <th class="sortable">Country</th>
+                    <th class="sortable">Orders</th>
+                    <th class="sortable">Delivered Orders</th>
+                    <th class="sortable">Refunded Orders</th>
+                    <th class="sortable">Delivered Pieces</th>
+                    <th class="sortable">Revenue</th>
+                    <th class="sortable">Refunded Amount</th>
+                    <th class="sortable">Advertising Spend</th>
+                    <th class="sortable">Influencer Spend</th>
+                    <th class="sortable">Boxleo Fees</th>
+                    <th class="sortable">Product Cost China</th>
+                    <th class="sortable">Total Shipping Cost</th>
+                    <th class="sortable">Boxleo/Order</th>
+                    <th class="sortable">Boxleo/Piece</th>
+                    <th class="sortable">Ad Cost/Order</th>
+                    <th class="sortable">Ad Cost/Piece</th>
+                    <th class="sortable">Profit/Order</th>
+                    <th class="sortable">Profit/Piece</th>
+                    <th class="sortable">Delivery Rate</th>
+                    <th class="sortable">Avg Order Value</th>
+                    <th class="sortable">Profit</th>
+                  </tr>
+                </thead>
+                <tbody id="remAnalyticsBody"></tbody>
+                <tfoot>
+                  <tr class="totals">
+                    <th colspan="2">Totals</th>
+                    <th id="remAnalyticsOrdersT">0</th>
+                    <th id="remAnalyticsDeliveredOrdersT">0</th>
+                    <th id="remAnalyticsRefundedOrdersT">0</th>
+                    <th id="remAnalyticsDeliveredPiecesT">0</th>
+                    <th id="remAnalyticsRevenueT">0</th>
+                    <th id="remAnalyticsRefundedAmountT">0</th>
+                    <th id="remAnalyticsAdSpendT">0</th>
+                    <th id="remAnalyticsInfluencerSpendT">0</th>
+                    <th id="remAnalyticsBoxleoT">0</th>
+                    <th id="remAnalyticsProductCostT">0</th>
+                    <th id="remAnalyticsShippingCostT">0</th>
+                    <th id="remAnalyticsBoxleoOrderT">$0</th>
+                    <th id="remAnalyticsBoxleoPieceT">$0</th>
+                    <th id="remAnalyticsAdOrderT">$0</th>
+                    <th id="remAnalyticsAdPieceT">$0</th>
+                    <th id="remAnalyticsProfitOrderT">$0</th>
+                    <th id="remAnalyticsProfitPieceT">$0</th>
+                    <th id="remAnalyticsDeliveryRateT">0%</th>
+                    <th id="remAnalyticsAOVT">$0</th>
+                    <th id="remAnalyticsProfitT">0</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+          
+          <!-- Product Costs Analysis -->
+          <div class="card">
+            <div class="h">💰 Lifetime Product Costs Analysis</div>
+            <div class="row wrap">
+              <select id="pcaProduct" class="input">
+                <option value="all">All products</option>
+              </select>
+              <select id="pcaRange" class="input date-range-select">
+                <option value="8days">Last 8 days</option>
+                <option value="15days">Last 15 days</option>
+                <option value="1month">Last 1 month</option>
+                <option value="2months">Last 2 months</option>
+                <option value="6months">Last 6 months</option>
+                <option value="1year">Last 1 year</option>
+                <option value="2years">Last 2 years</option>
+                <option value="lifetime">Lifetime</option>
+                <option value="custom">Custom range</option>
+              </select>
+              <div class="custom-range" style="display: none;">
+                <input type="date" class="input custom-start"/>
+                <input type="date" class="input custom-end"/>
+              </div>
+              <button id="pcaRun" class="btn">📊 Generate Analysis</button>
+            </div>
+            <div id="pcaResults"></div>
+          </div>
 
-  <!-- Profit by Country -->
-<div class="card">
-  <div class="h">💰 Profit by Country</div>
-  <div class="row wrap">
-    <select id="pcRange" class="input date-range-select">
-      <option value="8days">Last 8 days</option>
-      <option value="15days">Last 15 days</option>
-      <option value="1month">Last 1 month</option>
-      <option value="2months">Last 2 months</option>
-      <option value="6months">Last 6 months</option>
-      <option value="1year">Last 1 year</option>
-      <option value="2years">Last 2 years</option>
-      <option value="lifetime">Lifetime</option>
-      <option value="custom">Custom range</option>
-    </select>
-    <div class="custom-range" style="display: none;">
-      <input type="date" class="input custom-start"/>
-      <input type="date" class="input custom-end"/>
-    </div>
-    <select id="pcCountry" class="input"><option value="">All countries</option></select>
-    <button id="pcRun" class="btn">📈 Calculate</button>
-  </div>
-  
-  <!-- Profit by Country Table -->
-  <div class="table-scroll">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Country</th>
-          <th>Orders</th>
-          <th>Delivered Orders</th>
-          <th>Refunded Orders</th>
-          <th>Delivered Pieces</th>
-          <th>Revenue</th>
-          <th>Refunded Amount</th>
-          <th>Total Advertising Spend</th>
-          <th>Influencer Spend</th>
-          <th>Product Cost China</th>
-          <th>Total Shipping Cost</th>
-          <th>Total Boxleo Fees</th>
-          <th>Boxleo/Order</th>
-          <th>Boxleo/Piece</th>
-          <th>Ad Cost/Order</th>
-          <th>Ad Cost/Piece</th>
-          <th>Delivery Rate</th>
-          <th>Avg Order Value</th>
-          <th>Profit</th>
-        </tr>
-      </thead>
-      <tbody id="profitCountryBody"></tbody>
-      <tfoot>
-        <tr class="totals">
-          <th>Totals</th>
-          <th id="pcOrdersT">0</th>
-          <th id="pcDeliveredOrdersT">0</th>
-          <th id="pcRefundedOrdersT">0</th>
-          <th id="pcDeliveredPiecesT">0</th>
-          <th id="pcRevT">0</th>
-          <th id="pcRefundedAmountT">0</th>
-          <th id="pcAdT">0</th>
-          <th id="pcInfluencerSpendT">0</th>
-          <th id="pcProductCostT">0</th>
-          <th id="pcShippingCostT">0</th>
-          <th id="pcBoxleoT">0</th>
-          <th id="pcBoxleoOrderT">$0</th>
-          <th id="pcBoxleoPieceT">$0</th>
-          <th id="pcAdOrderT">$0</th>
-          <th id="pcAdPieceT">$0</th>
-          <th id="pcDeliveryRateT">0%</th>
-          <th id="pcAOVT">$0</th>
-          <th id="pcProfitT">0</th>
-        </tr>
-      </tfoot>
-    </table>
-  </div>
-</div>
-  
-  <!-- Rest of the performance section remains the same -->
-  <!-- Product Orders Tracking -->
-  <div class="card">
-    <div class="h">📦 Product Orders Tracking</div>
-    <div class="row wrap">
-      <select id="poProduct" class="input">
-        <option value="">Select product...</option>
-      </select>
-      <select id="poCountry" class="input">
-        <option value="">Select country...</option>
-      </select>
-      <input id="poStartDate" type="date" class="input" placeholder="Start Date"/>
-      <input id="poEndDate" type="date" class="input" placeholder="End Date"/>
-      <input id="poOrders" type="number" class="input" placeholder="Orders" min="0"/>
-      <button id="poSave" class="btn">💾 Save Orders</button>
-    </div>
-  </div>
-  
-  <!-- Add Remittance Entry -->
-  <div class="card">
-    <div class="h">➕ Add Remittance Entry</div>
-    <div class="row wrap">
-      <input id="remAddStart" type="date" class="input" placeholder="Start Date"/>
-      <input id="remAddEnd" type="date" class="input" placeholder="End Date"/>
-      <select id="remAddCountry" class="input">
-        <option value="">Select Country</option>
-      </select>
-      <select id="remAddProduct" class="input">
-        <option value="">Select Product</option>
-      </select>
-      <input id="remAddOrders" type="number" class="input" placeholder="Orders" min="0"/>
-      <input id="remAddPieces" type="number" class="input" placeholder="Pieces" min="0"/>
-      <input id="remAddRevenue" type="number" class="input" placeholder="Revenue (USD)" step="0.01"/>
-      <input id="remAddAdSpend" type="number" class="input" placeholder="Ad Spend (USD)" step="0.01"/>
-      <input id="remAddBoxleo" type="number" class="input" placeholder="Boxleo Fees (USD)" step="0.01"/>
-      <button id="remAddSave" class="btn">💾 Save Remittance</button>
-    </div>
-  </div>
+          <!-- Profit by Country -->
+          <div class="card">
+            <div class="h">💰 Profit by Country</div>
+            <div class="row wrap">
+              <select id="pcRange" class="input date-range-select">
+                <option value="8days">Last 8 days</option>
+                <option value="15days">Last 15 days</option>
+                <option value="1month">Last 1 month</option>
+                <option value="2months">Last 2 months</option>
+                <option value="6months">Last 6 months</option>
+                <option value="1year">Last 1 year</option>
+                <option value="2years">Last 2 years</option>
+                <option value="lifetime">Lifetime</option>
+                <option value="custom">Custom range</option>
+              </select>
+              <div class="custom-range" style="display: none;">
+                <input type="date" class="input custom-start"/>
+                <input type="date" class="input custom-end"/>
+              </div>
+              <select id="pcCountry" class="input"><option value="">All countries</option></select>
+              <button id="pcRun" class="btn">📈 Calculate</button>
+            </div>
+            
+            <!-- Profit by Country Table -->
+            <div class="table-scroll">
+              <table class="table profit-country-table">
+                <thead>
+                  <tr>
+                    <th class="sortable">Country</th>
+                    <th class="sortable">Orders</th>
+                    <th class="sortable">Delivered Orders</th>
+                    <th class="sortable">Refunded Orders</th>
+                    <th class="sortable">Delivered Pieces</th>
+                    <th class="sortable">Revenue</th>
+                    <th class="sortable">Refunded Amount</th>
+                    <th class="sortable">Total Advertising Spend</th>
+                    <th class="sortable">Influencer Spend</th>
+                    <th class="sortable">Product Cost China</th>
+                    <th class="sortable">Total Shipping Cost</th>
+                    <th class="sortable">Total Boxleo Fees</th>
+                    <th class="sortable">Boxleo/Order</th>
+                    <th class="sortable">Boxleo/Piece</th>
+                    <th class="sortable">Ad Cost/Order</th>
+                    <th class="sortable">Ad Cost/Piece</th>
+                    <th class="sortable">Profit/Order</th>
+                    <th class="sortable">Profit/Piece</th>
+                    <th class="sortable">Delivery Rate</th>
+                    <th class="sortable">Avg Order Value</th>
+                    <th class="sortable">Profit</th>
+                  </tr>
+                </thead>
+                <tbody id="profitCountryBody"></tbody>
+                <tfoot>
+                  <tr class="totals">
+                    <th>Totals</th>
+                    <th id="pcOrdersT">0</th>
+                    <th id="pcDeliveredOrdersT">0</th>
+                    <th id="pcRefundedOrdersT">0</th>
+                    <th id="pcDeliveredPiecesT">0</th>
+                    <th id="pcRevT">0</th>
+                    <th id="pcRefundedAmountT">0</th>
+                    <th id="pcAdT">0</th>
+                    <th id="pcInfluencerSpendT">0</th>
+                    <th id="pcProductCostT">0</th>
+                    <th id="pcShippingCostT">0</th>
+                    <th id="pcBoxleoT">0</th>
+                    <th id="pcBoxleoOrderT">$0</th>
+                    <th id="pcBoxleoPieceT">$0</th>
+                    <th id="pcAdOrderT">$0</th>
+                    <th id="pcAdPieceT">$0</th>
+                    <th id="pcProfitOrderT">$0</th>
+                    <th id="pcProfitPieceT">$0</th>
+                    <th id="pcDeliveryRateT">0%</th>
+                    <th id="pcAOVT">$0</th>
+                    <th id="pcProfitT">0</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+          
+          <!-- Product Orders Tracking -->
+          <div class="card">
+            <div class="h">📦 Product Orders Tracking</div>
+            <div class="row wrap">
+              <select id="poProduct" class="input">
+                <option value="">Select product...</option>
+              </select>
+              <select id="poCountry" class="input">
+                <option value="">Select country...</option>
+              </select>
+              <input id="poStartDate" type="date" class="input" placeholder="Start Date"/>
+              <input id="poEndDate" type="date" class="input" placeholder="End Date"/>
+              <input id="poOrders" type="number" class="input" placeholder="Orders" min="0"/>
+              <button id="poSave" class="btn">💾 Save Orders</button>
+            </div>
+          </div>
+          
+          <!-- Add Remittance Entry -->
+          <div class="card">
+            <div class="h">➕ Add Remittance Entry</div>
+            <div class="row wrap">
+              <input id="remAddStart" type="date" class="input" placeholder="Start Date"/>
+              <input id="remAddEnd" type="date" class="input" placeholder="End Date"/>
+              <select id="remAddCountry" class="input">
+                <option value="">Select Country</option>
+              </select>
+              <select id="remAddProduct" class="input">
+                <option value="">Select Product</option>
+              </select>
+              <input id="remAddOrders" type="number" class="input" placeholder="Orders" min="0"/>
+              <input id="remAddPieces" type="number" class="input" placeholder="Pieces" min="0"/>
+              <input id="remAddRevenue" type="number" class="input" placeholder="Revenue (USD)" step="0.01"/>
+              <input id="remAddAdSpend" type="number" class="input" placeholder="Ad Spend (USD)" step="0.01"/>
+              <input id="remAddBoxleo" type="number" class="input" placeholder="Boxleo Fees (USD)" step="0.01"/>
+              <button id="remAddSave" class="btn">💾 Save Remittance</button>
+            </div>
+          </div>
 
-  <!-- Add Refund Entry -->
-  <div class="card">
-    <div class="h">💸 Add Refund Entry</div>
-    <div class="row wrap">
-      <input id="refundDate" type="date" class="input" placeholder="Date"/>
-      <select id="refundCountry" class="input">
-        <option value="">Select Country</option>
-      </select>
-      <select id="refundProduct" class="input">
-        <option value="">Select Product</option>
-      </select>
-      <input id="refundOrders" type="number" class="input" placeholder="Orders Refunded" min="0"/>
-      <input id="refundPieces" type="number" class="input" placeholder="Pieces Refunded" min="0"/>
-      <input id="refundAmount" type="number" class="input" placeholder="Amount Refunded (USD)" step="0.01"/>
-      <input id="refundReason" class="input" placeholder="Reason (optional)"/>
-      <button id="refundSave" class="btn">💾 Save Refund</button>
-    </div>
-  </div>
+          <!-- Add Refund Entry -->
+          <div class="card">
+            <div class="h">💸 Add Refund Entry</div>
+            <div class="row wrap">
+              <input id="refundDate" type="date" class="input" placeholder="Date"/>
+              <select id="refundCountry" class="input">
+                <option value="">Select Country</option>
+              </select>
+              <select id="refundProduct" class="input">
+                <option value="">Select Product</option>
+              </select>
+              <input id="refundOrders" type="number" class="input" placeholder="Orders Refunded" min="0"/>
+              <input id="refundPieces" type="number" class="input" placeholder="Pieces Refunded" min="0"/>
+              <input id="refundAmount" type="number" class="input" placeholder="Amount Refunded (USD)" step="0.01"/>
+              <input id="refundReason" class="input" placeholder="Reason (optional)"/>
+              <button id="refundSave" class="btn">💾 Save Refund</button>
+            </div>
+          </div>
 
-</section>
+        </section>
+
         <!-- STOCK MOVEMENT -->
         <section id="stockMovement" style="display:none">
           <h2>Stock Movement & Transit</h2>
@@ -584,34 +579,76 @@
             </div>
           </div>
         </section>
-<!-- ADSPEND -->
-<section id="adspend" style="display:none">
-  <h2>Advertising Spend Management</h2>
 
-  <!-- Daily Advertising Spend -->
-  <div class="section">
-    <h2>Daily Advertising Spend</h2>
-    <div class="card">
-      <div class="h">Add Daily Advertising Spend</div>
-      <div class="row wrap">
-        <select id="adspendPlatform" class="input">
-          <option value="facebook">Facebook</option>
-          <option value="tiktok">TikTok</option>
-          <option value="google">Google</option>
-        </select>
-        <select id="adspendProduct" class="input"></select>
-        <select id="adspendCountry" class="input"></select>
-        <input id="adspendAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
-        <button id="adspendSave" class="btn">💾 Save / Replace</button>
-      </div>
-    </div>
-  </div>
-  <!-- Advertising Overview -->
-  <div class="section">
-    <h2>🎯 Advertising Overview by Country</h2>
-    <div id="advertisingOverview"></div>
-  </div>       
-</section>
+        <!-- ADSPEND -->
+        <section id="adspend" style="display:none">
+          <h2>Advertising Spend Management</h2>
+
+          <!-- Daily Advertising Spend -->
+          <div class="section">
+            <h2>Daily Advertising Spend</h2>
+            <div class="card">
+              <div class="h">Add Daily Advertising Spend</div>
+              <div class="row wrap">
+                <select id="adspendPlatform" class="input">
+                  <option value="facebook">Facebook</option>
+                  <option value="tiktok">TikTok</option>
+                  <option value="google">Google</option>
+                </select>
+                <select id="adspendProduct" class="input"></select>
+                <select id="adspendCountry" class="input"></select>
+                <input id="adspendAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
+                <button id="adspendSave" class="btn">💾 Save / Replace</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ad Spend Analytics -->
+          <div class="section">
+            <h2>📊 Ad Spend Analytics</h2>
+            <div class="card">
+              <div class="h">Filter Ad Spend Data</div>
+              <div class="row wrap">
+                <select id="adspendFilterRange" class="input date-range-select">
+                  <option value="8days">Last 8 days</option>
+                  <option value="15days">Last 15 days</option>
+                  <option value="1month">Last 1 month</option>
+                  <option value="2months">Last 2 months</option>
+                  <option value="6months">Last 6 months</option>
+                  <option value="1year">Last 1 year</option>
+                  <option value="2years">Last 2 years</option>
+                  <option value="lifetime">Lifetime</option>
+                  <option value="custom">Custom range</option>
+                </select>
+                <div class="custom-range" style="display: none;">
+                  <input type="date" class="input custom-start"/>
+                  <input type="date" class="input custom-end"/>
+                </div>
+                <select id="adspendFilterCountry" class="input">
+                  <option value="">All countries</option>
+                </select>
+                <select id="adspendFilterProduct" class="input">
+                  <option value="all">All products</option>
+                </select>
+                <select id="adspendFilterPlatform" class="input">
+                  <option value="">All platforms</option>
+                  <option value="facebook">Facebook</option>
+                  <option value="tiktok">TikTok</option>
+                  <option value="google">Google</option>
+                </select>
+                <button id="adspendRun" class="btn">📊 Generate Report</button>
+              </div>
+              <div id="adspendResults"></div>
+            </div>
+          </div>
+
+          <!-- Advertising Overview -->
+          <div class="section">
+            <h2>🎯 Advertising Overview by Country</h2>
+            <div id="advertisingOverview"></div>
+          </div>       
+        </section>
+
         <!-- FINANCE -->
         <section id="finance" style="display:none">
           <h2>Financial Management</h2>
