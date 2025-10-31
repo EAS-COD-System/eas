@@ -65,15 +65,22 @@ const state = {
 };
 
 async function boot() {
-  console.log('Boot starting...');
+  console.log('🚀 Boot starting...');
+  
+  // Test authentication first
   try {
-    console.log('Checking auth...');
-    await api('/api/meta');
-    Q('#login')?.classList.add('hide');
-    Q('#main')?.removeAttribute('style');
-    console.log('Auth successful');
+    console.log('🔐 Checking authentication...');
+    const meta = await api('/api/meta');
+    console.log('✅ Authenticated successfully');
     
-    // Continue with app initialization...
+    // Hide login, show main
+    const loginEl = document.getElementById('login');
+    const mainEl = document.getElementById('main');
+    
+    if (loginEl) loginEl.classList.add('hide');
+    if (mainEl) mainEl.style.display = 'block';
+    
+    // Load data and initialize app
     await preload();
     bindGlobalNav();
     
@@ -90,13 +97,19 @@ async function boot() {
     }
     
     setupDailyBackupButton();
-    console.log('Boot completed successfully');
+    console.log('✅ Boot completed successfully');
     
   } catch (error) {
-    console.error('Auth failed:', error);
-    Q('#login')?.classList.remove('hide');
-    Q('#main')?.setAttribute('style', 'display:none');
-    return;
+    console.error('❌ Authentication failed:', error);
+    
+    // Show login, hide main
+    const loginEl = document.getElementById('login');
+    const mainEl = document.getElementById('main');
+    
+    if (loginEl) loginEl.classList.remove('hide');
+    if (mainEl) mainEl.style.display = 'none';
+    
+    console.log('👤 Please log in');
   }
 }
 
@@ -1835,7 +1848,7 @@ function bindRemittanceAnalytics() {
   if (!btn) return;
 
   btn.onclick = async () => {
-    const dateRange = getDateRange(btn.closest('.row'));
+    const dateRange = getDateRange(btn.closest('.row');
     const country = Q('#remAnalyticsCountry')?.value || '';
     const productId = Q('#remAnalyticsProduct')?.value || '';
 
@@ -3499,11 +3512,7 @@ function renderPagination(container, pagination, renderFunction) {
 
   container.innerHTML = html;
 
-  container.addEventListener('click', (e) = html;
-
   container.addEventListener('click', (e) => {
-    if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
-      const => {
     if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
       const page = parseInt(e.target.dataset.page);
       renderFunction(page);
@@ -3513,75 +3522,35 @@ function renderPagination(container, pagination, renderFunction) {
 
 function bindProductInfluencers() {
   // Add influencer
-  Q page = parseInt(e.target.dataset.page);
-      renderFunction(page);
-    }
-  });
-}
-
-function bindProductInfluencers() {
-  // Add influencer
-  Q('#pdInfAdd')('#pdInfAdd')?.addEventListener('click', async () => {
-    const name?.addEventListener('click', async () => {
+  Q('#pdInfAdd')?.addEventListener('click', async () => {
     const name = Q('#pdInfName')?.value?.trim();
-    const = Q('#pdInfName')?.value?.trim();
-    const social = Q('#pdInfSocial')?.value social = Q('#pdInfSocial')?.value?.trim();
-    const country = Q('#pdInfCountry')?.value;
-
-    if (!name) return alert('?.trim();
+    const social = Q('#pdInfSocial')?.value?.trim();
     const country = Q('#pdInfCountry')?.value;
 
     if (!name) return alert('Enter influencer name');
-
-    await api('/api/influencers', {
-      method: 'Enter influencer name');
 
     await api('/api/influencers', {
       method: 'POST',
       body: JSON.stringify({ name, social, country })
     });
 
-    Q('#pdInfName').valuePOST',
-      body: JSON.stringify({ name, social, country })
-    });
-
     Q('#pdInfName').value = '';
-    Q('#pd = '';
-    Q('#pdInfSocialInfSocial').value = '';
-    loadInfluencers').value = '';
+    Q('#pdInfSocial').value = '';
     loadInfluencers();
-    alert();
     alert('Influencer added');
   });
 
   // Add spend
   Q('#pdInfSpendAdd')?.addEventListener('click', async () => {
-    const date('Influencer added');
-  });
-
-  // Add spend
-  Q('#pdInfSpendAdd')?. = Q('#pdInfDate')?.value;
-    const influencerId = Q('#pdInfSelect')addEventListener('click', async () => {
     const date = Q('#pdInfDate')?.value;
     const influencerId = Q('#pdInfSelect')?.value;
-    const country = Q?.value;
     const country = Q('#pdInfFilterCountry')?.value;
-    const amount =('#pdInfFilterCountry')?.value;
-    const amount = +Q('#pdInfAmount')?. +Q('#pdInfAmount')?.value || 0;
-
-    if (!influencerId)value || 0;
+    const amount = +Q('#pdInfAmount')?.value || 0;
 
     if (!influencerId) return alert('Select influencer');
 
-    await api('/ return alert('Select influencer');
-
     await api('/api/influencers/spend', {
-      methodapi/influencers/spend', {
-      method: 'POST: 'POST',
-      body: JSON.stringify({
-        date: date || isoToday(),
-        influencerId,
-        country',
+      method: 'POST',
       body: JSON.stringify({
         date: date || isoToday(),
         influencerId,
@@ -3591,83 +3560,36 @@ function bindProductInfluencers() {
       })
     });
 
-    Q('#pd,
-        productId: state.productId,
-        amount
-      })
-    });
-
     Q('#pdInfAmount').value = '';
-    loadInfAmount').value = '';
-    loadInfluencerSpInfluencerSpends();
+    loadInfluencerSpends();
     alert('Spend added');
   });
 
   // Filter spends
-ends();
-    alert('Spend added');
-  });
-
-  // Filter spends
-  Q('#pdInfRun')?.addEventListener('click', loadInfluencerSpends);
-
   Q('#pdInfRun')?.addEventListener('click', loadInfluencerSpends);
 
   // Initial load
-   // Initial load
   loadInfluencers();
-  loadIn loadInfluencers();
   loadInfluencerSpends();
 }
 
-asyncfluencerSpends();
-}
-
 async function loadInfluencers() {
-  const select = function loadInfluencers() {
   const select = Q('#pdInfSelect');
   if (!select) return;
 
   try {
-    const data = await api('/api Q('#pdInfSelect');
-  if (!select) return;
-
-  try {
     const data = await api('/api/influencers');
-    const influencers = data.influencers/influencers');
     const influencers = data.influencers || [];
 
-    select.innerHTML = '<option || [];
-
     select.innerHTML = '<option value="">Select influencer...</option>' +
-      influencers.map(inf => value="">Select influencer...</option>' +
-      influencers.map(inf => `<option value="${inf.id}"> `<option value="${inf.id}">${inf.name}</option>`).join('');
-  } catch (error${inf.name}</option>`).join('');
+      influencers.map(inf => `<option value="${inf.id}">${inf.name}</option>`).join('');
   } catch (error) {
-    console.error('Error loading influencers:', error) {
     console.error('Error loading influencers:', error);
-  }
-}
-
-async function loadInflu);
   }
 }
 
 async function loadInfluencerSpends() {
   const tbody = Q('#pdInfBody');
-  const totalElencerSpends() {
-  const tbody = Q('#pdInf = Q('#pdInfTotal');
-  if (!tbody) return;
-
-  try {
-    const data = await api('/api/influencers/spend');
-    let spends = data.spends || [];
-
-    // Filter by current product
-    spends = spends.filter(spend => spend.productId === state.productId);
-
-    // Apply date range filter
-Body');
   const totalEl = Q('#pdInfTotal');
   if (!tbody) return;
 
@@ -3687,37 +3609,13 @@ Body');
       spends = spends.filter(spend => spend.date <= dateRange.end);
     }
 
-    //    const dateRange = getDateRange(Q('#pdInfRun')?.closest('.row'));
-    if (dateRange.start) {
-      spends = spends.filter(spend => spend.date >= dateRange.start);
-    }
-    if (dateRange.end) {
-      spends = spends.filter(spend => spend.date <= dateRange.end);
-    }
-
     // Apply country filter
     const country = Q('#pdInfFilterCountry')?.value;
     if (country) {
       spends = spends.filter(spend => spend.country === country);
     }
 
-    const total = spends.reduce((sum, spend) => sum + (+spend.amount || 0), 0 Apply country filter
-    const country = Q('#pdInfFilterCountry')?.value;
-    if (country) {
-      spends = spends.filter(spend => spend.country === country);
-    }
-
     const total = spends.reduce((sum, spend) => sum + (+spend.amount || 0), 0);
-
-    if (totalEl) totalEl.textContent = fmt(total);
-
-    if (spends.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="muted">No influencer spends found</td></tr>';
-      return;
-    }
-
-    // Get influencer details
-    const influencersData = await api);
 
     if (totalEl) totalEl.textContent = fmt(total);
 
@@ -3736,16 +3634,7 @@ Body');
         <tr>
           <td>${spend.date}</td>
           <td>${spend.country || '-'}</td>
-          <td>${influencer('/api/influencers');
-    const influencers = influencersData.influencers || [];
-
-    tbody.innerHTML = spends.map(spend => {
-      const influencer = influencers.find(inf => inf.id === spend.influencerId);
-      return `
-        <tr>
-          <td>${spend.date}</td>
-          <td>${spend.country || '-'}</td>
-          < ? influencer.name : spend.influencerId}</td>
+          <td>${influencer ? influencer.name : spend.influencerId}</td>
           <td>${influencer ? influencer.social : '-'}</td>
           <td>$${fmt(spend.amount)}</td>
           <td>
@@ -3758,20 +3647,7 @@ Body');
     // Add delete handlers
     tbody.addEventListener('click', async (e) => {
       if (e.target.classList.contains('act-del-inf-spend')) {
-        const spendId = etd>${influencer ? influencer.name : spend.influencerId}</td>
-          <td>${influencer ? influencer.social : '-'}</td>
-          <td>$${fmt(spend.amount)}</td>
-          <td>
-            <button class="btn small outline act-del-inf-spend" data-id="${spend.id}">Delete</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
-
-    // Add delete handlers
-    tbody.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('act-del-inf-spend')) {
-        const spendId = e.target.dat.target.dataset.id;
+        const spendId = e.target.dataset.id;
         if (confirm('Delete this influencer spend?')) {
           await api(`/api/influencers/spend/${spendId}`, { method: 'DELETE' });
           loadInfluencerSpends();
@@ -3784,7 +3660,6 @@ Body');
     tbody.innerHTML = '<tr><td colspan="6" class="muted">Error loading data</td></tr>';
   }
 }
-
 
 // ======= NAVIGATION ========
 function bindGlobalNav() {
