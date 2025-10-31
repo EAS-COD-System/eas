@@ -70,7 +70,7 @@ function requireAuth(req, res, next) {
   return res.status(403).json({ error: 'Unauthorized' });
 }
 
-// ENHANCED SHIPPING COST CALCULATION - ACCURATE PER PIECE COST
+// ENHANCED SHIPPING COST CALCULATION - FIXED LOGIC
 function calculateShippingCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
   
@@ -81,7 +81,6 @@ function calculateShippingCostPerPiece(db, productId, targetCountry) {
   );
 
   let minCostPerPiece = Infinity;
-  let foundPath = false;
 
   function traceCost(currentCountry, accumulatedCost = 0, visited = new Set()) {
     if (visited.has(currentCountry)) return;
@@ -100,7 +99,6 @@ function calculateShippingCostPerPiece(db, productId, targetCountry) {
         // This is a direct shipment from China
         if (currentCountry === targetCountry) {
           minCostPerPiece = Math.min(minCostPerPiece, newAccumulatedCost);
-          foundPath = true;
         }
       } else {
         // This is an inter-country shipment, trace back
@@ -109,7 +107,6 @@ function calculateShippingCostPerPiece(db, productId, targetCountry) {
       
       if (currentCountry === targetCountry) {
         minCostPerPiece = Math.min(minCostPerPiece, newAccumulatedCost);
-        foundPath = true;
       }
     }
   }
@@ -117,7 +114,7 @@ function calculateShippingCostPerPiece(db, productId, targetCountry) {
   // Start tracing from target country
   traceCost(targetCountry, 0);
   
-  return foundPath && minCostPerPiece !== Infinity ? minCostPerPiece : 0;
+  return minCostPerPiece !== Infinity ? minCostPerPiece : 0;
 }
 
 // Calculate product cost per piece from China
@@ -212,29 +209,52 @@ function calculateProfitMetrics(db, productId, country = null, startDate = null,
     }
   });
 
-  // PERIOD-BASED COST CALCULATION
+  // PERIOD-BASED COST CALCULATION - FIXED LOGIC
   let totalProductChinaCost = 0;
   let totalShippingCost = 0;
 
-  // Filter shipments by period
-  const shipmentsInPeriod = shipments.filter(s => 
-    (!productId || s.productId === productId) &&
-    s.arrivedAt &&
-    (!startDate || s.arrivedAt >= startDate) &&
-    (!endDate || s.arrivedAt <= endDate)
-  );
+  if (productId) {
+    // Filter shipments by period and product
+    const shipmentsInPeriod = shipments.filter(s => 
+      s.productId === productId && 
+      s.arrivedAt &&
+      (!startDate || s.arrivedAt >= startDate) &&
+      (!endDate || s.arrivedAt <= endDate)
+    );
+    
+    // Calculate total product cost from China shipments in period
+    shipmentsInPeriod
+      .filter(s => s.fromCountry === 'china')
+      .forEach(shipment => {
+        totalProductChinaCost += +shipment.chinaCost || 0;
+      });
 
-  // Calculate total product cost from China shipments in period
-  shipmentsInPeriod
-    .filter(s => s.fromCountry === 'china')
-    .forEach(shipment => {
-      totalProductChinaCost += +shipment.chinaCost || 0;
+    // Calculate total shipping cost for all shipments in period
+    shipmentsInPeriod.forEach(shipment => {
+      totalShippingCost += +shipment.shipCost || 0;
     });
+  } else {
+    // For "All Products" - aggregate all product costs
+    const products = db.products || [];
+    products.forEach(product => {
+      const productShipmentsInPeriod = shipments.filter(s => 
+        s.productId === product.id && 
+        s.arrivedAt &&
+        (!startDate || s.arrivedAt >= startDate) &&
+        (!endDate || s.arrivedAt <= endDate)
+      );
+      
+      productShipmentsInPeriod
+        .filter(s => s.fromCountry === 'china')
+        .forEach(shipment => {
+          totalProductChinaCost += +shipment.chinaCost || 0;
+        });
 
-  // Calculate total shipping cost for all shipments in period
-  shipmentsInPeriod.forEach(shipment => {
-    totalShippingCost += +shipment.shipCost || 0;
-  });
+      productShipmentsInPeriod.forEach(shipment => {
+        totalShippingCost += +shipment.shipCost || 0;
+      });
+    });
+  }
 
   const adjustedRevenue = totalRevenue - totalRefundedAmount;
   const totalCost = totalProductChinaCost + totalShippingCost + totalAdSpend + totalBoxleoFees + totalInfluencerSpend;
@@ -505,6 +525,49 @@ app.post('/api/product-orders', requireAuth, (req, res) => {
   });
 
   saveDB(db); 
+  res.json({ ok: true });
+});
+
+// Product Notes
+app.get('/api/products/:id/notes', requireAuth, (req, res) => {
+  const db = loadDB();
+  const notes = (db.productNotes || []).filter(n => n.productId === req.params.id);
+  res.json({ notes });
+});
+
+app.post('/api/products/:id/notes', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.productNotes = db.productNotes || [];
+  const { country, note } = req.body || {};
+  if (!country || !note) return res.status(400).json({ error: 'Missing country/note' });
+
+  // Check if note exists for this product and country
+  const existing = db.productNotes.find(n =>
+    n.productId === req.params.id && n.country === country
+  );
+
+  if (existing) {
+    existing.note = note;
+    existing.updatedAt = new Date().toISOString();
+  } else {
+    db.productNotes.push({
+      id: uuidv4(),
+      productId: req.params.id,
+      country,
+      note,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  saveDB(db); 
+  res.json({ ok: true });
+});
+
+app.delete('/api/products/notes/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  db.productNotes = (db.productNotes || []).filter(n => n.id !== req.params.id);
+  saveDB(db);
   res.json({ ok: true });
 });
 
