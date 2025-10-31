@@ -9,6 +9,7 @@ const isoToday = () => new Date().toISOString().slice(0, 10);
 const getQuery = k => new URLSearchParams(location.search).get(k);
 const safeJSON = v => { try { return JSON.parse(v); } catch { return null; } };
 
+// Enhanced API function with better error handling
 async function api(path, opts = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000);
@@ -29,7 +30,7 @@ async function api(path, opts = {}) {
     
     if (!res.ok) {
       console.error(`API error ${res.status}:`, body);
-      throw new Error(body?.error || body || (`HTTP ${res.status}`));
+      throw new Error(body?.error || body || `HTTP ${res.status}`);
     }
     
     return body;
@@ -40,6 +41,7 @@ async function api(path, opts = {}) {
   }
 }
 
+// Application state
 const state = {
   productId: getQuery('id'),
   countries: [],
@@ -64,13 +66,14 @@ const state = {
   profitCountrySortOrder: 'desc'
 };
 
+// Main boot function
 async function boot() {
   console.log('🚀 Boot starting...');
   
-  // Test authentication first
+  // Check authentication first
   try {
     console.log('🔐 Checking authentication...');
-    const meta = await api('/api/meta');
+    await api('/api/auth/status');
     console.log('✅ Authenticated successfully');
     
     // Hide login, show main
@@ -114,22 +117,44 @@ async function boot() {
 }
 
 // Event Listeners
-Q('#loginBtn')?.addEventListener('click', async () => {
-  const password = Q('#pw')?.value || '';
-  try {
-    await api('/api/auth', { method: 'POST', body: JSON.stringify({ password }) });
-    await boot();
-  } catch (e) {
-    alert('Wrong password');
-  }
+document.addEventListener('DOMContentLoaded', () => {
+  // Login handler
+  Q('#loginBtn')?.addEventListener('click', async () => {
+    const password = Q('#pw')?.value || '';
+    if (!password) return alert('Please enter password');
+    
+    try {
+      await api('/api/auth', { 
+        method: 'POST', 
+        body: JSON.stringify({ password }) 
+      });
+      await boot();
+    } catch (e) {
+      alert('Wrong password');
+    }
+  });
+
+  // Logout handler
+  Q('#logoutLink')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    try { 
+      await api('/api/auth', { 
+        method: 'POST', 
+        body: JSON.stringify({ password: 'logout' }) 
+      }); 
+    } catch { } 
+    location.reload();
+  });
+
+  // Enter key for login
+  Q('#pw')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      Q('#loginBtn').click();
+    }
+  });
 });
 
-Q('#logoutLink')?.addEventListener('click', async (e) => {
-  e.preventDefault();
-  try { await api('/api/auth', { method: 'POST', body: JSON.stringify({ password: 'logout' }) }); } catch { }
-  location.reload();
-});
-
+// Navigation handling
 function initSimpleNavigation() {
   const nav = Q('.nav');
   const main = Q('#main');
@@ -180,31 +205,38 @@ function initSimpleNavigation() {
   }
 }
 
+// Preload essential data
 async function preload() {
-  const meta = await api('/api/meta');
-  state.countries = (meta.countries || []).filter(country => country !== 'china');
-
-  const pr = await api('/api/products');
-  state.products = pr.products || [];
-  state.productsActive = state.products.filter(p => p.status !== 'paused');
-
-  const cats = await api('/api/finance/categories');
-  state.categories = cats || { debit: [], credit: [] };
-
-  // Load all shipments for stock calculation
   try {
-    console.log('🔄 Preload: Loading shipments...');
-    const shipments = await api('/api/shipments');
-    state.allShipments = shipments.shipments || [];
-    console.log('✅ Preload: Loaded', state.allShipments.length, 'shipments');
-  } catch (error) {
-    console.error('❌ Preload: Failed to load shipments:', error);
-    state.allShipments = [];
-  }
+    const meta = await api('/api/meta');
+    state.countries = (meta.countries || []).filter(country => country !== 'china');
 
-  fillCommonSelects();
+    const pr = await api('/api/products');
+    state.products = pr.products || [];
+    state.productsActive = state.products.filter(p => p.status !== 'paused');
+
+    const cats = await api('/api/finance/categories');
+    state.categories = cats || { debit: [], credit: [] };
+
+    // Load all shipments for stock calculation
+    try {
+      console.log('🔄 Preload: Loading shipments...');
+      const shipments = await api('/api/shipments');
+      state.allShipments = shipments.shipments || [];
+      console.log('✅ Preload: Loaded', state.allShipments.length, 'shipments');
+    } catch (error) {
+      console.error('❌ Preload: Failed to load shipments:', error);
+      state.allShipments = [];
+    }
+
+    fillCommonSelects();
+  } catch (error) {
+    console.error('❌ Preload failed:', error);
+    throw error;
+  }
 }
 
+// Fill common dropdown selects
 function fillCommonSelects() {
   const countrySelects = ['#adCountry', '#rCountry', '#pdAdCountry', '#pdRCountry',
     '#pdInfCountry', '#pdInfFilterCountry', '#pcCountry', '#remCountry', '#remAddCountry',
@@ -271,6 +303,7 @@ function fillCommonSelects() {
   });
 }
 
+// Date range utilities
 function calculateDateRange(range) {
   const now = new Date();
   const start = new Date();
@@ -353,7 +386,7 @@ function getDateRange(container) {
   };
 }
 
-// ======== DASHBOARD ========
+// ======== DASHBOARD PAGE ========
 function renderDashboardPage() {
   renderCompactKpis();
   renderCountryStockSpend();
@@ -454,7 +487,9 @@ async function calculateStockByCountry(productId = null) {
 }
 
 async function renderCountryStockSpend() {
-  const body = Q('#stockByCountryBody'); if (!body) return;
+  const body = Q('#stockByCountryBody'); 
+  if (!body) return;
+  
   body.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
 
   try {
@@ -515,6 +550,7 @@ async function renderCountryStockSpend() {
 function bindDailyAdSpend() {
   const btn = Q('#adSave');
   if (!btn) return;
+  
   btn.onclick = async () => {
     const payload = {
       date: isoToday(),
@@ -523,30 +559,38 @@ function bindDailyAdSpend() {
       platform: Q('#adPlatform')?.value,
       amount: +Q('#adAmount')?.value || 0
     };
-    if (!payload.productId || !payload.country || !payload.platform) return alert('Fill all fields');
+    
+    if (!payload.productId || !payload.country || !payload.platform) {
+      return alert('Please fill all fields');
+    }
+    
     try {
-      await api('/api/adspend', { method: 'POST', body: JSON.stringify(payload) });
+      await api('/api/adspend', { 
+        method: 'POST', 
+        body: JSON.stringify(payload) 
+      });
       await renderCountryStockSpend();
       await renderCompactKpis();
-      
-      await renderAdvertisingOverview();
-      
-      alert('Ad spend saved');
-      
+      alert('Ad spend saved successfully!');
       Q('#adAmount').value = '';
-    } catch (e) { alert(e.message); }
+    } catch (e) { 
+      alert('Error: ' + e.message); 
+    }
   };
 }
 
+// Weekly delivered tracking
 function mondayOf(dateISO) {
   const d = new Date(dateISO);
-  const k = (d.getDay() + 6) % 7; d.setDate(d.getDate() - k);
+  const k = (d.getDay() + 6) % 7; 
+  d.setDate(d.getDate() - k);
   return d;
 }
 
 function weekDays(fromMonDate) {
   return [...Array(7)].map((_, i) => {
-    const t = new Date(fromMonDate); t.setDate(t.getDate() + i);
+    const t = new Date(fromMonDate); 
+    t.setDate(t.getDate() + i);
     return t.toISOString().slice(0, 10);
   });
 }
@@ -607,25 +651,57 @@ function renderWeeklyDelivered() {
     Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = fmt(grand));
   }
 
-  Q('#weeklyPrev')?.addEventListener('click', () => { const d = new Date(anchor); d.setDate(d.getDate() - 7); anchor = d.toISOString().slice(0, 10); updateGrid(); });
-  Q('#weeklyNext')?.addEventListener('click', () => { const d = new Date(anchor); d.setDate(d.getDate() + 7); anchor = d.toISOString().slice(0, 10); updateGrid(); });
-  Q('#weeklyReset')?.addEventListener('click', () => { QA('.wd-cell').forEach(el => el.value = ''); computeWeeklyTotals(); });
-  Q('#weeklyTable')?.addEventListener('input', (e) => { if (e.target.classList.contains('wd-cell')) computeWeeklyTotals(); });
+  Q('#weeklyPrev')?.addEventListener('click', () => { 
+    const d = new Date(anchor); 
+    d.setDate(d.getDate() - 7); 
+    anchor = d.toISOString().slice(0, 10); 
+    updateGrid(); 
+  });
+  
+  Q('#weeklyNext')?.addEventListener('click', () => { 
+    const d = new Date(anchor); 
+    d.setDate(d.getDate() + 7); 
+    anchor = d.toISOString().slice(0, 10); 
+    updateGrid(); 
+  });
+  
+  Q('#weeklyReset')?.addEventListener('click', () => { 
+    QA('.wd-cell').forEach(el => el.value = ''); 
+    computeWeeklyTotals(); 
+  });
+  
+  Q('#weeklyTable')?.addEventListener('input', (e) => { 
+    if (e.target.classList.contains('wd-cell')) computeWeeklyTotals(); 
+  });
+  
   Q('#weeklySave')?.addEventListener('click', async () => {
     const payload = [];
     QA('.wd-cell').forEach(inp => {
       const val = +inp.value || 0;
-      if (val > 0) payload.push({ date: inp.dataset.date, country: inp.dataset.country, delivered: val });
+      if (val > 0) payload.push({ 
+        date: inp.dataset.date, 
+        country: inp.dataset.country, 
+        delivered: val 
+      });
     });
+    
     try {
-      for (const row of payload) await api('/api/deliveries', { method: 'POST', body: JSON.stringify(row) });
-      alert('Weekly deliveries saved');
-    } catch (e) { alert('Save failed: ' + e.message); }
+      for (const row of payload) {
+        await api('/api/deliveries', { 
+          method: 'POST', 
+          body: JSON.stringify(row) 
+        });
+      }
+      alert('Weekly deliveries saved successfully!');
+    } catch (e) { 
+      alert('Save failed: ' + e.message); 
+    }
   });
 
   updateGrid();
 }
 
+// Brainstorming functionality
 function initBrainstorming() {
   const container = Q('#brainstormingSection');
   if (!container) return;
@@ -708,7 +784,7 @@ function initBrainstorming() {
   }
 }
 
-// FIXED: Todo lists using server-side storage
+// Todo lists
 function initTodos() {
   const listEl = Q('#todoList'); 
   const addBtn = Q('#todoAdd');
@@ -753,7 +829,7 @@ function initTodos() {
   renderQuick();
 }
 
-// FIXED: Weekly Todo lists using server-side storage
+// Weekly Todo lists
 function initWeeklyTodos() {
   const container = Q('#weeklyWrap');
   if (!container) return;
@@ -843,6 +919,7 @@ function initWeeklyTodos() {
   renderWeeklyTodos();
 }
 
+// Tested products
 function initTestedProducts() {
   const container = Q('#testedProductsSection');
   if (!container) return;
@@ -987,7 +1064,7 @@ function renderProductsPage() {
         
         fillCommonSelects();
         
-        alert('Product added');
+        alert('Product added successfully!');
       } catch (error) {
         alert('Error adding product: ' + error.message);
       }
@@ -1007,7 +1084,7 @@ function renderProductsPage() {
       });
 
       Q('#spPrice').value = '';
-      alert('Selling price saved');
+      alert('Selling price saved successfully!');
     });
 
     renderProductInfoSection();
@@ -1848,7 +1925,7 @@ function bindRemittanceAnalytics() {
   if (!btn) return;
 
   btn.onclick = async () => {
-    const dateRange = getDateRange(btn.closest('.row');
+    const dateRange = getDateRange(btn.closest('.row'));
     const country = Q('#remAnalyticsCountry')?.value || '';
     const productId = Q('#remAnalyticsProduct')?.value || '';
 
@@ -2255,7 +2332,7 @@ function bindStockMovement() {
 
     try {
       await api('/api/shipments', { method: 'POST', body: JSON.stringify(payload) });
-      alert('Stock movement added');
+      alert('Stock movement added successfully!');
       
       // Clear form
       Q('#mvQty').value = '';
@@ -2395,7 +2472,7 @@ function bindAdspendDaily() {
 
     try {
       await api('/api/adspend', { method: 'POST', body: JSON.stringify(payload) });
-      alert('Ad spend saved');
+      alert('Ad spend saved successfully!');
       Q('#adspendAmount').value = '';
       renderAdvertisingOverview();
     } catch (e) {
@@ -2803,7 +2880,7 @@ function bindProductEdit() {
 
     await preload();
     renderProductsTable();
-    alert('Product updated');
+    alert('Product updated successfully!');
   });
 }
 
@@ -2842,7 +2919,7 @@ function bindSnapshotActions() {
     
     Q('#snapName').value = '';
     renderSnapshots();
-    alert('Snapshot saved');
+    alert('Snapshot saved successfully!');
   });
 
   // Handle snapshot actions
@@ -2986,7 +3063,7 @@ function bindProductNotes() {
       
       Q('#pdNoteText').value = '';
       loadProductNotes();
-      alert('Note saved');
+      alert('Note saved successfully!');
     } catch (error) {
       alert('Error saving note: ' + error.message);
     }
