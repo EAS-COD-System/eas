@@ -72,7 +72,73 @@ function saveDB(db) {
   fs.writeJsonSync(DATA_FILE, db, { spaces: 2 }); 
 }
 
-// ======== UTILITY FUNCTIONS ========
+// ======== ADVANCED COST CALCULATION FUNCTIONS ========
+function calculateProductCostPerPiece(db, productId) {
+  const shipments = db.shipments || [];
+  const chinaShipments = shipments.filter(s => 
+    s.productId === productId && 
+    s.fromCountry === 'china' && 
+    s.arrivedAt
+  );
+  
+  let totalChinaCost = 0;
+  let totalPieces = 0;
+  
+  chinaShipments.forEach(shipment => {
+    totalChinaCost += +(shipment.chinaCost || 0);
+    totalPieces += +(shipment.qty || 0);
+  });
+  
+  return totalPieces > 0 ? totalChinaCost / totalPieces : 0;
+}
+
+function calculateShippingCostPerPiece(db, productId, targetCountry) {
+  const shipments = db.shipments || [];
+  
+  // Get all shipments for this product that eventually reached the target country
+  const relevantShipments = shipments.filter(s => 
+    s.productId === productId && 
+    s.arrivedAt
+  );
+  
+  // Build shipment chain to target country
+  const shipmentChains = [];
+  
+  function buildChains(currentCountry, currentCost, chain = []) {
+    if (currentCountry === targetCountry) {
+      shipmentChains.push([...chain, { country: currentCountry, cost: currentCost }]);
+      return;
+    }
+    
+    const outgoingShipments = relevantShipments.filter(s => 
+      s.fromCountry === currentCountry && 
+      !chain.some(link => link.country === s.toCountry)
+    );
+    
+    outgoingShipments.forEach(shipment => {
+      const perPieceCost = +(shipment.shipCost || 0) / +(shipment.qty || 1);
+      buildChains(
+        shipment.toCountry, 
+        currentCost + perPieceCost, 
+        [...chain, { country: currentCountry, cost: currentCost }]
+      );
+    });
+  }
+  
+  // Start from China
+  buildChains('china', 0);
+  
+  // Find the most efficient (cheapest) route
+  if (shipmentChains.length === 0) return 0;
+  
+  const cheapestChain = shipmentChains.reduce((cheapest, chain) => {
+    const chainCost = chain[chain.length - 1].cost;
+    return chainCost < cheapest.cost ? { cost: chainCost, chain } : cheapest;
+  }, { cost: Infinity, chain: [] });
+  
+  return cheapestChain.cost;
+}
+
 function calculateProductStock(db, productId = null, country = null) {
   const shipments = db.shipments || [];
   const remittances = db.remittances || [];
@@ -154,7 +220,6 @@ function calculateProfitMetrics(db, productId, country = null, startDate = null,
   const refunds = db.refunds || [];
   const influencerSpends = db.influencerSpends || [];
   const adspend = db.adspend || [];
-  const shipments = db.shipments || [];
 
   let totalRevenue = 0;
   let totalAdSpend = 0;
@@ -164,8 +229,6 @@ function calculateProfitMetrics(db, productId, country = null, startDate = null,
   let totalRefundedOrders = 0;
   let totalRefundedAmount = 0;
   let totalInfluencerSpend = 0;
-  let periodProductCost = 0;
-  let periodShippingCost = 0;
 
   // Calculate from remittances
   remittances.forEach(remittance => {
@@ -212,56 +275,50 @@ function calculateProfitMetrics(db, productId, country = null, startDate = null,
     }
   });
 
-  // Calculate period-based shipment costs
-  if (startDate && endDate) {
-    shipments.forEach(shipment => {
-      if ((!productId || shipment.productId === productId) &&
-          shipment.departedAt >= startDate && 
-          shipment.departedAt <= endDate) {
-        
-        if (shipment.fromCountry === 'china') {
-          periodProductCost += +shipment.chinaCost || 0;
-        }
-        periodShippingCost += +shipment.shipCost || 0;
-      }
-    });
-  }
-
-  // Calculate product costs
+  // Calculate product and shipping costs using advanced logic
   let totalProductChinaCost = 0;
   let totalShippingCost = 0;
 
   if (productId && totalDeliveredPieces > 0) {
-    const shipmentsForProduct = shipments.filter(s => s.productId === productId && s.arrivedAt);
-    const chinaShipments = shipmentsForProduct.filter(s => s.fromCountry === 'china');
-    
-    let totalChinaCost = 0;
-    let totalShipCost = 0;
-    let totalPieces = 0;
+    const productCostPerPiece = calculateProductCostPerPiece(db, productId);
+    totalProductChinaCost = totalDeliveredPieces * productCostPerPiece;
 
-    chinaShipments.forEach(shipment => {
-      const pieces = +shipment.qty || 0;
-      totalChinaCost += +shipment.chinaCost || 0;
-      totalShipCost += +shipment.shipCost || 0;
-      totalPieces += pieces;
-    });
+    if (country) {
+      // Single country - calculate specific shipping cost
+      const shippingCostPerPiece = calculateShippingCostPerPiece(db, productId, country);
+      totalShippingCost = totalDeliveredPieces * shippingCostPerPiece;
+    } else {
+      // Multiple countries - calculate weighted average
+      const countryMetrics = {};
+      db.countries.filter(c => c !== 'china').forEach(c => {
+        const countryRemittances = remittances.filter(r => 
+          (!productId || r.productId === productId) &&
+          r.country === c &&
+          (!startDate || r.start >= startDate) &&
+          (!endDate || r.end <= endDate)
+        );
+        
+        const countryPieces = countryRemittances.reduce((sum, r) => sum + (+r.pieces || 0), 0);
+        if (countryPieces > 0) {
+          const countryShippingCostPerPiece = calculateShippingCostPerPiece(db, productId, c);
+          countryMetrics[c] = {
+            pieces: countryPieces,
+            shippingCostPerPiece: countryShippingCostPerPiece
+          };
+        }
+      });
 
-    if (totalPieces > 0) {
-      const avgProductCost = totalChinaCost / totalPieces;
-      const avgShippingCost = totalShipCost / totalPieces;
-      
-      totalProductChinaCost = totalDeliveredPieces * avgProductCost;
-      totalShippingCost = totalDeliveredPieces * avgShippingCost;
+      let totalWeightedShipping = 0;
+      Object.values(countryMetrics).forEach(metric => {
+        totalWeightedShipping += metric.pieces * metric.shippingCostPerPiece;
+      });
+
+      totalShippingCost = totalWeightedShipping;
     }
   }
 
   const adjustedRevenue = totalRevenue - totalRefundedAmount;
-  const usePeriodCosts = startDate && endDate;
-  
-  const finalProductCost = usePeriodCosts ? periodProductCost : totalProductChinaCost;
-  const finalShippingCost = usePeriodCosts ? periodShippingCost : totalShippingCost;
-  
-  const totalCost = finalProductCost + finalShippingCost + totalAdSpend + totalBoxleoFees + totalInfluencerSpend;
+  const totalCost = totalProductChinaCost + totalShippingCost + totalAdSpend + totalBoxleoFees + totalInfluencerSpend;
   const profit = adjustedRevenue - totalCost;
 
   // Calculate delivery rate
@@ -298,8 +355,8 @@ function calculateProfitMetrics(db, productId, country = null, startDate = null,
     totalRevenue: adjustedRevenue,
     totalAdSpend,
     totalBoxleoFees,
-    totalProductChinaCost: finalProductCost,
-    totalShippingCost: finalShippingCost,
+    totalProductChinaCost,
+    totalShippingCost,
     totalInfluencerSpend,
     totalRefundedAmount,
     totalRefundedOrders,
@@ -320,8 +377,7 @@ function calculateProfitMetrics(db, productId, country = null, startDate = null,
     profitPerOrder,
     profitPerPiece,
     isProfitable: profit > 0,
-    hasData,
-    usePeriodCosts: usePeriodCosts
+    hasData
   };
 }
 
@@ -355,7 +411,6 @@ app.post('/api/auth', (req, res) => {
   return res.status(401).json({ error: 'Wrong password' });
 });
 
-// Check authentication status
 app.get('/api/auth/status', requireAuth, (req, res) => {
   res.json({ authenticated: true });
 });
@@ -1185,7 +1240,7 @@ app.delete('/api/influencers/spend/:id', requireAuth, (req, res) => {
 // Analytics
 app.get('/api/analytics/remittance', requireAuth, (req, res) => {
   const db = loadDB();
-  const { start, end, country, productId, sortBy = 'profit', sortOrder = 'desc' } = req.query || {};
+  const { start, end, country, productId, sortBy = 'totalDeliveredPieces', sortOrder = 'desc' } = req.query || {};
 
   let analytics = [];
   
@@ -1247,7 +1302,7 @@ app.get('/api/analytics/remittance', requireAuth, (req, res) => {
 
 app.get('/api/analytics/profit-by-country', requireAuth, (req, res) => {
   const db = loadDB();
-  const { start, end, country, sortBy = 'profit', sortOrder = 'desc' } = req.query || {};
+  const { start, end, country, sortBy = 'totalDeliveredPieces', sortOrder = 'desc' } = req.query || {};
 
   const analytics = {};
   const countries = country ? [country] : (db.countries || []).filter(c => c !== 'china');
@@ -1302,22 +1357,8 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
   const analysis = countries.map(country => {
     const price = prices.find(p => p.country === country);
     
-    const shipmentsForProduct = db.shipments.filter(s => s.productId === productId && s.arrivedAt);
-    const chinaShipments = shipmentsForProduct.filter(s => s.fromCountry === 'china');
-    
-    let totalChinaCost = 0;
-    let totalShipCost = 0;
-    let totalPieces = 0;
-
-    chinaShipments.forEach(shipment => {
-      const pieces = +shipment.qty || 0;
-      totalChinaCost += +shipment.chinaCost || 0;
-      totalShipCost += +shipment.shipCost || 0;
-      totalPieces += pieces;
-    });
-
-    const productCostPerPiece = totalPieces > 0 ? totalChinaCost / totalPieces : 0;
-    const shippingCostPerPiece = totalPieces > 0 ? totalShipCost / totalPieces : 0;
+    const productCostPerPiece = calculateProductCostPerPiece(db, productId);
+    const shippingCostPerPiece = calculateShippingCostPerPiece(db, productId, country);
     
     const sellingPrice = price ? +price.price : 0;
     const productCostChina = productCostPerPiece;
