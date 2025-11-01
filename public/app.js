@@ -3692,25 +3692,59 @@ async function renderProductStoreOrders() {
   if (!tbody) return;
 
   try {
-    const data = await api(`/api/product-orders?productId=${state.productId}&page=1&limit=10`);
+    const data = await api(`/api/product-orders?productId=${state.productId}&page=${state.currentStoreOrdersPage}&limit=10`);
     const orders = data.orders || [];
+    const paginationInfo = data.pagination || {};
 
     if (orders.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="muted">No store orders found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" class="muted">No store orders found for this product</td></tr>';
       pagination.innerHTML = '';
       return;
     }
 
-    tbody.innerHTML = orders.map(order => `
-      <tr>
-        <td>${order.startDate} to ${order.endDate}</td>
-        <td>${order.country}</td>
-        <td>${fmt(order.orders)}</td>
-        <td>
-          <button class="btn small outline act-del-order" data-id="${order.id}">Delete</button>
-        </td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = orders.map(order => {
+      const period = `${order.startDate} → ${order.endDate}`;
+      return `
+        <tr>
+          <td>${period}</td>
+          <td>${order.country}</td>
+          <td>${fmt(order.orders)}</td>
+          <td>
+            <button class="btn small outline act-del-order" data-id="${order.id}">Delete</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Render pagination
+    if (paginationInfo.totalPages > 1) {
+      let paginationHTML = '';
+      
+      if (paginationInfo.hasPrevPage) {
+        paginationHTML += `<button class="pagination-btn" data-page="${state.currentStoreOrdersPage - 1}">◀ Previous</button>`;
+      }
+
+      for (let i = 1; i <= paginationInfo.totalPages; i++) {
+        paginationHTML += `<button class="pagination-btn ${i === state.currentStoreOrdersPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+      }
+
+      if (paginationInfo.hasNextPage) {
+        paginationHTML += `<button class="pagination-btn" data-page="${state.currentStoreOrdersPage + 1}">Next ▶</button>`;
+      }
+
+      paginationHTML += `<span class="pagination-info">Page ${state.currentStoreOrdersPage} of ${paginationInfo.totalPages}</span>`;
+      pagination.innerHTML = paginationHTML;
+
+      // Add pagination event listeners
+      pagination.addEventListener('click', (e) => {
+        if (e.target.classList.contains('pagination-btn')) {
+          state.currentStoreOrdersPage = parseInt(e.target.dataset.page);
+          renderProductStoreOrders();
+        }
+      });
+    } else {
+      pagination.innerHTML = '';
+    }
 
     // Add delete handlers
     tbody.addEventListener('click', async (e) => {
@@ -3723,12 +3757,9 @@ async function renderProductStoreOrders() {
       }
     });
 
-    // Render pagination
-    renderPagination(pagination, data.pagination, renderProductStoreOrders);
-
   } catch (error) {
-    console.error('Error loading store orders:', error);
-    tbody.innerHTML = '<tr><td colspan="4" class="muted">Error loading data</td></tr>';
+    console.error('Error loading product store orders:', error);
+    tbody.innerHTML = '<tr><td colspan="4" class="muted">Error loading store orders</td></tr>';
   }
 }
 
@@ -3738,47 +3769,78 @@ async function renderProductRemittances() {
   if (!tbody) return;
 
   try {
-    const data = await api(`/api/remittances?productId=${state.productId}&page=1&limit=10`);
+    const data = await api(`/api/remittances?productId=${state.productId}&page=${state.currentRemittancesPage}&limit=10`);
     const remittances = data.remittances || [];
+    const paginationInfo = data.pagination || {};
 
     if (remittances.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" class="muted">No remittances found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="muted">No remittances found for this product</td></tr>';
       pagination.innerHTML = '';
       return;
     }
 
-    tbody.innerHTML = remittances.map(remittance => `
-      <tr>
-        <td>${remittance.start} to ${remittance.end}</td>
-        <td>${remittance.country}</td>
-        <td>${fmt(remittance.orders)}</td>
-        <td>${fmt(remittance.pieces)}</td>
-        <td>$${fmt(remittance.revenue)}</td>
-        <td>$${fmt(remittance.adSpend)}</td>
-        <td>$${fmt(remittance.boxleoFees)}</td>
-        <td>
-          <button class="btn small outline act-del-remittance" data-id="${remittance.id}">Delete</button>
-        </td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = remittances.map(remittance => {
+      const period = `${remittance.start} → ${remittance.end}`;
+      return `
+        <tr>
+          <td>${period}</td>
+          <td>${remittance.country}</td>
+          <td>${fmt(remittance.orders)}</td>
+          <td>${fmt(remittance.pieces)}</td>
+          <td>$${fmt(remittance.revenue)}</td>
+          <td>$${fmt(remittance.adSpend)}</td>
+          <td>$${fmt(remittance.boxleoFees)}</td>
+          <td>
+            <button class="btn small outline act-del-remittance" data-id="${remittance.id}">Delete</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Render pagination
+    if (paginationInfo.totalPages > 1) {
+      let paginationHTML = '';
+      
+      if (paginationInfo.hasPrevPage) {
+        paginationHTML += `<button class="pagination-btn" data-page="${state.currentRemittancesPage - 1}">◀ Previous</button>`;
+      }
+
+      for (let i = 1; i <= paginationInfo.totalPages; i++) {
+        paginationHTML += `<button class="pagination-btn ${i === state.currentRemittancesPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+      }
+
+      if (paginationInfo.hasNextPage) {
+        paginationHTML += `<button class="pagination-btn" data-page="${state.currentRemittancesPage + 1}">Next ▶</button>`;
+      }
+
+      paginationHTML += `<span class="pagination-info">Page ${state.currentRemittancesPage} of ${paginationInfo.totalPages}</span>`;
+      pagination.innerHTML = paginationHTML;
+
+      // Add pagination event listeners
+      pagination.addEventListener('click', (e) => {
+        if (e.target.classList.contains('pagination-btn')) {
+          state.currentRemittancesPage = parseInt(e.target.dataset.page);
+          renderProductRemittances();
+        }
+      });
+    } else {
+      pagination.innerHTML = '';
+    }
 
     // Add delete handlers
     tbody.addEventListener('click', async (e) => {
       if (e.target.classList.contains('act-del-remittance')) {
         const remittanceId = e.target.dataset.id;
-        if (confirm('Delete this remittance?')) {
+        if (confirm('Delete this remittance entry?')) {
           await api(`/api/remittances/${remittanceId}`, { method: 'DELETE' });
           renderProductRemittances();
         }
       }
     });
 
-    // Render pagination
-    renderPagination(pagination, data.pagination, renderProductRemittances);
-
   } catch (error) {
-    console.error('Error loading remittances:', error);
-    tbody.innerHTML = '<tr><td colspan="8" class="muted">Error loading data</td></tr>';
+    console.error('Error loading product remittances:', error);
+    tbody.innerHTML = '<tr><td colspan="8" class="muted">Error loading remittances</td></tr>';
   }
 }
 
@@ -3788,137 +3850,150 @@ async function renderProductRefunds() {
   if (!tbody) return;
 
   try {
-    const data = await api(`/api/refunds?productId=${state.productId}&page=1&limit=10`);
+    const data = await api(`/api/refunds?productId=${state.productId}&page=${state.currentRefundsPage}&limit=10`);
     const refunds = data.refunds || [];
+    const paginationInfo = data.pagination || {};
 
     if (refunds.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="muted">No refunds found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="muted">No refunds found for this product</td></tr>';
       pagination.innerHTML = '';
       return;
     }
 
-    tbody.innerHTML = refunds.map(refund => `
-      <tr>
-        <td>${refund.date}</td>
-        <td>${refund.country}</td>
-        <td>${fmt(refund.orders)}</td>
-        <td>${fmt(refund.pieces)}</td>
-        <td>$${fmt(refund.amount)}</td>
-        <td>${refund.reason || '-'}</td>
-        <td>
-          <button class="btn small outline act-del-refund" data-id="${refund.id}">Delete</button>
-        </td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = refunds.map(refund => {
+      return `
+        <tr>
+          <td>${refund.date}</td>
+          <td>${refund.country}</td>
+          <td>${fmt(refund.orders)}</td>
+          <td>${fmt(refund.pieces)}</td>
+          <td>$${fmt(refund.amount)}</td>
+          <td>${refund.reason || '-'}</td>
+          <td>
+            <button class="btn small outline act-del-refund" data-id="${refund.id}">Delete</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Render pagination
+    if (paginationInfo.totalPages > 1) {
+      let paginationHTML = '';
+      
+      if (paginationInfo.hasPrevPage) {
+        paginationHTML += `<button class="pagination-btn" data-page="${state.currentRefundsPage - 1}">◀ Previous</button>`;
+      }
+
+      for (let i = 1; i <= paginationInfo.totalPages; i++) {
+        paginationHTML += `<button class="pagination-btn ${i === state.currentRefundsPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+      }
+
+      if (paginationInfo.hasNextPage) {
+        paginationHTML += `<button class="pagination-btn" data-page="${state.currentRefundsPage + 1}">Next ▶</button>`;
+      }
+
+      paginationHTML += `<span class="pagination-info">Page ${state.currentRefundsPage} of ${paginationInfo.totalPages}</span>`;
+      pagination.innerHTML = paginationHTML;
+
+      // Add pagination event listeners
+      pagination.addEventListener('click', (e) => {
+        if (e.target.classList.contains('pagination-btn')) {
+          state.currentRefundsPage = parseInt(e.target.dataset.page);
+          renderProductRefunds();
+        }
+      });
+    } else {
+      pagination.innerHTML = '';
+    }
 
     // Add delete handlers
     tbody.addEventListener('click', async (e) => {
       if (e.target.classList.contains('act-del-refund')) {
         const refundId = e.target.dataset.id;
-        if (confirm('Delete this refund?')) {
+        if (confirm('Delete this refund entry?')) {
           await api(`/api/refunds/${refundId}`, { method: 'DELETE' });
           renderProductRefunds();
         }
       }
     });
 
-    // Render pagination
-    renderPagination(pagination, data.pagination, renderProductRefunds);
-
   } catch (error) {
-    console.error('Error loading refunds:', error);
-    tbody.innerHTML = '<tr><td colspan="7" class="muted">Error loading data</td></tr>';
+    console.error('Error loading product refunds:', error);
+    tbody.innerHTML = '<tr><td colspan="7" class="muted">Error loading refunds</td></tr>';
   }
-}
-
-function renderPagination(container, pagination, renderFunction) {
-  if (!container || !pagination) return;
-
-  const { currentPage, totalPages, totalItems, hasNextPage, hasPrevPage } = pagination;
-
-  if (totalPages <= 1) {
-    container.innerHTML = '';
-    return;
-  }
-
-  let html = '';
-
-  html += `<button class="pagination-btn" ${!hasPrevPage ? 'disabled' : ''} data-page="${currentPage - 1}">◀ Previous</button>`;
-
-  const startPage = Math.max(1, currentPage - 2);
-  const endPage = Math.min(totalPages, startPage + 4);
-
-  for (let i = startPage; i <= endPage; i++) {
-    html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
-  }
-
-  html += `<button class="pagination-btn" ${!hasNextPage ? 'disabled' : ''} data-page="${currentPage + 1}">Next ▶</button>`;
-  html += `<span class="pagination-info">Page ${currentPage} of ${totalPages} (${totalItems} items)</span>`;
-
-  container.innerHTML = html;
-
-  container.addEventListener('click', (e) => {
-    if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
-      const page = parseInt(e.target.dataset.page);
-      renderFunction(page);
-    }
-  });
 }
 
 function bindProductInfluencers() {
+  const addBtn = Q('#pdInfAdd');
+  const spendBtn = Q('#pdInfSpendAdd');
+  const filterBtn = Q('#pdInfRun');
+
+  if (!addBtn || !spendBtn || !filterBtn) return;
+
+  // Load influencers for the select
+  loadProductInfluencers();
+
   // Add influencer
-  Q('#pdInfAdd')?.addEventListener('click', async () => {
-    const name = Q('#pdInfName')?.value?.trim();
-    const social = Q('#pdInfSocial')?.value?.trim();
+  addBtn.onclick = async () => {
+    const name = Q('#pdInfName')?.value.trim();
+    const social = Q('#pdInfSocial')?.value.trim();
     const country = Q('#pdInfCountry')?.value;
 
-    if (!name) return alert('Enter influencer name');
+    if (!name) return alert('Influencer name required');
 
-    await api('/api/influencers', {
-      method: 'POST',
-      body: JSON.stringify({ name, social, country })
-    });
+    try {
+      await api('/api/influencers', {
+        method: 'POST',
+        body: JSON.stringify({ name, social, country })
+      });
 
-    Q('#pdInfName').value = '';
-    Q('#pdInfSocial').value = '';
-    loadInfluencers();
-    alert('Influencer added');
-  });
+      Q('#pdInfName').value = '';
+      Q('#pdInfSocial').value = '';
+      loadProductInfluencers();
+      renderProductInfluencerSpends();
+    } catch (error) {
+      alert('Error adding influencer: ' + error.message);
+    }
+  };
 
-  // Add spend
-  Q('#pdInfSpendAdd')?.addEventListener('click', async () => {
+  // Add influencer spend
+  spendBtn.onclick = async () => {
     const date = Q('#pdInfDate')?.value;
     const influencerId = Q('#pdInfSelect')?.value;
     const country = Q('#pdInfFilterCountry')?.value;
     const amount = +Q('#pdInfAmount')?.value || 0;
 
-    if (!influencerId) return alert('Select influencer');
+    if (!date || !influencerId) return alert('Date and influencer required');
 
-    await api('/api/influencers/spend', {
-      method: 'POST',
-      body: JSON.stringify({
-        date: date || isoToday(),
-        influencerId,
-        country,
-        productId: state.productId,
-        amount
-      })
-    });
+    try {
+      await api('/api/influencers/spend', {
+        method: 'POST',
+        body: JSON.stringify({
+          date,
+          influencerId,
+          country,
+          productId: state.productId,
+          amount
+        })
+      });
 
-    Q('#pdInfAmount').value = '';
-    loadInfluencerSpends();
-    alert('Spend added');
-  });
+      Q('#pdInfAmount').value = '';
+      renderProductInfluencerSpends();
+    } catch (error) {
+      alert('Error adding influencer spend: ' + error.message);
+    }
+  };
 
-  // Filter spends
-  Q('#pdInfRun')?.addEventListener('click', loadInfluencerSpends);
+  // Filter influencer spends
+  filterBtn.onclick = () => {
+    renderProductInfluencerSpends();
+  };
 
   // Initial load
-  loadInfluencers();
-  loadInfluencerSpends();
+  renderProductInfluencerSpends();
 }
 
-async function loadInfluencers() {
+async function loadProductInfluencers() {
   const select = Q('#pdInfSelect');
   if (!select) return;
 
@@ -3927,143 +4002,138 @@ async function loadInfluencers() {
     const influencers = data.influencers || [];
 
     select.innerHTML = '<option value="">Select influencer...</option>' +
-      influencers.map(inf => `<option value="${inf.id}">${inf.name}</option>`).join('');
+      influencers.map(inf => `<option value="${inf.id}">${inf.name}${inf.social ? ` (${inf.social})` : ''}</option>`).join('');
   } catch (error) {
     console.error('Error loading influencers:', error);
   }
 }
 
-async function loadInfluencerSpends() {
+async function renderProductInfluencerSpends() {
   const tbody = Q('#pdInfBody');
   const totalEl = Q('#pdInfTotal');
-  if (!tbody) return;
+  if (!tbody || !totalEl) return;
 
   try {
-    const data = await api('/api/influencers/spend');
-    let spends = data.spends || [];
+    const dateRange = getDateRange(Q('#pdInfRun').closest('.row'));
+    const country = Q('#pdInfFilterCountry')?.value || '';
 
-    // Filter by current product
+    const spendsData = await api('/api/influencers/spend');
+    let spends = spendsData.spends || [];
+
+    // Filter by product
     spends = spends.filter(spend => spend.productId === state.productId);
 
-    // Apply date range filter
-    const dateRange = getDateRange(Q('#pdInfRun')?.closest('.row'));
+    // Apply additional filters
     if (dateRange.start) {
       spends = spends.filter(spend => spend.date >= dateRange.start);
     }
     if (dateRange.end) {
       spends = spends.filter(spend => spend.date <= dateRange.end);
     }
-
-    // Apply country filter
-    const country = Q('#pdInfFilterCountry')?.value;
     if (country) {
       spends = spends.filter(spend => spend.country === country);
     }
 
-    const total = spends.reduce((sum, spend) => sum + (+spend.amount || 0), 0);
-
-    if (totalEl) totalEl.textContent = fmt(total);
-
-    if (spends.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="muted">No influencer spends found</td></tr>';
-      return;
-    }
+    // Sort by date (newest first)
+    spends.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     // Get influencer details
     const influencersData = await api('/api/influencers');
     const influencers = influencersData.influencers || [];
+    const influencerMap = {};
+    influencers.forEach(inf => influencerMap[inf.id] = inf);
 
-    tbody.innerHTML = spends.map(spend => {
-      const influencer = influencers.find(inf => inf.id === spend.influencerId);
-      return `
-        <tr>
-          <td>${spend.date}</td>
-          <td>${spend.country || '-'}</td>
-          <td>${influencer ? influencer.name : spend.influencerId}</td>
-          <td>${influencer ? influencer.social : '-'}</td>
-          <td>$${fmt(spend.amount)}</td>
-          <td>
-            <button class="btn small outline act-del-inf-spend" data-id="${spend.id}">Delete</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
+    let total = 0;
+
+    if (spends.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="muted">No influencer spends found</td></tr>';
+    } else {
+      tbody.innerHTML = spends.map(spend => {
+        const influencer = influencerMap[spend.influencerId];
+        total += +spend.amount || 0;
+
+        return `
+          <tr>
+            <td>${spend.date}</td>
+            <td>${spend.country || '-'}</td>
+            <td>${influencer ? influencer.name : 'Unknown'}</td>
+            <td>${influencer && influencer.social ? influencer.social : '-'}</td>
+            <td>$${fmt(spend.amount)}</td>
+            <td>
+              <button class="btn small outline act-del-influencer-spend" data-id="${spend.id}">Delete</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    totalEl.textContent = fmt(total);
 
     // Add delete handlers
     tbody.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('act-del-inf-spend')) {
+      if (e.target.classList.contains('act-del-influencer-spend')) {
         const spendId = e.target.dataset.id;
         if (confirm('Delete this influencer spend?')) {
           await api(`/api/influencers/spend/${spendId}`, { method: 'DELETE' });
-          loadInfluencerSpends();
+          renderProductInfluencerSpends();
         }
       }
     });
 
   } catch (error) {
     console.error('Error loading influencer spends:', error);
-    tbody.innerHTML = '<tr><td colspan="6" class="muted">Error loading data</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="muted">Error loading influencer spends</td></tr>';
   }
 }
 
-// ======= NAVIGATION ========
+// Global navigation binding
 function bindGlobalNav() {
-  const nav = Q('.nav');
-  const sections = QA('section');
-  let currentView = 'home';
-
-  function showView(viewId) {
-    sections.forEach(s => s.style.display = 'none');
-    const target = Q(`#${viewId}`);
-    if (target) target.style.display = 'block';
+  const navLinks = QA('.nav a[data-view]');
+  const sections = QA('section[id]');
+  
+  function showSection(sectionId) {
+    // Hide all sections
+    sections.forEach(section => {
+      section.style.display = 'none';
+    });
     
-    // Update nav active state
-    QA('.nav a').forEach(a => a.classList.remove('active'));
-    const navItem = Q(`.nav a[data-view="${viewId}"]`);
-    if (navItem) navItem.classList.add('active');
+    // Remove active class from all nav links
+    navLinks.forEach(link => {
+      link.classList.remove('active');
+    });
     
-    currentView = viewId;
+    // Show target section and activate nav link
+    const targetSection = Q(`#${sectionId}`);
+    const targetLink = Q(`.nav a[data-view="${sectionId}"]`);
     
-    // Trigger view-specific rendering
-    setTimeout(() => {
-      switch(viewId) {
-        case 'home':
-          renderDashboardPage();
-          break;
-        case 'products':
-          renderProductsPage();
-          break;
-        case 'performance':
-          renderPerformancePage();
-          break;
-        case 'stockMovement':
-          renderStockMovementPage();
-          break;
-        case 'adspend':
-          renderAdspendPage();
-          break;
-        case 'finance':
-          renderFinancePage();
-          break;
-        case 'settings':
-          renderSettingsPage();
-          break;
-      }
-    }, 100);
-  }
-
-  nav?.addEventListener('click', (e) => {
-    const view = e.target.dataset?.view;
-    if (view) {
-      e.preventDefault();
-      showView(view);
+    if (targetSection) {
+      targetSection.style.display = 'block';
     }
+    
+    if (targetLink) {
+      targetLink.classList.add('active');
+    }
+    
+    // Scroll to top
+    window.scrollTo(0, 0);
+  }
+  
+  // Add click event listeners to nav links
+  navLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const sectionId = link.getAttribute('data-view');
+      showSection(sectionId);
+    });
   });
-
-  // Initialize first view
-  showView('home');
-  initSimpleNavigation();
+  
+  // Show home section by default
+  showSection('home');
 }
 
+// Initialize simple navigation for mobile
+initSimpleNavigation();
+
+console.log('✅ EAS Tracker frontend loaded successfully');
 // Initialize the application
-document.addEventListener('DOMContentLoaded', boot);
+boot();
