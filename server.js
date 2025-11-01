@@ -966,7 +966,38 @@ app.post('/api/remittances', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+app.post('/api/remittances/force', async (req, res) => {
+  try {
+    const db = await loadDB(); 
+    db.remittances = db.remittances || [];
+    
+    const { start, end, country, productId, orders, pieces, revenue, adSpend, boxleoFees } = req.body || {};
+    
+    if (!start || !end || !country || !productId) {
+      return res.status(400).json({ error: 'All required fields: start, end, country, productId' });
+    }
 
+    const remittance = {
+      id: uuidv4(),
+      start,
+      end,
+      country,
+      productId,
+      orders: +orders || 0,
+      pieces: +pieces || 0,
+      revenue: +revenue || 0,
+      adSpend: +adSpend || 0,
+      boxleoFees: +boxleoFees || 0,
+      createdAt: new Date().toISOString()
+    };
+
+    db.remittances.push(remittance); 
+    await saveDB(db); 
+    res.json({ ok: true, remittance });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 app.delete('/api/remittances/:id', async (req, res) => {
   try {
     const db = await loadDB(); 
@@ -1644,7 +1675,152 @@ app.get('/api/analytics/remittance', async (req, res) => {
         }
       });
     });
+// Analytics - Profit by Country
+app.get('/api/analytics/profit-by-country', async (req, res) => {
+  try {
+    const db = await loadDB();
+    const { start, end, country, sortBy = 'totalDeliveredPieces', sortOrder = 'desc' } = req.query || {};
 
+    // Get all products
+    const products = db.products || [];
+    const countries = country ? [country] : (db.countries || []).filter(c => c !== 'china');
+    
+    const analytics = [];
+
+    // Calculate metrics for each country
+    countries.forEach(countryName => {
+      let totalRevenue = 0;
+      let totalRefundedAmount = 0;
+      let totalAdSpend = 0;
+      let totalInfluencerSpend = 0;
+      let totalBoxleoFees = 0;
+      let totalProductChinaCost = 0;
+      let totalShippingCost = 0;
+      let totalOrders = 0;
+      let totalDeliveredOrders = 0;
+      let totalRefundedOrders = 0;
+      let totalDeliveredPieces = 0;
+
+      // Filter remittances for this country and date range
+      const countryRemittances = (db.remittances || []).filter(r => {
+        const matchesCountry = r.country === countryName;
+        const matchesStart = !start || r.start >= start;
+        const matchesEnd = !end || r.end <= end;
+        return matchesCountry && matchesStart && matchesEnd;
+      });
+
+      // Filter refunds for this country and date range
+      const countryRefunds = (db.refunds || []).filter(rf => {
+        const matchesCountry = rf.country === countryName;
+        const matchesStart = !start || rf.date >= start;
+        const matchesEnd = !end || rf.date <= end;
+        return matchesCountry && matchesStart && matchesEnd;
+      });
+
+      // Filter adspend for this country and date range
+      const countryAdSpend = (db.adspend || []).filter(ad => {
+        const matchesCountry = ad.country === countryName;
+        const matchesStart = !start || ad.date >= start;
+        const matchesEnd = !end || ad.date <= end;
+        return matchesCountry && matchesStart && matchesEnd;
+      });
+
+      // Filter influencer spends for this country and date range
+      const countryInfluencerSpends = (db.influencerSpends || []).filter(is => {
+        const matchesCountry = is.country === countryName;
+        const matchesStart = !start || is.date >= start;
+        const matchesEnd = !end || is.date <= end;
+        return matchesCountry && matchesStart && matchesEnd;
+      });
+
+      // Calculate totals from remittances
+      countryRemittances.forEach(remittance => {
+        totalRevenue += +remittance.revenue || 0;
+        totalAdSpend += +remittance.adSpend || 0;
+        totalBoxleoFees += +remittance.boxleoFees || 0;
+        totalOrders += +remittance.orders || 0;
+        totalDeliveredOrders += +remittance.orders || 0; // Assuming all orders in remittances are delivered
+        totalDeliveredPieces += +remittance.pieces || 0;
+        
+        // Estimate costs (you would implement your actual cost calculation logic here)
+        const productCostPerPiece = 5; // Example cost
+        const shippingCostPerPiece = 2; // Example cost
+        totalProductChinaCost += (+remittance.pieces || 0) * productCostPerPiece;
+        totalShippingCost += (+remittance.pieces || 0) * shippingCostPerPiece;
+      });
+
+      // Calculate totals from refunds
+      countryRefunds.forEach(refund => {
+        totalRefundedAmount += +refund.amount || 0;
+        totalRefundedOrders += +refund.orders || 0;
+      });
+
+      // Calculate additional ad spend
+      countryAdSpend.forEach(ad => {
+        totalAdSpend += +ad.amount || 0;
+      });
+
+      // Calculate influencer spends
+      countryInfluencerSpends.forEach(spend => {
+        totalInfluencerSpend += +spend.amount || 0;
+      });
+
+      // Calculate derived metrics
+      const totalCost = totalProductChinaCost + totalShippingCost + totalBoxleoFees + totalAdSpend + totalInfluencerSpend;
+      const profit = totalRevenue - totalRefundedAmount - totalCost;
+      const deliveryRate = totalOrders > 0 ? (totalDeliveredOrders / totalOrders) * 100 : 0;
+      const averageOrderValue = totalDeliveredOrders > 0 ? totalRevenue / totalDeliveredOrders : 0;
+      const profitPerOrder = totalDeliveredOrders > 0 ? profit / totalDeliveredOrders : 0;
+      const profitPerPiece = totalDeliveredPieces > 0 ? profit / totalDeliveredPieces : 0;
+      const boxleoPerDeliveredOrder = totalDeliveredOrders > 0 ? totalBoxleoFees / totalDeliveredOrders : 0;
+      const boxleoPerDeliveredPiece = totalDeliveredPieces > 0 ? totalBoxleoFees / totalDeliveredPieces : 0;
+      const adCostPerDeliveredOrder = totalDeliveredOrders > 0 ? totalAdSpend / totalDeliveredOrders : 0;
+      const adCostPerDeliveredPiece = totalDeliveredPieces > 0 ? totalAdSpend / totalDeliveredPieces : 0;
+
+      const hasData = totalRevenue > 0 || totalAdSpend > 0 || totalDeliveredPieces > 0;
+
+      if (hasData) {
+        analytics.push({
+          country: countryName,
+          totalRevenue,
+          totalRefundedAmount,
+          totalAdSpend,
+          totalInfluencerSpend,
+          totalBoxleoFees,
+          totalProductChinaCost,
+          totalShippingCost,
+          totalCost,
+          totalOrders,
+          totalDeliveredOrders,
+          totalRefundedOrders,
+          totalDeliveredPieces,
+          profit,
+          deliveryRate,
+          averageOrderValue,
+          profitPerOrder,
+          profitPerPiece,
+          boxleoPerDeliveredOrder,
+          boxleoPerDeliveredPiece,
+          adCostPerDeliveredOrder,
+          adCostPerDeliveredPiece,
+          hasData
+        });
+      }
+    });
+
+    // Sort results
+    analytics.sort((a, b) => {
+      const aValue = a[sortBy] || 0;
+      const bValue = b[sortBy] || 0;
+      return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
+    });
+
+    res.json({ analytics, sortBy, sortOrder });
+  } catch (error) {
+    console.error('Error in profit by country analytics:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
     // Sort results
     analytics.sort((a, b) => {
       const aValue = a[sortBy] || 0;
