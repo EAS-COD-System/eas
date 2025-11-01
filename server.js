@@ -1367,12 +1367,12 @@ app.get('/api/analytics/remittance', requireAuth, (req, res) => {
   if (productId && productId !== 'all') {
     if (country && country !== '') {
       const metrics = calculateProfitMetricsLogicB(db, productId, country, start, end);
-      analytics = [{
+      analytics = [{{
         productId,
         productName: (db.products.find(p => p.id === productId) || {}).name || productId,
         country: country,
         ...metrics
-      }];
+      }}];
     } else {
       const countries = db.countries.filter(c => c !== 'china');
       analytics = countries.map(country => {
