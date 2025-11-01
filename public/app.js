@@ -492,10 +492,16 @@ async function renderCompactKpis() {
     let activeStock = 0;
     let inactiveStock = 0;
     
-    state.countries.forEach(country => {
-      const stock = stockByCountry[country] || 0;
-      if (stock > 0) activeStock += stock;
-      if (stock < 0) inactiveStock += Math.abs(stock);
+    // Sum up active and inactive stock from all countries
+    Object.values(stockByCountry).forEach(stock => {
+      if (typeof stock === 'object') {
+        // New format with active/inactive separation
+        activeStock += stock.active || 0;
+        inactiveStock += stock.inactive || 0;
+      } else {
+        // Fallback for old format
+        activeStock += stock > 0 ? stock : 0;
+      }
     });
 
     const transitData = await calculateTransitPieces();
@@ -504,7 +510,8 @@ async function renderCompactKpis() {
     Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = transitData.interCountryTransit);
     Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = activeStock);
     Q('#kpiInactiveStock') && (Q('#kpiInactiveStock').textContent = inactiveStock);
-  } catch { 
+  } catch (error) { 
+    console.error('Error in renderCompactKpis:', error);
     Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = '—');
     Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = '—');
     Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = '—');
@@ -520,7 +527,7 @@ async function renderCompactKpis() {
   const t = Q('#wAllT')?.textContent || '0';
   Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = t);
 }
-
+  
 async function calculateTransitPieces() {
   try {
     const shipments = await api('/api/shipments');
@@ -548,24 +555,38 @@ async function calculateTransitPieces() {
 async function calculateStockByCountry(productId = null) {
   try {
     const db = await api('/api/products');
-    const totalStock = {};
-    state.countries.forEach(country => {
-      totalStock[country] = { active: 0, inactive: 0, total: 0 };
-    });
     
-    db.products.forEach(product => {
+    if (productId) {
+      const product = db.products.find(p => p.id === productId);
+      if (!product) return {};
+      
+      // For single product, return simple stock numbers
+      const stock = {};
       Object.keys(product.stockByCountry || {}).forEach(country => {
-        const stock = product.stockByCountry[country] || 0;
-        if (product.status === 'active') {
-          totalStock[country].active += stock;
-        } else {
-          totalStock[country].inactive += stock;
-        }
-        totalStock[country].total += stock;
+        stock[country] = product.stockByCountry[country] || 0;
       });
-    });
-    
-    return totalStock;
+      return stock;
+    } else {
+      // For all products, separate active and inactive
+      const totalStock = {};
+      state.countries.forEach(country => {
+        totalStock[country] = { active: 0, inactive: 0, total: 0 };
+      });
+      
+      db.products.forEach(product => {
+        Object.keys(product.stockByCountry || {}).forEach(country => {
+          const stock = product.stockByCountry[country] || 0;
+          if (product.status === 'active') {
+            totalStock[country].active += stock;
+          } else {
+            totalStock[country].inactive += stock;
+          }
+          totalStock[country].total += stock;
+        });
+      });
+      
+      return totalStock;
+    }
   } catch (error) {
     console.error('Error calculating stock:', error);
     return {};
