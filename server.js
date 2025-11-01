@@ -81,33 +81,62 @@ function calculateAccumulatedShippingCost(db, productId, targetCountry) {
     s.productId === productId && 
     s.arrivedAt &&
     s.paymentStatus === 'paid'
-  );
+  ).sort((a, b) => new Date(a.departedAt) - new Date(b.departedAt));
   
   if (relevantShipments.length === 0) return 0;
   
-  // Build piece movement history
-  const pieceHistory = {};
+  // Track piece movement with accumulated costs
+  const pieceMovements = [];
   
   relevantShipments.forEach(shipment => {
     const fromCountry = shipment.fromCountry;
     const toCountry = shipment.toCountry;
     const quantity = +shipment.qty || 0;
-    const shippingCostPerPiece = shipment.finalShipCost ? (+shipment.finalShipCost / quantity) : (+shipment.shipCost / quantity);
+    const shippingCostPerPiece = shipment.finalShipCost ? 
+      (+shipment.finalShipCost / quantity) : 
+      (+shipment.shipCost / quantity);
     
     if (fromCountry === 'china') {
-      // Initial shipment from China
-      if (!pieceHistory[toCountry]) pieceHistory[toCountry] = 0;
-      pieceHistory[toCountry] += shippingCostPerPiece;
+      // Initial shipment from China - pieces get their first shipping cost
+      for (let i = 0; i < quantity; i++) {
+        pieceMovements.push({
+          currentCountry: toCountry,
+          accumulatedShipping: shippingCostPerPiece,
+          history: [`${fromCountry}→${toCountry}: $${shippingCostPerPiece.toFixed(2)}`]
+        });
+      }
     } else {
-      // Inter-country shipment - accumulate costs
-      if (pieceHistory[fromCountry]) {
-        if (!pieceHistory[toCountry]) pieceHistory[toCountry] = 0;
-        pieceHistory[toCountry] += pieceHistory[fromCountry] + shippingCostPerPiece;
+      // Inter-country shipment - find pieces in the fromCountry and move them
+      let piecesMoved = 0;
+      for (let i = 0; i < pieceMovements.length && piecesMoved < quantity; i++) {
+        if (pieceMovements[i].currentCountry === fromCountry) {
+          pieceMovements[i].accumulatedShipping += shippingCostPerPiece;
+          pieceMovements[i].currentCountry = toCountry;
+          pieceMovements[i].history.push(`${fromCountry}→${toCountry}: $${shippingCostPerPiece.toFixed(2)}`);
+          piecesMoved++;
+        }
+      }
+      
+      // If we didn't find enough pieces, add new ones (shouldn't happen in proper data)
+      if (piecesMoved < quantity) {
+        const remaining = quantity - piecesMoved;
+        for (let i = 0; i < remaining; i++) {
+          pieceMovements.push({
+            currentCountry: toCountry,
+            accumulatedShipping: shippingCostPerPiece,
+            history: [`${fromCountry}→${toCountry}: $${shippingCostPerPiece.toFixed(2)} (estimated)`]
+          });
+        }
       }
     }
   });
   
-  return pieceHistory[targetCountry] || 0;
+  // Calculate average shipping cost for pieces in the target country
+  const piecesInTarget = pieceMovements.filter(p => p.currentCountry === targetCountry);
+  if (piecesInTarget.length === 0) return 0;
+  
+  const totalAccumulated = piecesInTarget.reduce((sum, piece) => sum + piece.accumulatedShipping, 0);
+  return totalAccumulated / piecesInTarget.length;
 }
 
 // ======== ADVANCED COST CALCULATION FUNCTIONS ========
