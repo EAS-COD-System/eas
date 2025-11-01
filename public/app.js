@@ -122,29 +122,55 @@ document.addEventListener('DOMContentLoaded', () => {
   // Login handler
   Q('#loginBtn')?.addEventListener('click', async () => {
     const password = Q('#pw')?.value || '';
-    if (!password) return alert('Please enter password');
+    console.log('Login attempt with password length:', password.length);
+    
+    if (!password) {
+      alert('Please enter password');
+      return;
+    }
     
     try {
-      await api('/api/auth', { 
+      const result = await api('/api/auth', { 
         method: 'POST', 
         body: JSON.stringify({ password }) 
       });
-      await boot();
+      
+      console.log('Login successful, reloading page...');
+      
+      // Reload the page to apply authentication
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+      
     } catch (e) {
-      alert('Wrong password');
+      console.error('Login failed:', e);
+      alert('Wrong password. Please try again.');
+      
+      // Clear password field on failure
+      Q('#pw').value = '';
+      Q('#pw').focus();
     }
   });
 
   // Logout handler
   Q('#logoutLink')?.addEventListener('click', async (e) => {
     e.preventDefault();
+    console.log('Logout clicked');
+    
     try { 
       await api('/api/auth', { 
         method: 'POST', 
         body: JSON.stringify({ password: 'logout' }) 
       }); 
-    } catch { } 
-    location.reload();
+      console.log('Logout successful');
+    } catch (error) { 
+      console.error('Logout error:', error);
+    } 
+    
+    // Always reload to clear state
+    setTimeout(() => {
+      window.location.reload();
+    }, 300);
   });
 
   // Enter key for login
@@ -154,7 +180,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
-
 // Navigation handling
 function initSimpleNavigation() {
   const nav = Q('.nav');
