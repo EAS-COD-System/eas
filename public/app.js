@@ -3,6 +3,7 @@
    Advanced Business Management System
    ================================================================ */
 
+// Utility functions
 const Q = (s, r = document) => r.querySelector(s);
 const QA = (s, r = document) => Array.from(r.querySelectorAll(s));
 const fmt = n => (Number(n || 0)).toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -10,34 +11,55 @@ const isoToday = () => new Date().toISOString().slice(0, 10);
 const getQuery = k => new URLSearchParams(location.search).get(k);
 const safeJSON = v => { try { return JSON.parse(v); } catch { return null; } };
 
-// Enhanced API function with better error handling 
+// Enhanced API function with better error handling and retry logic
 async function api(path, opts = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000);
   
   try {
+    console.log(`🔗 API call: ${path}`, opts.method || 'GET');
+    
     const res = await fetch(path, {
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
       signal: controller.signal,
       ...opts
     });
+    
     clearTimeout(timeoutId);
     
-    console.log(`API ${path} response status:`, res.status);
+    console.log(`📨 API ${path} response status:`, res.status);
     
-    const ct = res.headers.get('content-type') || '';
-    const body = ct.includes('application/json') ? await res.json() : await res.text();
+    const contentType = res.headers.get('content-type') || '';
+    const body = contentType.includes('application/json') ? await res.json() : await res.text();
     
     if (!res.ok) {
-      console.error(`API error ${res.status}:`, body);
-      throw new Error(body?.error || body || `HTTP ${res.status}`);
+      console.error(`❌ API error ${res.status}:`, body);
+      
+      // Handle authentication errors
+      if (res.status === 401) {
+        // Clear auth cookie and show login
+        document.cookie = 'auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        showLogin();
+        throw new Error('Authentication required. Please log in again.');
+      }
+      
+      throw new Error(body?.error || body?.message || `HTTP ${res.status}`);
     }
     
     return body;
   } catch (error) {
     clearTimeout(timeoutId);
-    console.error('API call failed:', error);
+    console.error('❌ API call failed:', error);
+    
+    // Don't show alert for authentication errors (handled above)
+    if (!error.message.includes('Authentication required')) {
+      alert(`API Error: ${error.message}`);
+    }
+    
     throw error;
   }
 }
@@ -64,122 +86,193 @@ const state = {
   remittanceSortBy: 'totalDeliveredPieces',
   remittanceSortOrder: 'desc',
   profitCountrySortBy: 'totalDeliveredPieces',
-  profitCountrySortOrder: 'desc'
+  profitCountrySortOrder: 'desc',
+  isAuthenticated: false
 };
 
-// Main boot function
+// Authentication functions
+function showLogin() {
+  const loginEl = document.getElementById('login');
+  const mainEl = document.getElementById('main');
+  
+  if (loginEl) {
+    loginEl.classList.remove('hide');
+    loginEl.style.display = 'block';
+  }
+  if (mainEl) {
+    mainEl.style.display = 'none';
+  }
+  
+  state.isAuthenticated = false;
+  
+  // Clear any existing password
+  const pwInput = Q('#pw');
+  if (pwInput) {
+    pwInput.value = '';
+    pwInput.focus();
+  }
+}
+
+function showMain() {
+  const loginEl = document.getElementById('login');
+  const mainEl = document.getElementById('main');
+  
+  if (loginEl) {
+    loginEl.classList.add('hide');
+    loginEl.style.display = 'none';
+  }
+  if (mainEl) {
+    mainEl.style.display = 'block';
+  }
+  
+  state.isAuthenticated = true;
+}
+
+// Enhanced boot function with better error handling
 async function boot() {
   console.log('🚀 Boot starting...');
   
-  // Check authentication first
   try {
-    console.log('🔐 Checking authentication...');
-    await api('/api/auth/status');
-    console.log('✅ Authenticated successfully');
-    
-    // Hide login, show main
-    const loginEl = document.getElementById('login');
-    const mainEl = document.getElementById('main');
-    
-    if (loginEl) loginEl.classList.add('hide');
-    if (mainEl) mainEl.style.display = 'block';
-    
-    // Load data and initialize app
-    await preload();
-    bindGlobalNav();
-    setupShipmentActions();
+    // Check if we're on product page
     if (state.productId) {
-      renderProductPage();
-    } else {
-      renderDashboardPage();
-      renderProductsPage();
-      renderPerformancePage();
-      renderStockMovementPage();
-      renderAdspendPage();
-      renderFinancePage();
-      renderSettingsPage();
+      console.log('📦 Product page detected, ID:', state.productId);
     }
     
-    setupDailyBackupButton();
-    console.log('✅ Boot completed successfully');
+    // Check authentication status
+    console.log('🔐 Checking authentication status...');
+    const authStatus = await api('/api/auth/status');
+    
+    if (authStatus.authenticated) {
+      console.log('✅ User is authenticated');
+      state.isAuthenticated = true;
+      showMain();
+      
+      // Load initial data
+      await preload();
+      
+      // Initialize navigation and features
+      bindGlobalNav();
+      setupShipmentActions();
+      
+      // Render appropriate page
+      if (state.productId) {
+        console.log('🎯 Rendering product page');
+        renderProductPage();
+      } else {
+        console.log('🏠 Rendering dashboard');
+        renderDashboardPage();
+        renderProductsPage();
+        renderPerformancePage();
+        renderStockMovementPage();
+        renderAdspendPage();
+        renderFinancePage();
+        renderSettingsPage();
+      }
+      
+      setupDailyBackupButton();
+      console.log('✅ Boot completed successfully');
+      
+    } else {
+      console.log('❌ User not authenticated');
+      showLogin();
+    }
     
   } catch (error) {
-    console.error('❌ Authentication failed:', error);
+    console.error('❌ Boot failed:', error);
     
-    // Show login, hide main
-    const loginEl = document.getElementById('login');
-    const mainEl = document.getElementById('main');
-    
-    if (loginEl) loginEl.classList.remove('hide');
-    if (mainEl) mainEl.style.display = 'none';
-    
-    console.log('👤 Please log in');
+    if (error.message.includes('Authentication required') || error.message.includes('401')) {
+      showLogin();
+    } else {
+      // Show error but still allow login
+      console.error('Boot error:', error);
+      showLogin();
+      alert('System startup error. You can still try to login.');
+    }
   }
 }
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('📄 DOM loaded, initializing...');
+  
   // Login handler
-  Q('#loginBtn')?.addEventListener('click', async () => {
-    const password = Q('#pw')?.value || '';
-    console.log('Login attempt with password length:', password.length);
-    
-    if (!password) {
-      alert('Please enter password');
-      return;
-    }
-    
-    try {
-      const result = await api('/api/auth', { 
-        method: 'POST', 
-        body: JSON.stringify({ password }) 
-      });
-      
-      console.log('Login successful, reloading page...');
-      
-      // Reload the page to apply authentication
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
-      
-    } catch (e) {
-      console.error('Login failed:', e);
-      alert('Wrong password. Please try again.');
-      
-      // Clear password field on failure
-      Q('#pw').value = '';
-      Q('#pw').focus();
-    }
-  });
-
+  Q('#loginBtn')?.addEventListener('click', handleLogin);
+  
   // Logout handler
-  Q('#logoutLink')?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    console.log('Logout clicked');
-    
-    try { 
-      await api('/api/auth', { 
-        method: 'POST', 
-        body: JSON.stringify({ password: 'logout' }) 
-      }); 
-      console.log('Logout successful');
-    } catch (error) { 
-      console.error('Logout error:', error);
-    } 
-    
-    // Always reload to clear state
-    setTimeout(() => {
-      window.location.reload();
-    }, 300);
-  });
-
+  Q('#logoutLink')?.addEventListener('click', handleLogout);
+  
   // Enter key for login
   Q('#pw')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
-      Q('#loginBtn').click();
+      handleLogin();
     }
   });
+  
+  // Initialize the application
+  boot();
 });
+
+async function handleLogin() {
+  const password = Q('#pw')?.value || '';
+  console.log('🔐 Login attempt with password length:', password.length);
+  
+  if (!password) {
+    alert('Please enter password');
+    return;
+  }
+  
+  try {
+    const result = await api('/api/auth', { 
+      method: 'POST', 
+      body: JSON.stringify({ password }) 
+    });
+    
+    console.log('✅ Login successful, reloading page...');
+    
+    // Reload the page to apply authentication and reset state
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
+    
+  } catch (e) {
+    console.error('❌ Login failed:', e);
+    
+    if (e.message.includes('Wrong password')) {
+      alert('Wrong password. Please try again.');
+    } else {
+      alert('Login failed: ' + e.message);
+    }
+    
+    // Clear password field on failure
+    const pwInput = Q('#pw');
+    if (pwInput) {
+      pwInput.value = '';
+      pwInput.focus();
+    }
+  }
+}
+
+async function handleLogout(e) {
+  if (e) e.preventDefault();
+  
+  console.log('🚪 Logout clicked');
+  
+  try { 
+    await api('/api/auth', { 
+      method: 'POST', 
+      body: JSON.stringify({ password: 'logout' }) 
+    }); 
+    console.log('✅ Logout successful');
+  } catch (error) { 
+    console.error('Logout error:', error);
+  } 
+  
+  // Always reload to clear state
+  setTimeout(() => {
+    window.location.reload();
+  }, 300);
+}
+
 // Navigation handling
 function initSimpleNavigation() {
   const nav = Q('.nav');
@@ -233,29 +326,41 @@ function initSimpleNavigation() {
 
 // Preload essential data
 async function preload() {
+  console.log('🔄 Preloading data...');
+  
   try {
+    // Load meta data (countries)
     const meta = await api('/api/meta');
     state.countries = (meta.countries || []).filter(country => country !== 'china');
+    console.log('✅ Loaded countries:', state.countries);
 
-    const pr = await api('/api/products');
-    state.products = pr.products || [];
+    // Load products
+    const productsResponse = await api('/api/products');
+    state.products = productsResponse.products || [];
     state.productsActive = state.products.filter(p => p.status !== 'paused');
+    console.log('✅ Loaded products:', state.products.length);
 
-    const cats = await api('/api/finance/categories');
-    state.categories = cats || { debit: [], credit: [] };
+    // Load finance categories
+    const categories = await api('/api/finance/categories');
+    state.categories = categories || { debit: [], credit: [] };
+    console.log('✅ Loaded finance categories');
 
-    // Load all shipments for stock calculation
+    // Load shipments for stock calculation
     try {
-      console.log('🔄 Preload: Loading shipments...');
+      console.log('🔄 Loading shipments...');
       const shipments = await api('/api/shipments');
       state.allShipments = shipments.shipments || [];
-      console.log('✅ Preload: Loaded', state.allShipments.length, 'shipments');
+      console.log('✅ Loaded shipments:', state.allShipments.length);
     } catch (error) {
-      console.error('❌ Preload: Failed to load shipments:', error);
+      console.error('❌ Failed to load shipments:', error);
       state.allShipments = [];
     }
 
+    // Fill common dropdowns
     fillCommonSelects();
+    
+    console.log('✅ Preload completed successfully');
+    
   } catch (error) {
     console.error('❌ Preload failed:', error);
     throw error;
@@ -264,56 +369,65 @@ async function preload() {
 
 // Fill common dropdown selects
 function fillCommonSelects() {
+  console.log('🔄 Filling common selects...');
+  
   const countrySelects = ['#adCountry', '#rCountry', '#pdAdCountry', '#pdRCountry',
     '#pdInfCountry', '#pdInfFilterCountry', '#pcCountry', '#remCountry', '#remAddCountry',
     '#topDelCountry', '#remAnalyticsCountry', '#spCountry', '#poCountry', '#pdNoteCountry',
     '#mvFrom', '#mvTo', '#refundCountry', '#pdRefundCountry'];
 
-  countrySelects.forEach(sel => QA(sel).forEach(el => {
-    if (!el) return;
-    if (sel === '#pcCountry' || sel === '#remCountry' || sel === '#topDelCountry' || sel === '#remAnalyticsCountry') {
-      el.innerHTML = `<option value="">All countries</option>` +
-        state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
-    } else if (sel === '#mvFrom') {
-      el.innerHTML = `<option value="">From Country...</option>` +
-        `<option value="china">china</option>` +
-        state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
-    } else if (sel === '#mvTo') {
-      el.innerHTML = `<option value="">To Country...</option>` +
-        state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
-    } else {
-      el.innerHTML = `<option value="">Select country...</option>` +
-        state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
-    }
-  }));
+  countrySelects.forEach(sel => {
+    QA(sel).forEach(el => {
+      if (!el) return;
+      
+      if (sel === '#pcCountry' || sel === '#remCountry' || sel === '#topDelCountry' || sel === '#remAnalyticsCountry') {
+        el.innerHTML = `<option value="">All countries</option>` +
+          state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
+      } else if (sel === '#mvFrom') {
+        el.innerHTML = `<option value="">From Country...</option>` +
+          `<option value="china">china</option>` +
+          state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
+      } else if (sel === '#mvTo') {
+        el.innerHTML = `<option value="">To Country...</option>` +
+          state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
+      } else {
+        el.innerHTML = `<option value="">Select country...</option>` +
+          state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
+      }
+    });
+  });
 
   // Active products only
   const activeProductInputs = ['#mvProduct', '#adProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct', '#refundProduct'];
-  activeProductInputs.forEach(sel => QA(sel).forEach(el => {
-    if (!el) return;
-    const activeProducts = state.products
-      .filter(p => p.status === 'active')
-      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-    
-    el.innerHTML = `<option value="">Select Product...</option>` +
-      activeProducts.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
-  }));
+  activeProductInputs.forEach(sel => {
+    QA(sel).forEach(el => {
+      if (!el) return;
+      const activeProducts = state.products
+        .filter(p => p.status === 'active')
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      
+      el.innerHTML = `<option value="">Select Product...</option>` +
+        activeProducts.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+    });
+  });
 
   // All products
   const allProductsNewestFirst = ['#pcaProduct', '#remAnalyticsProduct', '#productInfoSelect', '#remProduct'];
-  allProductsNewestFirst.forEach(sel => QA(sel).forEach(el => {
-    if (!el) return;
-    const allProductsSorted = state.products
-      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-    
-    if (sel === '#pcaProduct' || sel === '#remAnalyticsProduct') {
-      el.innerHTML = `<option value="all">All products</option>` +
-        allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
-    } else {
-      el.innerHTML = `<option value="all">All products</option>` +
-        allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
-    }
-  }));
+  allProductsNewestFirst.forEach(sel => {
+    QA(sel).forEach(el => {
+      if (!el) return;
+      const allProductsSorted = state.products
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      
+      if (sel === '#pcaProduct' || sel === '#remAnalyticsProduct') {
+        el.innerHTML = `<option value="all">All products</option>` +
+          allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+      } else {
+        el.innerHTML = `<option value="all">All products</option>` +
+          allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+      }
+    });
+  });
 
   const allCats = [...state.categories.debit, ...state.categories.credit].sort();
   QA('#feCat').forEach(el => {
@@ -327,6 +441,8 @@ function fillCommonSelects() {
     el.innerHTML = `<option value="">All categories</option>` +
       allCats.map(c => `<option>${c}</option>`).join('');
   });
+  
+  console.log('✅ Common selects filled');
 }
 
 // Date range utilities
@@ -411,8 +527,8 @@ function getDateRange(container) {
     end: dateRange.end || ''
   };
 }
+
 // ======== ENHANCED SHIPMENT MANAGEMENT ========
-// Enhanced shipment editing with payment marking
 function setupShipmentActions() {
   document.addEventListener('click', async (e) => {
     if (e.target.classList.contains('act-edit-ship')) {
@@ -496,8 +612,11 @@ async function markShipmentAsPaid(shipmentId) {
     alert('Error marking shipment as paid: ' + error.message);
   }
 }
+
 // ======== DASHBOARD PAGE ========
 function renderDashboardPage() {
+  console.log('🎯 Rendering dashboard page');
+  
   renderCompactKpis();
   renderCountryStockSpend();
   bindDailyAdSpend();
@@ -509,10 +628,14 @@ function renderDashboardPage() {
 }
 
 async function renderCompactKpis() {
+  console.log('📊 Rendering compact KPIs');
+  
+  // Update basic counts
   Q('#kpiProducts') && (Q('#kpiProducts').textContent = state.products.length);
   Q('#kpiCountries') && (Q('#kpiCountries').textContent = state.countries.length);
 
   try {
+    // Calculate stock and transit
     const stockByCountry = await calculateStockByCountry();
     let activeStock = 0;
     let inactiveStock = 0;
@@ -544,15 +667,19 @@ async function renderCompactKpis() {
   }
 
   try {
-    const a = await api('/api/adspend');
-    const total = (a.adSpends || []).reduce((t, x) => t + (+x.amount || 0), 0);
-    Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = `${fmt(total)} USD`);
-  } catch { Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = '—'); }
+    // Calculate total ad spend
+    const adSpendData = await api('/api/adspend');
+    const totalAdSpend = (adSpendData.adSpends || []).reduce((t, x) => t + (+x.amount || 0), 0);
+    Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = `${fmt(totalAdSpend)} USD`);
+  } catch { 
+    Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = '—'); 
+  }
 
-  const t = Q('#wAllT')?.textContent || '0';
-  Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = t);
+  // Update delivered pieces
+  const totalDelivered = Q('#wAllT')?.textContent || '0';
+  Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = totalDelivered);
 }
-  
+
 async function calculateTransitPieces() {
   try {
     const shipments = await api('/api/shipments');
@@ -579,39 +706,50 @@ async function calculateTransitPieces() {
 
 async function calculateStockByCountry(productId = null) {
   try {
-    const db = await api('/api/products');
+    // For now, return a simplified stock calculation
+    // You would implement your actual stock calculation logic here
+    const stock = {};
     
+    state.countries.forEach(country => {
+      if (country !== 'china') {
+        stock[country] = { active: 0, inactive: 0, total: 0 };
+      }
+    });
+    
+    // This is a simplified version - implement your actual stock calculation
     if (productId) {
-      const product = db.products.find(p => p.id === productId);
-      if (!product) return {};
-      
-      // For single product, return simple stock numbers
-      const stock = {};
-      Object.keys(product.stockByCountry || {}).forEach(country => {
-        stock[country] = product.stockByCountry[country] || 0;
-      });
-      return stock;
-    } else {
-      // For all products, separate active and inactive
-      const totalStock = {};
-      state.countries.forEach(country => {
-        totalStock[country] = { active: 0, inactive: 0, total: 0 };
-      });
-      
-      db.products.forEach(product => {
-        Object.keys(product.stockByCountry || {}).forEach(country => {
-          const stock = product.stockByCountry[country] || 0;
-          if (product.status === 'active') {
-            totalStock[country].active += stock;
-          } else {
-            totalStock[country].inactive += stock;
+      const product = state.products.find(p => p.id === productId);
+      if (product && product.stockByCountry) {
+        Object.keys(product.stockByCountry).forEach(country => {
+          if (stock[country]) {
+            const productStock = product.stockByCountry[country] || 0;
+            if (product.status === 'active') {
+              stock[country].active += productStock;
+            } else {
+              stock[country].inactive += productStock;
+            }
+            stock[country].total += productStock;
           }
-          totalStock[country].total += stock;
+        });
+      }
+    } else {
+      // Calculate for all products
+      state.products.forEach(product => {
+        Object.keys(product.stockByCountry || {}).forEach(country => {
+          if (stock[country]) {
+            const productStock = product.stockByCountry[country] || 0;
+            if (product.status === 'active') {
+              stock[country].active += productStock;
+            } else {
+              stock[country].inactive += productStock;
+            }
+            stock[country].total += productStock;
+          }
         });
       });
-      
-      return totalStock;
     }
+    
+    return stock;
   } catch (error) {
     console.error('Error calculating stock:', error);
     return {};
@@ -627,7 +765,7 @@ async function renderCountryStockSpend() {
   try {
     const stockByCountry = await calculateStockByCountry();
     
-    let st = 0, fb = 0, tt = 0, gg = 0, totalAd = 0;
+    let totalStock = 0, totalFb = 0, totalTt = 0, totalGg = 0, totalAd = 0;
     
     const adSpends = await api('/api/adspend');
     const adBreakdown = {};
@@ -647,14 +785,14 @@ async function renderCountryStockSpend() {
     });
 
     const rows = state.countries.map(country => {
-      const stock = stockByCountry[country] || 0;
+      const stock = stockByCountry[country]?.total || 0;
       const adData = adBreakdown[country] || { facebook: 0, tiktok: 0, google: 0 };
       const countryAdTotal = adData.facebook + adData.tiktok + adData.google;
 
-      st += stock;
-      fb += adData.facebook;
-      tt += adData.tiktok;
-      gg += adData.google;
+      totalStock += stock;
+      totalFb += adData.facebook;
+      totalTt += adData.tiktok;
+      totalGg += adData.google;
       totalAd += countryAdTotal;
 
       return `<tr>
@@ -668,10 +806,10 @@ async function renderCountryStockSpend() {
     }).join('');
 
     body.innerHTML = rows || `<tr><td colspan="6" class="muted">No data</td></tr>`;
-    Q('#stockTotal') && (Q('#stockTotal').textContent = fmt(st));
-    Q('#fbTotal') && (Q('#fbTotal').textContent = fmt(fb));
-    Q('#ttTotal') && (Q('#ttTotal').textContent = fmt(tt));
-    Q('#ggTotal') && (Q('#ggTotal').textContent = fmt(gg));
+    Q('#stockTotal') && (Q('#stockTotal').textContent = fmt(totalStock));
+    Q('#fbTotal') && (Q('#fbTotal').textContent = fmt(totalFb));
+    Q('#ttTotal') && (Q('#ttTotal').textContent = fmt(totalTt));
+    Q('#ggTotal') && (Q('#ggTotal').textContent = fmt(totalGg));
     Q('#adTotal') && (Q('#adTotal').textContent = fmt(totalAd));
   } catch (error) {
     body.innerHTML = `<tr><td colspan="6" class="muted">Error loading data</td></tr>`;
@@ -748,27 +886,29 @@ function renderWeeklyDelivered() {
     }).join('');
 
     try {
-      const r = await api('/api/deliveries');
-      const map = {};
-      (r.deliveries || []).forEach(x => map[`${x.country}|${x.date}`] = +x.delivered || 0);
+      const deliveries = await api('/api/deliveries');
+      const deliveryMap = {};
+      (deliveries.deliveries || []).forEach(x => deliveryMap[`${x.country}|${x.date}`] = +x.delivered || 0);
       QA('.wd-cell').forEach(inp => {
-        const k = `${inp.dataset.country}|${inp.dataset.date}`;
-        if (map[k] != null) inp.value = map[k];
+        const key = `${inp.dataset.country}|${inp.dataset.date}`;
+        if (deliveryMap[key] != null) inp.value = deliveryMap[key];
       });
-    } catch { }
+    } catch (error) { 
+      console.error('Error loading deliveries:', error);
+    }
 
     computeWeeklyTotals();
   };
 
   function computeWeeklyTotals() {
     QA('tr[data-row]').forEach(tr => {
-      const t = QA('.wd-cell', tr).reduce((s, el) => s + (+el.value || 0), 0);
+      const total = QA('.wd-cell', tr).reduce((s, el) => s + (+el.value || 0), 0);
       const totalEl = Q('.row-total', tr);
-      if (totalEl) totalEl.textContent = fmt(t);
+      if (totalEl) totalEl.textContent = fmt(total);
     });
 
     const cols = QA('thead th', Q('#weeklyTable'))?.length - 2 || 0;
-    let grand = 0;
+    let grandTotal = 0;
     for (let i = 0; i < cols; i++) {
       let colSum = 0;
       QA('tr[data-row]').forEach(tr => {
@@ -777,10 +917,10 @@ function renderWeeklyDelivered() {
       });
       const dayEl = Q(`#w${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]}T`);
       if (dayEl) dayEl.textContent = fmt(colSum);
-      grand += colSum;
+      grandTotal += colSum;
     }
-    Q('#wAllT') && (Q('#wAllT').textContent = fmt(grand));
-    Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = fmt(grand));
+    Q('#wAllT') && (Q('#wAllT').textContent = fmt(grandTotal));
+    Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = fmt(grandTotal));
   }
 
   Q('#weeklyPrev')?.addEventListener('click', () => { 
@@ -921,10 +1061,10 @@ function initTodos() {
   const listEl = Q('#todoList'); 
   const addBtn = Q('#todoAdd');
   
-  function renderQuick() {
+  function renderTodos() {
     api('/api/todos').then(data => {
-      const arr = data.todos || [];
-      listEl.innerHTML = arr.map(t => `<div class="flex">
+      const todos = data.todos || [];
+      listEl.innerHTML = todos.map(t => `<div class="flex">
         <span>${t.done ? '✅ ' : ''}${t.text}</span>
         <button class="btn outline" data-done="${t.id}">${t.done ? 'Undo' : 'Done'}</button>
         <button class="btn outline" data-del="${t.id}">Delete</button>
@@ -933,32 +1073,32 @@ function initTodos() {
   }
   
   addBtn?.addEventListener('click', () => {
-    const v = Q('#todoText')?.value.trim(); 
-    if (!v) return;
+    const text = Q('#todoText')?.value.trim(); 
+    if (!text) return;
     
     api('/api/todos', {
       method: 'POST',
-      body: JSON.stringify({ text: v, done: false })
+      body: JSON.stringify({ text, done: false })
     }).then(() => {
       Q('#todoText').value = '';
-      renderQuick();
+      renderTodos();
     }).catch(alert);
   });
   
   listEl?.addEventListener('click', (e) => {
     if (e.target.dataset.done) {
       api(`/api/todos/${e.target.dataset.done}/toggle`, { method: 'POST' })
-        .then(renderQuick)
+        .then(renderTodos)
         .catch(alert);
     }
     if (e.target.dataset.del) {
       api(`/api/todos/${e.target.dataset.del}`, { method: 'DELETE' })
-        .then(renderQuick)
+        .then(renderTodos)
         .catch(alert);
     }
   });
   
-  renderQuick();
+  renderTodos();
 }
 
 // Weekly Todo lists
@@ -1158,6 +1298,8 @@ function initTestedProducts() {
 
 // ======== PRODUCTS PAGE ========
 function renderProductsPage() {
+  console.log('📦 Rendering products page');
+  
   try {
     renderCompactCountryStats();
     renderAdvertisingOverview();
@@ -1175,15 +1317,16 @@ function renderProductsPage() {
       }
     }
 
+    // Add product event listener
     Q('#pAdd')?.addEventListener('click', async () => {
-      const p = {
+      const product = {
         name: Q('#pName')?.value.trim(),
         sku: Q('#pSku')?.value.trim()
       };
-      if (!p.name) return alert('Name required');
+      if (!product.name) return alert('Name required');
       
       try {
-        await api('/api/products', { method: 'POST', body: JSON.stringify(p) });
+        await api('/api/products', { method: 'POST', body: JSON.stringify(product) });
         
         await preload();
         
@@ -1202,6 +1345,7 @@ function renderProductsPage() {
       }
     });
 
+    // Selling price event listener
     Q('#spSave')?.addEventListener('click', async () => {
       const productId = Q('#spProduct')?.value;
       const country = Q('#spCountry')?.value;
@@ -1486,41 +1630,45 @@ function renderProductsTable() {
     // Render pagination
     renderProductsPagination(sortedProducts.length, productsPerPage);
 
-// Add event listeners for product actions with confirmation
-tb.onclick = async (e) => {
-  const id = e.target.dataset?.id; 
-  if (!id) return;
-  
-  if (e.target.classList.contains('act-toggle')) {
-    const p = state.products.find(x => x.id === id); 
-    if (!p) return;
-    
-    const newStatus = p.status === 'active' ? 'paused' : 'active';
-    const action = p.status === 'active' ? 'pause' : 'activate';
-    const confirmationMessage = p.status === 'active' 
-      ? 'Are you sure you want to PAUSE this product? The stock will move to inactive stock.'
-      : 'Are you sure you want to ACTIVATE this product?';
-    
-    if (confirm(confirmationMessage)) {
-      await api(`/api/products/${id}/status`, { 
-        method: 'POST', 
-        body: JSON.stringify({ status: newStatus }) 
-      });
-      await preload(); 
-      renderProductsTable(); 
-      renderCompactKpis();
-    }
+    // Add event listeners for product actions
+    tb.onclick = async (e) => {
+      const id = e.target.dataset?.id; 
+      if (!id) return;
+      
+      if (e.target.classList.contains('act-toggle')) {
+        const product = state.products.find(x => x.id === id); 
+        if (!product) return;
+        
+        const newStatus = product.status === 'active' ? 'paused' : 'active';
+        const action = product.status === 'active' ? 'pause' : 'activate';
+        const confirmationMessage = product.status === 'active' 
+          ? 'Are you sure you want to PAUSE this product? The stock will move to inactive stock.'
+          : 'Are you sure you want to ACTIVATE this product?';
+        
+        if (confirm(confirmationMessage)) {
+          await api(`/api/products/${id}/status`, { 
+            method: 'POST', 
+            body: JSON.stringify({ status: newStatus }) 
+          });
+          await preload(); 
+          renderProductsTable(); 
+          renderCompactKpis();
+        }
+      }
+      
+      if (e.target.classList.contains('act-del')) {
+        if (confirm('⚠️ ARE YOU SURE YOU WANT TO DELETE THIS PRODUCT AND ALL ITS DATA?\n\nThis will delete ALL shipments, remittances, orders, and analytics data for this product. This action cannot be undone!')) {
+          await api(`/api/products/${id}`, { method: 'DELETE' });
+          await preload(); 
+          renderProductsTable(); 
+          renderCompactKpis();
+        }
+      }
+    };
+  } catch (error) {
+    console.error('Error rendering products table:', error);
   }
-  
-  if (e.target.classList.contains('act-del')) {
-    if (confirm('⚠️ ARE YOU SURE YOU WANT TO DELETE THIS PRODUCT AND ALL ITS DATA?\n\nThis will delete ALL shipments, remittances, orders, and analytics data for this product. This action cannot be undone!')) {
-      await api(`/api/products/${id}`, { method: 'DELETE' });
-      await preload(); 
-      renderProductsTable(); 
-      renderCompactKpis();
-    }
-  }
-};
+}
 
 function renderProductsPagination(totalItems, itemsPerPage) {
   try {
@@ -1572,55 +1720,48 @@ function renderCompactCountryStats() {
     const container = Q('#countryProductStats');
     if (!container) return;
 
-    api('/api/adspend').then(adData => {
-      const adSpends = adData.adSpends || [];
-      const countryStats = {};
+    // Calculate country stats
+    const countryStats = {};
+    state.countries.forEach(country => {
+      countryStats[country] = { active: 0, paused: 0, total: 0 };
+    });
 
-      if (state.countries && Array.isArray(state.countries)) {
-        state.countries.forEach(country => {
-          countryStats[country] = { active: 0, paused: 0, total: 0 };
-        });
-
-        if (state.products && Array.isArray(state.products)) {
-          state.products.forEach(product => {
-            state.countries.forEach(country => {
-              countryStats[country].total++;
-              if (product.status === 'active') {
-                countryStats[country].active++;
-              } else {
-                countryStats[country].paused++;
-              }
-            });
-          });
+    state.products.forEach(product => {
+      state.countries.forEach(country => {
+        countryStats[country].total++;
+        if (product.status === 'active') {
+          countryStats[country].active++;
+        } else {
+          countryStats[country].paused++;
         }
+      });
+    });
 
-        let html = '';
-        Object.keys(countryStats).sort().forEach(country => {
-          const stats = countryStats[country];
-          html += `
-            <div class="country-stat-card-compact">
-              <div class="country-name-compact">${country}</div>
-              <div class="stats-row-compact">
-                <div class="stat-item-compact active">
-                  <div class="stat-label-compact">Active</div>
-                  <div class="stat-value-compact">${stats.active}</div>
-                </div>
-                <div class="stat-item-compact paused">
-                  <div class="stat-label-compact">Paused</div>
-                  <div class="stat-value-compact">${stats.paused}</div>
-                </div>
-                <div class="stat-item-compact total">
-                  <div class="stat-label-compact">Total</div>
-                  <div class="stat-value-compact">${stats.total}</div>
-                </div>
-              </div>
+    let html = '';
+    Object.keys(countryStats).sort().forEach(country => {
+      const stats = countryStats[country];
+      html += `
+        <div class="country-stat-card-compact">
+          <div class="country-name-compact">${country}</div>
+          <div class="stats-row-compact">
+            <div class="stat-item-compact active">
+              <div class="stat-label-compact">Active</div>
+              <div class="stat-value-compact">${stats.active}</div>
             </div>
-          `;
-        });
+            <div class="stat-item-compact paused">
+              <div class="stat-label-compact">Paused</div>
+              <div class="stat-value-compact">${stats.paused}</div>
+            </div>
+            <div class="stat-item-compact total">
+              <div class="stat-label-compact">Total</div>
+              <div class="stat-value-compact">${stats.total}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
 
-        container.innerHTML = html;
-      }
-    }).catch(console.error);
+    container.innerHTML = html;
   } catch (error) {
     console.error('Error in renderCompactCountryStats:', error);
   }
@@ -1640,11 +1781,7 @@ async function renderAdvertisingOverview() {
       api('/api/adspend').then(adData => {
         const adSpends = adData.adSpends || [];
         
-        return api('/api/products').then(productsData => {
-          state.products = productsData.products || [];
-          return adSpends;
-        });
-      }).then(adSpends => {
+        // Group by country and product
         const byCountry = {};
 
         adSpends.forEach(spend => {
@@ -1843,6 +1980,8 @@ function renderProductInfoSection() {
 
 // ======== PERFORMANCE PAGE ========
 function renderPerformancePage() {
+  console.log('📈 Rendering performance page');
+  
   initDateRangeSelectors();
   bindProductOrders();
   bindProductCostsAnalysis();
@@ -1851,6 +1990,7 @@ function renderPerformancePage() {
   bindRemittanceAdd();
   bindRefundAdd();
   
+  // Trigger initial calculations
   setTimeout(() => {
     if (Q('#pcaRun')) Q('#pcaRun').click();
     if (Q('#remAnalyticsRun')) Q('#remAnalyticsRun').click();
@@ -1903,7 +2043,6 @@ function bindProductCostsAnalysis() {
     const dateRange = getDateRange(Q('#pcaRun').closest('.row'));
 
     try {
-      // This uses Logic A (total shipment costs)
       const analysis = await api('/api/product-costs-analysis?' + new URLSearchParams({
         productId,
         ...dateRange
@@ -2432,6 +2571,8 @@ function bindRefundAdd() {
 
 // ======== STOCK MOVEMENT PAGE ========
 function renderStockMovementPage() {
+  console.log('🚚 Rendering stock movement page');
+  
   bindStockMovement();
   renderShipmentTables();
 }
@@ -2590,36 +2731,10 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
   };
 }
 
-// Edit shipment function
-async function editShipment(shipmentId) {
-  try {
-    const shipments = await api('/api/shipments');
-    const shipment = shipments.shipments.find(s => s.id === shipmentId);
-    if (!shipment) return;
-
-    const newQty = prompt('Enter new quantity:', shipment.qty);
-    const newShipCost = prompt('Enter new shipping cost:', shipment.shipCost);
-    const newNote = prompt('Enter new note:', shipment.note);
-
-    if (newQty !== null && newShipCost !== null) {
-      await api(`/api/shipments/${shipmentId}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          qty: +newQty,
-          shipCost: +newShipCost,
-          note: newNote || shipment.note
-        })
-      });
-      renderShipmentTables();
-      alert('Shipment updated');
-    }
-  } catch (error) {
-    alert('Error updating shipment: ' + error.message);
-  }
-}
-
 // ======== ADSPEND PAGE ========
 function renderAdspendPage() {
+  console.log('🎯 Rendering adspend page');
+  
   bindAdspendDaily();
   bindAdspendAnalytics();
   renderAdvertisingOverview();
@@ -2776,6 +2891,8 @@ function renderAdspendResults(adSpends) {
 
 // ======== FINANCE PAGE ========
 function renderFinancePage() {
+  console.log('💰 Rendering finance page');
+  
   renderFinanceCategories();
   bindFinanceEntries();
   bindFinanceSearch();
@@ -2918,8 +3035,9 @@ async function renderFinanceEntries() {
     // Add delete handlers
     tbody.onclick = async (e) => {
       if (e.target.classList.contains('act-del-entry')) {
+        const entryId = e.target.dataset.id;
         if (confirm('Delete this entry?')) {
-          await api(`/api/finance/entries/${e.target.dataset.id}`, { method: 'DELETE' });
+          await api(`/api/finance/entries/${entryId}`, { method: 'DELETE' });
           renderFinanceEntries();
           renderFinanceBalance();
         }
@@ -2977,6 +3095,8 @@ function bindFinanceSearch() {
 
 // ======== SETTINGS PAGE ========
 function renderSettingsPage() {
+  console.log('⚙️ Rendering settings page');
+  
   renderCountries();
   bindProductEdit();
   renderSnapshots();
@@ -3140,6 +3260,8 @@ function setupDailyBackupButton() {
 // ======== PRODUCT PAGE ========
 function renderProductPage() {
   if (!state.productId) return;
+  
+  console.log('📦 Rendering product page for:', state.productId);
   
   renderProductHeader();
   renderProductStockAdSpend();
@@ -3455,33 +3577,6 @@ function addShipmentEventListeners(container) {
       }
     }
   });
-}
-
-async function editShipment(shipmentId) {
-  try {
-    const shipments = await api('/api/shipments');
-    const shipment = shipments.shipments.find(s => s.id === shipmentId);
-    if (!shipment) return;
-
-    const newQty = prompt('Enter new quantity:', shipment.qty);
-    const newShipCost = prompt('Enter new shipping cost:', shipment.shipCost);
-    const newNote = prompt('Enter new note:', shipment.note);
-
-    if (newQty !== null && newShipCost !== null) {
-      await api(`/api/shipments/${shipmentId}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          qty: +newQty,
-          shipCost: +newShipCost,
-          note: newNote || shipment.note
-        })
-      });
-      renderProductShipments();
-      alert('Shipment updated');
-    }
-  } catch (error) {
-    alert('Error updating shipment: ' + error.message);
-  }
 }
 
 function renderProductLifetimePerformance() {
