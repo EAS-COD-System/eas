@@ -1,4 +1,4 @@
- /* ================================================================
+/* ================================================================
    EAS Tracker – Frontend (Complete Rebuild)
    Advanced Business Management System
    ================================================================ */
@@ -1355,7 +1355,7 @@ function renderProductsTable() {
     // Render pagination
     renderProductsPagination(sortedProducts.length, productsPerPage);
 
-    // Add event listeners for product actions
+    // Add event listeners for product actions with confirmation
     tb.onclick = async (e) => {
       const id = e.target.dataset?.id; 
       if (!id) return;
@@ -1363,17 +1363,26 @@ function renderProductsTable() {
       if (e.target.classList.contains('act-toggle')) {
         const p = state.products.find(x => x.id === id); 
         if (!p) return;
-        const ns = p.status === 'active' ? 'paused' : 'active';
-        await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: ns }) });
-        await preload(); 
-        renderProductsTable(); 
+        
+        const newStatus = p.status === 'active' ? 'paused' : 'active';
+        const action = p.status === 'active' ? 'pause' : 'activate';
+        
+        if (confirm(`Are you sure you want to ${action} this product?`)) {
+          await api(`/api/products/${id}/status`, { 
+            method: 'POST', 
+            body: JSON.stringify({ status: newStatus }) 
+          });
+          await preload(); 
+          renderProductsTable(); 
+        }
       }
       
       if (e.target.classList.contains('act-del')) {
-        if (!confirm('Delete product and ALL its data?')) return;
-        await api(`/api/products/${id}`, { method: 'DELETE' });
-        await preload(); 
-        renderProductsTable(); 
+        if (confirm('Are you sure you want to delete this product and ALL its data?')) {
+          await api(`/api/products/${id}`, { method: 'DELETE' });
+          await preload(); 
+          renderProductsTable(); 
+        }
       }
     };
   } catch (error) {
@@ -1766,6 +1775,7 @@ function bindProductCostsAnalysis() {
     const dateRange = getDateRange(Q('#pcaRun').closest('.row'));
 
     try {
+      // This uses Logic A (total shipment costs)
       const analysis = await api('/api/product-costs-analysis?' + new URLSearchParams({
         productId,
         ...dateRange
@@ -2403,7 +2413,8 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
         <td>${shipment.note || '-'}</td>
         <td>
           ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
-          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
+          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Mark Paid</button>` : ''}
+          <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
       </tr>
@@ -2436,6 +2447,10 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
       }
     }
 
+    if (e.target.classList.contains('act-edit-ship')) {
+      editShipment(id);
+    }
+
     if (e.target.classList.contains('act-del-ship')) {
       if (confirm('Delete this shipment?')) {
         await api(`/api/shipments/${id}`, { method: 'DELETE' });
@@ -2445,6 +2460,34 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
       }
     }
   };
+}
+
+// Edit shipment function
+async function editShipment(shipmentId) {
+  try {
+    const shipments = await api('/api/shipments');
+    const shipment = shipments.shipments.find(s => s.id === shipmentId);
+    if (!shipment) return;
+
+    const newQty = prompt('Enter new quantity:', shipment.qty);
+    const newShipCost = prompt('Enter new shipping cost:', shipment.shipCost);
+    const newNote = prompt('Enter new note:', shipment.note);
+
+    if (newQty !== null && newShipCost !== null) {
+      await api(`/api/shipments/${shipmentId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          qty: +newQty,
+          shipCost: +newShipCost,
+          note: newNote || shipment.note
+        })
+      });
+      renderShipmentTables();
+      alert('Shipment updated');
+    }
+  } catch (error) {
+    alert('Error updating shipment: ' + error.message);
+  }
 }
 
 // ======== ADSPEND PAGE ========
@@ -3799,4 +3842,4 @@ function bindGlobalNav() {
 }
 
 // Initialize the application
-document.addEventListener('DOMContentLoaded', boot); 
+document.addEventListener('DOMContentLoaded', boot);
