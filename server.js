@@ -1386,7 +1386,7 @@ app.delete('/api/influencers/spend/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// Analytics
+// Analytics - Remittance Analytics (Use Logic B - accumulated shipping)
 app.get('/api/analytics/remittance', requireAuth, (req, res) => {
   const db = loadDB();
   const { start, end, country, productId, sortBy = 'totalDeliveredPieces', sortOrder = 'desc' } = req.query || {};
@@ -1395,6 +1395,7 @@ app.get('/api/analytics/remittance', requireAuth, (req, res) => {
   
   if (productId && productId !== 'all') {
     if (country && country !== '') {
+      // Single product, single country - Use Logic B
       const metrics = calculateProfitMetricsLogicB(db, productId, country, start, end);
       analytics = [{
         productId,
@@ -1403,6 +1404,7 @@ app.get('/api/analytics/remittance', requireAuth, (req, res) => {
         ...metrics
       }];
     } else {
+      // Single product, all countries - Use Logic B
       const countries = db.countries.filter(c => c !== 'china');
       analytics = countries.map(country => {
         const metrics = calculateProfitMetricsLogicB(db, productId, country, start, end);
@@ -1415,6 +1417,7 @@ app.get('/api/analytics/remittance', requireAuth, (req, res) => {
       }).filter(item => item.hasData);
     }
   } else {
+    // Multiple products - Use Logic B
     const products = productId === 'all' ? (db.products || []) : (db.products || []).filter(p => p.status === 'active');
     analytics = products.map(product => {
       const metrics = calculateProfitMetricsLogicB(db, product.id, country, start, end);
@@ -1448,7 +1451,7 @@ app.get('/api/analytics/remittance', requireAuth, (req, res) => {
 
   res.json({ analytics, sortBy, sortOrder });
 });
-
+// Analytics - Profit by Country (Use Logic B - accumulated shipping)
 app.get('/api/analytics/profit-by-country', requireAuth, (req, res) => {
   const db = loadDB();
   const { start, end, country, sortBy = 'totalDeliveredPieces', sortOrder = 'desc' } = req.query || {};
@@ -1457,6 +1460,7 @@ app.get('/api/analytics/profit-by-country', requireAuth, (req, res) => {
   const countries = country ? [country] : (db.countries || []).filter(c => c !== 'china');
 
   countries.forEach(c => {
+    // Use Logic B for profit by country
     const metrics = calculateProfitMetricsLogicB(db, null, c, start, end);
     analytics[c] = metrics;
   });
@@ -1487,7 +1491,7 @@ app.get('/api/analytics/profit-by-country', requireAuth, (req, res) => {
   res.json({ analytics: analyticsArray, sortBy, sortOrder });
 });
 
-// Product Info
+// Product Info (Use Logic B - accumulated shipping)
 app.get('/api/product-info/:id', requireAuth, (req, res) => {
   const db = loadDB();
   const productId = req.params.id;
@@ -1506,6 +1510,7 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
   const analysis = countries.map(country => {
     const price = prices.find(p => p.country === country);
     
+    // Use Logic B calculations for product info
     const productCostPerPiece = calculateProductCostPerPiece(db, productId);
     const shippingCostPerPiece = calculateShippingCostPerPiece(db, productId, country);
     
@@ -1516,6 +1521,7 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
     const totalCost = productCostChina + shippingCost + boxleoPerOrder;
     const availableForProfitAndAds = sellingPrice - totalCost;
     
+    // Get delivery data using Logic B
     const deliveryData = calculateProfitMetricsLogicB(db, productId, country, '2000-01-01', '2100-01-01');
     const deliveryRate = deliveryData.deliveryRate || 0;
     const maxCPL = deliveryRate > 0 ? availableForProfitAndAds * (deliveryRate / 100) : 0;
@@ -1542,18 +1548,19 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
     totalDeliveredOrders: totalDeliveredOrders
   });
 });
-
-// Product Costs Analysis (Logic A)
+// Product Costs Analysis (Use Logic A - total shipment costs)
 app.get('/api/product-costs-analysis', requireAuth, (req, res) => {
   const db = loadDB();
   const { productId, start, end } = req.query || {};
   
   let metrics;
   if (productId === 'all') {
+    // Use Logic A for aggregate analysis
     metrics = calculateProfitMetricsLogicA(db, null, null, start, end);
     metrics.isAggregate = true;
     metrics.productCount = db.products.length;
   } else {
+    // Use Logic A for single product analysis
     metrics = calculateProfitMetricsLogicA(db, productId, null, start, end);
     metrics.isAggregate = false;
     metrics.productCount = 1;
@@ -1561,7 +1568,6 @@ app.get('/api/product-costs-analysis', requireAuth, (req, res) => {
   
   res.json(metrics);
 });
-
 // Snapshots
 app.get('/api/snapshots', requireAuth, (req, res) => {
   const db = loadDB();
