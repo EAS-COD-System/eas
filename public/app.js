@@ -3674,7 +3674,7 @@ function bindProductInfluencers() {
       method: 'POST',
       body: JSON.stringify({
         date: date || isoToday(),
-        influencerId,
+        influencerId, 
         country,
         productId: state.productId,
         amount
