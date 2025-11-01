@@ -1,5 +1,6 @@
 /* ================================================================
    EAS Tracker – Frontend (Complete Rebuild)
+   Advanced Business Management System
    ================================================================ */
 
 const Q = (s, r = document) => r.querySelector(s);
