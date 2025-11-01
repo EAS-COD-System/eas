@@ -966,6 +966,7 @@ app.post('/api/remittances', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 app.post('/api/remittances/force', async (req, res) => {
   try {
     const db = await loadDB(); 
@@ -998,6 +999,7 @@ app.post('/api/remittances/force', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 app.delete('/api/remittances/:id', async (req, res) => {
   try {
     const db = await loadDB(); 
@@ -1675,6 +1677,20 @@ app.get('/api/analytics/remittance', async (req, res) => {
         }
       });
     });
+
+    // Sort results
+    analytics.sort((a, b) => {
+      const aValue = a[sortBy] || 0;
+      const bValue = b[sortBy] || 0;
+      return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
+    });
+
+    res.json({ analytics, sortBy, sortOrder });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Analytics - Profit by Country
 app.get('/api/analytics/profit-by-country', async (req, res) => {
   try {
@@ -1818,18 +1834,6 @@ app.get('/api/analytics/profit-by-country', async (req, res) => {
     res.json({ analytics, sortBy, sortOrder });
   } catch (error) {
     console.error('Error in profit by country analytics:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-    // Sort results
-    analytics.sort((a, b) => {
-      const aValue = a[sortBy] || 0;
-      const bValue = b[sortBy] || 0;
-      return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
-    });
-
-    res.json({ analytics, sortBy, sortOrder });
-  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
