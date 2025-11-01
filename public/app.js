@@ -1,4 +1,4 @@
-/* ================================================================
+ /* ================================================================
    EAS Tracker – Frontend (Complete Rebuild)
    Advanced Business Management System
    ================================================================ */
@@ -2403,8 +2403,7 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
         <td>${shipment.note || '-'}</td>
         <td>
           ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
-          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Mark Paid</button>` : ''}
-          <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
+          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
       </tr>
@@ -2437,10 +2436,6 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
       }
     }
 
-    if (e.target.classList.contains('act-edit-ship')) {
-      editShipment(id);
-    }
-
     if (e.target.classList.contains('act-del-ship')) {
       if (confirm('Delete this shipment?')) {
         await api(`/api/shipments/${id}`, { method: 'DELETE' });
@@ -2450,33 +2445,6 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
       }
     }
   };
-}
-
-async function editShipment(shipmentId) {
-  try {
-    const shipments = await api('/api/shipments');
-    const shipment = shipments.shipments.find(s => s.id === shipmentId);
-    if (!shipment) return;
-
-    const newQty = prompt('Enter new quantity:', shipment.qty);
-    const newShipCost = prompt('Enter new shipping cost:', shipment.shipCost);
-    const newNote = prompt('Enter new note:', shipment.note);
-
-    if (newQty !== null && newShipCost !== null) {
-      await api(`/api/shipments/${shipmentId}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          qty: +newQty,
-          shipCost: +newShipCost,
-          note: newNote || shipment.note
-        })
-      });
-      renderShipmentTables();
-      alert('Shipment updated');
-    }
-  } catch (error) {
-    alert('Error updating shipment: ' + error.message);
-  }
 }
 
 // ======== ADSPEND PAGE ========
@@ -3227,7 +3195,7 @@ function renderProductShipmentTable(selector, shipments, showChinaCost) {
             <button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>
           ` : ''}
           ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `
-            <button class="btn small outline act-pay" data-id="${shipment.id}">Mark Paid</button>
+            <button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>
           ` : ''}
           <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
@@ -3831,4 +3799,4 @@ function bindGlobalNav() {
 }
 
 // Initialize the application
-document.addEventListener('DOMContentLoaded', boot);
+document.addEventListener('DOMContentLoaded', boot); 
