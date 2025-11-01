@@ -32,10 +32,76 @@ app.use('/public', express.static(path.join(ROOT, 'public')));
 
 // ======== AUTHENTICATION MIDDLEWARE ========
 function requireAuth(req, res, next) {
-  if (req.cookies.auth === '1') return next();
+  console.log('Auth check - cookies:', req.cookies);
+  console.log('Auth check - auth cookie:', req.cookies?.auth);
+  
+  if (req.cookies?.auth === '1') {
+    console.log('✅ User authenticated');
+    return next();
+  }
+  
+  console.log('❌ User not authenticated');
   return res.status(401).json({ error: 'Authentication required' });
 }
 
+// Authentication
+app.post('/api/auth', async (req, res) => {
+  try {
+    const { password } = req.body || {};
+    console.log('Auth attempt with password:', password ? 'provided' : 'not provided');
+    
+    const db = await loadDB();
+    
+    if (password === 'logout') {
+      res.clearCookie('auth', { 
+        httpOnly: true, 
+        sameSite: 'Lax', 
+        secure: false, 
+        path: '/' 
+      });
+      console.log('✅ User logged out');
+      return res.json({ ok: true, message: 'Logged out' });
+    }
+    
+    if (password && password === db.password) {
+      // Set cookie with proper settings for Render
+      res.cookie('auth', '1', { 
+        httpOnly: false,  // Changed to false for Render compatibility
+        sameSite: 'lax',  // Lowercase
+        secure: process.env.NODE_ENV === 'production', // Auto secure in production
+        path: '/',
+        maxAge: 365 * 24 * 60 * 60 * 1000 // 1 year
+      });
+      
+      console.log('✅ Login successful');
+      return res.json({ 
+        ok: true, 
+        message: 'Login successful',
+        requiresReload: true
+      });
+    }
+    
+    console.log('❌ Login failed - wrong password');
+    return res.status(401).json({ 
+      error: 'Wrong password',
+      message: 'The password you entered is incorrect.' 
+    });
+    
+  } catch (error) {
+    console.error('Auth error:', error);
+    res.status(500).json({ 
+      error: 'Server error during authentication',
+      details: error.message 
+    });
+  }
+});
+
+app.get('/api/auth/status', requireAuth, (req, res) => {
+  res.json({ 
+    authenticated: true,
+    message: 'User is authenticated'
+  });
+});
 // ======== DATABASE FUNCTIONS ========
 async function ensureDB() {
   try {
