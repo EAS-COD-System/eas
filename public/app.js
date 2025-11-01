@@ -1,9 +1,8 @@
-/* ================================================================
+ /* ================================================================
    EAS Tracker – Frontend (Complete Rebuild)
    Advanced Business Management System
    ================================================================ */
 
-// Utility functions
 const Q = (s, r = document) => r.querySelector(s);
 const QA = (s, r = document) => Array.from(r.querySelectorAll(s));
 const fmt = n => (Number(n || 0)).toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -11,55 +10,34 @@ const isoToday = () => new Date().toISOString().slice(0, 10);
 const getQuery = k => new URLSearchParams(location.search).get(k);
 const safeJSON = v => { try { return JSON.parse(v); } catch { return null; } };
 
-// Enhanced API function with better error handling and retry logic
+// Enhanced API function with better error handling
 async function api(path, opts = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000);
   
   try {
-    console.log(`🔗 API call: ${path}`, opts.method || 'GET');
-    
     const res = await fetch(path, {
       credentials: 'include',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
-      },
+      headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
       ...opts
     });
-    
     clearTimeout(timeoutId);
     
-    console.log(`📨 API ${path} response status:`, res.status);
+    console.log(`API ${path} response status:`, res.status);
     
-    const contentType = res.headers.get('content-type') || '';
-    const body = contentType.includes('application/json') ? await res.json() : await res.text();
+    const ct = res.headers.get('content-type') || '';
+    const body = ct.includes('application/json') ? await res.json() : await res.text();
     
     if (!res.ok) {
-      console.error(`❌ API error ${res.status}:`, body);
-      
-      // Handle authentication errors
-      if (res.status === 401) {
-        // Clear auth cookie and show login
-        document.cookie = 'auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-        showLogin();
-        throw new Error('Authentication required. Please log in again.');
-      }
-      
-      throw new Error(body?.error || body?.message || `HTTP ${res.status}`);
+      console.error(`API error ${res.status}:`, body);
+      throw new Error(body?.error || body || `HTTP ${res.status}`);
     }
     
     return body;
   } catch (error) {
     clearTimeout(timeoutId);
-    console.error('❌ API call failed:', error);
-    
-    // Don't show alert for authentication errors (handled above)
-    if (!error.message.includes('Authentication required')) {
-      alert(`API Error: ${error.message}`);
-    }
-    
+    console.error('API call failed:', error);
     throw error;
   }
 }
@@ -86,192 +64,96 @@ const state = {
   remittanceSortBy: 'totalDeliveredPieces',
   remittanceSortOrder: 'desc',
   profitCountrySortBy: 'totalDeliveredPieces',
-  profitCountrySortOrder: 'desc',
-  isAuthenticated: false
+  profitCountrySortOrder: 'desc'
 };
 
-// Authentication functions
-function showLogin() {
-  const loginEl = document.getElementById('login');
-  const mainEl = document.getElementById('main');
-  
-  if (loginEl) {
-    loginEl.classList.remove('hide');
-    loginEl.style.display = 'block';
-  }
-  if (mainEl) {
-    mainEl.style.display = 'none';
-  }
-  
-  state.isAuthenticated = false;
-  
-  // Clear any existing password
-  const pwInput = Q('#pw');
-  if (pwInput) {
-    pwInput.value = '';
-    pwInput.focus();
-  }
-}
-
-function showMain() {
-  const loginEl = document.getElementById('login');
-  const mainEl = document.getElementById('main');
-  
-  if (loginEl) {
-    loginEl.classList.add('hide');
-    loginEl.style.display = 'none';
-  }
-  if (mainEl) {
-    mainEl.style.display = 'block';
-  }
-  
-  state.isAuthenticated = true;
-}
-
-// Enhanced boot function with better error handling
+// Main boot function
 async function boot() {
   console.log('🚀 Boot starting...');
   
+  // Check authentication first
   try {
-    // Check if we're on product page
+    console.log('🔐 Checking authentication...');
+    await api('/api/auth/status');
+    console.log('✅ Authenticated successfully');
+    
+    // Hide login, show main
+    const loginEl = document.getElementById('login');
+    const mainEl = document.getElementById('main');
+    
+    if (loginEl) loginEl.classList.add('hide');
+    if (mainEl) mainEl.style.display = 'block';
+    
+    // Load data and initialize app
+    await preload();
+    bindGlobalNav();
+    
     if (state.productId) {
-      console.log('📦 Product page detected, ID:', state.productId);
-    }
-    
-    // Check authentication status
-    console.log('🔐 Checking authentication status...');
-    const authStatus = await api('/api/auth/status');
-    
-    if (authStatus.authenticated) {
-      console.log('✅ User is authenticated');
-      state.isAuthenticated = true;
-      showMain();
-      
-      // Load initial data
-      await preload();
-      
-      // Initialize navigation and features
-      bindGlobalNav();
-      setupShipmentActions();
-      
-      // Render appropriate page
-      if (state.productId) {
-        console.log('🎯 Rendering product page');
-        renderProductPage();
-      } else {
-        console.log('🏠 Rendering dashboard');
-        renderDashboardPage();
-        renderProductsPage();
-        renderPerformancePage();
-        renderStockMovementPage();
-        renderAdspendPage();
-        renderFinancePage();
-        renderSettingsPage();
-      }
-      
-      setupDailyBackupButton();
-      console.log('✅ Boot completed successfully');
-      
+      renderProductPage();
     } else {
-      console.log('❌ User not authenticated');
-      showLogin();
+      renderDashboardPage();
+      renderProductsPage();
+      renderPerformancePage();
+      renderStockMovementPage();
+      renderAdspendPage();
+      renderFinancePage();
+      renderSettingsPage();
     }
+    
+    setupDailyBackupButton();
+    console.log('✅ Boot completed successfully');
     
   } catch (error) {
-    console.error('❌ Boot failed:', error);
+    console.error('❌ Authentication failed:', error);
     
-    if (error.message.includes('Authentication required') || error.message.includes('401')) {
-      showLogin();
-    } else {
-      // Show error but still allow login
-      console.error('Boot error:', error);
-      showLogin();
-      alert('System startup error. You can still try to login.');
-    }
+    // Show login, hide main
+    const loginEl = document.getElementById('login');
+    const mainEl = document.getElementById('main');
+    
+    if (loginEl) loginEl.classList.remove('hide');
+    if (mainEl) mainEl.style.display = 'none';
+    
+    console.log('👤 Please log in');
   }
 }
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('📄 DOM loaded, initializing...');
-  
   // Login handler
-  Q('#loginBtn')?.addEventListener('click', handleLogin);
-  
+  Q('#loginBtn')?.addEventListener('click', async () => {
+    const password = Q('#pw')?.value || '';
+    if (!password) return alert('Please enter password');
+    
+    try {
+      await api('/api/auth', { 
+        method: 'POST', 
+        body: JSON.stringify({ password }) 
+      });
+      await boot();
+    } catch (e) {
+      alert('Wrong password');
+    }
+  });
+
   // Logout handler
-  Q('#logoutLink')?.addEventListener('click', handleLogout);
-  
+  Q('#logoutLink')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    try { 
+      await api('/api/auth', { 
+        method: 'POST', 
+        body: JSON.stringify({ password: 'logout' }) 
+      }); 
+    } catch { } 
+    location.reload();
+  });
+
   // Enter key for login
   Q('#pw')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
-      handleLogin();
+      Q('#loginBtn').click();
     }
   });
-  
-  // Initialize the application
-  boot();
 });
-
-async function handleLogin() {
-  const password = Q('#pw')?.value || '';
-  console.log('🔐 Login attempt with password length:', password.length);
-  
-  if (!password) {
-    alert('Please enter password');
-    return;
-  }
-  
-  try {
-    const result = await api('/api/auth', { 
-      method: 'POST', 
-      body: JSON.stringify({ password }) 
-    });
-    
-    console.log('✅ Login successful, reloading page...');
-    
-    // Reload the page to apply authentication and reset state
-    setTimeout(() => {
-      window.location.reload();
-    }, 500);
-    
-  } catch (e) {
-    console.error('❌ Login failed:', e);
-    
-    if (e.message.includes('Wrong password')) {
-      alert('Wrong password. Please try again.');
-    } else {
-      alert('Login failed: ' + e.message);
-    }
-    
-    // Clear password field on failure
-    const pwInput = Q('#pw');
-    if (pwInput) {
-      pwInput.value = '';
-      pwInput.focus();
-    }
-  }
-}
-
-async function handleLogout(e) {
-  if (e) e.preventDefault();
-  
-  console.log('🚪 Logout clicked');
-  
-  try { 
-    await api('/api/auth', { 
-      method: 'POST', 
-      body: JSON.stringify({ password: 'logout' }) 
-    }); 
-    console.log('✅ Logout successful');
-  } catch (error) { 
-    console.error('Logout error:', error);
-  } 
-  
-  // Always reload to clear state
-  setTimeout(() => {
-    window.location.reload();
-  }, 300);
-}
 
 // Navigation handling
 function initSimpleNavigation() {
@@ -326,41 +208,29 @@ function initSimpleNavigation() {
 
 // Preload essential data
 async function preload() {
-  console.log('🔄 Preloading data...');
-  
   try {
-    // Load meta data (countries)
     const meta = await api('/api/meta');
     state.countries = (meta.countries || []).filter(country => country !== 'china');
-    console.log('✅ Loaded countries:', state.countries);
 
-    // Load products
-    const productsResponse = await api('/api/products');
-    state.products = productsResponse.products || [];
+    const pr = await api('/api/products');
+    state.products = pr.products || [];
     state.productsActive = state.products.filter(p => p.status !== 'paused');
-    console.log('✅ Loaded products:', state.products.length);
 
-    // Load finance categories
-    const categories = await api('/api/finance/categories');
-    state.categories = categories || { debit: [], credit: [] };
-    console.log('✅ Loaded finance categories');
+    const cats = await api('/api/finance/categories');
+    state.categories = cats || { debit: [], credit: [] };
 
-    // Load shipments for stock calculation
+    // Load all shipments for stock calculation
     try {
-      console.log('🔄 Loading shipments...');
+      console.log('🔄 Preload: Loading shipments...');
       const shipments = await api('/api/shipments');
       state.allShipments = shipments.shipments || [];
-      console.log('✅ Loaded shipments:', state.allShipments.length);
+      console.log('✅ Preload: Loaded', state.allShipments.length, 'shipments');
     } catch (error) {
-      console.error('❌ Failed to load shipments:', error);
+      console.error('❌ Preload: Failed to load shipments:', error);
       state.allShipments = [];
     }
 
-    // Fill common dropdowns
     fillCommonSelects();
-    
-    console.log('✅ Preload completed successfully');
-    
   } catch (error) {
     console.error('❌ Preload failed:', error);
     throw error;
@@ -369,65 +239,56 @@ async function preload() {
 
 // Fill common dropdown selects
 function fillCommonSelects() {
-  console.log('🔄 Filling common selects...');
-  
   const countrySelects = ['#adCountry', '#rCountry', '#pdAdCountry', '#pdRCountry',
     '#pdInfCountry', '#pdInfFilterCountry', '#pcCountry', '#remCountry', '#remAddCountry',
     '#topDelCountry', '#remAnalyticsCountry', '#spCountry', '#poCountry', '#pdNoteCountry',
     '#mvFrom', '#mvTo', '#refundCountry', '#pdRefundCountry'];
 
-  countrySelects.forEach(sel => {
-    QA(sel).forEach(el => {
-      if (!el) return;
-      
-      if (sel === '#pcCountry' || sel === '#remCountry' || sel === '#topDelCountry' || sel === '#remAnalyticsCountry') {
-        el.innerHTML = `<option value="">All countries</option>` +
-          state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
-      } else if (sel === '#mvFrom') {
-        el.innerHTML = `<option value="">From Country...</option>` +
-          `<option value="china">china</option>` +
-          state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
-      } else if (sel === '#mvTo') {
-        el.innerHTML = `<option value="">To Country...</option>` +
-          state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
-      } else {
-        el.innerHTML = `<option value="">Select country...</option>` +
-          state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
-      }
-    });
-  });
+  countrySelects.forEach(sel => QA(sel).forEach(el => {
+    if (!el) return;
+    if (sel === '#pcCountry' || sel === '#remCountry' || sel === '#topDelCountry' || sel === '#remAnalyticsCountry') {
+      el.innerHTML = `<option value="">All countries</option>` +
+        state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
+    } else if (sel === '#mvFrom') {
+      el.innerHTML = `<option value="">From Country...</option>` +
+        `<option value="china">china</option>` +
+        state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
+    } else if (sel === '#mvTo') {
+      el.innerHTML = `<option value="">To Country...</option>` +
+        state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
+    } else {
+      el.innerHTML = `<option value="">Select country...</option>` +
+        state.countries.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+  }));
 
   // Active products only
   const activeProductInputs = ['#mvProduct', '#adProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct', '#refundProduct'];
-  activeProductInputs.forEach(sel => {
-    QA(sel).forEach(el => {
-      if (!el) return;
-      const activeProducts = state.products
-        .filter(p => p.status === 'active')
-        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-      
-      el.innerHTML = `<option value="">Select Product...</option>` +
-        activeProducts.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
-    });
-  });
+  activeProductInputs.forEach(sel => QA(sel).forEach(el => {
+    if (!el) return;
+    const activeProducts = state.products
+      .filter(p => p.status === 'active')
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    
+    el.innerHTML = `<option value="">Select Product...</option>` +
+      activeProducts.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+  }));
 
   // All products
   const allProductsNewestFirst = ['#pcaProduct', '#remAnalyticsProduct', '#productInfoSelect', '#remProduct'];
-  allProductsNewestFirst.forEach(sel => {
-    QA(sel).forEach(el => {
-      if (!el) return;
-      const allProductsSorted = state.products
-        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-      
-      if (sel === '#pcaProduct' || sel === '#remAnalyticsProduct') {
-        el.innerHTML = `<option value="all">All products</option>` +
-          allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
-      } else {
-        el.innerHTML = `<option value="all">All products</option>` +
-          allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
-      }
-    });
-  });
+  allProductsNewestFirst.forEach(sel => QA(sel).forEach(el => {
+    if (!el) return;
+    const allProductsSorted = state.products
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    
+    if (sel === '#pcaProduct' || sel === '#remAnalyticsProduct') {
+      el.innerHTML = `<option value="all">All products</option>` +
+        allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+    } else {
+      el.innerHTML = `<option value="all">All products</option>` +
+        allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+    }
+  }));
 
   const allCats = [...state.categories.debit, ...state.categories.credit].sort();
   QA('#feCat').forEach(el => {
@@ -441,8 +302,6 @@ function fillCommonSelects() {
     el.innerHTML = `<option value="">All categories</option>` +
       allCats.map(c => `<option>${c}</option>`).join('');
   });
-  
-  console.log('✅ Common selects filled');
 }
 
 // Date range utilities
@@ -528,95 +387,8 @@ function getDateRange(container) {
   };
 }
 
-// ======== ENHANCED SHIPMENT MANAGEMENT ========
-function setupShipmentActions() {
-  document.addEventListener('click', async (e) => {
-    if (e.target.classList.contains('act-edit-ship')) {
-      const shipmentId = e.target.dataset.id;
-      await editShipment(shipmentId);
-    }
-    
-    if (e.target.classList.contains('act-pay')) {
-      const shipmentId = e.target.dataset.id;
-      await markShipmentAsPaid(shipmentId);
-    }
-  });
-}
-
-async function editShipment(shipmentId) {
-  try {
-    const shipments = await api('/api/shipments');
-    const shipment = shipments.shipments.find(s => s.id === shipmentId);
-    if (!shipment) return;
-
-    const newQty = prompt('Enter new quantity:', shipment.qty);
-    const newShipCost = prompt('Enter new shipping cost:', shipment.shipCost);
-    const newNote = prompt('Enter new note:', shipment.note);
-    const newDeparted = prompt('Enter departed date (YYYY-MM-DD):', shipment.departedAt);
-    const newArrived = prompt('Enter arrived date (YYYY-MM-DD) or leave empty if not arrived:', shipment.arrivedAt || '');
-
-    if (newQty !== null && newShipCost !== null) {
-      const updateData = {
-        qty: +newQty,
-        shipCost: +newShipCost,
-        note: newNote || shipment.note,
-        departedAt: newDeparted || shipment.departedAt
-      };
-      
-      if (newArrived !== null) {
-        updateData.arrivedAt = newArrived || null;
-      }
-      
-      await api(`/api/shipments/${shipmentId}`, {
-        method: 'PUT',
-        body: JSON.stringify(updateData)
-      });
-      
-      // Refresh the relevant tables
-      if (state.productId) {
-        renderProductShipments();
-      } else {
-        renderShipmentTables();
-      }
-      renderProductsTable();
-      alert('Shipment updated successfully!');
-    }
-  } catch (error) {
-    alert('Error updating shipment: ' + error.message);
-  }
-}
-
-async function markShipmentAsPaid(shipmentId) {
-  try {
-    const shipments = await api('/api/shipments');
-    const shipment = shipments.shipments.find(s => s.id === shipmentId);
-    if (!shipment) return;
-
-    const finalCost = prompt(`Enter final shipping cost for shipment ${shipmentId.slice(0, 8)}:\nRoute: ${shipment.fromCountry} → ${shipment.toCountry}\nQuantity: ${shipment.qty}\nOriginal cost: $${shipment.shipCost}`, shipment.shipCost);
-    
-    if (finalCost && !isNaN(finalCost)) {
-      await api(`/api/shipments/${shipmentId}/mark-paid`, {
-        method: 'POST',
-        body: JSON.stringify({ finalShipCost: +finalCost })
-      });
-      
-      // Refresh the relevant tables
-      if (state.productId) {
-        renderProductShipments();
-      } else {
-        renderShipmentTables();
-      }
-      alert('Shipment marked as paid!');
-    }
-  } catch (error) {
-    alert('Error marking shipment as paid: ' + error.message);
-  }
-}
-
 // ======== DASHBOARD PAGE ========
 function renderDashboardPage() {
-  console.log('🎯 Rendering dashboard page');
-  
   renderCompactKpis();
   renderCountryStockSpend();
   bindDailyAdSpend();
@@ -628,28 +400,18 @@ function renderDashboardPage() {
 }
 
 async function renderCompactKpis() {
-  console.log('📊 Rendering compact KPIs');
-  
-  // Update basic counts
   Q('#kpiProducts') && (Q('#kpiProducts').textContent = state.products.length);
   Q('#kpiCountries') && (Q('#kpiCountries').textContent = state.countries.length);
 
   try {
-    // Calculate stock and transit
     const stockByCountry = await calculateStockByCountry();
     let activeStock = 0;
     let inactiveStock = 0;
     
-    // Sum up active and inactive stock from all countries
-    Object.values(stockByCountry).forEach(stock => {
-      if (typeof stock === 'object') {
-        // New format with active/inactive separation
-        activeStock += stock.active || 0;
-        inactiveStock += stock.inactive || 0;
-      } else {
-        // Fallback for old format
-        activeStock += stock > 0 ? stock : 0;
-      }
+    state.countries.forEach(country => {
+      const stock = stockByCountry[country] || 0;
+      if (stock > 0) activeStock += stock;
+      if (stock < 0) inactiveStock += Math.abs(stock);
     });
 
     const transitData = await calculateTransitPieces();
@@ -658,8 +420,7 @@ async function renderCompactKpis() {
     Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = transitData.interCountryTransit);
     Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = activeStock);
     Q('#kpiInactiveStock') && (Q('#kpiInactiveStock').textContent = inactiveStock);
-  } catch (error) { 
-    console.error('Error in renderCompactKpis:', error);
+  } catch { 
     Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = '—');
     Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = '—');
     Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = '—');
@@ -667,17 +428,13 @@ async function renderCompactKpis() {
   }
 
   try {
-    // Calculate total ad spend
-    const adSpendData = await api('/api/adspend');
-    const totalAdSpend = (adSpendData.adSpends || []).reduce((t, x) => t + (+x.amount || 0), 0);
-    Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = `${fmt(totalAdSpend)} USD`);
-  } catch { 
-    Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = '—'); 
-  }
+    const a = await api('/api/adspend');
+    const total = (a.adSpends || []).reduce((t, x) => t + (+x.amount || 0), 0);
+    Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = `${fmt(total)} USD`);
+  } catch { Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = '—'); }
 
-  // Update delivered pieces
-  const totalDelivered = Q('#wAllT')?.textContent || '0';
-  Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = totalDelivered);
+  const t = Q('#wAllT')?.textContent || '0';
+  Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = t);
 }
 
 async function calculateTransitPieces() {
@@ -706,50 +463,24 @@ async function calculateTransitPieces() {
 
 async function calculateStockByCountry(productId = null) {
   try {
-    // For now, return a simplified stock calculation
-    // You would implement your actual stock calculation logic here
-    const stock = {};
-    
-    state.countries.forEach(country => {
-      if (country !== 'china') {
-        stock[country] = { active: 0, inactive: 0, total: 0 };
-      }
-    });
-    
-    // This is a simplified version - implement your actual stock calculation
+    const db = await api('/api/products');
     if (productId) {
-      const product = state.products.find(p => p.id === productId);
-      if (product && product.stockByCountry) {
-        Object.keys(product.stockByCountry).forEach(country => {
-          if (stock[country]) {
-            const productStock = product.stockByCountry[country] || 0;
-            if (product.status === 'active') {
-              stock[country].active += productStock;
-            } else {
-              stock[country].inactive += productStock;
-            }
-            stock[country].total += productStock;
-          }
-        });
-      }
+      const product = db.products.find(p => p.id === productId);
+      return product ? product.stockByCountry : {};
     } else {
-      // Calculate for all products
-      state.products.forEach(product => {
+      const totalStock = {};
+      state.countries.forEach(country => {
+        totalStock[country] = 0;
+      });
+      
+      db.products.forEach(product => {
         Object.keys(product.stockByCountry || {}).forEach(country => {
-          if (stock[country]) {
-            const productStock = product.stockByCountry[country] || 0;
-            if (product.status === 'active') {
-              stock[country].active += productStock;
-            } else {
-              stock[country].inactive += productStock;
-            }
-            stock[country].total += productStock;
-          }
+          totalStock[country] = (totalStock[country] || 0) + (product.stockByCountry[country] || 0);
         });
       });
+      
+      return totalStock;
     }
-    
-    return stock;
   } catch (error) {
     console.error('Error calculating stock:', error);
     return {};
@@ -765,7 +496,7 @@ async function renderCountryStockSpend() {
   try {
     const stockByCountry = await calculateStockByCountry();
     
-    let totalStock = 0, totalFb = 0, totalTt = 0, totalGg = 0, totalAd = 0;
+    let st = 0, fb = 0, tt = 0, gg = 0, totalAd = 0;
     
     const adSpends = await api('/api/adspend');
     const adBreakdown = {};
@@ -785,14 +516,14 @@ async function renderCountryStockSpend() {
     });
 
     const rows = state.countries.map(country => {
-      const stock = stockByCountry[country]?.total || 0;
+      const stock = stockByCountry[country] || 0;
       const adData = adBreakdown[country] || { facebook: 0, tiktok: 0, google: 0 };
       const countryAdTotal = adData.facebook + adData.tiktok + adData.google;
 
-      totalStock += stock;
-      totalFb += adData.facebook;
-      totalTt += adData.tiktok;
-      totalGg += adData.google;
+      st += stock;
+      fb += adData.facebook;
+      tt += adData.tiktok;
+      gg += adData.google;
       totalAd += countryAdTotal;
 
       return `<tr>
@@ -806,10 +537,10 @@ async function renderCountryStockSpend() {
     }).join('');
 
     body.innerHTML = rows || `<tr><td colspan="6" class="muted">No data</td></tr>`;
-    Q('#stockTotal') && (Q('#stockTotal').textContent = fmt(totalStock));
-    Q('#fbTotal') && (Q('#fbTotal').textContent = fmt(totalFb));
-    Q('#ttTotal') && (Q('#ttTotal').textContent = fmt(totalTt));
-    Q('#ggTotal') && (Q('#ggTotal').textContent = fmt(totalGg));
+    Q('#stockTotal') && (Q('#stockTotal').textContent = fmt(st));
+    Q('#fbTotal') && (Q('#fbTotal').textContent = fmt(fb));
+    Q('#ttTotal') && (Q('#ttTotal').textContent = fmt(tt));
+    Q('#ggTotal') && (Q('#ggTotal').textContent = fmt(gg));
     Q('#adTotal') && (Q('#adTotal').textContent = fmt(totalAd));
   } catch (error) {
     body.innerHTML = `<tr><td colspan="6" class="muted">Error loading data</td></tr>`;
@@ -886,29 +617,27 @@ function renderWeeklyDelivered() {
     }).join('');
 
     try {
-      const deliveries = await api('/api/deliveries');
-      const deliveryMap = {};
-      (deliveries.deliveries || []).forEach(x => deliveryMap[`${x.country}|${x.date}`] = +x.delivered || 0);
+      const r = await api('/api/deliveries');
+      const map = {};
+      (r.deliveries || []).forEach(x => map[`${x.country}|${x.date}`] = +x.delivered || 0);
       QA('.wd-cell').forEach(inp => {
-        const key = `${inp.dataset.country}|${inp.dataset.date}`;
-        if (deliveryMap[key] != null) inp.value = deliveryMap[key];
+        const k = `${inp.dataset.country}|${inp.dataset.date}`;
+        if (map[k] != null) inp.value = map[k];
       });
-    } catch (error) { 
-      console.error('Error loading deliveries:', error);
-    }
+    } catch { }
 
     computeWeeklyTotals();
   };
 
   function computeWeeklyTotals() {
     QA('tr[data-row]').forEach(tr => {
-      const total = QA('.wd-cell', tr).reduce((s, el) => s + (+el.value || 0), 0);
+      const t = QA('.wd-cell', tr).reduce((s, el) => s + (+el.value || 0), 0);
       const totalEl = Q('.row-total', tr);
-      if (totalEl) totalEl.textContent = fmt(total);
+      if (totalEl) totalEl.textContent = fmt(t);
     });
 
     const cols = QA('thead th', Q('#weeklyTable'))?.length - 2 || 0;
-    let grandTotal = 0;
+    let grand = 0;
     for (let i = 0; i < cols; i++) {
       let colSum = 0;
       QA('tr[data-row]').forEach(tr => {
@@ -917,10 +646,10 @@ function renderWeeklyDelivered() {
       });
       const dayEl = Q(`#w${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]}T`);
       if (dayEl) dayEl.textContent = fmt(colSum);
-      grandTotal += colSum;
+      grand += colSum;
     }
-    Q('#wAllT') && (Q('#wAllT').textContent = fmt(grandTotal));
-    Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = fmt(grandTotal));
+    Q('#wAllT') && (Q('#wAllT').textContent = fmt(grand));
+    Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = fmt(grand));
   }
 
   Q('#weeklyPrev')?.addEventListener('click', () => { 
@@ -1061,10 +790,10 @@ function initTodos() {
   const listEl = Q('#todoList'); 
   const addBtn = Q('#todoAdd');
   
-  function renderTodos() {
+  function renderQuick() {
     api('/api/todos').then(data => {
-      const todos = data.todos || [];
-      listEl.innerHTML = todos.map(t => `<div class="flex">
+      const arr = data.todos || [];
+      listEl.innerHTML = arr.map(t => `<div class="flex">
         <span>${t.done ? '✅ ' : ''}${t.text}</span>
         <button class="btn outline" data-done="${t.id}">${t.done ? 'Undo' : 'Done'}</button>
         <button class="btn outline" data-del="${t.id}">Delete</button>
@@ -1073,32 +802,32 @@ function initTodos() {
   }
   
   addBtn?.addEventListener('click', () => {
-    const text = Q('#todoText')?.value.trim(); 
-    if (!text) return;
+    const v = Q('#todoText')?.value.trim(); 
+    if (!v) return;
     
     api('/api/todos', {
       method: 'POST',
-      body: JSON.stringify({ text, done: false })
+      body: JSON.stringify({ text: v, done: false })
     }).then(() => {
       Q('#todoText').value = '';
-      renderTodos();
+      renderQuick();
     }).catch(alert);
   });
   
   listEl?.addEventListener('click', (e) => {
     if (e.target.dataset.done) {
       api(`/api/todos/${e.target.dataset.done}/toggle`, { method: 'POST' })
-        .then(renderTodos)
+        .then(renderQuick)
         .catch(alert);
     }
     if (e.target.dataset.del) {
       api(`/api/todos/${e.target.dataset.del}`, { method: 'DELETE' })
-        .then(renderTodos)
+        .then(renderQuick)
         .catch(alert);
     }
   });
   
-  renderTodos();
+  renderQuick();
 }
 
 // Weekly Todo lists
@@ -1298,8 +1027,6 @@ function initTestedProducts() {
 
 // ======== PRODUCTS PAGE ========
 function renderProductsPage() {
-  console.log('📦 Rendering products page');
-  
   try {
     renderCompactCountryStats();
     renderAdvertisingOverview();
@@ -1317,16 +1044,15 @@ function renderProductsPage() {
       }
     }
 
-    // Add product event listener
     Q('#pAdd')?.addEventListener('click', async () => {
-      const product = {
+      const p = {
         name: Q('#pName')?.value.trim(),
         sku: Q('#pSku')?.value.trim()
       };
-      if (!product.name) return alert('Name required');
+      if (!p.name) return alert('Name required');
       
       try {
-        await api('/api/products', { method: 'POST', body: JSON.stringify(product) });
+        await api('/api/products', { method: 'POST', body: JSON.stringify(p) });
         
         await preload();
         
@@ -1345,7 +1071,6 @@ function renderProductsPage() {
       }
     });
 
-    // Selling price event listener
     Q('#spSave')?.addEventListener('click', async () => {
       const productId = Q('#spProduct')?.value;
       const country = Q('#spCountry')?.value;
@@ -1636,37 +1361,27 @@ function renderProductsTable() {
       if (!id) return;
       
       if (e.target.classList.contains('act-toggle')) {
-        const product = state.products.find(x => x.id === id); 
-        if (!product) return;
-        
-        const newStatus = product.status === 'active' ? 'paused' : 'active';
-        const action = product.status === 'active' ? 'pause' : 'activate';
-        const confirmationMessage = product.status === 'active' 
-          ? 'Are you sure you want to PAUSE this product? The stock will move to inactive stock.'
-          : 'Are you sure you want to ACTIVATE this product?';
-        
-        if (confirm(confirmationMessage)) {
-          await api(`/api/products/${id}/status`, { 
-            method: 'POST', 
-            body: JSON.stringify({ status: newStatus }) 
-          });
-          await preload(); 
-          renderProductsTable(); 
-          renderCompactKpis();
-        }
+        const p = state.products.find(x => x.id === id); 
+        if (!p) return;
+        const ns = p.status === 'active' ? 'paused' : 'active';
+        await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: ns }) });
+        await preload(); 
+        renderProductsTable(); 
       }
       
       if (e.target.classList.contains('act-del')) {
-        if (confirm('⚠️ ARE YOU SURE YOU WANT TO DELETE THIS PRODUCT AND ALL ITS DATA?\n\nThis will delete ALL shipments, remittances, orders, and analytics data for this product. This action cannot be undone!')) {
-          await api(`/api/products/${id}`, { method: 'DELETE' });
-          await preload(); 
-          renderProductsTable(); 
-          renderCompactKpis();
-        }
+        if (!confirm('Delete product and ALL its data?')) return;
+        await api(`/api/products/${id}`, { method: 'DELETE' });
+        await preload(); 
+        renderProductsTable(); 
       }
     };
   } catch (error) {
-    console.error('Error rendering products table:', error);
+    console.error('Error in renderProductsTable:', error);
+    const tb = Q('#productsTable tbody');
+    if (tb) {
+      tb.innerHTML = '<tr><td colspan="20" class="muted">Error loading products</td></tr>';
+    }
   }
 }
 
@@ -1720,48 +1435,55 @@ function renderCompactCountryStats() {
     const container = Q('#countryProductStats');
     if (!container) return;
 
-    // Calculate country stats
-    const countryStats = {};
-    state.countries.forEach(country => {
-      countryStats[country] = { active: 0, paused: 0, total: 0 };
-    });
+    api('/api/adspend').then(adData => {
+      const adSpends = adData.adSpends || [];
+      const countryStats = {};
 
-    state.products.forEach(product => {
-      state.countries.forEach(country => {
-        countryStats[country].total++;
-        if (product.status === 'active') {
-          countryStats[country].active++;
-        } else {
-          countryStats[country].paused++;
+      if (state.countries && Array.isArray(state.countries)) {
+        state.countries.forEach(country => {
+          countryStats[country] = { active: 0, paused: 0, total: 0 };
+        });
+
+        if (state.products && Array.isArray(state.products)) {
+          state.products.forEach(product => {
+            state.countries.forEach(country => {
+              countryStats[country].total++;
+              if (product.status === 'active') {
+                countryStats[country].active++;
+              } else {
+                countryStats[country].paused++;
+              }
+            });
+          });
         }
-      });
-    });
 
-    let html = '';
-    Object.keys(countryStats).sort().forEach(country => {
-      const stats = countryStats[country];
-      html += `
-        <div class="country-stat-card-compact">
-          <div class="country-name-compact">${country}</div>
-          <div class="stats-row-compact">
-            <div class="stat-item-compact active">
-              <div class="stat-label-compact">Active</div>
-              <div class="stat-value-compact">${stats.active}</div>
+        let html = '';
+        Object.keys(countryStats).sort().forEach(country => {
+          const stats = countryStats[country];
+          html += `
+            <div class="country-stat-card-compact">
+              <div class="country-name-compact">${country}</div>
+              <div class="stats-row-compact">
+                <div class="stat-item-compact active">
+                  <div class="stat-label-compact">Active</div>
+                  <div class="stat-value-compact">${stats.active}</div>
+                </div>
+                <div class="stat-item-compact paused">
+                  <div class="stat-label-compact">Paused</div>
+                  <div class="stat-value-compact">${stats.paused}</div>
+                </div>
+                <div class="stat-item-compact total">
+                  <div class="stat-label-compact">Total</div>
+                  <div class="stat-value-compact">${stats.total}</div>
+                </div>
+              </div>
             </div>
-            <div class="stat-item-compact paused">
-              <div class="stat-label-compact">Paused</div>
-              <div class="stat-value-compact">${stats.paused}</div>
-            </div>
-            <div class="stat-item-compact total">
-              <div class="stat-label-compact">Total</div>
-              <div class="stat-value-compact">${stats.total}</div>
-            </div>
-          </div>
-        </div>
-      `;
-    });
+          `;
+        });
 
-    container.innerHTML = html;
+        container.innerHTML = html;
+      }
+    }).catch(console.error);
   } catch (error) {
     console.error('Error in renderCompactCountryStats:', error);
   }
@@ -1781,7 +1503,11 @@ async function renderAdvertisingOverview() {
       api('/api/adspend').then(adData => {
         const adSpends = adData.adSpends || [];
         
-        // Group by country and product
+        return api('/api/products').then(productsData => {
+          state.products = productsData.products || [];
+          return adSpends;
+        });
+      }).then(adSpends => {
         const byCountry = {};
 
         adSpends.forEach(spend => {
@@ -1980,8 +1706,6 @@ function renderProductInfoSection() {
 
 // ======== PERFORMANCE PAGE ========
 function renderPerformancePage() {
-  console.log('📈 Rendering performance page');
-  
   initDateRangeSelectors();
   bindProductOrders();
   bindProductCostsAnalysis();
@@ -1990,7 +1714,6 @@ function renderPerformancePage() {
   bindRemittanceAdd();
   bindRefundAdd();
   
-  // Trigger initial calculations
   setTimeout(() => {
     if (Q('#pcaRun')) Q('#pcaRun').click();
     if (Q('#remAnalyticsRun')) Q('#remAnalyticsRun').click();
@@ -2571,8 +2294,6 @@ function bindRefundAdd() {
 
 // ======== STOCK MOVEMENT PAGE ========
 function renderStockMovementPage() {
-  console.log('🚚 Rendering stock movement page');
-  
   bindStockMovement();
   renderShipmentTables();
 }
@@ -2682,8 +2403,7 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
         <td>${shipment.note || '-'}</td>
         <td>
           ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
-          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Mark Paid</button>` : ''}
-          <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
+          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
       </tr>
@@ -2716,10 +2436,6 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
       }
     }
 
-    if (e.target.classList.contains('act-edit-ship')) {
-      editShipment(id);
-    }
-
     if (e.target.classList.contains('act-del-ship')) {
       if (confirm('Delete this shipment?')) {
         await api(`/api/shipments/${id}`, { method: 'DELETE' });
@@ -2733,8 +2449,6 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
 
 // ======== ADSPEND PAGE ========
 function renderAdspendPage() {
-  console.log('🎯 Rendering adspend page');
-  
   bindAdspendDaily();
   bindAdspendAnalytics();
   renderAdvertisingOverview();
@@ -2891,8 +2605,6 @@ function renderAdspendResults(adSpends) {
 
 // ======== FINANCE PAGE ========
 function renderFinancePage() {
-  console.log('💰 Rendering finance page');
-  
   renderFinanceCategories();
   bindFinanceEntries();
   bindFinanceSearch();
@@ -3035,9 +2747,8 @@ async function renderFinanceEntries() {
     // Add delete handlers
     tbody.onclick = async (e) => {
       if (e.target.classList.contains('act-del-entry')) {
-        const entryId = e.target.dataset.id;
         if (confirm('Delete this entry?')) {
-          await api(`/api/finance/entries/${entryId}`, { method: 'DELETE' });
+          await api(`/api/finance/entries/${e.target.dataset.id}`, { method: 'DELETE' });
           renderFinanceEntries();
           renderFinanceBalance();
         }
@@ -3095,8 +2806,6 @@ function bindFinanceSearch() {
 
 // ======== SETTINGS PAGE ========
 function renderSettingsPage() {
-  console.log('⚙️ Rendering settings page');
-  
   renderCountries();
   bindProductEdit();
   renderSnapshots();
@@ -3261,8 +2970,6 @@ function setupDailyBackupButton() {
 function renderProductPage() {
   if (!state.productId) return;
   
-  console.log('📦 Rendering product page for:', state.productId);
-  
   renderProductHeader();
   renderProductStockAdSpend();
   bindProductNotes();
@@ -3273,7 +2980,6 @@ function renderProductPage() {
   renderProductRemittances();
   renderProductRefunds();
   bindProductInfluencers();
-  setupShipmentActions();
 }
 
 async function renderProductHeader() {
@@ -3579,6 +3285,33 @@ function addShipmentEventListeners(container) {
   });
 }
 
+async function editShipment(shipmentId) {
+  try {
+    const shipments = await api('/api/shipments');
+    const shipment = shipments.shipments.find(s => s.id === shipmentId);
+    if (!shipment) return;
+
+    const newQty = prompt('Enter new quantity:', shipment.qty);
+    const newShipCost = prompt('Enter new shipping cost:', shipment.shipCost);
+    const newNote = prompt('Enter new note:', shipment.note);
+
+    if (newQty !== null && newShipCost !== null) {
+      await api(`/api/shipments/${shipmentId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          qty: +newQty,
+          shipCost: +newShipCost,
+          note: newNote || shipment.note
+        })
+      });
+      renderProductShipments();
+      alert('Shipment updated');
+    }
+  } catch (error) {
+    alert('Error updating shipment: ' + error.message);
+  }
+}
+
 function renderProductLifetimePerformance() {
   const btn = Q('#pdLPRun');
   if (!btn) return;
@@ -3692,59 +3425,25 @@ async function renderProductStoreOrders() {
   if (!tbody) return;
 
   try {
-    const data = await api(`/api/product-orders?productId=${state.productId}&page=${state.currentStoreOrdersPage}&limit=10`);
+    const data = await api(`/api/product-orders?productId=${state.productId}&page=1&limit=10`);
     const orders = data.orders || [];
-    const paginationInfo = data.pagination || {};
 
     if (orders.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="muted">No store orders found for this product</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" class="muted">No store orders found</td></tr>';
       pagination.innerHTML = '';
       return;
     }
 
-    tbody.innerHTML = orders.map(order => {
-      const period = `${order.startDate} → ${order.endDate}`;
-      return `
-        <tr>
-          <td>${period}</td>
-          <td>${order.country}</td>
-          <td>${fmt(order.orders)}</td>
-          <td>
-            <button class="btn small outline act-del-order" data-id="${order.id}">Delete</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
-
-    // Render pagination
-    if (paginationInfo.totalPages > 1) {
-      let paginationHTML = '';
-      
-      if (paginationInfo.hasPrevPage) {
-        paginationHTML += `<button class="pagination-btn" data-page="${state.currentStoreOrdersPage - 1}">◀ Previous</button>`;
-      }
-
-      for (let i = 1; i <= paginationInfo.totalPages; i++) {
-        paginationHTML += `<button class="pagination-btn ${i === state.currentStoreOrdersPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
-      }
-
-      if (paginationInfo.hasNextPage) {
-        paginationHTML += `<button class="pagination-btn" data-page="${state.currentStoreOrdersPage + 1}">Next ▶</button>`;
-      }
-
-      paginationHTML += `<span class="pagination-info">Page ${state.currentStoreOrdersPage} of ${paginationInfo.totalPages}</span>`;
-      pagination.innerHTML = paginationHTML;
-
-      // Add pagination event listeners
-      pagination.addEventListener('click', (e) => {
-        if (e.target.classList.contains('pagination-btn')) {
-          state.currentStoreOrdersPage = parseInt(e.target.dataset.page);
-          renderProductStoreOrders();
-        }
-      });
-    } else {
-      pagination.innerHTML = '';
-    }
+    tbody.innerHTML = orders.map(order => `
+      <tr>
+        <td>${order.startDate} to ${order.endDate}</td>
+        <td>${order.country}</td>
+        <td>${fmt(order.orders)}</td>
+        <td>
+          <button class="btn small outline act-del-order" data-id="${order.id}">Delete</button>
+        </td>
+      </tr>
+    `).join('');
 
     // Add delete handlers
     tbody.addEventListener('click', async (e) => {
@@ -3757,9 +3456,12 @@ async function renderProductStoreOrders() {
       }
     });
 
+    // Render pagination
+    renderPagination(pagination, data.pagination, renderProductStoreOrders);
+
   } catch (error) {
-    console.error('Error loading product store orders:', error);
-    tbody.innerHTML = '<tr><td colspan="4" class="muted">Error loading store orders</td></tr>';
+    console.error('Error loading store orders:', error);
+    tbody.innerHTML = '<tr><td colspan="4" class="muted">Error loading data</td></tr>';
   }
 }
 
@@ -3769,78 +3471,47 @@ async function renderProductRemittances() {
   if (!tbody) return;
 
   try {
-    const data = await api(`/api/remittances?productId=${state.productId}&page=${state.currentRemittancesPage}&limit=10`);
+    const data = await api(`/api/remittances?productId=${state.productId}&page=1&limit=10`);
     const remittances = data.remittances || [];
-    const paginationInfo = data.pagination || {};
 
     if (remittances.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" class="muted">No remittances found for this product</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="muted">No remittances found</td></tr>';
       pagination.innerHTML = '';
       return;
     }
 
-    tbody.innerHTML = remittances.map(remittance => {
-      const period = `${remittance.start} → ${remittance.end}`;
-      return `
-        <tr>
-          <td>${period}</td>
-          <td>${remittance.country}</td>
-          <td>${fmt(remittance.orders)}</td>
-          <td>${fmt(remittance.pieces)}</td>
-          <td>$${fmt(remittance.revenue)}</td>
-          <td>$${fmt(remittance.adSpend)}</td>
-          <td>$${fmt(remittance.boxleoFees)}</td>
-          <td>
-            <button class="btn small outline act-del-remittance" data-id="${remittance.id}">Delete</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
-
-    // Render pagination
-    if (paginationInfo.totalPages > 1) {
-      let paginationHTML = '';
-      
-      if (paginationInfo.hasPrevPage) {
-        paginationHTML += `<button class="pagination-btn" data-page="${state.currentRemittancesPage - 1}">◀ Previous</button>`;
-      }
-
-      for (let i = 1; i <= paginationInfo.totalPages; i++) {
-        paginationHTML += `<button class="pagination-btn ${i === state.currentRemittancesPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
-      }
-
-      if (paginationInfo.hasNextPage) {
-        paginationHTML += `<button class="pagination-btn" data-page="${state.currentRemittancesPage + 1}">Next ▶</button>`;
-      }
-
-      paginationHTML += `<span class="pagination-info">Page ${state.currentRemittancesPage} of ${paginationInfo.totalPages}</span>`;
-      pagination.innerHTML = paginationHTML;
-
-      // Add pagination event listeners
-      pagination.addEventListener('click', (e) => {
-        if (e.target.classList.contains('pagination-btn')) {
-          state.currentRemittancesPage = parseInt(e.target.dataset.page);
-          renderProductRemittances();
-        }
-      });
-    } else {
-      pagination.innerHTML = '';
-    }
+    tbody.innerHTML = remittances.map(remittance => `
+      <tr>
+        <td>${remittance.start} to ${remittance.end}</td>
+        <td>${remittance.country}</td>
+        <td>${fmt(remittance.orders)}</td>
+        <td>${fmt(remittance.pieces)}</td>
+        <td>$${fmt(remittance.revenue)}</td>
+        <td>$${fmt(remittance.adSpend)}</td>
+        <td>$${fmt(remittance.boxleoFees)}</td>
+        <td>
+          <button class="btn small outline act-del-remittance" data-id="${remittance.id}">Delete</button>
+        </td>
+      </tr>
+    `).join('');
 
     // Add delete handlers
     tbody.addEventListener('click', async (e) => {
       if (e.target.classList.contains('act-del-remittance')) {
         const remittanceId = e.target.dataset.id;
-        if (confirm('Delete this remittance entry?')) {
+        if (confirm('Delete this remittance?')) {
           await api(`/api/remittances/${remittanceId}`, { method: 'DELETE' });
           renderProductRemittances();
         }
       }
     });
 
+    // Render pagination
+    renderPagination(pagination, data.pagination, renderProductRemittances);
+
   } catch (error) {
-    console.error('Error loading product remittances:', error);
-    tbody.innerHTML = '<tr><td colspan="8" class="muted">Error loading remittances</td></tr>';
+    console.error('Error loading remittances:', error);
+    tbody.innerHTML = '<tr><td colspan="8" class="muted">Error loading data</td></tr>';
   }
 }
 
@@ -3850,150 +3521,137 @@ async function renderProductRefunds() {
   if (!tbody) return;
 
   try {
-    const data = await api(`/api/refunds?productId=${state.productId}&page=${state.currentRefundsPage}&limit=10`);
+    const data = await api(`/api/refunds?productId=${state.productId}&page=1&limit=10`);
     const refunds = data.refunds || [];
-    const paginationInfo = data.pagination || {};
 
     if (refunds.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="muted">No refunds found for this product</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="muted">No refunds found</td></tr>';
       pagination.innerHTML = '';
       return;
     }
 
-    tbody.innerHTML = refunds.map(refund => {
-      return `
-        <tr>
-          <td>${refund.date}</td>
-          <td>${refund.country}</td>
-          <td>${fmt(refund.orders)}</td>
-          <td>${fmt(refund.pieces)}</td>
-          <td>$${fmt(refund.amount)}</td>
-          <td>${refund.reason || '-'}</td>
-          <td>
-            <button class="btn small outline act-del-refund" data-id="${refund.id}">Delete</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
-
-    // Render pagination
-    if (paginationInfo.totalPages > 1) {
-      let paginationHTML = '';
-      
-      if (paginationInfo.hasPrevPage) {
-        paginationHTML += `<button class="pagination-btn" data-page="${state.currentRefundsPage - 1}">◀ Previous</button>`;
-      }
-
-      for (let i = 1; i <= paginationInfo.totalPages; i++) {
-        paginationHTML += `<button class="pagination-btn ${i === state.currentRefundsPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
-      }
-
-      if (paginationInfo.hasNextPage) {
-        paginationHTML += `<button class="pagination-btn" data-page="${state.currentRefundsPage + 1}">Next ▶</button>`;
-      }
-
-      paginationHTML += `<span class="pagination-info">Page ${state.currentRefundsPage} of ${paginationInfo.totalPages}</span>`;
-      pagination.innerHTML = paginationHTML;
-
-      // Add pagination event listeners
-      pagination.addEventListener('click', (e) => {
-        if (e.target.classList.contains('pagination-btn')) {
-          state.currentRefundsPage = parseInt(e.target.dataset.page);
-          renderProductRefunds();
-        }
-      });
-    } else {
-      pagination.innerHTML = '';
-    }
+    tbody.innerHTML = refunds.map(refund => `
+      <tr>
+        <td>${refund.date}</td>
+        <td>${refund.country}</td>
+        <td>${fmt(refund.orders)}</td>
+        <td>${fmt(refund.pieces)}</td>
+        <td>$${fmt(refund.amount)}</td>
+        <td>${refund.reason || '-'}</td>
+        <td>
+          <button class="btn small outline act-del-refund" data-id="${refund.id}">Delete</button>
+        </td>
+      </tr>
+    `).join('');
 
     // Add delete handlers
     tbody.addEventListener('click', async (e) => {
       if (e.target.classList.contains('act-del-refund')) {
         const refundId = e.target.dataset.id;
-        if (confirm('Delete this refund entry?')) {
+        if (confirm('Delete this refund?')) {
           await api(`/api/refunds/${refundId}`, { method: 'DELETE' });
           renderProductRefunds();
         }
       }
     });
 
+    // Render pagination
+    renderPagination(pagination, data.pagination, renderProductRefunds);
+
   } catch (error) {
-    console.error('Error loading product refunds:', error);
-    tbody.innerHTML = '<tr><td colspan="7" class="muted">Error loading refunds</td></tr>';
+    console.error('Error loading refunds:', error);
+    tbody.innerHTML = '<tr><td colspan="7" class="muted">Error loading data</td></tr>';
   }
 }
 
+function renderPagination(container, pagination, renderFunction) {
+  if (!container || !pagination) return;
+
+  const { currentPage, totalPages, totalItems, hasNextPage, hasPrevPage } = pagination;
+
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+
+  let html = '';
+
+  html += `<button class="pagination-btn" ${!hasPrevPage ? 'disabled' : ''} data-page="${currentPage - 1}">◀ Previous</button>`;
+
+  const startPage = Math.max(1, currentPage - 2);
+  const endPage = Math.min(totalPages, startPage + 4);
+
+  for (let i = startPage; i <= endPage; i++) {
+    html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+  }
+
+  html += `<button class="pagination-btn" ${!hasNextPage ? 'disabled' : ''} data-page="${currentPage + 1}">Next ▶</button>`;
+  html += `<span class="pagination-info">Page ${currentPage} of ${totalPages} (${totalItems} items)</span>`;
+
+  container.innerHTML = html;
+
+  container.addEventListener('click', (e) => {
+    if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
+      const page = parseInt(e.target.dataset.page);
+      renderFunction(page);
+    }
+  });
+}
+
 function bindProductInfluencers() {
-  const addBtn = Q('#pdInfAdd');
-  const spendBtn = Q('#pdInfSpendAdd');
-  const filterBtn = Q('#pdInfRun');
-
-  if (!addBtn || !spendBtn || !filterBtn) return;
-
-  // Load influencers for the select
-  loadProductInfluencers();
-
   // Add influencer
-  addBtn.onclick = async () => {
-    const name = Q('#pdInfName')?.value.trim();
-    const social = Q('#pdInfSocial')?.value.trim();
+  Q('#pdInfAdd')?.addEventListener('click', async () => {
+    const name = Q('#pdInfName')?.value?.trim();
+    const social = Q('#pdInfSocial')?.value?.trim();
     const country = Q('#pdInfCountry')?.value;
 
-    if (!name) return alert('Influencer name required');
+    if (!name) return alert('Enter influencer name');
 
-    try {
-      await api('/api/influencers', {
-        method: 'POST',
-        body: JSON.stringify({ name, social, country })
-      });
+    await api('/api/influencers', {
+      method: 'POST',
+      body: JSON.stringify({ name, social, country })
+    });
 
-      Q('#pdInfName').value = '';
-      Q('#pdInfSocial').value = '';
-      loadProductInfluencers();
-      renderProductInfluencerSpends();
-    } catch (error) {
-      alert('Error adding influencer: ' + error.message);
-    }
-  };
+    Q('#pdInfName').value = '';
+    Q('#pdInfSocial').value = '';
+    loadInfluencers();
+    alert('Influencer added');
+  });
 
-  // Add influencer spend
-  spendBtn.onclick = async () => {
+  // Add spend
+  Q('#pdInfSpendAdd')?.addEventListener('click', async () => {
     const date = Q('#pdInfDate')?.value;
     const influencerId = Q('#pdInfSelect')?.value;
     const country = Q('#pdInfFilterCountry')?.value;
     const amount = +Q('#pdInfAmount')?.value || 0;
 
-    if (!date || !influencerId) return alert('Date and influencer required');
+    if (!influencerId) return alert('Select influencer');
 
-    try {
-      await api('/api/influencers/spend', {
-        method: 'POST',
-        body: JSON.stringify({
-          date,
-          influencerId,
-          country,
-          productId: state.productId,
-          amount
-        })
-      });
+    await api('/api/influencers/spend', {
+      method: 'POST',
+      body: JSON.stringify({
+        date: date || isoToday(),
+        influencerId,
+        country,
+        productId: state.productId,
+        amount
+      })
+    });
 
-      Q('#pdInfAmount').value = '';
-      renderProductInfluencerSpends();
-    } catch (error) {
-      alert('Error adding influencer spend: ' + error.message);
-    }
-  };
+    Q('#pdInfAmount').value = '';
+    loadInfluencerSpends();
+    alert('Spend added');
+  });
 
-  // Filter influencer spends
-  filterBtn.onclick = () => {
-    renderProductInfluencerSpends();
-  };
+  // Filter spends
+  Q('#pdInfRun')?.addEventListener('click', loadInfluencerSpends);
 
   // Initial load
-  renderProductInfluencerSpends();
+  loadInfluencers();
+  loadInfluencerSpends();
 }
 
-async function loadProductInfluencers() {
+async function loadInfluencers() {
   const select = Q('#pdInfSelect');
   if (!select) return;
 
@@ -4002,138 +3660,143 @@ async function loadProductInfluencers() {
     const influencers = data.influencers || [];
 
     select.innerHTML = '<option value="">Select influencer...</option>' +
-      influencers.map(inf => `<option value="${inf.id}">${inf.name}${inf.social ? ` (${inf.social})` : ''}</option>`).join('');
+      influencers.map(inf => `<option value="${inf.id}">${inf.name}</option>`).join('');
   } catch (error) {
     console.error('Error loading influencers:', error);
   }
 }
 
-async function renderProductInfluencerSpends() {
+async function loadInfluencerSpends() {
   const tbody = Q('#pdInfBody');
   const totalEl = Q('#pdInfTotal');
-  if (!tbody || !totalEl) return;
+  if (!tbody) return;
 
   try {
-    const dateRange = getDateRange(Q('#pdInfRun').closest('.row'));
-    const country = Q('#pdInfFilterCountry')?.value || '';
+    const data = await api('/api/influencers/spend');
+    let spends = data.spends || [];
 
-    const spendsData = await api('/api/influencers/spend');
-    let spends = spendsData.spends || [];
-
-    // Filter by product
+    // Filter by current product
     spends = spends.filter(spend => spend.productId === state.productId);
 
-    // Apply additional filters
+    // Apply date range filter
+    const dateRange = getDateRange(Q('#pdInfRun')?.closest('.row'));
     if (dateRange.start) {
       spends = spends.filter(spend => spend.date >= dateRange.start);
     }
     if (dateRange.end) {
       spends = spends.filter(spend => spend.date <= dateRange.end);
     }
+
+    // Apply country filter
+    const country = Q('#pdInfFilterCountry')?.value;
     if (country) {
       spends = spends.filter(spend => spend.country === country);
     }
 
-    // Sort by date (newest first)
-    spends.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const total = spends.reduce((sum, spend) => sum + (+spend.amount || 0), 0);
+
+    if (totalEl) totalEl.textContent = fmt(total);
+
+    if (spends.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="muted">No influencer spends found</td></tr>';
+      return;
+    }
 
     // Get influencer details
     const influencersData = await api('/api/influencers');
     const influencers = influencersData.influencers || [];
-    const influencerMap = {};
-    influencers.forEach(inf => influencerMap[inf.id] = inf);
 
-    let total = 0;
-
-    if (spends.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="muted">No influencer spends found</td></tr>';
-    } else {
-      tbody.innerHTML = spends.map(spend => {
-        const influencer = influencerMap[spend.influencerId];
-        total += +spend.amount || 0;
-
-        return `
-          <tr>
-            <td>${spend.date}</td>
-            <td>${spend.country || '-'}</td>
-            <td>${influencer ? influencer.name : 'Unknown'}</td>
-            <td>${influencer && influencer.social ? influencer.social : '-'}</td>
-            <td>$${fmt(spend.amount)}</td>
-            <td>
-              <button class="btn small outline act-del-influencer-spend" data-id="${spend.id}">Delete</button>
-            </td>
-          </tr>
-        `;
-      }).join('');
-    }
-
-    totalEl.textContent = fmt(total);
+    tbody.innerHTML = spends.map(spend => {
+      const influencer = influencers.find(inf => inf.id === spend.influencerId);
+      return `
+        <tr>
+          <td>${spend.date}</td>
+          <td>${spend.country || '-'}</td>
+          <td>${influencer ? influencer.name : spend.influencerId}</td>
+          <td>${influencer ? influencer.social : '-'}</td>
+          <td>$${fmt(spend.amount)}</td>
+          <td>
+            <button class="btn small outline act-del-inf-spend" data-id="${spend.id}">Delete</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
 
     // Add delete handlers
     tbody.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('act-del-influencer-spend')) {
+      if (e.target.classList.contains('act-del-inf-spend')) {
         const spendId = e.target.dataset.id;
         if (confirm('Delete this influencer spend?')) {
           await api(`/api/influencers/spend/${spendId}`, { method: 'DELETE' });
-          renderProductInfluencerSpends();
+          loadInfluencerSpends();
         }
       }
     });
 
   } catch (error) {
     console.error('Error loading influencer spends:', error);
-    tbody.innerHTML = '<tr><td colspan="6" class="muted">Error loading influencer spends</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="muted">Error loading data</td></tr>';
   }
 }
 
-// Global navigation binding
+// ======= NAVIGATION ========
 function bindGlobalNav() {
-  const navLinks = QA('.nav a[data-view]');
-  const sections = QA('section[id]');
-  
-  function showSection(sectionId) {
-    // Hide all sections
-    sections.forEach(section => {
-      section.style.display = 'none';
-    });
+  const nav = Q('.nav');
+  const sections = QA('section');
+  let currentView = 'home';
+
+  function showView(viewId) {
+    sections.forEach(s => s.style.display = 'none');
+    const target = Q(`#${viewId}`);
+    if (target) target.style.display = 'block';
     
-    // Remove active class from all nav links
-    navLinks.forEach(link => {
-      link.classList.remove('active');
-    });
+    // Update nav active state
+    QA('.nav a').forEach(a => a.classList.remove('active'));
+    const navItem = Q(`.nav a[data-view="${viewId}"]`);
+    if (navItem) navItem.classList.add('active');
     
-    // Show target section and activate nav link
-    const targetSection = Q(`#${sectionId}`);
-    const targetLink = Q(`.nav a[data-view="${sectionId}"]`);
+    currentView = viewId;
     
-    if (targetSection) {
-      targetSection.style.display = 'block';
-    }
-    
-    if (targetLink) {
-      targetLink.classList.add('active');
-    }
-    
-    // Scroll to top
-    window.scrollTo(0, 0);
+    // Trigger view-specific rendering
+    setTimeout(() => {
+      switch(viewId) {
+        case 'home':
+          renderDashboardPage();
+          break;
+        case 'products':
+          renderProductsPage();
+          break;
+        case 'performance':
+          renderPerformancePage();
+          break;
+        case 'stockMovement':
+          renderStockMovementPage();
+          break;
+        case 'adspend':
+          renderAdspendPage();
+          break;
+        case 'finance':
+          renderFinancePage();
+          break;
+        case 'settings':
+          renderSettingsPage();
+          break;
+      }
+    }, 100);
   }
-  
-  // Add click event listeners to nav links
-  navLinks.forEach(link => {
-    link.addEventListener('click', (e) => {
+
+  nav?.addEventListener('click', (e) => {
+    const view = e.target.dataset?.view;
+    if (view) {
       e.preventDefault();
-      const sectionId = link.getAttribute('data-view');
-      showSection(sectionId);
-    });
+      showView(view);
+    }
   });
-  
-  // Show home section by default
-  showSection('home');
+
+  // Initialize first view
+  showView('home');
+  initSimpleNavigation();
 }
 
-// Initialize simple navigation for mobile
-initSimpleNavigation();
-
-console.log('✅ EAS Tracker frontend loaded successfully');
 // Initialize the application
-boot();
+document.addEventListener('DOMContentLoaded', boot);
