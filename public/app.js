@@ -10,7 +10,7 @@ const isoToday = () => new Date().toISOString().slice(0, 10);
 const getQuery = k => new URLSearchParams(location.search).get(k);
 const safeJSON = v => { try { return JSON.parse(v); } catch { return null; } };
 
-// Enhanced API function with better error handling
+// Enhanced API function with better error handling 
 async function api(path, opts = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000);
