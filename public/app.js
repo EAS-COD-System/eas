@@ -87,7 +87,7 @@ async function boot() {
     // Load data and initialize app
     await preload();
     bindGlobalNav();
-    
+    setupShipmentActions();
     if (state.productId) {
       renderProductPage();
     } else {
@@ -386,7 +386,91 @@ function getDateRange(container) {
     end: dateRange.end || ''
   };
 }
+// ======== ENHANCED SHIPMENT MANAGEMENT ========
+// Enhanced shipment editing with payment marking
+function setupShipmentActions() {
+  document.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('act-edit-ship')) {
+      const shipmentId = e.target.dataset.id;
+      await editShipment(shipmentId);
+    }
+    
+    if (e.target.classList.contains('act-pay')) {
+      const shipmentId = e.target.dataset.id;
+      await markShipmentAsPaid(shipmentId);
+    }
+  });
+}
 
+async function editShipment(shipmentId) {
+  try {
+    const shipments = await api('/api/shipments');
+    const shipment = shipments.shipments.find(s => s.id === shipmentId);
+    if (!shipment) return;
+
+    const newQty = prompt('Enter new quantity:', shipment.qty);
+    const newShipCost = prompt('Enter new shipping cost:', shipment.shipCost);
+    const newNote = prompt('Enter new note:', shipment.note);
+    const newDeparted = prompt('Enter departed date (YYYY-MM-DD):', shipment.departedAt);
+    const newArrived = prompt('Enter arrived date (YYYY-MM-DD) or leave empty if not arrived:', shipment.arrivedAt || '');
+
+    if (newQty !== null && newShipCost !== null) {
+      const updateData = {
+        qty: +newQty,
+        shipCost: +newShipCost,
+        note: newNote || shipment.note,
+        departedAt: newDeparted || shipment.departedAt
+      };
+      
+      if (newArrived !== null) {
+        updateData.arrivedAt = newArrived || null;
+      }
+      
+      await api(`/api/shipments/${shipmentId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData)
+      });
+      
+      // Refresh the relevant tables
+      if (state.productId) {
+        renderProductShipments();
+      } else {
+        renderShipmentTables();
+      }
+      renderProductsTable();
+      alert('Shipment updated successfully!');
+    }
+  } catch (error) {
+    alert('Error updating shipment: ' + error.message);
+  }
+}
+
+async function markShipmentAsPaid(shipmentId) {
+  try {
+    const shipments = await api('/api/shipments');
+    const shipment = shipments.shipments.find(s => s.id === shipmentId);
+    if (!shipment) return;
+
+    const finalCost = prompt(`Enter final shipping cost for shipment ${shipmentId.slice(0, 8)}:\nRoute: ${shipment.fromCountry} → ${shipment.toCountry}\nQuantity: ${shipment.qty}\nOriginal cost: $${shipment.shipCost}`, shipment.shipCost);
+    
+    if (finalCost && !isNaN(finalCost)) {
+      await api(`/api/shipments/${shipmentId}/mark-paid`, {
+        method: 'POST',
+        body: JSON.stringify({ finalShipCost: +finalCost })
+      });
+      
+      // Refresh the relevant tables
+      if (state.productId) {
+        renderProductShipments();
+      } else {
+        renderShipmentTables();
+      }
+      alert('Shipment marked as paid!');
+    }
+  } catch (error) {
+    alert('Error marking shipment as paid: ' + error.message);
+  }
+}
 // ======== DASHBOARD PAGE ========
 function renderDashboardPage() {
   renderCompactKpis();
@@ -464,23 +548,24 @@ async function calculateTransitPieces() {
 async function calculateStockByCountry(productId = null) {
   try {
     const db = await api('/api/products');
-    if (productId) {
-      const product = db.products.find(p => p.id === productId);
-      return product ? product.stockByCountry : {};
-    } else {
-      const totalStock = {};
-      state.countries.forEach(country => {
-        totalStock[country] = 0;
+    const totalStock = {};
+    state.countries.forEach(country => {
+      totalStock[country] = { active: 0, inactive: 0, total: 0 };
+    });
+    
+    db.products.forEach(product => {
+      Object.keys(product.stockByCountry || {}).forEach(country => {
+        const stock = product.stockByCountry[country] || 0;
+        if (product.status === 'active') {
+          totalStock[country].active += stock;
+        } else {
+          totalStock[country].inactive += stock;
+        }
+        totalStock[country].total += stock;
       });
-      
-      db.products.forEach(product => {
-        Object.keys(product.stockByCountry || {}).forEach(country => {
-          totalStock[country] = (totalStock[country] || 0) + (product.stockByCountry[country] || 0);
-        });
-      });
-      
-      return totalStock;
-    }
+    });
+    
+    return totalStock;
   } catch (error) {
     console.error('Error calculating stock:', error);
     return {};
@@ -1355,44 +1440,41 @@ function renderProductsTable() {
     // Render pagination
     renderProductsPagination(sortedProducts.length, productsPerPage);
 
-    // Add event listeners for product actions with confirmation
-    tb.onclick = async (e) => {
-      const id = e.target.dataset?.id; 
-      if (!id) return;
-      
-      if (e.target.classList.contains('act-toggle')) {
-        const p = state.products.find(x => x.id === id); 
-        if (!p) return;
-        
-        const newStatus = p.status === 'active' ? 'paused' : 'active';
-        const action = p.status === 'active' ? 'pause' : 'activate';
-        
-        if (confirm(`Are you sure you want to ${action} this product?`)) {
-          await api(`/api/products/${id}/status`, { 
-            method: 'POST', 
-            body: JSON.stringify({ status: newStatus }) 
-          });
-          await preload(); 
-          renderProductsTable(); 
-        }
-      }
-      
-      if (e.target.classList.contains('act-del')) {
-        if (confirm('Are you sure you want to delete this product and ALL its data?')) {
-          await api(`/api/products/${id}`, { method: 'DELETE' });
-          await preload(); 
-          renderProductsTable(); 
-        }
-      }
-    };
-  } catch (error) {
-    console.error('Error in renderProductsTable:', error);
-    const tb = Q('#productsTable tbody');
-    if (tb) {
-      tb.innerHTML = '<tr><td colspan="20" class="muted">Error loading products</td></tr>';
+// Add event listeners for product actions with confirmation
+tb.onclick = async (e) => {
+  const id = e.target.dataset?.id; 
+  if (!id) return;
+  
+  if (e.target.classList.contains('act-toggle')) {
+    const p = state.products.find(x => x.id === id); 
+    if (!p) return;
+    
+    const newStatus = p.status === 'active' ? 'paused' : 'active';
+    const action = p.status === 'active' ? 'pause' : 'activate';
+    const confirmationMessage = p.status === 'active' 
+      ? 'Are you sure you want to PAUSE this product? The stock will move to inactive stock.'
+      : 'Are you sure you want to ACTIVATE this product?';
+    
+    if (confirm(confirmationMessage)) {
+      await api(`/api/products/${id}/status`, { 
+        method: 'POST', 
+        body: JSON.stringify({ status: newStatus }) 
+      });
+      await preload(); 
+      renderProductsTable(); 
+      renderCompactKpis();
     }
   }
-}
+  
+  if (e.target.classList.contains('act-del')) {
+    if (confirm('⚠️ ARE YOU SURE YOU WANT TO DELETE THIS PRODUCT AND ALL ITS DATA?\n\nThis will delete ALL shipments, remittances, orders, and analytics data for this product. This action cannot be undone!')) {
+      await api(`/api/products/${id}`, { method: 'DELETE' });
+      await preload(); 
+      renderProductsTable(); 
+      renderCompactKpis();
+    }
+  }
+};
 
 function renderProductsPagination(totalItems, itemsPerPage) {
   try {
@@ -3023,6 +3105,7 @@ function renderProductPage() {
   renderProductRemittances();
   renderProductRefunds();
   bindProductInfluencers();
+  setupShipmentActions();
 }
 
 async function renderProductHeader() {
