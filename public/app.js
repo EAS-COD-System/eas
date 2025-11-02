@@ -88,7 +88,45 @@ const state = {
   profitCountrySortBy: 'totalDeliveredPieces',
   profitCountrySortOrder: 'desc'
 };
+// Add this debug function to app.js
+async function debugShipmentsAndCosts() {
+  console.log('🔍 DEBUG: Checking shipments and cost calculations...');
+  
+  try {
+    // Get all shipments
+    const shipmentsData = await api('/api/shipments');
+    console.log('📦 Total shipments:', shipmentsData.shipments?.length);
+    
+    // Check paid shipments
+    const paidShipments = shipmentsData.shipments.filter(s => 
+      s.paymentStatus === 'paid' && s.finalShipCost
+    );
+    console.log('💰 Paid shipments:', paidShipments.length);
+    
+    paidShipments.forEach(shipment => {
+      console.log(`   ${shipment.productId} | ${shipment.fromCountry}→${shipment.toCountry} | Qty:${shipment.qty} | Cost:$${shipment.finalShipCost}`);
+    });
+    
+    // Check if we have any products
+    console.log('📊 Products count:', state.products.length);
+    
+    // Test analytics for first product
+    if (state.products.length > 0) {
+      const testProduct = state.products[0];
+      console.log(`🧪 Testing analytics for product: ${testProduct.name}`);
+      
+      // Test the analytics endpoint directly
+      const analytics = await api('/api/analytics/remittance?productId=' + testProduct.id);
+      console.log('📈 Analytics data:', analytics.analytics);
+    }
+    
+  } catch (error) {
+    console.error('Debug error:', error);
+  }
+}
 
+// Call this after boot to see what's happening
+setTimeout(debugShipmentsAndCosts, 2000);
 // Main boot function
 async function boot() {
   console.log('🚀 Boot starting...');
@@ -2341,8 +2379,15 @@ function bindRefundAdd() {
 
 // ======== STOCK MOVEMENT PAGE ========
 function renderStockMovementPage() {
+  console.log('🏗️ Initializing Stock Movement page...');
   bindStockMovement();
   renderShipmentTables();
+  
+  // Force refresh after a short delay to ensure data is loaded
+  setTimeout(() => {
+    renderShipmentTables();
+    console.log('🔄 Stock Movement page refreshed');
+  }, 1000);
 }
 
 function bindStockMovement() {
@@ -2400,22 +2445,29 @@ function bindStockMovement() {
 
 async function renderShipmentTables() {
   try {
+    console.log('🔄 Rendering shipment tables...');
     const shipments = await api('/api/shipments');
+    state.allShipments = shipments.shipments || [];
     
-    // Filter out arrived shipments (they should only appear on product pages)
-    const transitShipments = shipments.shipments.filter(s => !s.arrivedAt);
+    console.log('📦 Loaded shipments:', state.allShipments.length);
+
+    // Show ALL shipments (both transit and arrived)
+    const allShipments = state.allShipments;
     
     // China → Kenya shipments
-    const chinaKenyaShipments = transitShipments.filter(s => 
+    const chinaKenyaShipments = allShipments.filter(s => 
       s.fromCountry === 'china' && s.toCountry === 'kenya'
     );
+    console.log('🇨🇳→🇰🇪 China-Kenya shipments:', chinaKenyaShipments.length);
     renderShipmentTable('#shipCKBody', chinaKenyaShipments, true);
     
     // Inter-country shipments (excluding China → Kenya)
-    const interCountryShipments = transitShipments.filter(s => 
+    const interCountryShipments = allShipments.filter(s => 
       s.fromCountry !== 'china' || s.toCountry !== 'kenya'
     );
+    console.log('🔄 Inter-country shipments:', interCountryShipments.length);
     renderShipmentTable('#shipICBody', interCountryShipments, false);
+    
   } catch (e) {
     console.error('Error loading shipments:', e);
   }
@@ -2426,7 +2478,7 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
   if (!tbody) return;
 
   if (shipments.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="12" class="muted">No shipments in transit</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="muted">No shipments found</td></tr>';
     return;
   }
 
@@ -2434,6 +2486,12 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
     const product = state.products.find(p => p.id === shipment.productId);
     const productName = product ? product.name : shipment.productId;
     const route = `${shipment.fromCountry} → ${shipment.toCountry}`;
+    
+    // Determine which buttons to show
+    const showArriveButton = !shipment.arrivedAt;
+    const showPayButton = shipment.arrivedAt && shipment.paymentStatus === 'pending';
+    
+    console.log(`📋 Rendering shipment ${shipment.id}: arrived=${shipment.arrivedAt}, paid=${shipment.paymentStatus}, showPay=${showPayButton}`);
     
     return `
       <tr>
@@ -2445,18 +2503,18 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
         <td>${shipment.finalShipCost ? fmt(shipment.finalShipCost) : '-'}</td>
         ${showChinaCost ? `<td>${shipment.chinaCost ? fmt(shipment.chinaCost) : '-'}</td>` : ''}
         <td>${shipment.departedAt || '-'}</td>
-        <td>${shipment.arrivedAt || '-'}</td>
+        <td>${shipment.arrivedAt || 'In transit'}</td>
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
         <td>${shipment.note || '-'}</td>
         <td>
-          ${!shipment.arrivedAt ? `
-            <button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>
+          ${showArriveButton ? `
+            <button class="btn small outline act-arrive" data-id="${shipment.id}">🚚 Arrived</button>
           ` : ''}
-          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `
-            <button class="btn small outline act-pay" data-id="${shipment.id}">💰 Mark Paid</button>
+          ${showPayButton ? `
+            <button class="btn small outline act-pay" data-id="${shipment.id}" style="background: #10b981; color: white;">💰 Mark Paid</button>
           ` : ''}
-          <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
-          <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
+          <button class="btn small outline act-edit-ship" data-id="${shipment.id}">✏️ Edit</button>
+          <button class="btn small outline act-del-ship" data-id="${shipment.id}">🗑️ Delete</button>
         </td>
       </tr>
     `;
@@ -2889,6 +2947,66 @@ function bindFinanceSearch() {
       console.error('Error searching finance:', e);
     }
   };
+}
+// ======== ADD DEBUG FUNCTIONS HERE ========
+
+// Add this debug function to test backend calculations
+async function testBackendCalculations() {
+  try {
+    console.log('🧪 Testing backend calculations...');
+    
+    // Test with a specific product
+    if (state.products.length > 0) {
+      const product = state.products[0];
+      
+      // Test product cost calculation
+      const productCosts = await api('/api/product-costs-analysis?productId=' + product.id);
+      console.log('💰 Product costs analysis:', productCosts);
+      
+      // Test remittance analytics
+      const analytics = await api('/api/analytics/remittance?productId=' + product.id);
+      console.log('📈 Remittance analytics:', analytics);
+    }
+  } catch (error) {
+    console.error('Backend test error:', error);
+  }
+}
+
+// Add the other debug function too
+async function debugShipmentsAndCosts() {
+  console.log('🔍 DEBUG: Checking shipments and cost calculations...');
+  
+  try {
+    // Get all shipments
+    const shipmentsData = await api('/api/shipments');
+    console.log('📦 Total shipments:', shipmentsData.shipments?.length);
+    
+    // Check paid shipments
+    const paidShipments = shipmentsData.shipments.filter(s => 
+      s.paymentStatus === 'paid' && s.finalShipCost
+    );
+    console.log('💰 Paid shipments:', paidShipments.length);
+    
+    paidShipments.forEach(shipment => {
+      console.log(`   ${shipment.productId} | ${shipment.fromCountry}→${shipment.toCountry} | Qty:${shipment.qty} | Cost:$${shipment.finalShipCost}`);
+    });
+    
+    // Check if we have any products
+    console.log('📊 Products count:', state.products.length);
+    
+    // Test analytics for first product
+    if (state.products.length > 0) {
+      const testProduct = state.products[0];
+      console.log(`🧪 Testing analytics for product: ${testProduct.name}`);
+      
+      // Test the analytics endpoint directly
+      const analytics = await api('/api/analytics/remittance?productId=' + testProduct.id);
+      console.log('📈 Analytics data:', analytics.analytics);
+    }
+    
+  } catch (error) {
+    console.error('Debug error:', error);
+  }
 }
 
 // ======== SETTINGS PAGE ========
@@ -3340,49 +3458,53 @@ function addShipmentEventListeners(container) {
     const id = e.target.dataset?.id;
     if (!id) return;
 
+    console.log('🖱️ Clicked button:', e.target.className, 'for shipment:', id);
+
     if (e.target.classList.contains('act-arrive')) {
+      console.log('🚚 Marking shipment as arrived:', id);
       await api(`/api/shipments/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ arrivedAt: isoToday() })
       });
+      // Reload all data
+      await preload();
       renderShipmentTables();
       renderProductsTable();
       renderCompactKpis();
+      alert('✅ Shipment marked as arrived! You can now mark it as paid.');
     }
 
-    // ======== ENHANCED PAYMENT HANDLER ========
     if (e.target.classList.contains('act-pay')) {
-      const shipmentId = e.target.dataset.id;
-      const shipment = state.allShipments.find(s => s.id === shipmentId);
+      console.log('💰 Marking shipment as paid:', id);
+      const shipment = state.allShipments.find(s => s.id === id);
       
       if (shipment) {
         const estimatedCost = shipment.shipCost || 0;
-        const finalCost = prompt(`Enter final shipping cost for ${shipment.qty} pieces:\n(Estimated: $${fmt(estimatedCost)})`, estimatedCost);
+        const finalCost = prompt(
+          `Enter final shipping cost for ${shipment.qty} pieces:\nRoute: ${shipment.fromCountry} → ${shipment.toCountry}\nEstimated: $${fmt(estimatedCost)}`,
+          estimatedCost
+        );
         
         if (finalCost && !isNaN(finalCost) && finalCost > 0) {
           try {
-            await api(`/api/shipments/${shipmentId}/mark-paid`, {
+            await api(`/api/shipments/${id}/mark-paid`, {
               method: 'POST',
               body: JSON.stringify({ finalShipCost: +finalCost })
             });
             
-            // Refresh the shipments data
-            const shipmentsData = await api('/api/shipments');
-            state.allShipments = shipmentsData.shipments || [];
-            
-            // Refresh all tables
+            // Reload all data
+            await preload();
             renderShipmentTables();
             renderProductsTable();
             renderCompactKpis();
             
-            alert('✅ Shipment marked as paid! Shipping costs will now be included in analytics.');
+            alert('✅ Shipment marked as paid! Shipping costs will now appear in analytics.');
           } catch (error) {
-            alert('Error marking as paid: ' + error.message);
+            alert('❌ Error marking as paid: ' + error.message);
           }
         }
       }
     }
-    // ======== END ENHANCED PAYMENT HANDLER ========
 
     if (e.target.classList.contains('act-edit-ship')) {
       editShipment(id);
@@ -3391,6 +3513,7 @@ function addShipmentEventListeners(container) {
     if (e.target.classList.contains('act-del-ship')) {
       if (confirm('Delete this shipment?')) {
         await api(`/api/shipments/${id}`, { method: 'DELETE' });
+        await preload();
         renderShipmentTables();
         renderProductsTable();
         renderCompactKpis();
@@ -3398,6 +3521,7 @@ function addShipmentEventListeners(container) {
     }
   });
 }
+
 async function editShipment(shipmentId) {
   try {
     const shipments = await api('/api/shipments');
