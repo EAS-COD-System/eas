@@ -133,6 +133,90 @@ function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
   
   return 0;
 }
+// ======== ADVANCED SHIPPING COST CALCULATION ========
+function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
+  const shipments = db.shipments || [];
+  
+  // Get all shipments for this product that arrived
+  const relevantShipments = shipments.filter(s => 
+    s.productId === productId && 
+    s.arrivedAt &&
+    s.paymentStatus === 'paid' &&
+    s.finalShipCost
+  );
+  
+  if (relevantShipments.length === 0) return 0;
+  
+  // Build shipment chains to track piece movement
+  const pieceTracking = {};
+  
+  // Process shipments chronologically
+  const sortedShipments = [...relevantShipments].sort((a, b) => 
+    new Date(a.departedAt) - new Date(b.departedAt)
+  );
+  
+  sortedShipments.forEach(shipment => {
+    const fromCountry = shipment.fromCountry;
+    const toCountry = shipment.toCountry;
+    const quantity = +shipment.qty || 0;
+    const shippingCostPerPiece = (+shipment.finalShipCost || +shipment.shipCost || 0) / quantity;
+    
+    if (fromCountry === 'china') {
+      // New pieces from China
+      if (!pieceTracking[toCountry]) pieceTracking[toCountry] = [];
+      for (let i = 0; i < quantity; i++) {
+        pieceTracking[toCountry].push({
+          cost: shippingCostPerPiece,
+          route: [`${fromCountry}→${toCountry}`]
+        });
+      }
+    } else {
+      // Moving existing pieces between countries
+      if (pieceTracking[fromCountry] && pieceTracking[fromCountry].length >= quantity) {
+        const movedPieces = pieceTracking[fromCountry].splice(0, quantity);
+        if (!pieceTracking[toCountry]) pieceTracking[toCountry] = [];
+        
+        movedPieces.forEach(piece => {
+          pieceTracking[toCountry].push({
+            cost: piece.cost + shippingCostPerPiece,
+            route: [...piece.route, `${fromCountry}→${toCountry}`]
+          });
+        });
+      }
+    }
+  });
+  
+  // Calculate average cost for target country
+  if (pieceTracking[targetCountry] && pieceTracking[targetCountry].length > 0) {
+    const totalCost = pieceTracking[targetCountry].reduce((sum, piece) => sum + piece.cost, 0);
+    return totalCost / pieceTracking[targetCountry].length;
+  }
+  
+  return 0;
+}
+
+// ======== DEBUG SHIPPING CALCULATION ========
+function debugShippingCalculation(db, productId, country) {
+  console.log(`🔍 Debug shipping calculation for product:${productId}, country:${country}`);
+  
+  const shipments = db.shipments || [];
+  const relevantShipments = shipments.filter(s => 
+    s.productId === productId && 
+    s.arrivedAt &&
+    s.paymentStatus === 'paid' &&
+    s.finalShipCost
+  );
+  
+  console.log(`📦 Relevant shipments: ${relevantShipments.length}`);
+  relevantShipments.forEach(s => {
+    console.log(`   Shipment: ${s.fromCountry}→${s.toCountry}, Qty:${s.qty}, FinalCost:${s.finalShipCost}, ChinaCost:${s.chinaCost}`);
+  });
+  
+  const cost = calculateActualShippingCostPerPiece(db, productId, country);
+  console.log(`💰 Calculated shipping cost per piece: $${cost}`);
+  
+  return cost;
+}
 
 function calculateProductCostPerPiece(db, productId) {
   const shipments = db.shipments || [];
@@ -422,10 +506,28 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
   // Calculate product cost per piece from total purchases
   const productCostPerPiece = calculateProductCostPerPiece(db, productId);
   
-  // Calculate shipping cost using actual piece tracking
+  // ENHANCED: Calculate shipping cost using actual piece tracking with debug
   let shippingCostPerPiece = 0;
-  if (country) {
-    shippingCostPerPiece = calculateActualShippingCostPerPiece(db, productId, country);
+  if (country && country !== 'All Countries') {
+    // Use debug function to see what's happening
+    shippingCostPerPiece = debugShippingCalculation(db, productId, country);
+    
+    // If no specific shipping cost found, use average from all shipments
+    if (shippingCostPerPiece === 0) {
+      const allShipments = db.shipments.filter(s => 
+        s.productId === productId && 
+        s.arrivedAt &&
+        s.paymentStatus === 'paid' &&
+        s.finalShipCost
+      );
+      
+      if (allShipments.length > 0) {
+        const totalQty = allShipments.reduce((sum, s) => sum + (+s.qty || 0), 0);
+        const totalShipping = allShipments.reduce((sum, s) => sum + (+s.finalShipCost || 0), 0);
+        shippingCostPerPiece = totalQty > 0 ? totalShipping / totalQty : 0;
+        console.log(`📊 Using average shipping cost: $${shippingCostPerPiece} per piece`);
+      }
+    }
   }
 
   const totalProductChinaCost = totalDeliveredPieces * productCostPerPiece;
