@@ -24,46 +24,20 @@ async function api(path, opts = {}) {
     });
     clearTimeout(timeoutId);
     
-    console.log(`API ${path} response status:`, res.status);
-    
     const ct = res.headers.get('content-type') || '';
     const body = ct.includes('application/json') ? await res.json() : await res.text();
     
     if (!res.ok) {
-      console.error(`API error ${res.status}:`, body);
       throw new Error(body?.error || body || `HTTP ${res.status}`);
     }
     
     return body;
   } catch (error) {
     clearTimeout(timeoutId);
-    console.error('API call failed:', error);
     throw error;
   }
 }
-// Add this function to app.js
-async function debugShippingCosts(productId, country) {
-  try {
-    console.log(`🔍 Debugging shipping costs for ${productId} in ${country}`);
-    
-    // Get all shipments for this product
-    const shipments = await api('/api/shipments');
-    const productShipments = shipments.shipments.filter(s => 
-      s.productId === productId && 
-      s.arrivedAt &&
-      s.paymentStatus === 'paid'
-    );
-    
-    console.log(`📦 Found ${productShipments.length} paid shipments`);
-    productShipments.forEach(s => {
-      console.log(`   ${s.fromCountry}→${s.toCountry}: ${s.qty} pieces, $${s.finalShipCost || s.shipCost}`);
-    });
-    
-    return productShipments;
-  } catch (error) {
-    console.error('Debug error:', error);
-  }
-}
+
 // Application state
 const state = {
   productId: getQuery('id'),
@@ -88,54 +62,14 @@ const state = {
   profitCountrySortBy: 'totalDeliveredPieces',
   profitCountrySortOrder: 'desc'
 };
-// Add this debug function to app.js
-async function debugShipmentsAndCosts() {
-  console.log('🔍 DEBUG: Checking shipments and cost calculations...');
-  
-  try {
-    // Get all shipments
-    const shipmentsData = await api('/api/shipments');
-    console.log('📦 Total shipments:', shipmentsData.shipments?.length);
-    
-    // Check paid shipments
-    const paidShipments = shipmentsData.shipments.filter(s => 
-      s.paymentStatus === 'paid' && s.finalShipCost
-    );
-    console.log('💰 Paid shipments:', paidShipments.length);
-    
-    paidShipments.forEach(shipment => {
-      console.log(`   ${shipment.productId} | ${shipment.fromCountry}→${shipment.toCountry} | Qty:${shipment.qty} | Cost:$${shipment.finalShipCost}`);
-    });
-    
-    // Check if we have any products
-    console.log('📊 Products count:', state.products.length);
-    
-    // Test analytics for first product
-    if (state.products.length > 0) {
-      const testProduct = state.products[0];
-      console.log(`🧪 Testing analytics for product: ${testProduct.name}`);
-      
-      // Test the analytics endpoint directly
-      const analytics = await api('/api/analytics/remittance?productId=' + testProduct.id);
-      console.log('📈 Analytics data:', analytics.analytics);
-    }
-    
-  } catch (error) {
-    console.error('Debug error:', error);
-  }
-}
 
-// Call this after boot to see what's happening
-setTimeout(debugShipmentsAndCosts, 2000);
 // Main boot function
 async function boot() {
   console.log('🚀 Boot starting...');
   
   // Check authentication first
   try {
-    console.log('🔐 Checking authentication...');
     await api('/api/auth/status');
-    console.log('✅ Authenticated successfully');
     
     // Hide login, show main
     const loginEl = document.getElementById('login');
@@ -161,19 +95,14 @@ async function boot() {
     }
     
     setupDailyBackupButton();
-    console.log('✅ Boot completed successfully');
     
   } catch (error) {
-    console.error('❌ Authentication failed:', error);
-    
     // Show login, hide main
     const loginEl = document.getElementById('login');
     const mainEl = document.getElementById('main');
     
     if (loginEl) loginEl.classList.remove('hide');
     if (mainEl) mainEl.style.display = 'none';
-    
-    console.log('👤 Please log in');
   }
 }
 
@@ -279,23 +208,20 @@ async function preload() {
     const cats = await api('/api/finance/categories');
     state.categories = cats || { debit: [], credit: [] };
 
-    // Load all shipments for stock calculation and payment handling
+    // Load all shipments for stock calculation
     try {
-      console.log('🔄 Preload: Loading shipments...');
       const shipments = await api('/api/shipments');
       state.allShipments = shipments.shipments || [];
-      console.log('✅ Preload: Loaded', state.allShipments.length, 'shipments');
     } catch (error) {
-      console.error('❌ Preload: Failed to load shipments:', error);
       state.allShipments = [];
     }
 
     fillCommonSelects();
   } catch (error) {
-    console.error('❌ Preload failed:', error);
     throw error;
   }
 }
+
 // Fill common dropdown selects
 function fillCommonSelects() {
   const countrySelects = ['#adCountry', '#rCountry', '#pdAdCountry', '#pdRCountry',
@@ -515,7 +441,6 @@ async function calculateTransitPieces() {
       totalTransit: chinaTransit + interCountryTransit
     };
   } catch (error) {
-    console.error('Error calculating transit:', error);
     return { chinaTransit: 0, interCountryTransit: 0, totalTransit: 0 };
   }
 }
@@ -541,7 +466,6 @@ async function calculateStockByCountry(productId = null) {
       return totalStock;
     }
   } catch (error) {
-    console.error('Error calculating stock:', error);
     return {};
   }
 }
@@ -605,7 +529,6 @@ async function renderCountryStockSpend() {
     Q('#adTotal') && (Q('#adTotal').textContent = fmt(totalAd));
   } catch (error) {
     body.innerHTML = `<tr><td colspan="6" class="muted">Error loading data</td></tr>`;
-    console.error('Dashboard error:', error);
   }
 }
 
@@ -1797,7 +1720,6 @@ function renderPerformancePage() {
   bindProfitByCountry();
   bindRemittanceAdd();
   bindRefundAdd();
-  bindDebugFunctions(); 
   
   setTimeout(() => {
     if (Q('#pcaRun')) Q('#pcaRun').click();
@@ -1831,9 +1753,8 @@ function bindProductOrders() {
       if (e.message.includes('Duplicate order period')) {
         const confirmAdd = confirm('You already entered orders in that period for that product. Are you sure you want to enter again?');
         if (confirmAdd) {
-          await api('/api/product-orders/force', { method: 'POST', body: JSON.stringify(payload) });
-          alert('Orders data saved successfully!');
-          Q('#poOrders').value = '';
+          // Force add - this would need a separate endpoint
+          alert('Please use a different date range or contact support for force adding');
         }
       } else {
         alert('Error saving orders: ' + e.message);
@@ -1903,9 +1824,9 @@ function renderProductCostsAnalysis(analysis) {
                 <td>$${fmt(analysis.totalInfluencerSpend)}</td>
               </tr>
               <tr>
-                <td>Product Cost China (Period)</td>
+                <td>Product Cost China</td>
                 <td>$${fmt(analysis.totalProductChinaCost)}</td>
-                <td>Shipping Costs (Period)</td>
+                <td>Shipping Costs</td>
                 <td>$${fmt(analysis.totalShippingCost)}</td>
               </tr>
               <tr>
@@ -1963,9 +1884,9 @@ function renderProductCostsAnalysis(analysis) {
                 <td>$${fmt(analysis.totalInfluencerSpend)}</td>
               </tr>
               <tr>
-                <td>Product Cost China (Period)</td>
+                <td>Product Cost China</td>
                 <td>$${fmt(analysis.totalProductChinaCost)}</td>
-                <td>Shipping Costs (Period)</td>
+                <td>Shipping Costs</td>
                 <td>$${fmt(analysis.totalShippingCost)}</td>
               </tr>
               <tr>
@@ -2327,14 +2248,8 @@ function bindRemittanceAdd() {
       if (e.message.includes('Duplicate remittance period')) {
         const confirmAdd = confirm('You already entered a remittance for this product in this country during this period. Are you sure you want to enter again?');
         if (confirmAdd) {
-          await api('/api/remittances/force', { method: 'POST', body: JSON.stringify(payload) });
-          alert('Remittance entry saved successfully!');
-          
-          // Clear form
-          ['#remAddStart', '#remAddEnd', '#remAddOrders', '#remAddPieces', '#remAddRevenue', '#remAddAdSpend', '#remAddBoxleo'].forEach(sel => {
-            const el = Q(sel);
-            if (el) el.value = '';
-          });
+          // Force add logic would go here
+          alert('Please use a different date range or contact support for force adding');
         }
       } else {
         alert('Error saving remittance: ' + e.message);
@@ -2379,15 +2294,8 @@ function bindRefundAdd() {
 
 // ======== STOCK MOVEMENT PAGE ========
 function renderStockMovementPage() {
-  console.log('🏗️ Initializing Stock Movement page...');
   bindStockMovement();
   renderShipmentTables();
-  
-  // Force refresh after a short delay to ensure data is loaded
-  setTimeout(() => {
-    renderShipmentTables();
-    console.log('🔄 Stock Movement page refreshed');
-  }, 1000);
 }
 
 function bindStockMovement() {
@@ -2445,41 +2353,33 @@ function bindStockMovement() {
 
 async function renderShipmentTables() {
   try {
-    console.log('🔄 Rendering shipment tables...');
     const shipments = await api('/api/shipments');
-    state.allShipments = shipments.shipments || [];
     
-    console.log('📦 Loaded shipments:', state.allShipments.length);
-
-    // Show ALL shipments (both transit and arrived)
-    const allShipments = state.allShipments;
+    // Filter out arrived shipments (they should only appear on product pages)
+    const transitShipments = shipments.shipments.filter(s => !s.arrivedAt);
     
     // China → Kenya shipments
-    const chinaKenyaShipments = allShipments.filter(s => 
+    const chinaKenyaShipments = transitShipments.filter(s => 
       s.fromCountry === 'china' && s.toCountry === 'kenya'
     );
-    console.log('🇨🇳→🇰🇪 China-Kenya shipments:', chinaKenyaShipments.length);
     renderShipmentTable('#shipCKBody', chinaKenyaShipments, true);
     
     // Inter-country shipments (excluding China → Kenya)
-    const interCountryShipments = allShipments.filter(s => 
+    const interCountryShipments = transitShipments.filter(s => 
       s.fromCountry !== 'china' || s.toCountry !== 'kenya'
     );
-    console.log('🔄 Inter-country shipments:', interCountryShipments.length);
     renderShipmentTable('#shipICBody', interCountryShipments, false);
-    
   } catch (e) {
     console.error('Error loading shipments:', e);
   }
 }
 
-// Enhanced shipment table rendering
 function renderShipmentTable(selector, shipments, showChinaCost) {
   const tbody = Q(selector);
   if (!tbody) return;
 
   if (shipments.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="12" class="muted">No shipments found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="muted">No shipments in transit</td></tr>';
     return;
   }
 
@@ -2487,10 +2387,6 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
     const product = state.products.find(p => p.id === shipment.productId);
     const productName = product ? product.name : shipment.productId;
     const route = `${shipment.fromCountry} → ${shipment.toCountry}`;
-    
-    // ALWAYS show pay button for arrived shipments that aren't paid
-    const showPayButton = shipment.arrivedAt && shipment.paymentStatus !== 'paid';
-    const showArriveButton = !shipment.arrivedAt;
     
     return `
       <tr>
@@ -2502,116 +2398,18 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
         <td>${shipment.finalShipCost ? fmt(shipment.finalShipCost) : '-'}</td>
         ${showChinaCost ? `<td>${shipment.chinaCost ? fmt(shipment.chinaCost) : '-'}</td>` : ''}
         <td>${shipment.departedAt || '-'}</td>
-        <td>${shipment.arrivedAt || 'In transit'}</td>
+        <td>${shipment.arrivedAt || '-'}</td>
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
         <td>${shipment.note || '-'}</td>
         <td>
-          ${showArriveButton ? `
-            <button class="btn small outline act-arrive" data-id="${shipment.id}">🚚 Arrived</button>
-          ` : ''}
-          ${showPayButton ? `
-            <button class="btn small outline act-pay" data-id="${shipment.id}" style="background: #10b981; color: white; margin-left: 5px;">💰 Mark Paid</button>
-          ` : ''}
-          <button class="btn small outline act-edit-ship" data-id="${shipment.id}" style="margin-left: 5px;">✏️ Edit</button>
-          <button class="btn small outline act-del-ship" data-id="${shipment.id}" style="margin-left: 5px;">🗑️ Delete</button>
+          ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
+          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
+          <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
+          <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
       </tr>
     `;
   }).join('');
-
-  // Add event listeners
-  addShipmentEventListeners(tbody);
-}
-
-// Enhanced payment handler
-function addShipmentEventListeners(container) {
-  container.addEventListener('click', async (e) => {
-    const id = e.target.dataset?.id;
-    if (!id) return;
-
-    if (e.target.classList.contains('act-arrive')) {
-      await api(`/api/shipments/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ arrivedAt: isoToday() })
-      });
-      await preload();
-      renderShipmentTables();
-      alert('✅ Shipment marked as arrived! You can now mark it as paid.');
-    }
-
-    if (e.target.classList.contains('act-pay')) {
-      const shipment = state.allShipments.find(s => s.id === id);
-      
-      if (shipment) {
-        const estimatedCost = shipment.shipCost || 0;
-        const finalCost = prompt(
-          `Enter final shipping cost for ${shipment.qty} pieces:\nRoute: ${shipment.fromCountry} → ${shipment.toCountry}\nEstimated: $${fmt(estimatedCost)}`,
-          estimatedCost
-        );
-        
-        if (finalCost && !isNaN(finalCost) && finalCost > 0) {
-          try {
-            await api(`/api/shipments/${id}/mark-paid`, {
-              method: 'POST',
-              body: JSON.stringify({ finalShipCost: +finalCost })
-            });
-            
-            await preload();
-            renderShipmentTables();
-            
-            alert('✅ Shipment marked as paid! Shipping costs will now appear in analytics.');
-            
-            // Refresh analytics to show the new costs
-            setTimeout(() => {
-              if (Q('#remAnalyticsRun')) Q('#remAnalyticsRun').click();
-              if (Q('#pcRun')) Q('#pcRun').click();
-            }, 1000);
-            
-          } catch (error) {
-            alert('❌ Error marking as paid: ' + error.message);
-          }
-        }
-      }
-    }
-
-    if (e.target.classList.contains('act-edit-ship')) {
-      editShipment(id);
-    }
-
-    if (e.target.classList.contains('act-del-ship')) {
-      if (confirm('Delete this shipment?')) {
-        await api(`/api/shipments/${id}`, { method: 'DELETE' });
-        await preload();
-        renderShipmentTables();
-      }
-    }
-  });
-}
-
-// Enhanced debug function
-async function debugShipmentsAndCosts() {
-  console.log('🔍 DEBUG: Checking shipments and costs...');
-  
-  try {
-    const debugData = await api('/api/debug/shipments');
-    console.log('📦 All shipments:', debugData.shipments);
-    
-    const paidShipments = debugData.shipments.filter(s => s.paymentStatus === 'paid');
-    console.log('💰 Paid shipments:', paidShipments);
-    
-    // Test analytics
-    if (state.products.length > 0) {
-      const product = state.products[0];
-      const analytics = await api('/api/analytics/remittance?productId=' + product.id);
-      console.log('📈 Analytics for first product:', analytics.analytics);
-    }
-  } catch (error) {
-    console.error('Debug error:', error);
-  }
-}
-
-// Run debug on startup
-setTimeout(debugShipmentsAndCosts, 2000);
 
   // Add event listeners for shipment actions
   tbody.onclick = async (e) => {
@@ -2636,6 +2434,7 @@ setTimeout(debugShipmentsAndCosts, 2000);
           body: JSON.stringify({ finalShipCost: +finalCost })
         });
         renderShipmentTables();
+        alert('Shipment marked as paid!');
       }
     }
 
@@ -3036,66 +2835,6 @@ function bindFinanceSearch() {
       console.error('Error searching finance:', e);
     }
   };
-}
-// ======== ADD DEBUG FUNCTIONS HERE ========
-
-// Add this debug function to test backend calculations
-async function testBackendCalculations() {
-  try {
-    console.log('🧪 Testing backend calculations...');
-    
-    // Test with a specific product
-    if (state.products.length > 0) {
-      const product = state.products[0];
-      
-      // Test product cost calculation
-      const productCosts = await api('/api/product-costs-analysis?productId=' + product.id);
-      console.log('💰 Product costs analysis:', productCosts);
-      
-      // Test remittance analytics
-      const analytics = await api('/api/analytics/remittance?productId=' + product.id);
-      console.log('📈 Remittance analytics:', analytics);
-    }
-  } catch (error) {
-    console.error('Backend test error:', error);
-  }
-}
-
-// Add the other debug function too
-async function debugShipmentsAndCosts() {
-  console.log('🔍 DEBUG: Checking shipments and cost calculations...');
-  
-  try {
-    // Get all shipments
-    const shipmentsData = await api('/api/shipments');
-    console.log('📦 Total shipments:', shipmentsData.shipments?.length);
-    
-    // Check paid shipments
-    const paidShipments = shipmentsData.shipments.filter(s => 
-      s.paymentStatus === 'paid' && s.finalShipCost
-    );
-    console.log('💰 Paid shipments:', paidShipments.length);
-    
-    paidShipments.forEach(shipment => {
-      console.log(`   ${shipment.productId} | ${shipment.fromCountry}→${shipment.toCountry} | Qty:${shipment.qty} | Cost:$${shipment.finalShipCost}`);
-    });
-    
-    // Check if we have any products
-    console.log('📊 Products count:', state.products.length);
-    
-    // Test analytics for first product
-    if (state.products.length > 0) {
-      const testProduct = state.products[0];
-      console.log(`🧪 Testing analytics for product: ${testProduct.name}`);
-      
-      // Test the analytics endpoint directly
-      const analytics = await api('/api/analytics/remittance?productId=' + testProduct.id);
-      console.log('📈 Analytics data:', analytics.analytics);
-    }
-    
-  } catch (error) {
-    console.error('Debug error:', error);
-  }
 }
 
 // ======== SETTINGS PAGE ========
@@ -3547,51 +3286,23 @@ function addShipmentEventListeners(container) {
     const id = e.target.dataset?.id;
     if (!id) return;
 
-    console.log('🖱️ Clicked button:', e.target.className, 'for shipment:', id);
-
     if (e.target.classList.contains('act-arrive')) {
-      console.log('🚚 Marking shipment as arrived:', id);
       await api(`/api/shipments/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ arrivedAt: isoToday() })
       });
-      // Reload all data
-      await preload();
-      renderShipmentTables();
-      renderProductsTable();
-      renderCompactKpis();
-      alert('✅ Shipment marked as arrived! You can now mark it as paid.');
+      renderProductShipments();
     }
 
     if (e.target.classList.contains('act-pay')) {
-      console.log('💰 Marking shipment as paid:', id);
-      const shipment = state.allShipments.find(s => s.id === id);
-      
-      if (shipment) {
-        const estimatedCost = shipment.shipCost || 0;
-        const finalCost = prompt(
-          `Enter final shipping cost for ${shipment.qty} pieces:\nRoute: ${shipment.fromCountry} → ${shipment.toCountry}\nEstimated: $${fmt(estimatedCost)}`,
-          estimatedCost
-        );
-        
-        if (finalCost && !isNaN(finalCost) && finalCost > 0) {
-          try {
-            await api(`/api/shipments/${id}/mark-paid`, {
-              method: 'POST',
-              body: JSON.stringify({ finalShipCost: +finalCost })
-            });
-            
-            // Reload all data
-            await preload();
-            renderShipmentTables();
-            renderProductsTable();
-            renderCompactKpis();
-            
-            alert('✅ Shipment marked as paid! Shipping costs will now appear in analytics.');
-          } catch (error) {
-            alert('❌ Error marking as paid: ' + error.message);
-          }
-        }
+      const finalCost = prompt('Enter final shipping cost:');
+      if (finalCost && !isNaN(finalCost)) {
+        await api(`/api/shipments/${id}/mark-paid`, {
+          method: 'POST',
+          body: JSON.stringify({ finalShipCost: +finalCost })
+        });
+        renderProductShipments();
+        alert('Shipment marked as paid!');
       }
     }
 
@@ -3602,10 +3313,7 @@ function addShipmentEventListeners(container) {
     if (e.target.classList.contains('act-del-ship')) {
       if (confirm('Delete this shipment?')) {
         await api(`/api/shipments/${id}`, { method: 'DELETE' });
-        await preload();
-        renderShipmentTables();
-        renderProductsTable();
-        renderCompactKpis();
+        renderProductShipments();
       }
     }
   });
