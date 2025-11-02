@@ -24,16 +24,20 @@ async function api(path, opts = {}) {
     });
     clearTimeout(timeoutId);
     
+    console.log(`API ${path} response status:`, res.status);
+    
     const ct = res.headers.get('content-type') || '';
     const body = ct.includes('application/json') ? await res.json() : await res.text();
     
     if (!res.ok) {
+      console.error(`API error ${res.status}:`, body);
       throw new Error(body?.error || body || `HTTP ${res.status}`);
     }
     
     return body;
   } catch (error) {
     clearTimeout(timeoutId);
+    console.error('API call failed:', error);
     throw error;
   }
 }
@@ -69,7 +73,9 @@ async function boot() {
   
   // Check authentication first
   try {
+    console.log('🔐 Checking authentication...');
     await api('/api/auth/status');
+    console.log('✅ Authenticated successfully');
     
     // Hide login, show main
     const loginEl = document.getElementById('login');
@@ -95,14 +101,19 @@ async function boot() {
     }
     
     setupDailyBackupButton();
+    console.log('✅ Boot completed successfully');
     
   } catch (error) {
+    console.error('❌ Authentication failed:', error);
+    
     // Show login, hide main
     const loginEl = document.getElementById('login');
     const mainEl = document.getElementById('main');
     
     if (loginEl) loginEl.classList.remove('hide');
     if (mainEl) mainEl.style.display = 'none';
+    
+    console.log('👤 Please log in');
   }
 }
 
@@ -210,14 +221,18 @@ async function preload() {
 
     // Load all shipments for stock calculation
     try {
+      console.log('🔄 Preload: Loading shipments...');
       const shipments = await api('/api/shipments');
       state.allShipments = shipments.shipments || [];
+      console.log('✅ Preload: Loaded', state.allShipments.length, 'shipments');
     } catch (error) {
+      console.error('❌ Preload: Failed to load shipments:', error);
       state.allShipments = [];
     }
 
     fillCommonSelects();
   } catch (error) {
+    console.error('❌ Preload failed:', error);
     throw error;
   }
 }
@@ -441,6 +456,7 @@ async function calculateTransitPieces() {
       totalTransit: chinaTransit + interCountryTransit
     };
   } catch (error) {
+    console.error('Error calculating transit:', error);
     return { chinaTransit: 0, interCountryTransit: 0, totalTransit: 0 };
   }
 }
@@ -466,6 +482,7 @@ async function calculateStockByCountry(productId = null) {
       return totalStock;
     }
   } catch (error) {
+    console.error('Error calculating stock:', error);
     return {};
   }
 }
@@ -529,6 +546,7 @@ async function renderCountryStockSpend() {
     Q('#adTotal') && (Q('#adTotal').textContent = fmt(totalAd));
   } catch (error) {
     body.innerHTML = `<tr><td colspan="6" class="muted">Error loading data</td></tr>`;
+    console.error('Dashboard error:', error);
   }
 }
 
@@ -1753,8 +1771,9 @@ function bindProductOrders() {
       if (e.message.includes('Duplicate order period')) {
         const confirmAdd = confirm('You already entered orders in that period for that product. Are you sure you want to enter again?');
         if (confirmAdd) {
-          // Force add - this would need a separate endpoint
-          alert('Please use a different date range or contact support for force adding');
+          await api('/api/product-orders/force', { method: 'POST', body: JSON.stringify(payload) });
+          alert('Orders data saved successfully!');
+          Q('#poOrders').value = '';
         }
       } else {
         alert('Error saving orders: ' + e.message);
@@ -1824,9 +1843,9 @@ function renderProductCostsAnalysis(analysis) {
                 <td>$${fmt(analysis.totalInfluencerSpend)}</td>
               </tr>
               <tr>
-                <td>Product Cost China</td>
+                <td>Product Cost China (Period)</td>
                 <td>$${fmt(analysis.totalProductChinaCost)}</td>
-                <td>Shipping Costs</td>
+                <td>Shipping Costs (Period)</td>
                 <td>$${fmt(analysis.totalShippingCost)}</td>
               </tr>
               <tr>
@@ -1884,9 +1903,9 @@ function renderProductCostsAnalysis(analysis) {
                 <td>$${fmt(analysis.totalInfluencerSpend)}</td>
               </tr>
               <tr>
-                <td>Product Cost China</td>
+                <td>Product Cost China (Period)</td>
                 <td>$${fmt(analysis.totalProductChinaCost)}</td>
-                <td>Shipping Costs</td>
+                <td>Shipping Costs (Period)</td>
                 <td>$${fmt(analysis.totalShippingCost)}</td>
               </tr>
               <tr>
@@ -2248,8 +2267,14 @@ function bindRemittanceAdd() {
       if (e.message.includes('Duplicate remittance period')) {
         const confirmAdd = confirm('You already entered a remittance for this product in this country during this period. Are you sure you want to enter again?');
         if (confirmAdd) {
-          // Force add logic would go here
-          alert('Please use a different date range or contact support for force adding');
+          await api('/api/remittances/force', { method: 'POST', body: JSON.stringify(payload) });
+          alert('Remittance entry saved successfully!');
+          
+          // Clear form
+          ['#remAddStart', '#remAddEnd', '#remAddOrders', '#remAddPieces', '#remAddRevenue', '#remAddAdSpend', '#remAddBoxleo'].forEach(sel => {
+            const el = Q(sel);
+            if (el) el.value = '';
+          });
         }
       } else {
         alert('Error saving remittance: ' + e.message);
@@ -2434,7 +2459,6 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
           body: JSON.stringify({ finalShipCost: +finalCost })
         });
         renderShipmentTables();
-        alert('Shipment marked as paid!');
       }
     }
 
@@ -3302,7 +3326,6 @@ function addShipmentEventListeners(container) {
           body: JSON.stringify({ finalShipCost: +finalCost })
         });
         renderProductShipments();
-        alert('Shipment marked as paid!');
       }
     }
 
