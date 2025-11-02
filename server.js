@@ -237,6 +237,8 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
   const refunds = db.refunds || [];
   const shipments = db.shipments || [];
   const productOrders = db.productOrders || [];
+  const adspend = db.adspend || [];
+  const influencerSpends = db.influencerSpends || [];
 
   let totalRevenue = 0;
   let totalBoxleoFees = 0;
@@ -245,8 +247,10 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
   let totalRefundedOrders = 0;
   let totalRefundedAmount = 0;
   let totalOrders = 0;
+  let totalAdSpend = 0;
+  let totalInfluencerSpend = 0;
 
-  // Calculate from remittances only (NO daily adspend)
+  // Calculate from remittances
   remittances.forEach(remittance => {
     if ((!productId || remittance.productId === productId) &&
         (!country || remittance.country === country) &&
@@ -256,6 +260,7 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
       totalBoxleoFees += +remittance.boxleoFees || 0;
       totalDeliveredPieces += +remittance.pieces || 0;
       totalDeliveredOrders += +remittance.orders || 0;
+      totalAdSpend += +remittance.adSpend || 0;
     }
   });
 
@@ -280,6 +285,26 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
     }
   });
 
+  // Calculate ad spend from adspend table (not just from remittances)
+  adspend.forEach(ad => {
+    if ((!productId || ad.productId === productId) &&
+        (!country || ad.country === country) &&
+        (!startDate || ad.date >= startDate) &&
+        (!endDate || ad.date <= endDate)) {
+      totalAdSpend += +ad.amount || 0;
+    }
+  });
+
+  // Calculate influencer spend
+  influencerSpends.forEach(spend => {
+    if ((!productId || spend.productId === productId) &&
+        (!country || spend.country === country) &&
+        (!startDate || spend.date >= startDate) &&
+        (!endDate || spend.date <= endDate)) {
+      totalInfluencerSpend += +spend.amount || 0;
+    }
+  });
+
   // Calculate product and shipping costs from TOTAL shipments (not per delivered piece)
   let totalProductChinaCost = 0;
   let totalShippingCost = 0;
@@ -294,17 +319,31 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
   });
 
   const adjustedRevenue = totalRevenue - totalRefundedAmount;
-  const totalCost = totalProductChinaCost + totalShippingCost + totalBoxleoFees;
+  const totalCost = totalProductChinaCost + totalShippingCost + totalBoxleoFees + totalAdSpend + totalInfluencerSpend;
   const profit = adjustedRevenue - totalCost;
 
   const netDeliveredOrders = totalDeliveredOrders - totalRefundedOrders;
   const deliveryRate = totalOrders > 0 ? (netDeliveredOrders / totalOrders) * 100 : 0;
+
+  // Enhanced metrics for Logic 2 compatibility
+  const costPerDeliveredOrder = netDeliveredOrders > 0 ? totalCost / netDeliveredOrders : 0;
+  const costPerDeliveredPiece = totalDeliveredPieces > 0 ? totalCost / totalDeliveredPieces : 0;
+  const adCostPerDeliveredOrder = netDeliveredOrders > 0 ? totalAdSpend / netDeliveredOrders : 0;
+  const adCostPerDeliveredPiece = totalDeliveredPieces > 0 ? totalAdSpend / totalDeliveredPieces : 0;
+  const boxleoPerDeliveredOrder = netDeliveredOrders > 0 ? totalBoxleoFees / netDeliveredOrders : 0;
+  const boxleoPerDeliveredPiece = totalDeliveredPieces > 0 ? totalBoxleoFees / totalDeliveredPieces : 0;
+  const influencerPerDeliveredOrder = netDeliveredOrders > 0 ? totalInfluencerSpend / netDeliveredOrders : 0;
+  const averageOrderValue = netDeliveredOrders > 0 ? adjustedRevenue / netDeliveredOrders : 0;
+  const profitPerOrder = netDeliveredOrders > 0 ? profit / netDeliveredOrders : 0;
+  const profitPerPiece = totalDeliveredPieces > 0 ? profit / totalDeliveredPieces : 0;
 
   return {
     totalRevenue: adjustedRevenue,
     totalBoxleoFees,
     totalProductChinaCost,
     totalShippingCost,
+    totalAdSpend,
+    totalInfluencerSpend,
     totalRefundedAmount,
     totalRefundedOrders,
     totalCost,
@@ -313,6 +352,16 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
     totalDeliveredOrders: netDeliveredOrders,
     totalOrders,
     deliveryRate,
+    costPerDeliveredOrder,
+    costPerDeliveredPiece,
+    adCostPerDeliveredOrder,
+    adCostPerDeliveredPiece,
+    boxleoPerDeliveredOrder,
+    boxleoPerDeliveredPiece,
+    influencerPerDeliveredOrder,
+    averageOrderValue,
+    profitPerOrder,
+    profitPerPiece,
     isProfitable: profit > 0,
     hasData: totalDeliveredPieces > 0 || adjustedRevenue > 0
   };
@@ -323,6 +372,8 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
   const remittances = db.remittances || [];
   const refunds = db.refunds || [];
   const influencerSpends = db.influencerSpends || [];
+  const adspend = db.adspend || [];
+  const productOrders = db.productOrders || [];
 
   let totalRevenue = 0;
   let totalAdSpend = 0;
@@ -332,8 +383,9 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
   let totalRefundedOrders = 0;
   let totalRefundedAmount = 0;
   let totalInfluencerSpend = 0;
+  let totalOrders = 0;
 
-  // Calculate from remittances only (NO daily adspend)
+  // Calculate from remittances
   remittances.forEach(remittance => {
     if ((!productId || remittance.productId === productId) &&
         (!country || remittance.country === country) &&
@@ -368,6 +420,26 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
     }
   });
 
+  // Calculate ad spend from adspend table (not just from remittances)
+  adspend.forEach(ad => {
+    if ((!productId || ad.productId === productId) &&
+        (!country || ad.country === country) &&
+        (!startDate || ad.date >= startDate) &&
+        (!endDate || ad.date <= endDate)) {
+      totalAdSpend += +ad.amount || 0;
+    }
+  });
+
+  // Calculate total orders from product orders
+  productOrders.forEach(order => {
+    if ((!productId || order.productId === productId) &&
+        (!country || order.country === country) &&
+        (!startDate || order.startDate >= startDate) &&
+        (!endDate || order.endDate <= endDate)) {
+      totalOrders += (+order.orders || 0);
+    }
+  });
+
   // Calculate product cost per piece from total purchases
   const productCostPerPiece = calculateProductCostPerPiece(db, productId);
   
@@ -385,18 +457,6 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
   const profit = adjustedRevenue - totalCost;
 
   // Calculate delivery rate
-  const productOrders = db.productOrders || [];
-  let totalOrders = 0;
-
-  productOrders.forEach(order => {
-    if ((!productId || order.productId === productId) &&
-        (!country || order.country === country) &&
-        (!startDate || order.startDate >= startDate) &&
-        (!endDate || order.endDate <= endDate)) {
-      totalOrders += (+order.orders || 0);
-    }
-  });
-
   const netDeliveredOrders = totalDeliveredOrders - totalRefundedOrders;
   const deliveryRate = totalOrders > 0 ? (netDeliveredOrders / totalOrders) * 100 : 0;
 
