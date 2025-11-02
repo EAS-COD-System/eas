@@ -76,97 +76,27 @@ function saveDB(db) {
 function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
   
-  console.log(`🔍 Calculating shipping cost for product:${productId}, country:${targetCountry}`);
-  
   // Get all shipments for this product that arrived and are paid
   const relevantShipments = shipments.filter(s => 
     s.productId === productId && 
     s.arrivedAt &&
     s.paymentStatus === 'paid' &&
-    s.finalShipCost &&
-    s.finalShipCost > 0
+    s.finalShipCost
   );
   
-  console.log(`📦 Found ${relevantShipments.length} paid shipments for product ${productId}`);
+  if (relevantShipments.length === 0) return 0;
   
-  if (relevantShipments.length === 0) {
-    console.log(`❌ No paid shipments found for product ${productId}`);
-    return 0;
-  }
-
-  // Filter shipments that ended up in the target country
-  const shipmentsToTargetCountry = [];
-  const pieceTracking = {};
-
-  // Process shipments chronologically
-  const sortedShipments = [...relevantShipments].sort((a, b) => 
-    new Date(a.departedAt) - new Date(b.departedAt)
-  );
-
-  console.log(`🔄 Processing ${sortedShipments.length} shipments chronologically`);
-
-  sortedShipments.forEach((shipment, index) => {
-    const fromCountry = shipment.fromCountry;
-    const toCountry = shipment.toCountry;
-    const quantity = +shipment.qty || 0;
-    const shippingCostPerPiece = (+shipment.finalShipCost || 0) / quantity;
-
-    console.log(`   Shipment ${index + 1}: ${fromCountry}→${toCountry}, Qty:${quantity}, Cost:$${shipment.finalShipCost}, PerPiece:$${shippingCostPerPiece}`);
-
-    if (fromCountry === 'china') {
-      // New pieces from China
-      if (!pieceTracking[toCountry]) pieceTracking[toCountry] = [];
-      for (let i = 0; i < quantity; i++) {
-        pieceTracking[toCountry].push({
-          cost: shippingCostPerPiece,
-          route: [`${fromCountry}→${toCountry}`]
-        });
-      }
-      console.log(`     Added ${quantity} pieces to ${toCountry} from China`);
-    } else {
-      // Moving existing pieces between countries
-      if (pieceTracking[fromCountry] && pieceTracking[fromCountry].length >= quantity) {
-        const movedPieces = pieceTracking[fromCountry].splice(0, quantity);
-        if (!pieceTracking[toCountry]) pieceTracking[toCountry] = [];
-        
-        movedPieces.forEach(piece => {
-          pieceTracking[toCountry].push({
-            cost: piece.cost + shippingCostPerPiece,
-            route: [...piece.route, `${fromCountry}→${toCountry}`]
-          });
-        });
-        console.log(`     Moved ${quantity} pieces from ${fromCountry} to ${toCountry}`);
-      } else {
-        console.log(`     ❌ Not enough pieces in ${fromCountry} to move to ${toCountry}`);
-      }
+  let totalShippingCost = 0;
+  let totalPieces = 0;
+  
+  relevantShipments.forEach(shipment => {
+    if (shipment.toCountry === targetCountry) {
+      totalShippingCost += +(shipment.finalShipCost || 0);
+      totalPieces += +(shipment.qty || 0);
     }
   });
-
-  // Calculate average cost for target country
-  if (pieceTracking[targetCountry] && pieceTracking[targetCountry].length > 0) {
-    const totalCost = pieceTracking[targetCountry].reduce((sum, piece) => sum + piece.cost, 0);
-    const avgCost = totalCost / pieceTracking[targetCountry].length;
-    console.log(`💰 Calculated average shipping cost for ${targetCountry}: $${avgCost} (based on ${pieceTracking[targetCountry].length} pieces)`);
-    return avgCost;
-  }
-
-  // Fallback: calculate average from all shipments to this country
-  const countryShipments = relevantShipments.filter(s => s.toCountry === targetCountry);
-  if (countryShipments.length > 0) {
-    const totalQty = countryShipments.reduce((sum, s) => sum + (+s.qty || 0), 0);
-    const totalCost = countryShipments.reduce((sum, s) => sum + (+s.finalShipCost || 0), 0);
-    const avgCost = totalQty > 0 ? totalCost / totalQty : 0;
-    console.log(`💰 Fallback calculation for ${targetCountry}: $${avgCost} (${countryShipments.length} shipments)`);
-    return avgCost;
-  }
-
-  // Final fallback: average of all paid shipments
-  const totalQty = relevantShipments.reduce((sum, s) => sum + (+s.qty || 0), 0);
-  const totalCost = relevantShipments.reduce((sum, s) => sum + (+s.finalShipCost || 0), 0);
-  const avgCost = totalQty > 0 ? totalCost / totalQty : 0;
-  console.log(`💰 Global average shipping cost: $${avgCost}`);
   
-  return avgCost;
+  return totalPieces > 0 ? totalShippingCost / totalPieces : 0;
 }
 
 function calculateProductCostPerPiece(db, productId) {
@@ -185,10 +115,7 @@ function calculateProductCostPerPiece(db, productId) {
     totalPieces += +(shipment.qty || 0);
   });
   
-  const costPerPiece = totalPieces > 0 ? totalChinaCost / totalPieces : 0;
-  console.log(`🏭 Product ${productId} China cost: $${costPerPiece} per piece (${totalPieces} pieces, $${totalChinaCost} total)`);
-  
-  return costPerPiece;
+  return totalPieces > 0 ? totalChinaCost / totalPieces : 0;
 }
 
 function calculateProductStock(db, productId = null, country = null) {
@@ -267,133 +194,7 @@ function calculateTransitPieces(db, productId = null) {
   };
 }
 
-// ======== DIFFERENT PROFIT CALCULATION LOGICS ========
-
-// Logic 1: For "Lifetime Product Costs Analysis" and "Lifetime (This Product)"
-function calculateProfitMetricsLogic1(db, productId, country = null, startDate = null, endDate = null) {
-  const remittances = db.remittances || [];
-  const refunds = db.refunds || [];
-  const shipments = db.shipments || [];
-  const productOrders = db.productOrders || [];
-  const adspend = db.adspend || [];
-  const influencerSpends = db.influencerSpends || [];
-
-  let totalRevenue = 0;
-  let totalBoxleoFees = 0;
-  let totalDeliveredPieces = 0;
-  let totalDeliveredOrders = 0;
-  let totalRefundedOrders = 0;
-  let totalRefundedAmount = 0;
-  let totalOrders = 0;
-  let totalAdSpend = 0;
-  let totalInfluencerSpend = 0;
-
-  // Calculate from remittances (only use remittance ad spend)
-  remittances.forEach(remittance => {
-    if ((!productId || remittance.productId === productId) &&
-        (!country || remittance.country === country) &&
-        (!startDate || remittance.start >= startDate) &&
-        (!endDate || remittance.end <= endDate)) {
-      totalRevenue += +remittance.revenue || 0;
-      totalBoxleoFees += +remittance.boxleoFees || 0;
-      totalDeliveredPieces += +remittance.pieces || 0;
-      totalDeliveredOrders += +remittance.orders || 0;
-      totalAdSpend += +remittance.adSpend || 0; // Only use remittance ad spend
-    }
-  });
-
-  // Calculate refunds
-  refunds.forEach(refund => {
-    if ((!productId || refund.productId === productId) &&
-        (!country || refund.country === country) &&
-        (!startDate || refund.date >= startDate) &&
-        (!endDate || refund.date <= endDate)) {
-      totalRefundedOrders += +refund.orders || 0;
-      totalRefundedAmount += +refund.amount || 0;
-    }
-  });
-
-  // Calculate total orders from product orders
-  productOrders.forEach(order => {
-    if ((!productId || order.productId === productId) &&
-        (!country || order.country === country) &&
-        (!startDate || order.startDate >= startDate) &&
-        (!endDate || order.endDate <= endDate)) {
-      totalOrders += (+order.orders || 0);
-    }
-  });
-
-  // Calculate influencer spend
-  influencerSpends.forEach(spend => {
-    if ((!productId || spend.productId === productId) &&
-        (!country || spend.country === country) &&
-        (!startDate || spend.date >= startDate) &&
-        (!endDate || spend.date <= endDate)) {
-      totalInfluencerSpend += +spend.amount || 0;
-    }
-  });
-
-  // Calculate product and shipping costs from TOTAL shipments (not per delivered piece)
-  let totalProductChinaCost = 0;
-  let totalShippingCost = 0;
-
-  shipments.forEach(shipment => {
-    if ((!productId || shipment.productId === productId) &&
-        (!startDate || shipment.departedAt >= startDate) &&
-        (!endDate || shipment.departedAt <= endDate)) {
-      totalProductChinaCost += +(shipment.chinaCost || 0);
-      totalShippingCost += +(shipment.finalShipCost || shipment.shipCost || 0);
-    }
-  });
-
-  const adjustedRevenue = totalRevenue - totalRefundedAmount;
-  const totalCost = totalProductChinaCost + totalShippingCost + totalBoxleoFees + totalAdSpend + totalInfluencerSpend;
-  const profit = adjustedRevenue - totalCost;
-
-  const netDeliveredOrders = totalDeliveredOrders - totalRefundedOrders;
-  const deliveryRate = totalOrders > 0 ? (netDeliveredOrders / totalOrders) * 100 : 0;
-
-  // Enhanced metrics for Logic 2 compatibility
-  const costPerDeliveredOrder = netDeliveredOrders > 0 ? totalCost / netDeliveredOrders : 0;
-  const costPerDeliveredPiece = totalDeliveredPieces > 0 ? totalCost / totalDeliveredPieces : 0;
-  const adCostPerDeliveredOrder = netDeliveredOrders > 0 ? totalAdSpend / netDeliveredOrders : 0;
-  const adCostPerDeliveredPiece = totalDeliveredPieces > 0 ? totalAdSpend / totalDeliveredPieces : 0;
-  const boxleoPerDeliveredOrder = netDeliveredOrders > 0 ? totalBoxleoFees / netDeliveredOrders : 0;
-  const boxleoPerDeliveredPiece = totalDeliveredPieces > 0 ? totalBoxleoFees / totalDeliveredPieces : 0;
-  const influencerPerDeliveredOrder = netDeliveredOrders > 0 ? totalInfluencerSpend / netDeliveredOrders : 0;
-  const averageOrderValue = netDeliveredOrders > 0 ? adjustedRevenue / netDeliveredOrders : 0;
-  const profitPerOrder = netDeliveredOrders > 0 ? profit / netDeliveredOrders : 0;
-  const profitPerPiece = totalDeliveredPieces > 0 ? profit / totalDeliveredPieces : 0;
-
-  return {
-    totalRevenue: adjustedRevenue,
-    totalBoxleoFees,
-    totalProductChinaCost,
-    totalShippingCost,
-    totalAdSpend,
-    totalInfluencerSpend,
-    totalRefundedAmount,
-    totalRefundedOrders,
-    totalCost,
-    profit,
-    totalDeliveredPieces,
-    totalDeliveredOrders: netDeliveredOrders,
-    totalOrders,
-    deliveryRate,
-    costPerDeliveredOrder,
-    costPerDeliveredPiece,
-    adCostPerDeliveredOrder,
-    adCostPerDeliveredPiece,
-    boxleoPerDeliveredOrder,
-    boxleoPerDeliveredPiece,
-    influencerPerDeliveredOrder,
-    averageOrderValue,
-    profitPerOrder,
-    profitPerPiece,
-    isProfitable: profit > 0,
-    hasData: totalDeliveredPieces > 0 || adjustedRevenue > 0
-  };
-}
+// ======== PROFIT CALCULATION LOGICS ========
 
 // Logic 2: For "Remittance Analytics", "Profit by Country", and "Product Info & Analytics"
 function calculateProfitMetricsLogic2(db, productId, country = null, startDate = null, endDate = null) {
@@ -401,6 +202,7 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
   const refunds = db.refunds || [];
   const influencerSpends = db.influencerSpends || [];
   const productOrders = db.productOrders || [];
+  const shipments = db.shipments || [];
 
   let totalRevenue = 0;
   let totalAdSpend = 0;
@@ -412,14 +214,14 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
   let totalInfluencerSpend = 0;
   let totalOrders = 0;
 
-  // Calculate from remittances (only use remittance ad spend)
+  // Calculate from remittances
   remittances.forEach(remittance => {
     if ((!productId || remittance.productId === productId) &&
         (!country || remittance.country === country) &&
         (!startDate || remittance.start >= startDate) &&
         (!endDate || remittance.end <= endDate)) {
       totalRevenue += +remittance.revenue || 0;
-      totalAdSpend += +remittance.adSpend || 0; // Only use remittance ad spend
+      totalAdSpend += +remittance.adSpend || 0;
       totalBoxleoFees += +remittance.boxleoFees || 0;
       totalDeliveredPieces += +remittance.pieces || 0;
       totalDeliveredOrders += +remittance.orders || 0;
@@ -457,14 +259,13 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
     }
   });
 
-  // Calculate product cost per piece from total purchases
+  // Calculate product cost per piece from shipments
   const productCostPerPiece = calculateProductCostPerPiece(db, productId);
   
   // Calculate shipping cost using actual piece tracking
   let shippingCostPerPiece = 0;
-  if (country && country !== 'All Countries') {
+  if (country) {
     shippingCostPerPiece = calculateActualShippingCostPerPiece(db, productId, country);
-    console.log(`🚚 Final shipping cost per piece for ${country}: $${shippingCostPerPiece}`);
   }
 
   const totalProductChinaCost = totalDeliveredPieces * productCostPerPiece;
@@ -491,10 +292,6 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
   const profitPerPiece = totalDeliveredPieces > 0 ? profit / totalDeliveredPieces : 0;
 
   const hasData = totalDeliveredPieces > 0 || adjustedRevenue > 0 || totalAdSpend > 0;
-  
-  console.log(`📊 Profit Metrics for ${productId} in ${country}:`);
-  console.log(`   Revenue: $${adjustedRevenue}, Product Cost: $${totalProductChinaCost}, Shipping Cost: $${totalShippingCost}`);
-  console.log(`   Profit: $${profit}, Pieces: ${totalDeliveredPieces}`);
   
   return {
     totalRevenue: adjustedRevenue,
@@ -533,8 +330,6 @@ app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
   
-  console.log('Auth attempt with password:', password);
-  
   if (password === 'logout') {
     res.clearCookie('auth', { httpOnly: true, sameSite: 'Lax', secure: false, path: '/' });
     return res.json({ ok: true });
@@ -548,11 +343,9 @@ app.post('/api/auth', (req, res) => {
       path: '/', 
       maxAge: 365 * 24 * 60 * 60 * 1000
     });
-    console.log('Login successful');
     return res.json({ ok: true });
   }
   
-  console.log('Login failed');
   return res.status(401).json({ error: 'Wrong password' });
 });
 
@@ -634,15 +427,7 @@ app.post('/api/products/:id/status', requireAuth, (req, res) => {
   if (!p) return res.status(404).json({ error: 'Not found' });
   
   const newStatus = req.body.status || 'active';
-  const currentStatus = p.status;
-  
-  if (currentStatus === 'active' && newStatus === 'paused') {
-    // Product is being paused - we'll handle stock adjustment in the frontend
-    p.status = 'paused';
-  } else if (currentStatus === 'paused' && newStatus === 'active') {
-    // Product is being activated
-    p.status = 'active';
-  }
+  p.status = newStatus;
   
   saveDB(db); 
   res.json({ ok: true, product: p });
@@ -896,7 +681,6 @@ app.put('/api/shipments/:id', requireAuth, (req, res) => {
   if (up.note !== undefined) s.note = up.note;
   if (up.departedAt !== undefined) s.departedAt = up.departedAt;
   if (up.arrivedAt !== undefined) s.arrivedAt = up.arrivedAt;
-  if (up.paymentStatus !== undefined) s.paymentStatus = up.paymentStatus;
   saveDB(db); 
   res.json({ ok: true, shipment: s });
 });
@@ -1557,18 +1341,17 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
   });
 });
 
-// Product Costs Analysis (Logic 1)
+// Product Costs Analysis
 app.get('/api/product-costs-analysis', requireAuth, (req, res) => {
   const db = loadDB();
   const { productId, start, end } = req.query || {};
   
-  let metrics;
+  let metrics = calculateProfitMetricsLogic2(db, productId, null, start, end);
+  
   if (productId === 'all') {
-    metrics = calculateProfitMetricsLogic1(db, null, null, start, end);
     metrics.isAggregate = true;
     metrics.productCount = db.products.length;
   } else {
-    metrics = calculateProfitMetricsLogic1(db, productId, null, start, end);
     metrics.isAggregate = false;
     metrics.productCount = 1;
   }
@@ -1649,29 +1432,6 @@ app.post('/api/backup/push-snapshot', requireAuth, async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-});
-
-// Debug endpoint
-app.get('/api/debug/shipments', requireAuth, (req, res) => {
-  const db = loadDB();
-  const shipments = db.shipments || [];
-  
-  const debugData = shipments.map(s => ({
-    id: s.id,
-    productId: s.productId,
-    route: `${s.fromCountry} → ${s.toCountry}`,
-    qty: s.qty,
-    shipCost: s.shipCost,
-    finalShipCost: s.finalShipCost,
-    chinaCost: s.chinaCost,
-    departedAt: s.departedAt,
-    arrivedAt: s.arrivedAt,
-    paymentStatus: s.paymentStatus,
-    paidAt: s.paidAt
-  }));
-  
-  console.log('📦 DEBUG - All shipments:', debugData);
-  res.json({ shipments: debugData, total: debugData.length });
 });
 
 // ======== STARTUP BACKUP ========
