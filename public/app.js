@@ -41,7 +41,29 @@ async function api(path, opts = {}) {
     throw error;
   }
 }
-
+// Add this function to app.js
+async function debugShippingCosts(productId, country) {
+  try {
+    console.log(`🔍 Debugging shipping costs for ${productId} in ${country}`);
+    
+    // Get all shipments for this product
+    const shipments = await api('/api/shipments');
+    const productShipments = shipments.shipments.filter(s => 
+      s.productId === productId && 
+      s.arrivedAt &&
+      s.paymentStatus === 'paid'
+    );
+    
+    console.log(`📦 Found ${productShipments.length} paid shipments`);
+    productShipments.forEach(s => {
+      console.log(`   ${s.fromCountry}→${s.toCountry}: ${s.qty} pieces, $${s.finalShipCost || s.shipCost}`);
+    });
+    
+    return productShipments;
+  } catch (error) {
+    console.error('Debug error:', error);
+  }
+}
 // Application state
 const state = {
   productId: getQuery('id'),
@@ -219,7 +241,7 @@ async function preload() {
     const cats = await api('/api/finance/categories');
     state.categories = cats || { debit: [], credit: [] };
 
-    // Load all shipments for stock calculation
+    // Load all shipments for stock calculation and payment handling
     try {
       console.log('🔄 Preload: Loading shipments...');
       const shipments = await api('/api/shipments');
@@ -236,7 +258,6 @@ async function preload() {
     throw error;
   }
 }
-
 // Fill common dropdown selects
 function fillCommonSelects() {
   const countrySelects = ['#adCountry', '#rCountry', '#pdAdCountry', '#pdRCountry',
@@ -1738,6 +1759,7 @@ function renderPerformancePage() {
   bindProfitByCountry();
   bindRemittanceAdd();
   bindRefundAdd();
+  bindDebugFunctions(); 
   
   setTimeout(() => {
     if (Q('#pcaRun')) Q('#pcaRun').click();
@@ -2427,14 +2449,22 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
         <td>${shipment.note || '-'}</td>
         <td>
-          ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
-          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
+          ${!shipment.arrivedAt ? `
+            <button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>
+          ` : ''}
+          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `
+            <button class="btn small outline act-pay" data-id="${shipment.id}">💰 Mark Paid</button>
+          ` : ''}
           <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
       </tr>
     `;
   }).join('');
+
+  // Add event listeners
+  addShipmentEventListeners(tbody);
+}
 
   // Add event listeners for shipment actions
   tbody.onclick = async (e) => {
@@ -3315,19 +3345,44 @@ function addShipmentEventListeners(container) {
         method: 'PUT',
         body: JSON.stringify({ arrivedAt: isoToday() })
       });
-      renderProductShipments();
+      renderShipmentTables();
+      renderProductsTable();
+      renderCompactKpis();
     }
 
+    // ======== ENHANCED PAYMENT HANDLER ========
     if (e.target.classList.contains('act-pay')) {
-      const finalCost = prompt('Enter final shipping cost:');
-      if (finalCost && !isNaN(finalCost)) {
-        await api(`/api/shipments/${id}/mark-paid`, {
-          method: 'POST',
-          body: JSON.stringify({ finalShipCost: +finalCost })
-        });
-        renderProductShipments();
+      const shipmentId = e.target.dataset.id;
+      const shipment = state.allShipments.find(s => s.id === shipmentId);
+      
+      if (shipment) {
+        const estimatedCost = shipment.shipCost || 0;
+        const finalCost = prompt(`Enter final shipping cost for ${shipment.qty} pieces:\n(Estimated: $${fmt(estimatedCost)})`, estimatedCost);
+        
+        if (finalCost && !isNaN(finalCost) && finalCost > 0) {
+          try {
+            await api(`/api/shipments/${shipmentId}/mark-paid`, {
+              method: 'POST',
+              body: JSON.stringify({ finalShipCost: +finalCost })
+            });
+            
+            // Refresh the shipments data
+            const shipmentsData = await api('/api/shipments');
+            state.allShipments = shipmentsData.shipments || [];
+            
+            // Refresh all tables
+            renderShipmentTables();
+            renderProductsTable();
+            renderCompactKpis();
+            
+            alert('✅ Shipment marked as paid! Shipping costs will now be included in analytics.');
+          } catch (error) {
+            alert('Error marking as paid: ' + error.message);
+          }
+        }
       }
     }
+    // ======== END ENHANCED PAYMENT HANDLER ========
 
     if (e.target.classList.contains('act-edit-ship')) {
       editShipment(id);
@@ -3336,12 +3391,13 @@ function addShipmentEventListeners(container) {
     if (e.target.classList.contains('act-del-ship')) {
       if (confirm('Delete this shipment?')) {
         await api(`/api/shipments/${id}`, { method: 'DELETE' });
-        renderProductShipments();
+        renderShipmentTables();
+        renderProductsTable();
+        renderCompactKpis();
       }
     }
   });
 }
-
 async function editShipment(shipmentId) {
   try {
     const shipments = await api('/api/shipments');
