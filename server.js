@@ -72,7 +72,7 @@ function saveDB(db) {
   fs.writeJsonSync(DATA_FILE, db, { spaces: 2 }); 
 }
 
-// ======== SHIPPING COST CALCULATION ========
+// ======== ADVANCED SHIPPING COST CALCULATION ========
 function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
   
@@ -81,21 +81,57 @@ function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
     s.productId === productId && 
     s.arrivedAt &&
     s.paymentStatus === 'paid' &&
-    s.finalShipCost &&
-    s.toCountry === targetCountry
+    s.finalShipCost
   );
   
   if (relevantShipments.length === 0) return 0;
   
-  let totalCost = 0;
-  let totalPieces = 0;
+  // Build shipment chains to track piece movement
+  const pieceTracking = {};
   
-  relevantShipments.forEach(shipment => {
-    totalCost += (+shipment.finalShipCost || 0);
-    totalPieces += (+shipment.qty || 0);
+  // Process shipments chronologically
+  const sortedShipments = [...relevantShipments].sort((a, b) => 
+    new Date(a.departedAt) - new Date(b.departedAt)
+  );
+  
+  sortedShipments.forEach(shipment => {
+    const fromCountry = shipment.fromCountry;
+    const toCountry = shipment.toCountry;
+    const quantity = +shipment.qty || 0;
+    const shippingCostPerPiece = (+shipment.finalShipCost || +shipment.shipCost || 0) / quantity;
+    
+    if (fromCountry === 'china') {
+      // New pieces from China
+      if (!pieceTracking[toCountry]) pieceTracking[toCountry] = [];
+      for (let i = 0; i < quantity; i++) {
+        pieceTracking[toCountry].push({
+          cost: shippingCostPerPiece,
+          route: [`${fromCountry}→${toCountry}`]
+        });
+      }
+    } else {
+      // Moving existing pieces between countries
+      if (pieceTracking[fromCountry] && pieceTracking[fromCountry].length >= quantity) {
+        const movedPieces = pieceTracking[fromCountry].splice(0, quantity);
+        if (!pieceTracking[toCountry]) pieceTracking[toCountry] = [];
+        
+        movedPieces.forEach(piece => {
+          pieceTracking[toCountry].push({
+            cost: piece.cost + shippingCostPerPiece,
+            route: [...piece.route, `${fromCountry}→${toCountry}`]
+          });
+        });
+      }
+    }
   });
   
-  return totalPieces > 0 ? totalCost / totalPieces : 0;
+  // Calculate average cost for target country
+  if (pieceTracking[targetCountry] && pieceTracking[targetCountry].length > 0) {
+    const totalCost = pieceTracking[targetCountry].reduce((sum, piece) => sum + piece.cost, 0);
+    return totalCost / pieceTracking[targetCountry].length;
+  }
+  
+  return 0;
 }
 
 function calculateProductCostPerPiece(db, productId) {
@@ -103,16 +139,15 @@ function calculateProductCostPerPiece(db, productId) {
   const chinaShipments = shipments.filter(s => 
     s.productId === productId && 
     s.fromCountry === 'china' && 
-    s.arrivedAt &&
-    s.chinaCost
+    s.arrivedAt
   );
   
   let totalChinaCost = 0;
   let totalPieces = 0;
   
   chinaShipments.forEach(shipment => {
-    totalChinaCost += (+shipment.chinaCost || 0);
-    totalPieces += (+shipment.qty || 0);
+    totalChinaCost += +(shipment.chinaCost || 0);
+    totalPieces += +(shipment.qty || 0);
   });
   
   return totalPieces > 0 ? totalChinaCost / totalPieces : 0;
@@ -260,15 +295,14 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
     }
   });
 
-  // Calculate product and shipping costs from shipments
+  // Calculate product and shipping costs from TOTAL shipments
   let totalProductChinaCost = 0;
   let totalShippingCost = 0;
 
   shipments.forEach(shipment => {
     if ((!productId || shipment.productId === productId) &&
         (!startDate || shipment.departedAt >= startDate) &&
-        (!endDate || shipment.departedAt <= endDate) &&
-        shipment.arrivedAt) {
+        (!endDate || shipment.departedAt <= endDate)) {
       totalProductChinaCost += +(shipment.chinaCost || 0);
       totalShippingCost += +(shipment.finalShipCost || shipment.shipCost || 0);
     }
