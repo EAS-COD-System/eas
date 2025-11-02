@@ -2473,6 +2473,7 @@ async function renderShipmentTables() {
   }
 }
 
+// Enhanced shipment table rendering
 function renderShipmentTable(selector, shipments, showChinaCost) {
   const tbody = Q(selector);
   if (!tbody) return;
@@ -2487,11 +2488,9 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
     const productName = product ? product.name : shipment.productId;
     const route = `${shipment.fromCountry} → ${shipment.toCountry}`;
     
-    // Determine which buttons to show
+    // ALWAYS show pay button for arrived shipments that aren't paid
+    const showPayButton = shipment.arrivedAt && shipment.paymentStatus !== 'paid';
     const showArriveButton = !shipment.arrivedAt;
-    const showPayButton = shipment.arrivedAt && shipment.paymentStatus === 'pending';
-    
-    console.log(`📋 Rendering shipment ${shipment.id}: arrived=${shipment.arrivedAt}, paid=${shipment.paymentStatus}, showPay=${showPayButton}`);
     
     return `
       <tr>
@@ -2511,10 +2510,10 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
             <button class="btn small outline act-arrive" data-id="${shipment.id}">🚚 Arrived</button>
           ` : ''}
           ${showPayButton ? `
-            <button class="btn small outline act-pay" data-id="${shipment.id}" style="background: #10b981; color: white;">💰 Mark Paid</button>
+            <button class="btn small outline act-pay" data-id="${shipment.id}" style="background: #10b981; color: white; margin-left: 5px;">💰 Mark Paid</button>
           ` : ''}
-          <button class="btn small outline act-edit-ship" data-id="${shipment.id}">✏️ Edit</button>
-          <button class="btn small outline act-del-ship" data-id="${shipment.id}">🗑️ Delete</button>
+          <button class="btn small outline act-edit-ship" data-id="${shipment.id}" style="margin-left: 5px;">✏️ Edit</button>
+          <button class="btn small outline act-del-ship" data-id="${shipment.id}" style="margin-left: 5px;">🗑️ Delete</button>
         </td>
       </tr>
     `;
@@ -2523,6 +2522,96 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
   // Add event listeners
   addShipmentEventListeners(tbody);
 }
+
+// Enhanced payment handler
+function addShipmentEventListeners(container) {
+  container.addEventListener('click', async (e) => {
+    const id = e.target.dataset?.id;
+    if (!id) return;
+
+    if (e.target.classList.contains('act-arrive')) {
+      await api(`/api/shipments/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ arrivedAt: isoToday() })
+      });
+      await preload();
+      renderShipmentTables();
+      alert('✅ Shipment marked as arrived! You can now mark it as paid.');
+    }
+
+    if (e.target.classList.contains('act-pay')) {
+      const shipment = state.allShipments.find(s => s.id === id);
+      
+      if (shipment) {
+        const estimatedCost = shipment.shipCost || 0;
+        const finalCost = prompt(
+          `Enter final shipping cost for ${shipment.qty} pieces:\nRoute: ${shipment.fromCountry} → ${shipment.toCountry}\nEstimated: $${fmt(estimatedCost)}`,
+          estimatedCost
+        );
+        
+        if (finalCost && !isNaN(finalCost) && finalCost > 0) {
+          try {
+            await api(`/api/shipments/${id}/mark-paid`, {
+              method: 'POST',
+              body: JSON.stringify({ finalShipCost: +finalCost })
+            });
+            
+            await preload();
+            renderShipmentTables();
+            
+            alert('✅ Shipment marked as paid! Shipping costs will now appear in analytics.');
+            
+            // Refresh analytics to show the new costs
+            setTimeout(() => {
+              if (Q('#remAnalyticsRun')) Q('#remAnalyticsRun').click();
+              if (Q('#pcRun')) Q('#pcRun').click();
+            }, 1000);
+            
+          } catch (error) {
+            alert('❌ Error marking as paid: ' + error.message);
+          }
+        }
+      }
+    }
+
+    if (e.target.classList.contains('act-edit-ship')) {
+      editShipment(id);
+    }
+
+    if (e.target.classList.contains('act-del-ship')) {
+      if (confirm('Delete this shipment?')) {
+        await api(`/api/shipments/${id}`, { method: 'DELETE' });
+        await preload();
+        renderShipmentTables();
+      }
+    }
+  });
+}
+
+// Enhanced debug function
+async function debugShipmentsAndCosts() {
+  console.log('🔍 DEBUG: Checking shipments and costs...');
+  
+  try {
+    const debugData = await api('/api/debug/shipments');
+    console.log('📦 All shipments:', debugData.shipments);
+    
+    const paidShipments = debugData.shipments.filter(s => s.paymentStatus === 'paid');
+    console.log('💰 Paid shipments:', paidShipments);
+    
+    // Test analytics
+    if (state.products.length > 0) {
+      const product = state.products[0];
+      const analytics = await api('/api/analytics/remittance?productId=' + product.id);
+      console.log('📈 Analytics for first product:', analytics.analytics);
+    }
+  } catch (error) {
+    console.error('Debug error:', error);
+  }
+}
+
+// Run debug on startup
+setTimeout(debugShipmentsAndCosts, 2000);
 
   // Add event listeners for shipment actions
   tbody.onclick = async (e) => {
