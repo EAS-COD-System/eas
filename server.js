@@ -250,7 +250,7 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
   let totalAdSpend = 0;
   let totalInfluencerSpend = 0;
 
-  // Calculate from remittances
+  // Calculate from remittances (only use remittance ad spend)
   remittances.forEach(remittance => {
     if ((!productId || remittance.productId === productId) &&
         (!country || remittance.country === country) &&
@@ -260,7 +260,7 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
       totalBoxleoFees += +remittance.boxleoFees || 0;
       totalDeliveredPieces += +remittance.pieces || 0;
       totalDeliveredOrders += +remittance.orders || 0;
-      totalAdSpend += +remittance.adSpend || 0;
+      totalAdSpend += +remittance.adSpend || 0; // Only use remittance ad spend
     }
   });
 
@@ -282,16 +282,6 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
         (!startDate || order.startDate >= startDate) &&
         (!endDate || order.endDate <= endDate)) {
       totalOrders += (+order.orders || 0);
-    }
-  });
-
-  // Calculate ad spend from adspend table (not just from remittances)
-  adspend.forEach(ad => {
-    if ((!productId || ad.productId === productId) &&
-        (!country || ad.country === country) &&
-        (!startDate || ad.date >= startDate) &&
-        (!endDate || ad.date <= endDate)) {
-      totalAdSpend += +ad.amount || 0;
     }
   });
 
@@ -372,7 +362,6 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
   const remittances = db.remittances || [];
   const refunds = db.refunds || [];
   const influencerSpends = db.influencerSpends || [];
-  const adspend = db.adspend || [];
   const productOrders = db.productOrders || [];
 
   let totalRevenue = 0;
@@ -385,14 +374,14 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
   let totalInfluencerSpend = 0;
   let totalOrders = 0;
 
-  // Calculate from remittances
+  // Calculate from remittances (only use remittance ad spend)
   remittances.forEach(remittance => {
     if ((!productId || remittance.productId === productId) &&
         (!country || remittance.country === country) &&
         (!startDate || remittance.start >= startDate) &&
         (!endDate || remittance.end <= endDate)) {
       totalRevenue += +remittance.revenue || 0;
-      totalAdSpend += +remittance.adSpend || 0;
+      totalAdSpend += +remittance.adSpend || 0; // Only use remittance ad spend
       totalBoxleoFees += +remittance.boxleoFees || 0;
       totalDeliveredPieces += +remittance.pieces || 0;
       totalDeliveredOrders += +remittance.orders || 0;
@@ -417,16 +406,6 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
         (!startDate || spend.date >= startDate) &&
         (!endDate || spend.date <= endDate)) {
       totalInfluencerSpend += +spend.amount || 0;
-    }
-  });
-
-  // Calculate ad spend from adspend table (not just from remittances)
-  adspend.forEach(ad => {
-    if ((!productId || ad.productId === productId) &&
-        (!country || ad.country === country) &&
-        (!startDate || ad.date >= startDate) &&
-        (!endDate || ad.date <= endDate)) {
-      totalAdSpend += +ad.amount || 0;
     }
   });
 
