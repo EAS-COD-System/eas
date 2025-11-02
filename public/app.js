@@ -3650,15 +3650,7 @@ function renderPagination(container, pagination, renderFunction) {
   container.addEventListener('click', (e) => {
     if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
       const page = parseInt(e.target.dataset.page);
-      // Update the appropriate state based on which renderFunction we're using
-      if (renderFunction === renderProductStoreOrders) {
-        state.currentStoreOrdersPage = page;
-      } else if (renderFunction === renderProductRemittances) {
-        state.currentRemittancesPage = page;
-      } else if (renderFunction === renderProductRefunds) {
-        state.currentRefundsPage = page;
-      }
-      renderFunction();
+      renderFunction(page);
     }
   });
 }
@@ -3679,10 +3671,11 @@ function bindProductInfluencers() {
 
     Q('#pdInfName').value = '';
     Q('#pdInfSocial').value = '';
-    renderProductInfluencers();
+    loadInfluencers();
+    alert('Influencer added');
   });
 
-  // Add influencer spend
+  // Add spend
   Q('#pdInfSpendAdd')?.addEventListener('click', async () => {
     const date = Q('#pdInfDate')?.value;
     const influencerId = Q('#pdInfSelect')?.value;
@@ -3703,65 +3696,88 @@ function bindProductInfluencers() {
     });
 
     Q('#pdInfAmount').value = '';
-    renderProductInfluencers();
+    loadInfluencerSpends();
+    alert('Spend added');
   });
 
-  // Filter influencer spend
-  Q('#pdInfRun')?.addEventListener('click', () => {
-    renderProductInfluencers();
-  });
+  // Filter spends
+  Q('#pdInfRun')?.addEventListener('click', loadInfluencerSpends);
 
-  renderProductInfluencers();
+  // Initial load
+  loadInfluencers();
+  loadInfluencerSpends();
 }
 
-async function renderProductInfluencers() {
+async function loadInfluencers() {
+  const select = Q('#pdInfSelect');
+  if (!select) return;
+
+  try {
+    const data = await api('/api/influencers');
+    const influencers = data.influencers || [];
+
+    select.innerHTML = '<option value="">Select influencer...</option>' +
+      influencers.map(inf => `<option value="${inf.id}">${inf.name}</option>`).join('');
+  } catch (error) {
+    console.error('Error loading influencers:', error);
+  }
+}
+
+async function loadInfluencerSpends() {
   const tbody = Q('#pdInfBody');
+  const totalEl = Q('#pdInfTotal');
   if (!tbody) return;
 
   try {
-    const influencers = await api('/api/influencers');
-    const spends = await api('/api/influencers/spend');
+    const data = await api('/api/influencers/spend');
+    let spends = data.spends || [];
 
-    // Filter spends for this product
-    const productSpends = spends.spends.filter(s => s.productId === state.productId);
+    // Filter by current product
+    spends = spends.filter(spend => spend.productId === state.productId);
 
     // Apply date range filter
     const dateRange = getDateRange(Q('#pdInfRun')?.closest('.row'));
-    let filteredSpends = productSpends;
-
     if (dateRange.start) {
-      filteredSpends = filteredSpends.filter(s => s.date >= dateRange.start);
+      spends = spends.filter(spend => spend.date >= dateRange.start);
     }
     if (dateRange.end) {
-      filteredSpends = filteredSpends.filter(s => s.date <= dateRange.end);
+      spends = spends.filter(spend => spend.date <= dateRange.end);
     }
 
-    // Calculate total
-    const total = filteredSpends.reduce((sum, s) => sum + (+s.amount || 0), 0);
-    Q('#pdInfTotal').textContent = fmt(total);
-
-    // Populate influencer select
-    const infSelect = Q('#pdInfSelect');
-    if (infSelect) {
-      infSelect.innerHTML = '<option value="">Select influencer...</option>' +
-        influencers.influencers.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
+    // Apply country filter
+    const country = Q('#pdInfFilterCountry')?.value;
+    if (country) {
+      spends = spends.filter(spend => spend.country === country);
     }
 
-    tbody.innerHTML = filteredSpends.map(spend => {
-      const influencer = influencers.influencers.find(i => i.id === spend.influencerId);
+    const total = spends.reduce((sum, spend) => sum + (+spend.amount || 0), 0);
+
+    if (totalEl) totalEl.textContent = fmt(total);
+
+    if (spends.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="muted">No influencer spends found</td></tr>';
+      return;
+    }
+
+    // Get influencer details
+    const influencersData = await api('/api/influencers');
+    const influencers = influencersData.influencers || [];
+
+    tbody.innerHTML = spends.map(spend => {
+      const influencer = influencers.find(inf => inf.id === spend.influencerId);
       return `
         <tr>
           <td>${spend.date}</td>
           <td>${spend.country || '-'}</td>
-          <td>${influencer?.name || spend.influencerId}</td>
-          <td>${influencer?.social || '-'}</td>
+          <td>${influencer ? influencer.name : spend.influencerId}</td>
+          <td>${influencer ? influencer.social : '-'}</td>
           <td>$${fmt(spend.amount)}</td>
           <td>
             <button class="btn small outline act-del-inf-spend" data-id="${spend.id}">Delete</button>
           </td>
         </tr>
       `;
-    }).join('') || '<tr><td colspan="6" class="muted">No influencer spend</td></tr>';
+    }).join('');
 
     // Add delete handlers
     tbody.addEventListener('click', async (e) => {
@@ -3769,77 +3785,75 @@ async function renderProductInfluencers() {
         const spendId = e.target.dataset.id;
         if (confirm('Delete this influencer spend?')) {
           await api(`/api/influencers/spend/${spendId}`, { method: 'DELETE' });
-          renderProductInfluencers();
+          loadInfluencerSpends();
         }
       }
     });
 
   } catch (error) {
-    console.error('Error loading influencers:', error);
+    console.error('Error loading influencer spends:', error);
+    tbody.innerHTML = '<tr><td colspan="6" class="muted">Error loading data</td></tr>';
   }
 }
 
-// ======== GLOBAL NAVIGATION ========
+// ======= NAVIGATION ========
 function bindGlobalNav() {
   const nav = Q('.nav');
   const sections = QA('section');
   let currentView = 'home';
 
-  function showView(viewName) {
+  function showView(viewId) {
     sections.forEach(s => s.style.display = 'none');
-    const target = Q(`#${viewName}`);
+    const target = Q(`#${viewId}`);
     if (target) target.style.display = 'block';
     
     // Update nav active state
     QA('.nav a').forEach(a => a.classList.remove('active'));
-    const navItem = Q(`.nav a[data-view="${viewName}"]`);
+    const navItem = Q(`.nav a[data-view="${viewId}"]`);
     if (navItem) navItem.classList.add('active');
     
-    currentView = viewName;
+    currentView = viewId;
     
-    // Refresh the view if needed
-    if (viewName === 'home') renderDashboardPage();
-    else if (viewName === 'products') renderProductsPage();
-    else if (viewName === 'performance') renderPerformancePage();
-    else if (viewName === 'stockMovement') renderStockMovementPage();
-    else if (viewName === 'adspend') renderAdspendPage();
-    else if (viewName === 'finance') renderFinancePage();
-    else if (viewName === 'settings') renderSettingsPage();
+    // Trigger view-specific rendering
+    setTimeout(() => {
+      switch(viewId) {
+        case 'home':
+          renderDashboardPage();
+          break;
+        case 'products':
+          renderProductsPage();
+          break;
+        case 'performance':
+          renderPerformancePage();
+          break;
+        case 'stockMovement':
+          renderStockMovementPage();
+          break;
+        case 'adspend':
+          renderAdspendPage();
+          break;
+        case 'finance':
+          renderFinancePage();
+          break;
+        case 'settings':
+          renderSettingsPage();
+          break;
+      }
+    }, 100);
   }
 
   nav?.addEventListener('click', (e) => {
-    const view = e.target.dataset.view;
+    const view = e.target.dataset?.view;
     if (view) {
       e.preventDefault();
       showView(view);
     }
   });
 
-  // Initialize navigation
+  // Initialize first view
+  showView('home');
   initSimpleNavigation();
 }
-
-// ======== UTILITY FUNCTIONS ========
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-}
-
-// Enhanced error handling
-window.addEventListener('error', (e) => {
-  console.error('Global error:', e.error);
-});
-
-window.addEventListener('unhandledrejection', (e) => {
-  console.error('Unhandled promise rejection:', e.reason);
-});
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', boot);
