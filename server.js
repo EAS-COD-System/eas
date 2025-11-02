@@ -72,7 +72,7 @@ function saveDB(db) {
   fs.writeJsonSync(DATA_FILE, db, { spaces: 2 }); 
 }
 
-// ======== ADVANCED SHIPPING COST CALCULATION ========
+// ======== SHIPPING COST CALCULATION ========
 function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
   
@@ -81,22 +81,21 @@ function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
     s.productId === productId && 
     s.arrivedAt &&
     s.paymentStatus === 'paid' &&
-    s.finalShipCost
+    s.finalShipCost &&
+    s.toCountry === targetCountry
   );
   
   if (relevantShipments.length === 0) return 0;
   
-  let totalShippingCost = 0;
+  let totalCost = 0;
   let totalPieces = 0;
   
   relevantShipments.forEach(shipment => {
-    if (shipment.toCountry === targetCountry) {
-      totalShippingCost += +(shipment.finalShipCost || 0);
-      totalPieces += +(shipment.qty || 0);
-    }
+    totalCost += (+shipment.finalShipCost || 0);
+    totalPieces += (+shipment.qty || 0);
   });
   
-  return totalPieces > 0 ? totalShippingCost / totalPieces : 0;
+  return totalPieces > 0 ? totalCost / totalPieces : 0;
 }
 
 function calculateProductCostPerPiece(db, productId) {
@@ -104,15 +103,16 @@ function calculateProductCostPerPiece(db, productId) {
   const chinaShipments = shipments.filter(s => 
     s.productId === productId && 
     s.fromCountry === 'china' && 
-    s.arrivedAt
+    s.arrivedAt &&
+    s.chinaCost
   );
   
   let totalChinaCost = 0;
   let totalPieces = 0;
   
   chinaShipments.forEach(shipment => {
-    totalChinaCost += +(shipment.chinaCost || 0);
-    totalPieces += +(shipment.qty || 0);
+    totalChinaCost += (+shipment.chinaCost || 0);
+    totalPieces += (+shipment.qty || 0);
   });
   
   return totalPieces > 0 ? totalChinaCost / totalPieces : 0;
@@ -196,13 +196,139 @@ function calculateTransitPieces(db, productId = null) {
 
 // ======== PROFIT CALCULATION LOGICS ========
 
+// Logic 1: For "Lifetime Product Costs Analysis" and "Lifetime (This Product)"
+function calculateProfitMetricsLogic1(db, productId, country = null, startDate = null, endDate = null) {
+  const remittances = db.remittances || [];
+  const refunds = db.refunds || [];
+  const shipments = db.shipments || [];
+  const productOrders = db.productOrders || [];
+  const adspend = db.adspend || [];
+  const influencerSpends = db.influencerSpends || [];
+
+  let totalRevenue = 0;
+  let totalBoxleoFees = 0;
+  let totalDeliveredPieces = 0;
+  let totalDeliveredOrders = 0;
+  let totalRefundedOrders = 0;
+  let totalRefundedAmount = 0;
+  let totalOrders = 0;
+  let totalAdSpend = 0;
+  let totalInfluencerSpend = 0;
+
+  // Calculate from remittances
+  remittances.forEach(remittance => {
+    if ((!productId || remittance.productId === productId) &&
+        (!country || remittance.country === country) &&
+        (!startDate || remittance.start >= startDate) &&
+        (!endDate || remittance.end <= endDate)) {
+      totalRevenue += +remittance.revenue || 0;
+      totalBoxleoFees += +remittance.boxleoFees || 0;
+      totalDeliveredPieces += +remittance.pieces || 0;
+      totalDeliveredOrders += +remittance.orders || 0;
+      totalAdSpend += +remittance.adSpend || 0;
+    }
+  });
+
+  // Calculate refunds
+  refunds.forEach(refund => {
+    if ((!productId || refund.productId === productId) &&
+        (!country || refund.country === country) &&
+        (!startDate || refund.date >= startDate) &&
+        (!endDate || refund.date <= endDate)) {
+      totalRefundedOrders += +refund.orders || 0;
+      totalRefundedAmount += +refund.amount || 0;
+    }
+  });
+
+  // Calculate total orders from product orders
+  productOrders.forEach(order => {
+    if ((!productId || order.productId === productId) &&
+        (!country || order.country === country) &&
+        (!startDate || order.startDate >= startDate) &&
+        (!endDate || order.endDate <= endDate)) {
+      totalOrders += (+order.orders || 0);
+    }
+  });
+
+  // Calculate influencer spend
+  influencerSpends.forEach(spend => {
+    if ((!productId || spend.productId === productId) &&
+        (!country || spend.country === country) &&
+        (!startDate || spend.date >= startDate) &&
+        (!endDate || spend.date <= endDate)) {
+      totalInfluencerSpend += +spend.amount || 0;
+    }
+  });
+
+  // Calculate product and shipping costs from shipments
+  let totalProductChinaCost = 0;
+  let totalShippingCost = 0;
+
+  shipments.forEach(shipment => {
+    if ((!productId || shipment.productId === productId) &&
+        (!startDate || shipment.departedAt >= startDate) &&
+        (!endDate || shipment.departedAt <= endDate) &&
+        shipment.arrivedAt) {
+      totalProductChinaCost += +(shipment.chinaCost || 0);
+      totalShippingCost += +(shipment.finalShipCost || shipment.shipCost || 0);
+    }
+  });
+
+  const adjustedRevenue = totalRevenue - totalRefundedAmount;
+  const totalCost = totalProductChinaCost + totalShippingCost + totalBoxleoFees + totalAdSpend + totalInfluencerSpend;
+  const profit = adjustedRevenue - totalCost;
+
+  const netDeliveredOrders = totalDeliveredOrders - totalRefundedOrders;
+  const deliveryRate = totalOrders > 0 ? (netDeliveredOrders / totalOrders) * 100 : 0;
+
+  // Enhanced metrics
+  const costPerDeliveredOrder = netDeliveredOrders > 0 ? totalCost / netDeliveredOrders : 0;
+  const costPerDeliveredPiece = totalDeliveredPieces > 0 ? totalCost / totalDeliveredPieces : 0;
+  const adCostPerDeliveredOrder = netDeliveredOrders > 0 ? totalAdSpend / netDeliveredOrders : 0;
+  const adCostPerDeliveredPiece = totalDeliveredPieces > 0 ? totalAdSpend / totalDeliveredPieces : 0;
+  const boxleoPerDeliveredOrder = netDeliveredOrders > 0 ? totalBoxleoFees / netDeliveredOrders : 0;
+  const boxleoPerDeliveredPiece = totalDeliveredPieces > 0 ? totalBoxleoFees / totalDeliveredPieces : 0;
+  const influencerPerDeliveredOrder = netDeliveredOrders > 0 ? totalInfluencerSpend / netDeliveredOrders : 0;
+  const averageOrderValue = netDeliveredOrders > 0 ? adjustedRevenue / netDeliveredOrders : 0;
+  const profitPerOrder = netDeliveredOrders > 0 ? profit / netDeliveredOrders : 0;
+  const profitPerPiece = totalDeliveredPieces > 0 ? profit / totalDeliveredPieces : 0;
+
+  return {
+    totalRevenue: adjustedRevenue,
+    totalBoxleoFees,
+    totalProductChinaCost,
+    totalShippingCost,
+    totalAdSpend,
+    totalInfluencerSpend,
+    totalRefundedAmount,
+    totalRefundedOrders,
+    totalCost,
+    profit,
+    totalDeliveredPieces,
+    totalDeliveredOrders: netDeliveredOrders,
+    totalOrders,
+    deliveryRate,
+    costPerDeliveredOrder,
+    costPerDeliveredPiece,
+    adCostPerDeliveredOrder,
+    adCostPerDeliveredPiece,
+    boxleoPerDeliveredOrder,
+    boxleoPerDeliveredPiece,
+    influencerPerDeliveredOrder,
+    averageOrderValue,
+    profitPerOrder,
+    profitPerPiece,
+    isProfitable: profit > 0,
+    hasData: totalDeliveredPieces > 0 || adjustedRevenue > 0
+  };
+}
+
 // Logic 2: For "Remittance Analytics", "Profit by Country", and "Product Info & Analytics"
 function calculateProfitMetricsLogic2(db, productId, country = null, startDate = null, endDate = null) {
   const remittances = db.remittances || [];
   const refunds = db.refunds || [];
   const influencerSpends = db.influencerSpends || [];
   const productOrders = db.productOrders || [];
-  const shipments = db.shipments || [];
 
   let totalRevenue = 0;
   let totalAdSpend = 0;
@@ -259,7 +385,7 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
     }
   });
 
-  // Calculate product cost per piece from shipments
+  // Calculate product cost per piece from total purchases
   const productCostPerPiece = calculateProductCostPerPiece(db, productId);
   
   // Calculate shipping cost using actual piece tracking
@@ -330,6 +456,8 @@ app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
   
+  console.log('Auth attempt with password:', password);
+  
   if (password === 'logout') {
     res.clearCookie('auth', { httpOnly: true, sameSite: 'Lax', secure: false, path: '/' });
     return res.json({ ok: true });
@@ -343,9 +471,11 @@ app.post('/api/auth', (req, res) => {
       path: '/', 
       maxAge: 365 * 24 * 60 * 60 * 1000
     });
+    console.log('Login successful');
     return res.json({ ok: true });
   }
   
+  console.log('Login failed');
   return res.status(401).json({ error: 'Wrong password' });
 });
 
@@ -427,7 +557,13 @@ app.post('/api/products/:id/status', requireAuth, (req, res) => {
   if (!p) return res.status(404).json({ error: 'Not found' });
   
   const newStatus = req.body.status || 'active';
-  p.status = newStatus;
+  const currentStatus = p.status;
+  
+  if (currentStatus === 'active' && newStatus === 'paused') {
+    p.status = 'paused';
+  } else if (currentStatus === 'paused' && newStatus === 'active') {
+    p.status = 'active';
+  }
   
   saveDB(db); 
   res.json({ ok: true, product: p });
@@ -1341,17 +1477,18 @@ app.get('/api/product-info/:id', requireAuth, (req, res) => {
   });
 });
 
-// Product Costs Analysis
+// Product Costs Analysis (Logic 1)
 app.get('/api/product-costs-analysis', requireAuth, (req, res) => {
   const db = loadDB();
   const { productId, start, end } = req.query || {};
   
-  let metrics = calculateProfitMetricsLogic2(db, productId, null, start, end);
-  
+  let metrics;
   if (productId === 'all') {
+    metrics = calculateProfitMetricsLogic1(db, null, null, start, end);
     metrics.isAggregate = true;
     metrics.productCount = db.products.length;
   } else {
+    metrics = calculateProfitMetricsLogic1(db, productId, null, start, end);
     metrics.isAggregate = false;
     metrics.productCount = 1;
   }
