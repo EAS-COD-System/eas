@@ -526,14 +526,16 @@ async function renderCountryStockSpend() {
       gg += adData.google;
       totalAd += countryAdTotal;
 
-      return `<tr>
-        <td>${country}</td>
-        <td>${fmt(stock)}</td>
-        <td>${fmt(adData.facebook)}</td>
-        <td>${fmt(adData.tiktok)}</td>
-        <td>${fmt(adData.google)}</td>
-        <td>${fmt(countryAdTotal)}</td>
-      </tr>`;
+      return `
+        <tr>
+          <td>${country}</td>
+          <td>${fmt(stock)}</td>
+          <td>${fmt(adData.facebook)}</td>
+          <td>${fmt(adData.tiktok)}</td>
+          <td>${fmt(adData.google)}</td>
+          <td>${fmt(countryAdTotal)}</td>
+        </tr>
+      `;
     }).join('');
 
     body.innerHTML = rows || `<tr><td colspan="6" class="muted">No data</td></tr>`;
