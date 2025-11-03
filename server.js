@@ -463,7 +463,7 @@ if (country && productId) {
   });
 }
 
-const totalProductChinaCost = totalDeliveredPieces * productCostPerPiece;
+
 
   const adjustedRevenue = totalRevenue - totalRefundedAmount;
   const totalCost = totalProductChinaCost + totalShippingCost + totalAdSpend + totalBoxleoFees + totalInfluencerSpend;
