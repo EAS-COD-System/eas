@@ -430,33 +430,77 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
     }
   });
 
-  // Calculate product cost per piece from shipments - FIXED TO USE ALL TIME DATA
-  const productCostPerPiece = calculateProductCostPerPiece(db, productId);
-  
-  // Calculate shipping cost using actual piece tracking - FIXED TO USE ALL TIME DATA
-  let shippingCostPerPiece = 0;
-  if (country) {
-    shippingCostPerPiece = calculateActualShippingCostPerPiece(db, productId, country);
-  } else if (productId) {
-    // If no country specified but product specified, calculate average shipping cost across all countries
+  // For Profit by Country (productId is null but country is specified)
+  let totalProductChinaCost = 0;
+  let totalShippingCost = 0;
+
+  if (country && !productId) {
+    // Profit by Country case: Calculate costs for ALL products in this country
+    
+    // Get all products that have data for this country
+    const products = db.products || [];
+    
+    products.forEach(product => {
+      const productId = product.id;
+      
+      // Calculate product cost for this product in this country
+      const productCostPerPiece = calculateProductCostPerPiece(db, productId);
+      const shippingCostPerPiece = calculateActualShippingCostPerPiece(db, productId, country);
+      
+      // Get delivered pieces for this product in this country
+      let productDeliveredPieces = 0;
+      remittances.forEach(remittance => {
+        if (remittance.productId === productId && 
+            remittance.country === country &&
+            (!startDate || remittance.start >= startDate) &&
+            (!endDate || remittance.end <= endDate)) {
+          productDeliveredPieces += +remittance.pieces || 0;
+        }
+      });
+      
+      totalProductChinaCost += productDeliveredPieces * productCostPerPiece;
+      totalShippingCost += productDeliveredPieces * shippingCostPerPiece;
+    });
+    
+  } else if (productId && country) {
+    // Single product, single country case
+    const productCostPerPiece = calculateProductCostPerPiece(db, productId);
+    const shippingCostPerPiece = calculateActualShippingCostPerPiece(db, productId, country);
+    
+    totalProductChinaCost = totalDeliveredPieces * productCostPerPiece;
+    totalShippingCost = totalDeliveredPieces * shippingCostPerPiece;
+    
+  } else if (productId && !country) {
+    // Single product, all countries case
+    const productCostPerPiece = calculateProductCostPerPiece(db, productId);
+    
+    // Calculate average shipping cost across all countries for this product
     const countries = db.countries.filter(c => c !== 'china');
-    let totalShippingCost = 0;
+    let totalShipping = 0;
     let countryCount = 0;
     
     countries.forEach(c => {
       const cost = calculateActualShippingCostPerPiece(db, productId, c);
       if (cost > 0) {
-        totalShippingCost += cost;
+        // Get delivered pieces for this country
+        let countryPieces = 0;
+        remittances.forEach(remittance => {
+          if (remittance.productId === productId && 
+              remittance.country === c &&
+              (!startDate || remittance.start >= startDate) &&
+              (!endDate || remittance.end <= endDate)) {
+            countryPieces += +remittance.pieces || 0;
+          }
+        });
+        
+        totalShipping += countryPieces * cost;
         countryCount++;
       }
     });
     
-    shippingCostPerPiece = countryCount > 0 ? totalShippingCost / countryCount : 0;
+    totalProductChinaCost = totalDeliveredPieces * productCostPerPiece;
+    totalShippingCost = totalShipping;
   }
-
-  // Calculate total costs - FIXED: Use the actual delivered pieces to calculate costs
-  const totalProductChinaCost = totalDeliveredPieces * productCostPerPiece;
-  const totalShippingCost = totalDeliveredPieces * shippingCostPerPiece;
 
   const adjustedRevenue = totalRevenue - totalRefundedAmount;
   const totalCost = totalProductChinaCost + totalShippingCost + totalAdSpend + totalBoxleoFees + totalInfluencerSpend;
@@ -506,14 +550,7 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
     profitPerOrder,
     profitPerPiece,
     isProfitable: profit > 0,
-    hasData,
-    // Debug info to help identify issues
-    _debug: {
-      productCostPerPiece,
-      shippingCostPerPiece,
-      totalDeliveredPieces,
-      relevantRemittances: remittances.filter(r => (!productId || r.productId === productId) && (!country || r.country === country)).length
-    }
+    hasData
   };
 }
 // ======== ROUTES ========
