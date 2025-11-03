@@ -365,6 +365,7 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
   const refunds = db.refunds || [];
   const influencerSpends = db.influencerSpends || [];
   const productOrders = db.productOrders || [];
+  const shipments = db.shipments || [];
 
   let totalRevenue = 0;
   let totalAdSpend = 0;
@@ -421,49 +422,24 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
     }
   });
 
-// Calculate total product cost from shipments
-let totalProductChinaCost = 0;
-const relevantShipments = db.shipments.filter(s => 
-  s.productId === productId && 
-  s.arrivedAt &&
-  s.chinaCost
-);
+  // SIMPLE FIX: Calculate product and shipping costs directly from shipments
+  let totalProductChinaCost = 0;
+  let totalShippingCost = 0;
 
-relevantShipments.forEach(shipment => {
-  totalProductChinaCost += +(shipment.chinaCost || 0);
-});
-  
-// Calculate shipping cost using actual piece tracking
-let totalShippingCost = 0;
-if (country && productId) {
-  // Get all shipments for this product-country combination
-  const relevantShipments = db.shipments.filter(s => 
-    s.productId === productId && 
-    s.arrivedAt &&
-    s.paymentStatus === 'paid' &&
-    (s.fromCountry === 'china' || s.toCountry === country) &&
-    s.finalShipCost
-  );
-  
-  // Sum up all shipping costs for this product to this country
-  relevantShipments.forEach(shipment => {
-    totalShippingCost += +(shipment.finalShipCost || shipment.shipCost || 0);
+  shipments.forEach(shipment => {
+    if ((!productId || shipment.productId === productId) &&
+        (!country || shipment.toCountry === country) &&
+        (!startDate || shipment.departedAt >= startDate) &&
+        (!endDate || shipment.departedAt <= endDate) &&
+        shipment.arrivedAt) {
+      
+      // Add product cost (china cost)
+      totalProductChinaCost += +(shipment.chinaCost || 0);
+      
+      // Add shipping cost (use final cost if available, otherwise estimated)
+      totalShippingCost += +(shipment.finalShipCost || shipment.shipCost || 0);
+    }
   });
-} else if (productId) {
-  // For all countries, sum all shipping costs for this product
-  const relevantShipments = db.shipments.filter(s => 
-    s.productId === productId && 
-    s.arrivedAt &&
-    s.paymentStatus === 'paid' &&
-    s.finalShipCost
-  );
-  
-  relevantShipments.forEach(shipment => {
-    totalShippingCost += +(shipment.finalShipCost || shipment.shipCost || 0);
-  });
-}
-
-
 
   const adjustedRevenue = totalRevenue - totalRefundedAmount;
   const totalCost = totalProductChinaCost + totalShippingCost + totalAdSpend + totalBoxleoFees + totalInfluencerSpend;
@@ -516,7 +492,6 @@ if (country && productId) {
     hasData
   };
 }
-
 // ======== ROUTES ========
 
 // Authentication
