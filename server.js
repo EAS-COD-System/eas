@@ -76,7 +76,7 @@ function saveDB(db) {
 function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
   
-  // Get all shipments for this product that arrived
+  // Get all shipments for this product that arrived and are paid
   const relevantShipments = shipments.filter(s => 
     s.productId === productId && 
     s.arrivedAt &&
@@ -139,7 +139,8 @@ function calculateProductCostPerPiece(db, productId) {
   const chinaShipments = shipments.filter(s => 
     s.productId === productId && 
     s.fromCountry === 'china' && 
-    s.arrivedAt
+    s.arrivedAt &&
+    s.chinaCost
   );
   
   let totalChinaCost = 0;
@@ -229,7 +230,7 @@ function calculateTransitPieces(db, productId = null) {
   };
 }
 
-// ======== DIFFERENT PROFIT CALCULATION LOGICS ========
+// ======== PROFIT CALCULATION LOGICS ========
 
 // Logic 1: For "Lifetime Product Costs Analysis" and "Lifetime (This Product)"
 function calculateProfitMetricsLogic1(db, productId, country = null, startDate = null, endDate = null) {
@@ -250,7 +251,7 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
   let totalAdSpend = 0;
   let totalInfluencerSpend = 0;
 
-  // Calculate from remittances (only use remittance ad spend)
+  // Calculate from remittances
   remittances.forEach(remittance => {
     if ((!productId || remittance.productId === productId) &&
         (!country || remittance.country === country) &&
@@ -260,7 +261,7 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
       totalBoxleoFees += +remittance.boxleoFees || 0;
       totalDeliveredPieces += +remittance.pieces || 0;
       totalDeliveredOrders += +remittance.orders || 0;
-      totalAdSpend += +remittance.adSpend || 0; // Only use remittance ad spend
+      totalAdSpend += +remittance.adSpend || 0;
     }
   });
 
@@ -295,14 +296,15 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
     }
   });
 
-  // Calculate product and shipping costs from TOTAL shipments (not per delivered piece)
+  // Calculate product and shipping costs from shipments
   let totalProductChinaCost = 0;
   let totalShippingCost = 0;
 
   shipments.forEach(shipment => {
     if ((!productId || shipment.productId === productId) &&
         (!startDate || shipment.departedAt >= startDate) &&
-        (!endDate || shipment.departedAt <= endDate)) {
+        (!endDate || shipment.departedAt <= endDate) &&
+        shipment.arrivedAt) {
       totalProductChinaCost += +(shipment.chinaCost || 0);
       totalShippingCost += +(shipment.finalShipCost || shipment.shipCost || 0);
     }
@@ -315,7 +317,7 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
   const netDeliveredOrders = totalDeliveredOrders - totalRefundedOrders;
   const deliveryRate = totalOrders > 0 ? (netDeliveredOrders / totalOrders) * 100 : 0;
 
-  // Enhanced metrics for Logic 2 compatibility
+  // Enhanced metrics
   const costPerDeliveredOrder = netDeliveredOrders > 0 ? totalCost / netDeliveredOrders : 0;
   const costPerDeliveredPiece = totalDeliveredPieces > 0 ? totalCost / totalDeliveredPieces : 0;
   const adCostPerDeliveredOrder = netDeliveredOrders > 0 ? totalAdSpend / netDeliveredOrders : 0;
@@ -359,7 +361,6 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
 
 // Logic 2: For "Remittance Analytics", "Profit by Country", and "Product Info & Analytics"
 function calculateProfitMetricsLogic2(db, productId, country = null, startDate = null, endDate = null) {
-  const shipments = db.shipments || [];
   const remittances = db.remittances || [];
   const refunds = db.refunds || [];
   const influencerSpends = db.influencerSpends || [];
@@ -375,14 +376,14 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
   let totalInfluencerSpend = 0;
   let totalOrders = 0;
 
-  // Calculate from remittances (only use remittance ad spend)
+  // Calculate from remittances
   remittances.forEach(remittance => {
     if ((!productId || remittance.productId === productId) &&
         (!country || remittance.country === country) &&
         (!startDate || remittance.start >= startDate) &&
         (!endDate || remittance.end <= endDate)) {
       totalRevenue += +remittance.revenue || 0;
-      totalAdSpend += +remittance.adSpend || 0; // Only use remittance ad spend
+      totalAdSpend += +remittance.adSpend || 0;
       totalBoxleoFees += +remittance.boxleoFees || 0;
       totalDeliveredPieces += +remittance.pieces || 0;
       totalDeliveredOrders += +remittance.orders || 0;
@@ -420,7 +421,7 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
     }
   });
 
-  // Calculate product cost per piece from total purchases
+  // Calculate product cost per piece from shipments
   const productCostPerPiece = calculateProductCostPerPiece(db, productId);
   
   // Calculate shipping cost using actual piece tracking
@@ -430,17 +431,7 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
   }
 
   const totalProductChinaCost = totalDeliveredPieces * productCostPerPiece;
-  let totalShippingCost = totalDeliveredPieces * shippingCostPerPiece;
-  if (!country) { // For aggregated views, we need to sum up all final shipping costs
-    const shipments = db.shipments || [];
-    shipments.forEach(shipment => {
-      if ((!productId || shipment.productId === productId) &&
-          shipment.arrivedAt &&
-          shipment.paymentStatus === 'paid') {
-        totalShippingCost += +(shipment.finalShipCost || shipment.shipCost || 0);
-      }
-    });
-  }
+  const totalShippingCost = totalDeliveredPieces * shippingCostPerPiece;
 
   const adjustedRevenue = totalRevenue - totalRefundedAmount;
   const totalCost = totalProductChinaCost + totalShippingCost + totalAdSpend + totalBoxleoFees + totalInfluencerSpend;
@@ -501,8 +492,6 @@ app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
   
-  console.log('Auth attempt with password:', password);
-  
   if (password === 'logout') {
     res.clearCookie('auth', { httpOnly: true, sameSite: 'Lax', secure: false, path: '/' });
     return res.json({ ok: true });
@@ -516,11 +505,9 @@ app.post('/api/auth', (req, res) => {
       path: '/', 
       maxAge: 365 * 24 * 60 * 60 * 1000
     });
-    console.log('Login successful');
     return res.json({ ok: true });
   }
   
-  console.log('Login failed');
   return res.status(401).json({ error: 'Wrong password' });
 });
 
@@ -605,10 +592,8 @@ app.post('/api/products/:id/status', requireAuth, (req, res) => {
   const currentStatus = p.status;
   
   if (currentStatus === 'active' && newStatus === 'paused') {
-    // Product is being paused - we'll handle stock adjustment in the frontend
     p.status = 'paused';
   } else if (currentStatus === 'paused' && newStatus === 'active') {
-    // Product is being activated
     p.status = 'active';
   }
   
@@ -868,18 +853,806 @@ app.put('/api/shipments/:id', requireAuth, (req, res) => {
   res.json({ ok: true, shipment: s });
 });
 
-aapp.post('/api/shipments/:id/mark-paid', requireAuth, (req, res) => {
-  const db = loadDB();
-  const shipment = (db.shipments || []).find(s => s.id === req.params.id);
-  if (!shipment) return res.status(404).json({ error: 'Shipment not found' });
-
+app.post('/api/shipments/:id/mark-paid', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  const s = (db.shipments || []).find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ error: 'Not found' });
+  
   const { finalShipCost } = req.body || {};
-  if (finalShipCost === undefined) return res.status(400).json({ error: 'Missing finalShipCost' });
+  if (!finalShipCost) return res.status(400).json({ error: 'Final shipping cost required' });
+  
+  s.finalShipCost = +finalShipCost || 0;
+  s.paymentStatus = 'paid';
+  s.paidAt = new Date().toISOString();
+  
+  saveDB(db); 
+  res.json({ ok: true, shipment: s });
+});
 
-  shipment.finalShipCost = +finalShipCost;
-  shipment.paymentStatus = 'paid';
+app.delete('/api/shipments/:id', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.shipments = (db.shipments || []).filter(x => x.id !== req.params.id);
+  saveDB(db); 
+  res.json({ ok: true });
+});
 
+// Remittances
+app.get('/api/remittances', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  let list = db.remittances || [];
+  const { start, end, country, productId, page = 1, limit = 8 } = req.query || {};
+  if (start) list = list.filter(r => r.start >= start);
+  if (end) list = list.filter(r => r.end <= end);
+  if (country) list = list.filter(r => r.country === country);
+  if (productId) list = list.filter(r => r.productId === productId);
+
+  list.sort((a, b) => new Date(b.start) - new Date(a.start));
+
+  const startIndex = (page - 1) * limit;
+  const endIndex = startIndex + parseInt(limit);
+  const paginatedList = list.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(list.length / limit);
+
+  res.json({ 
+    remittances: paginatedList,
+    pagination: {
+      currentPage: parseInt(page),
+      totalPages,
+      totalItems: list.length,
+      hasNextPage: endIndex < list.length,
+      hasPrevPage: startIndex > 0
+    }
+  });
+});
+
+app.post('/api/remittances', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.remittances = db.remittances || [];
+  const { start, end, country, productId, orders, pieces, revenue, adSpend, boxleoFees } = req.body || {};
+  
+  if (!start || !end || !country || !productId) return res.status(400).json({ error: 'Missing required fields' });
+
+  const existingRemittance = db.remittances.find(r => 
+    r.productId === productId && 
+    r.country === country && 
+    r.start === start && 
+    r.end === end
+  );
+
+  if (existingRemittance) {
+    return res.status(409).json({ 
+      error: 'Duplicate remittance period', 
+      message: 'You already entered a remittance for this product in this country during this period. Are you sure you want to enter again?',
+      existingRemittance 
+    });
+  }
+
+  const r = {
+    id: uuidv4(),
+    start,
+    end,
+    country,
+    productId,
+    orders: +orders || 0,
+    pieces: +pieces || 0,
+    revenue: +revenue || 0,
+    adSpend: +adSpend || 0,
+    boxleoFees: +boxleoFees || 0
+  };
+
+  db.remittances.push(r); 
+  saveDB(db); 
+  res.json({ ok: true, remittance: r });
+});
+
+app.delete('/api/remittances/:id', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.remittances = (db.remittances || []).filter(r => r.id !== req.params.id);
+  saveDB(db); 
+  res.json({ ok: true });
+});
+
+// Refunds
+app.get('/api/refunds', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  let list = db.refunds || [];
+  const { start, end, country, productId, page = 1, limit = 8 } = req.query || {};
+  if (start) list = list.filter(r => r.date >= start);
+  if (end) list = list.filter(r => r.date <= end);
+  if (country) list = list.filter(r => r.country === country);
+  if (productId) list = list.filter(r => r.productId === productId);
+
+  list.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const startIndex = (page - 1) * limit;
+  const endIndex = startIndex + parseInt(limit);
+  const paginatedList = list.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(list.length / limit);
+
+  res.json({ 
+    refunds: paginatedList,
+    pagination: {
+      currentPage: parseInt(page),
+      totalPages,
+      totalItems: list.length,
+      hasNextPage: endIndex < list.length,
+      hasPrevPage: startIndex > 0
+    }
+  });
+});
+
+app.post('/api/refunds', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.refunds = db.refunds || [];
+  const { date, country, productId, orders, pieces, amount, reason } = req.body || {};
+  
+  if (!date || !country || !productId) return res.status(400).json({ error: 'Missing required fields' });
+
+  const refund = {
+    id: uuidv4(),
+    date,
+    country,
+    productId,
+    orders: +orders || 0,
+    pieces: +pieces || 0,
+    amount: +amount || 0,
+    reason: reason || '',
+    createdAt: new Date().toISOString()
+  };
+
+  db.refunds.push(refund); 
+  saveDB(db); 
+  res.json({ ok: true, refund });
+});
+
+app.delete('/api/refunds/:id', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.refunds = (db.refunds || []).filter(r => r.id !== req.params.id);
+  saveDB(db); 
+  res.json({ ok: true });
+});
+
+// Finance Categories
+app.get('/api/finance/categories', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  res.json(db.finance?.categories || { debit: [], credit: [] });
+});
+
+app.post('/api/finance/categories', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.finance = db.finance || { categories: { debit: [], credit: [] }, entries: [] };
+  const { type, name } = req.body || {};
+  if (!type || !name) return res.status(400).json({ error: 'Missing type/name' });
+  if (!Array.isArray(db.finance.categories[type])) db.finance.categories[type] = [];
+  if (!db.finance.categories[type].includes(name)) db.finance.categories[type].push(name);
+  saveDB(db); 
+  res.json({ ok: true, categories: db.finance.categories });
+});
+
+app.delete('/api/finance/categories', requireAuth, (req, res) => {
+  const db = loadDB();
+  const { type, name } = req.query || {};
+  if (!type || !name) return res.status(400).json({ error: 'Missing type/name' });
+  if (db.finance?.categories?.[type]) db.finance.categories[type] = db.finance.categories[type].filter(c => c !== name);
+  saveDB(db); 
+  res.json({ ok: true, categories: db.finance.categories });
+});
+
+// Finance Entries
+app.get('/api/finance/entries', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  let list = db.finance?.entries || [];
+  const { start, end, category, type } = req.query || {};
+  if (start) list = list.filter(e => e.date >= start);
+  if (end) list = list.filter(e => e.date <= end);
+  if (category) list = list.filter(e => e.category === category);
+  if (type) list = list.filter(e => e.type === type);
+
+  const total = list.reduce((sum, e) => sum + (e.type === 'credit' ? +e.amount : -(+e.amount)), 0);
+  const running = list.reduce((sum, e) => sum + (e.type === 'credit' ? +e.amount : -(+e.amount)), 0);
+
+  res.json({
+    entries: list,
+    running: running,
+    balance: list.reduce((a, e) => a + (e.type === 'credit' ? +e.amount || 0 : -(+e.amount || 0)), 0),
+    categoryTotal: total
+  });
+});
+
+app.post('/api/finance/entries', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.finance = db.finance || { categories: { debit: [], credit: [] }, entries: [] };
+  const { date, type, category, amount, note } = req.body || {};
+  if (!date || !type || !category) return res.status(400).json({ error: 'Missing fields' });
+
+  const entry = {
+    id: uuidv4(),
+    date,
+    type,
+    category,
+    amount: +amount || 0,
+    note: note || ''
+  };
+
+  db.finance.entries.push(entry);
   saveDB(db);
-  res.json({ ok: true, shipment });
-});: s });
+  res.json({ ok: true, entry });
+});
+
+app.delete('/api/finance/entries/:id', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.finance.entries = (db.finance.entries || []).filter(e => e.id !== req.params.id);
+  saveDB(db); 
+  res.json({ ok: true });
+});
+
+// Countries
+app.get('/api/countries', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  res.json({ countries: db.countries || [] });
+});
+
+app.post('/api/countries', requireAuth, (req, res) => {
+  const { name } = req.body || {};
+  if (!name) return res.status(400).json({ error: 'Missing name' });
+  const db = loadDB(); 
+  db.countries = db.countries || [];
+  if (!db.countries.includes(name)) db.countries.push(name);
+  saveDB(db); 
+  res.json({ ok: true, countries: db.countries });
+});
+
+app.delete('/api/countries/:name', requireAuth, (req, res) => {
+  const n = req.params.name;
+  const db = loadDB(); 
+  db.countries = (db.countries || []).filter(c => c !== n);
+  saveDB(db); 
+  res.json({ ok: true, countries: db.countries });
+});
+
+// Todo Lists
+app.get('/api/todos', requireAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ todos: db.todos || [] });
+});
+
+app.post('/api/todos', requireAuth, (req, res) => {
+  const db = loadDB();
+  db.todos = db.todos || [];
+  const { text } = req.body || {};
+  
+  if (!text) return res.status(400).json({ error: 'Missing text' });
+  
+  const todo = {
+    id: uuidv4(),
+    text: text.trim(),
+    done: false,
+    createdAt: new Date().toISOString()
+  };
+  
+  db.todos.push(todo);
+  saveDB(db);
+  res.json({ ok: true, todo });
+});
+
+app.post('/api/todos/:id/toggle', requireAuth, (req, res) => {
+  const db = loadDB();
+  const todo = db.todos.find(t => t.id === req.params.id);
+  if (!todo) return res.status(404).json({ error: 'Todo not found' });
+  
+  todo.done = !todo.done;
+  
+  saveDB(db);
+  res.json({ ok: true, todo });
+});
+
+app.delete('/api/todos/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  db.todos = (db.todos || []).filter(t => t.id !== req.params.id);
+  saveDB(db);
+  res.json({ ok: true });
+});
+
+// Weekly Todos
+app.get('/api/weekly-todos', requireAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ weeklyTodos: db.weeklyTodos || {} });
+});
+
+app.post('/api/weekly-todos', requireAuth, (req, res) => {
+  const db = loadDB();
+  db.weeklyTodos = db.weeklyTodos || {};
+  const { day, text } = req.body || {};
+  
+  if (!day || !text) return res.status(400).json({ error: 'Missing day or text' });
+  
+  if (!db.weeklyTodos[day]) db.weeklyTodos[day] = [];
+  
+  const todo = {
+    id: uuidv4(),
+    text: text.trim(),
+    done: false,
+    createdAt: new Date().toISOString()
+  };
+  
+  db.weeklyTodos[day].push(todo);
+  saveDB(db);
+  res.json({ ok: true, todo });
+});
+
+app.put('/api/weekly-todos/:day/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  const { day, id } = req.params;
+  
+  if (!db.weeklyTodos[day]) return res.status(404).json({ error: 'Day not found' });
+  
+  const todo = db.weeklyTodos[day].find(t => t.id === id);
+  if (!todo) return res.status(404).json({ error: 'Todo not found' });
+  
+  const { done } = req.body || {};
+  if (done !== undefined) todo.done = done;
+  
+  saveDB(db);
+  res.json({ ok: true, todo });
+});
+
+app.delete('/api/weekly-todos/:day/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  const { day, id } = req.params;
+  
+  if (!db.weeklyTodos[day]) return res.status(404).json({ error: 'Day not found' });
+  
+  db.weeklyTodos[day] = db.weeklyTodos[day].filter(t => t.id !== id);
+  saveDB(db);
+  res.json({ ok: true });
+});
+
+// Brainstorming
+app.get('/api/brainstorming', requireAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ ideas: db.brainstorming || [] });
+});
+
+app.post('/api/brainstorming', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.brainstorming = db.brainstorming || [];
+  const { title, description, category } = req.body || {};
+  if (!title) return res.status(400).json({ error: 'Missing title' });
+
+  const idea = {
+    id: uuidv4(),
+    title,
+    description: description || '',
+    category: category || 'general',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  db.brainstorming.push(idea);
+  saveDB(db); 
+  res.json({ ok: true, idea });
+});
+
+app.delete('/api/brainstorming/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  db.brainstorming = (db.brainstorming || []).filter(i => i.id !== req.params.id);
+  saveDB(db); 
+  res.json({ ok: true });
+});
+
+// Tested Products
+app.get('/api/tested-products', requireAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ testedProducts: db.testedProducts || [] });
+});
+
+app.post('/api/tested-products', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.testedProducts = db.testedProducts || [];
+  const { productName, country, costPerLead, confirmationRate, sellingPrice } = req.body || {};
+  if (!productName || !country) return res.status(400).json({ error: 'Missing product name/country' });
+
+  let product = db.testedProducts.find(tp => tp.productName === productName);
+
+  if (product) {
+    const countryIndex = product.countryData.findIndex(cd => cd.country === country);
+    if (countryIndex >= 0) {
+      product.countryData[countryIndex] = {
+        country,
+        costPerLead: +costPerLead || 0,
+        confirmationRate: +confirmationRate || 0,
+        sellingPrice: +sellingPrice || 0,
+        updatedAt: new Date().toISOString()
+      };
+    } else {
+      product.countryData.push({
+        country,
+        costPerLead: +costPerLead || 0,
+        confirmationRate: +confirmationRate || 0,
+        sellingPrice: +sellingPrice || 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+    product.updatedAt = new Date().toISOString();
+  } else {
+    product = {
+      id: uuidv4(),
+      productName,
+      countryData: [{
+        country,
+        costPerLead: +costPerLead || 0,
+        confirmationRate: +confirmationRate || 0,
+        sellingPrice: +sellingPrice || 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    db.testedProducts.push(product);
+  }
+
+  saveDB(db); 
+  res.json({ ok: true, product });
+});
+
+app.delete('/api/tested-products/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  db.testedProducts = (db.testedProducts || []).filter(tp => tp.id !== req.params.id);
+  saveDB(db); 
+  res.json({ ok: true });
+});
+
+// Influencers
+app.get('/api/influencers', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  res.json({ influencers: db.influencers || [] });
+});
+
+app.post('/api/influencers', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.influencers = db.influencers || [];
+  const { name, social, country } = req.body || {};
+  if (!name) return res.status(400).json({ error: 'Missing name' });
+  const inf = { id: uuidv4(), name, social: social || '', country: country || '' };
+  db.influencers.push(inf); 
+  saveDB(db); 
+  res.json({ ok: true, influencer: inf });
+});
+
+app.delete('/api/influencers/:id', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.influencers = (db.influencers || []).filter(i => i.id !== req.params.id);
+  saveDB(db); 
+  res.json({ ok: true });
+});
+
+// Influencer Spend
+app.get('/api/influencers/spend', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  res.json({ spends: db.influencerSpends || [] });
+});
+
+app.post('/api/influencers/spend', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.influencerSpends = db.influencerSpends || [];
+  const { date, influencerId, country, productId, amount } = req.body || {};
+  if (!influencerId) return res.status(400).json({ error: 'Missing influencerId' });
+  const sp = { id: uuidv4(), date: date || new Date().toISOString().slice(0, 10), influencerId, country: country || '', productId: productId || '', amount: +amount || 0 };
+  db.influencerSpends.push(sp); 
+  saveDB(db); 
+  res.json({ ok: true, spend: sp });
+});
+
+app.delete('/api/influencers/spend/:id', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.influencerSpends = (db.influencerSpends || []).filter(s => s.id !== req.params.id);
+  saveDB(db); 
+  res.json({ ok: true });
+});
+
+// Analytics
+app.get('/api/analytics/remittance', requireAuth, (req, res) => {
+  const db = loadDB();
+  const { start, end, country, productId, sortBy = 'totalDeliveredPieces', sortOrder = 'desc' } = req.query || {};
+
+  let analytics = [];
+  
+  if (productId && productId !== 'all') {
+    if (country && country !== '') {
+      const metrics = calculateProfitMetricsLogic2(db, productId, country, start, end);
+      analytics = [{
+        productId,
+        productName: (db.products.find(p => p.id === productId) || {}).name || productId,
+        country: country,
+        ...metrics
+      }];
+    } else {
+      const countries = db.countries.filter(c => c !== 'china');
+      analytics = countries.map(country => {
+        const metrics = calculateProfitMetricsLogic2(db, productId, country, start, end);
+        return {
+          productId,
+          productName: (db.products.find(p => p.id === productId) || {}).name || productId,
+          country: country,
+          ...metrics
+        };
+      }).filter(item => item.hasData);
+    }
+  } else {
+    const products = productId === 'all' ? (db.products || []) : (db.products || []).filter(p => p.status === 'active');
+    analytics = products.map(product => {
+      const metrics = calculateProfitMetricsLogic2(db, product.id, country, start, end);
+      return {
+        productId: product.id,
+        productName: product.name,
+        country: country || 'All Countries',
+        ...metrics
+      };
+    }).filter(item => item.hasData);
+  }
+
+  // Apply sorting
+  analytics.sort((a, b) => {
+    let aValue, bValue;
+    
+    switch(sortBy) {
+      case 'profit': aValue = a.profit; bValue = b.profit; break;
+      case 'totalDeliveredPieces': aValue = a.totalDeliveredPieces; bValue = b.totalDeliveredPieces; break;
+      case 'totalRevenue': aValue = a.totalRevenue; bValue = b.totalRevenue; break;
+      case 'totalOrders': aValue = a.totalOrders; bValue = b.totalOrders; break;
+      case 'profitPerOrder': aValue = a.profitPerOrder; bValue = b.profitPerOrder; break;
+      case 'profitPerPiece': aValue = a.profitPerPiece; bValue = b.profitPerPiece; break;
+      case 'deliveryRate': aValue = a.deliveryRate; bValue = b.deliveryRate; break;
+      default: aValue = a.totalDeliveredPieces; bValue = b.totalDeliveredPieces;
+    }
+    
+    if (sortOrder === 'desc') return bValue - aValue;
+    else return aValue - bValue;
+  });
+
+  res.json({ analytics, sortBy, sortOrder });
+});
+
+app.get('/api/analytics/profit-by-country', requireAuth, (req, res) => {
+  const db = loadDB();
+  const { start, end, country, sortBy = 'totalDeliveredPieces', sortOrder = 'desc' } = req.query || {};
+
+  const analytics = {};
+  const countries = country ? [country] : (db.countries || []).filter(c => c !== 'china');
+
+  countries.forEach(c => {
+    const metrics = calculateProfitMetricsLogic2(db, null, c, start, end);
+    analytics[c] = metrics;
+  });
+
+  let analyticsArray = Object.entries(analytics).map(([country, metrics]) => ({
+    country,
+    ...metrics
+  }));
+
+  analyticsArray.sort((a, b) => {
+    let aValue, bValue;
+    
+    switch(sortBy) {
+      case 'profit': aValue = a.profit; bValue = b.profit; break;
+      case 'totalDeliveredPieces': aValue = a.totalDeliveredPieces; bValue = b.totalDeliveredPieces; break;
+      case 'totalRevenue': aValue = a.totalRevenue; bValue = b.totalRevenue; break;
+      case 'totalOrders': aValue = a.totalOrders; bValue = b.totalOrders; break;
+      case 'profitPerOrder': aValue = a.profitPerOrder; bValue = b.profitPerOrder; break;
+      case 'profitPerPiece': aValue = a.profitPerPiece; bValue = b.profitPerPiece; break;
+      case 'deliveryRate': aValue = a.deliveryRate; bValue = b.deliveryRate; break;
+      default: aValue = a.totalDeliveredPieces; bValue = b.totalDeliveredPieces;
+    }
+    
+    if (sortOrder === 'desc') return bValue - aValue;
+    else return aValue - bValue;
+  });
+
+  res.json({ analytics: analyticsArray, sortBy, sortOrder });
+});
+
+// Product Info
+app.get('/api/product-info/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  const productId = req.params.id;
+  const product = db.products.find(p => p.id === productId);
+  
+  if (!product) return res.status(404).json({ error: 'Product not found' });
+
+  const prices = db.productSellingPrices.filter(sp => sp.productId === productId);
+  const countries = db.countries.filter(c => c !== 'china');
+  
+  const remittances = db.remittances.filter(r => r.productId === productId);
+  const totalBoxleoFees = remittances.reduce((sum, r) => sum + (+r.boxleoFees || 0), 0);
+  const totalDeliveredOrders = remittances.reduce((sum, r) => sum + (+r.orders || 0), 0);
+  const boxleoPerOrder = totalDeliveredOrders > 0 ? totalBoxleoFees / totalDeliveredOrders : 0;
+  
+  const analysis = countries.map(country => {
+    const price = prices.find(p => p.country === country);
+    
+    const productCostPerPiece = calculateProductCostPerPiece(db, productId);
+    const shippingCostPerPiece = calculateActualShippingCostPerPiece(db, productId, country);
+    
+    const sellingPrice = price ? +price.price : 0;
+    const productCostChina = productCostPerPiece;
+    const shippingCost = shippingCostPerPiece;
+    
+    const totalCost = productCostChina + shippingCost + boxleoPerOrder;
+    const availableForProfitAndAds = sellingPrice - totalCost;
+    
+    const deliveryData = calculateProfitMetricsLogic2(db, productId, country, '2000-01-01', '2100-01-01');
+    const deliveryRate = deliveryData.deliveryRate || 0;
+    const maxCPL = deliveryRate > 0 ? availableForProfitAndAds * (deliveryRate / 100) : 0;
+
+    return {
+      country,
+      sellingPrice,
+      productCostChina,
+      shippingCost,
+      boxleoPerOrder,
+      totalCost,
+      availableForProfitAndAds,
+      deliveryRate,
+      maxCPL
+    };
+  });
+
+  res.json({
+    product,
+    prices: prices,
+    costAnalysis: analysis,
+    boxleoPerOrder: boxleoPerOrder,
+    totalBoxleoFees: totalBoxleoFees,
+    totalDeliveredOrders: totalDeliveredOrders
+  });
+});
+
+// Product Costs Analysis (Logic 1)
+app.get('/api/product-costs-analysis', requireAuth, (req, res) => {
+  const db = loadDB();
+  const { productId, start, end } = req.query || {};
+  
+  let metrics;
+  if (productId === 'all') {
+    metrics = calculateProfitMetricsLogic1(db, null, null, start, end);
+    metrics.isAggregate = true;
+    metrics.productCount = db.products.length;
+  } else {
+    metrics = calculateProfitMetricsLogic1(db, productId, null, start, end);
+    metrics.isAggregate = false;
+    metrics.productCount = 1;
+  }
+  
+  res.json(metrics);
+});
+
+// Snapshots
+app.get('/api/snapshots', requireAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ snapshots: db.snapshots || [] });
+});
+
+app.post('/api/snapshots', requireAuth, async (req, res) => {
+  try {
+    const db = loadDB();
+    const { name } = req.body || {};
+    
+    await fs.ensureDir(SNAPSHOT_DIR);
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const snapshotName = name || `Manual-${stamp}`;
+    const snapshotFileName = `${stamp}-${snapshotName.replace(/\s+/g, '-')}.json`;
+    
+    await fs.copy(DATA_FILE, path.join(SNAPSHOT_DIR, snapshotFileName));
+    
+    const snapshotEntry = {
+      id: uuidv4(),
+      name: snapshotName,
+      file: snapshotFileName,
+      createdAt: new Date().toISOString(),
+      kind: 'manual'
+    };
+    
+    db.snapshots = db.snapshots || [];
+    db.snapshots.unshift(snapshotEntry);
+    saveDB(db);
+    
+    res.json({ ok: true, snapshot: snapshotEntry });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/snapshots/:id', requireAuth, (req, res) => {
+  const db = loadDB();
+  db.snapshots = (db.snapshots || []).filter(s => s.id !== req.params.id);
+  saveDB(db);
+  res.json({ ok: true });
+});
+
+// Backup push
+app.post('/api/backup/push-snapshot', requireAuth, async (req, res) => {
+  try {
+    const { snapshotFile } = req.body || {};
+    if (!snapshotFile) return res.status(400).json({ error: 'Missing snapshot file' });
+    
+    const snapshotPath = path.join(SNAPSHOT_DIR, snapshotFile);
+    if (!fs.existsSync(snapshotPath)) {
+      return res.status(404).json({ error: 'Snapshot file not found' });
+    }
+    
+    const snapshotData = await fs.readJson(snapshotPath);
+    
+    if (!snapshotData.products || !snapshotData.countries) {
+      return res.status(400).json({ error: 'Invalid snapshot format' });
+    }
+    
+    const backupFileName = `pre-push-backup-${Date.now()}.json`;
+    await fs.copy(DATA_FILE, path.join(SNAPSHOT_DIR, backupFileName));
+    
+    await fs.writeJson(DATA_FILE, snapshotData, { spaces: 2 });
+    
+    res.json({ 
+      ok: true, 
+      message: 'Snapshot pushed successfully. System will reload.',
+      backupFile: backupFileName 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ======== STARTUP BACKUP ========
+async function createStartupBackup() {
+  try {
+    const db = loadDB();
+    const today = new Date().toISOString().slice(0, 10);
+    const backupName = `Daily-${today}`;
+    
+    const existingBackup = db.snapshots.find(snap => 
+      snap.name && snap.name.includes(today)
+    );
+    
+    if (!existingBackup) {
+      const snapshotFileName = `auto-daily-${today}.json`;
+      await fs.copy(DATA_FILE, path.join(SNAPSHOT_DIR, snapshotFileName));
+      
+      const backupEntry = {
+        id: uuidv4(),
+        name: backupName,
+        file: snapshotFileName,
+        createdAt: new Date().toISOString(),
+        kind: 'auto-daily'
+      };
+      
+      db.snapshots.unshift(backupEntry);
+      
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      db.snapshots = db.snapshots.filter(snapshot => {
+        if (snapshot.name && snapshot.name.startsWith('Daily-')) {
+          const snapshotDate = new Date(snapshot.createdAt);
+          return snapshotDate >= sevenDaysAgo;
+        }
+        return true;
+      });
+      
+      saveDB(db);
+      console.log(`✅ Auto-created startup backup: ${backupName}`);
+    }
+  } catch (error) {
+    console.error('❌ Startup backup error:', error.message);
+  }
+}
+
+// ======== STATIC ROUTES ========
+app.get('/product.html', (req, res) => res.sendFile(path.join(ROOT, 'product.html')));
+app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
+
+app.listen(PORT, async () => {
+  await createStartupBackup();
+  console.log('✅ EAS Tracker listening on', PORT);
+  console.log('DB:', DATA_FILE);
 });
