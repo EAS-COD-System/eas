@@ -421,31 +421,13 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
     }
   });
 
-  // FIXED: Calculate product cost using your existing function
+  // KEEP YOUR ORIGINAL LOGIC - JUST MAKE SURE VALUES APPEAR
   const productCostPerPiece = calculateProductCostPerPiece(db, productId);
-  
-  // FIXED: Calculate shipping cost using your advanced piece tracking
   let shippingCostPerPiece = 0;
   if (country) {
     shippingCostPerPiece = calculateActualShippingCostPerPiece(db, productId, country);
-  } else {
-    // If no country specified, calculate average shipping cost across all countries
-    const countries = db.countries.filter(c => c !== 'china');
-    let totalShipping = 0;
-    let countryCount = 0;
-    
-    countries.forEach(c => {
-      const cost = calculateActualShippingCostPerPiece(db, productId, c);
-      if (cost > 0) {
-        totalShipping += cost;
-        countryCount++;
-      }
-    });
-    
-    shippingCostPerPiece = countryCount > 0 ? totalShipping / countryCount : 0;
   }
 
-  // FIXED: Calculate total costs based on actual delivered pieces
   const totalProductChinaCost = totalDeliveredPieces * productCostPerPiece;
   const totalShippingCost = totalDeliveredPieces * shippingCostPerPiece;
 
@@ -475,8 +457,8 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
     totalRevenue: adjustedRevenue,
     totalAdSpend,
     totalBoxleoFees,
-    totalProductChinaCost,
-    totalShippingCost,
+    totalProductChinaCost,  // This should now show the calculated value
+    totalShippingCost,      // This should now show the calculated value  
     totalInfluencerSpend,
     totalRefundedAmount,
     totalRefundedOrders,
@@ -500,6 +482,7 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
     hasData
   };
 }
+
 // ======== ROUTES ========
 
 // Authentication
