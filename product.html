@@ -1,363 +1,381 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Product Details - EAS Tracker</title>
-    <link rel="stylesheet" href="/public/styles.css">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Product – EAS Tracker</title>
+  <link rel="stylesheet" href="/public/styles.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div id="login">
-        <div class="login-card">
-            <h1>🔐 EAS Tracker Login</h1>
-            <input type="password" id="pw" class="input" placeholder="Enter password" autofocus>
-            <button id="loginBtn" class="btn">Login</button>
+  <nav class="nav">
+    <a href="/">← Back to Dashboard</a>
+    <span class="nav-right brand">EAS Tracker</span>
+  </nav>
+
+  <div id="product" class="container">
+    <!-- Product Header -->
+    <div class="section">
+      <h2 id="pdTitle">Product</h2>
+      <div id="pdSku" class="muted"></div>
+    </div>
+
+    <!-- Stock & Ad Spend by Country -->
+    <div class="section">
+      <h3>Stock &amp; Ad Spend by Country (this product)</h3>
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Country</th>
+              <th>Stock</th>
+              <th>Facebook</th>
+              <th>TikTok</th>
+              <th>Google</th>
+              <th>Total Ad Spend</th>
+            </tr>
+          </thead>
+          <tbody id="pdStockBody"></tbody>
+          <tfoot>
+            <tr class="totals">
+              <th>Totals</th>
+              <th id="pdStockTotal">0</th>
+              <th id="pdFbTotal">0</th>
+              <th id="pdTtTotal">0</th>
+              <th id="pdGgTotal">0</th>
+              <th id="pdAdTotal">0</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Product Notes Section -->
+    <div class="section">
+      <h3>📝 Product Notes & Testing Results</h3>
+      <div class="card">
+        <div class="h">Add Testing Results by Country</div>
+        <div class="row wrap">
+          <select id="pdNoteCountry" class="input">
+            <option value="">Select country...</option>
+          </select>
+          <textarea id="pdNoteText" class="input" placeholder="Enter testing results, observations, or notes for this country..." rows="3" style="width: 100%;"></textarea>
+          <button id="pdNoteSave" class="btn">💾 Save Note</button>
         </div>
+        <div id="pdNotesList" class="notes-list" style="margin-top: 15px;"></div>
+      </div>
     </div>
 
-    <div id="main">
-        <nav class="nav">
-            <a href="/">🏠 Back to Dashboard</a>
-            <a href="#" id="logoutLink" style="margin-left: auto;">🚪 Logout</a>
-        </nav>
-
-        <section id="productDetails">
-            <!-- Product Header -->
-            <div class="card">
-                <div class="h" id="pdTitle">Product Details</div>
-                <div id="pdSku" class="muted"></div>
-            </div>
-
-            <!-- Stock & Ad Spend by Country -->
-            <div class="card">
-                <div class="h">📦 Stock & Ad Spend by Country</div>
-                <div class="table-scroll">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Country</th>
-                                <th>Stock</th>
-                                <th>Facebook</th>
-                                <th>TikTok</th>
-                                <th>Google</th>
-                                <th>Total Ad Spend</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pdStockBody"></tbody>
-                        <tfoot>
-                            <tr>
-                                <th>Total</th>
-                                <th id="pdStockTotal">0</th>
-                                <th id="pdFbTotal">0</th>
-                                <th id="pdTtTotal">0</th>
-                                <th id="pdGgTotal">0</th>
-                                <th id="pdAdTotal">0</th>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Product Notes -->
-            <div class="card">
-                <div class="h">📝 Product Notes by Country</div>
-                <div class="row wrap">
-                    <select id="pdNoteCountry" class="input">
-                        <option value="">Select Country...</option>
-                    </select>
-                    <input type="text" id="pdNoteText" class="input" placeholder="Enter note..." style="flex: 2;">
-                    <button id="pdNoteSave" class="btn">Save Note</button>
-                </div>
-                <div id="pdNotesList"></div>
-            </div>
-
-            <!-- Profit & Advertising Budget -->
-            <div class="card">
-                <div class="h">💰 Profit & Advertising Budget Calculator</div>
-                <div class="table-scroll">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Country</th>
-                                <th>Max Cost Per Lead</th>
-                                <th>Available for Profit & Ads</th>
-                                <th>Delivery Rate</th>
-                                <th>Selling Price</th>
-                                <th>Product Cost China</th>
-                                <th>Shipping Cost</th>
-                                <th>Boxleo/Order</th>
-                                <th>Total Cost</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pdPBBBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Shipments -->
-            <div class="card">
-                <div class="h">🚚 China → Kenya Shipments</div>
-                <div class="table-scroll">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Route</th>
-                                <th>Qty</th>
-                                <th>Est. Ship Cost</th>
-                                <th>Final Ship Cost</th>
-                                <th>China Cost</th>
-                                <th>Departed</th>
-                                <th>Arrived</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pdShipCKBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="h">🔄 Inter-Country Shipments</div>
-                <div class="table-scroll">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Route</th>
-                                <th>Qty</th>
-                                <th>Est. Ship Cost</th>
-                                <th>Final Ship Cost</th>
-                                <th>Departed</th>
-                                <th>Arrived</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pdShipICBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="h">✅ Arrived Shipments</div>
-                <div class="table-scroll">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Route</th>
-                                <th>Qty</th>
-                                <th>Est. Ship Cost</th>
-                                <th>Final Ship Cost</th>
-                                <th>China Cost</th>
-                                <th>Departed</th>
-                                <th>Arrived</th>
-                                <th>Days in Transit</th>
-                                <th>Status</th>
-                                <th>Note</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pdArrivedBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Lifetime Performance -->
-            <div class="card">
-                <div class="h">📊 Lifetime (This Product)</div>
-                <div class="row wrap">
-                    <select class="date-range-select input">
-                        <option value="lifetime">Lifetime</option>
-                        <option value="1month">Last 1 Month</option>
-                        <option value="2months">Last 2 Months</option>
-                        <option value="6months">Last 6 Months</option>
-                        <option value="1year">Last 1 Year</option>
-                        <option value="custom">Custom Range</option>
-                    </select>
-                    <div class="custom-range row wrap" style="display: none;">
-                        <input type="date" class="custom-start input">
-                        <input type="date" class="custom-end input">
-                    </div>
-                    <button id="pdLPRun" class="btn">Run Analysis</button>
-                </div>
-                <div class="table-scroll">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Country</th>
-                                <th>Revenue</th>
-                                <th>Refunded</th>
-                                <th>Ad Spend</th>
-                                <th>Influencer</th>
-                                <th>Boxleo</th>
-                                <th>Product Cost</th>
-                                <th>Shipping</th>
-                                <th>Total Cost</th>
-                                <th>Orders</th>
-                                <th>Delivered Orders</th>
-                                <th>Refunded Orders</th>
-                                <th>Delivered Pieces</th>
-                                <th>Profit/Order</th>
-                                <th>Profit/Piece</th>
-                                <th>Delivery Rate</th>
-                                <th>Profit</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pdLPBody"></tbody>
-                        <tfoot>
-                            <tr>
-                                <th>Totals/Averages</th>
-                                <th id="pdLPRevT">0</th>
-                                <th id="pdLPRefundedT">0</th>
-                                <th id="pdLPAdT">0</th>
-                                <th id="pdLPInfluencerT">0</th>
-                                <th id="pdLPBoxleoT">0</th>
-                                <th id="pdLPProductCostT">0</th>
-                                <th id="pdLPShipT">0</th>
-                                <th id="pdLPTotalCostT">0</th>
-                                <th id="pdLPOrdersT">0</th>
-                                <th id="pdLPDeliveredOrdersT">0</th>
-                                <th id="pdLPRefundedOrdersT">0</th>
-                                <th id="pdLPDeliveredPiecesT">0</th>
-                                <th id="pdLPProfitOrderT">0</th>
-                                <th id="pdLPProfitPieceT">0</th>
-                                <th id="pdLPDeliveryRateT">0%</th>
-                                <th id="pdLPProfitT">0</th>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Store Orders -->
-            <div class="card">
-                <div class="h">🛍️ Store Orders</div>
-                <div class="table-scroll">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Period</th>
-                                <th>Country</th>
-                                <th>Orders</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pdStoreOrdersBody"></tbody>
-                    </table>
-                </div>
-                <div id="pdStoreOrdersPagination" class="pagination"></div>
-            </div>
-
-            <!-- Remittances -->
-            <div class="card">
-                <div class="h">💸 Remittances</div>
-                <div class="table-scroll">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Period</th>
-                                <th>Country</th>
-                                <th>Orders</th>
-                                <th>Pieces</th>
-                                <th>Revenue</th>
-                                <th>Ad Spend</th>
-                                <th>Boxleo Fees</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pdRemittancesBody"></tbody>
-                    </table>
-                </div>
-                <div id="pdRemittancesPagination" class="pagination"></div>
-            </div>
-
-            <!-- Refunds -->
-            <div class="card">
-                <div class="h">🔄 Refunds</div>
-                <div class="table-scroll">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Country</th>
-                                <th>Orders</th>
-                                <th>Pieces</th>
-                                <th>Amount</th>
-                                <th>Reason</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pdRefundsBody"></tbody>
-                    </table>
-                </div>
-                <div id="pdRefundsPagination" class="pagination"></div>
-            </div>
-
-            <!-- Influencers -->
-            <div class="card">
-                <div class="h">📢 Influencers & Spends</div>
-                <div class="row wrap">
-                    <input type="text" id="pdInfName" class="input" placeholder="Influencer Name">
-                    <input type="text" id="pdInfSocial" class="input" placeholder="Social Handle (optional)">
-                    <select id="pdInfCountry" class="input">
-                        <option value="">Country (optional)</option>
-                    </select>
-                    <button id="pdInfAdd" class="btn">Add Influencer</button>
-                </div>
-
-                <div class="row wrap" style="margin-top: 1rem;">
-                    <select id="pdInfSelect" class="input">
-                        <option value="">Select Influencer...</option>
-                    </select>
-                    <input type="date" id="pdInfDate" class="input">
-                    <select id="pdInfFilterCountry" class="input">
-                        <option value="">All Countries</option>
-                    </select>
-                    <input type="number" id="pdInfAmount" class="input" placeholder="Amount USD" step="0.01">
-                    <button id="pdInfSpendAdd" class="btn">Add Spend</button>
-                </div>
-
-                <div class="row wrap" style="margin-top: 1rem;">
-                    <select class="date-range-select input">
-                        <option value="lifetime">Lifetime</option>
-                        <option value="1month">Last 1 Month</option>
-                        <option value="2months">Last 2 Months</option>
-                        <option value="6months">Last 6 Months</option>
-                        <option value="1year">Last 1 Year</option>
-                        <option value="custom">Custom Range</option>
-                    </select>
-                    <div class="custom-range row wrap" style="display: none;">
-                        <input type="date" class="custom-start input">
-                        <input type="date" class="custom-end input">
-                    </div>
-                    <button id="pdInfRun" class="btn">Filter Spends</button>
-                    <div class="muted" style="margin-left: auto;">
-                        Total: <span id="pdInfTotal">0</span> USD
-                    </div>
-                </div>
-
-                <div class="table-scroll" style="margin-top: 1rem;">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Country</th>
-                                <th>Influencer</th>
-                                <th>Social</th>
-                                <th>Amount</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pdInfBody"></tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
+    <!-- Profit + Advertising Budget (Automated) -->
+    <div class="section">
+      <h3>Profit + Advertising Budget (Automated Calculation)</h3>
+      <div class="card">
+        <div class="h">💰 Automated Budget Calculation by Country</div>
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Country</th>
+                <th>Max CPL</th>
+                <th>Available for Profit & Ads</th>
+                <th>Delivery Rate</th>
+                <th>Selling Price</th>
+                <th>Product Cost China</th>
+                <th>Shipping Cost</th>
+                <th>Boxleo/Order</th>
+                <th>Total Cost</th>
+              </tr>
+            </thead>
+            <tbody id="pdPBBBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
-    <script src="/public/app.js"></script>
+    <!-- Transit Tables -->
+    <div class="section">
+      <h3>Transit (China → Kenya)</h3>
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Route</th>
+              <th>Qty</th>
+              <th>Est. Ship Cost</th>
+              <th>Final Ship Cost</th>
+              <th>China Cost</th>
+              <th>Departed</th>
+              <th>Arrived</th>
+              <th>Payment Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="pdShipCKBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Transit (Inter-country)</h3>
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Route</th>
+              <th>Qty</th>
+              <th>Est. Ship Cost</th>
+              <th>Final Ship Cost</th>
+              <th>Departed</th>
+              <th>Arrived</th>
+              <th>Payment Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="pdShipICBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Arrived Shipments -->
+    <div class="section">
+      <h3>Arrived Shipments</h3>
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Route</th>
+              <th>Qty</th>
+              <th>Est. Ship Cost</th>
+              <th>Final Ship Cost</th>
+              <th>China Cost</th>
+              <th>Departed</th>
+              <th>Arrived</th>
+              <th>Days</th>
+              <th>Payment Status</th>
+              <th>Note</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="pdArrivedBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Lifetime Performance -->
+    <div class="section">
+      <h3>Lifetime (This Product)</h3>
+      <div class="card">
+        <div class="row wrap">
+          <select id="pdLPRange" class="input date-range-select">
+            <option value="8days">Last 8 days</option>
+            <option value="15days">Last 15 days</option>
+            <option value="1month">Last 1 month</option>
+            <option value="2months">Last 2 months</option>
+            <option value="6months">Last 6 months</option>
+            <option value="1year">Last 1 year</option>
+            <option value="2years">Last 2 years</option>
+            <option value="lifetime">Lifetime</option>
+            <option value="custom">Custom range</option>
+          </select>
+          <div class="custom-range" style="display: none;">
+            <input type="date" class="input custom-start"/>
+            <input type="date" class="input custom-end"/>
+          </div>
+          <button id="pdLPRun" class="btn">Run</button>
+        </div>
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Country</th>
+                <th>Revenue</th>
+                <th>Refunded Amount</th>
+                <th>Ad Spend</th>
+                <th>Influencer Spend</th>
+                <th>Boxleo Fees</th>
+                <th>Product Cost China</th>
+                <th>Shipping</th>
+                <th>Total Cost</th>
+                <th>Orders</th>
+                <th>Delivered Orders</th>
+                <th>Refunded Orders</th>
+                <th>Delivered Pieces</th>
+                <th>Profit/Order</th>
+                <th>Profit/Piece</th>
+                <th>Delivery Rate</th>
+                <th>Profit</th>
+              </tr>
+            </thead>
+            <tbody id="pdLPBody"></tbody>
+            <tfoot>
+              <tr class="totals">
+                <th>Totals</th>
+                <th id="pdLPRevT">0</th>
+                <th id="pdLPRefundedT">0</th>
+                <th id="pdLPAdT">0</th>
+                <th id="pdLPInfluencerT">0</th>
+                <th id="pdLPBoxleoT">0</th>
+                <th id="pdLPProductCostT">0</th>
+                <th id="pdLPShipT">0</th>
+                <th id="pdLPTotalCostT">0</th>
+                <th id="pdLPOrdersT">0</th>
+                <th id="pdLPDeliveredOrdersT">0</th>
+                <th id="pdLPRefundedOrdersT">0</th>
+                <th id="pdLPDeliveredPiecesT">0</th>
+                <th id="pdLPProfitOrderT">$0</th>
+                <th id="pdLPProfitPieceT">$0</th>
+                <th id="pdLPDeliveryRateT">0%</th>
+                <th id="pdLPProfitT">0</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Store Orders Section -->
+    <div class="section">
+      <h3>📦 Store Orders for This Product</h3>
+      <div class="card">
+        <div class="h">Store Orders Tracking</div>
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Period</th>
+                <th>Country</th>
+                <th>Orders</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="pdStoreOrdersBody"></tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <div class="pagination" id="pdStoreOrdersPagination" style="margin-top: 15px;"></div>
+      </div>
+    </div>
+
+    <!-- Remittances -->
+    <div class="section">
+      <h3>Remittances for This Product</h3>
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Period</th>
+              <th>Country</th>
+              <th>Orders</th>
+              <th>Pieces</th>
+              <th>Revenue</th>
+              <th>Ad Spend</th>
+              <th>Boxleo Fees</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="pdRemittancesBody"></tbody>
+        </table>
+      </div>
+      <!-- Pagination -->
+      <div class="pagination" id="pdRemittancesPagination" style="margin-top: 15px;"></div>
+    </div>
+
+    <!-- Refunds Section -->
+    <div class="section">
+      <h3>💸 Refunds for This Product</h3>
+      <div class="card">
+        <div class="h">Refund Management</div>
+        <div class="table-scroll" style="margin-top: 15px;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Country</th>
+                <th>Orders Refunded</th>
+                <th>Pieces Refunded</th>
+                <th>Amount</th>
+                <th>Reason</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="pdRefundsBody"></tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <div class="pagination" id="pdRefundsPagination" style="margin-top: 15px;"></div>
+      </div>
+    </div>
+
+    <!-- Influencer Spend -->
+    <div class="section">
+      <h3>Influencer Spend</h3>
+      <div class="card">
+        <!-- Add Influencer -->
+        <div class="row wrap">
+          <input id="pdInfName" class="input" placeholder="Influencer name"/>
+          <input id="pdInfSocial" class="input" placeholder="Social @handle"/>
+          <select id="pdInfCountry" class="input"></select>
+          <button id="pdInfAdd" class="btn">Add Influencer</button>
+        </div>
+
+        <!-- Add Spend -->
+        <div class="row wrap">
+          <input id="pdInfDate" type="date" class="input"/>
+          <select id="pdInfSelect" class="input"></select>
+          <select id="pdInfFilterCountry" class="input">
+            <option value="">All countries</option>
+          </select>
+          <input id="pdInfAmount" type="number" class="input" placeholder="Spend (USD)" step="0.01"/>
+          <button id="pdInfSpendAdd" class="btn">Add Spend</button>
+        </div>
+
+
+        <!-- Filter -->
+        <div class="row wrap">
+          <select id="pdInfRange" class="input date-range-select">
+            <option value="8days">Last 8 days</option>
+            <option value="15days">Last 15 days</option>
+            <option value="1month">Last 1 month</option>
+            <option value="2months">Last 2 months</option>
+            <option value="6months">Last 6 months</option>
+            <option value="1year">Last 1 year</option>
+            <option value="2years">Last 2 years</option>
+            <option value="lifetime">Lifetime</option>
+            <option value="custom">Custom range</option>
+          </select>
+          <div class="custom-range" style="display: none;">
+            <input type="date" class="input custom-start"/>
+            <input type="date" class="input custom-end"/>
+          </div>
+          <button id="pdInfRun" class="btn outline">Filter</button>
+          <div class="badge">Total: <span id="pdInfTotal">0</span> USD</div>
+        </div>
+
+        <!-- Influencer Table -->
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Country</th>
+                <th>Influencer</th>
+                <th>Social</th>
+                <th>Amount</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="pdInfBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/public/app.js"></script>
 </body>
-</html>
+</html>  
