@@ -86,52 +86,20 @@ function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
   
   if (relevantShipments.length === 0) return 0;
   
-  // Build shipment chains to track piece movement
-  const pieceTracking = {};
+  // For target country, calculate average shipping cost per piece
+  const countryShipments = relevantShipments.filter(s => s.toCountry === targetCountry);
   
-  // Process shipments chronologically
-  const sortedShipments = [...relevantShipments].sort((a, b) => 
-    new Date(a.departedAt) - new Date(b.departedAt)
-  );
+  if (countryShipments.length === 0) return 0;
   
-  sortedShipments.forEach(shipment => {
-    const fromCountry = shipment.fromCountry;
-    const toCountry = shipment.toCountry;
-    const quantity = +shipment.qty || 0;
-    const shippingCostPerPiece = (+shipment.finalShipCost || +shipment.shipCost || 0) / quantity;
-    
-    if (fromCountry === 'china') {
-      // New pieces from China
-      if (!pieceTracking[toCountry]) pieceTracking[toCountry] = [];
-      for (let i = 0; i < quantity; i++) {
-        pieceTracking[toCountry].push({
-          cost: shippingCostPerPiece,
-          route: [`${fromCountry}→${toCountry}`]
-        });
-      }
-    } else {
-      // Moving existing pieces between countries
-      if (pieceTracking[fromCountry] && pieceTracking[fromCountry].length >= quantity) {
-        const movedPieces = pieceTracking[fromCountry].splice(0, quantity);
-        if (!pieceTracking[toCountry]) pieceTracking[toCountry] = [];
-        
-        movedPieces.forEach(piece => {
-          pieceTracking[toCountry].push({
-            cost: piece.cost + shippingCostPerPiece,
-            route: [...piece.route, `${fromCountry}→${toCountry}`]
-          });
-        });
-      }
-    }
+  let totalCost = 0;
+  let totalPieces = 0;
+  
+  countryShipments.forEach(shipment => {
+    totalCost += +(shipment.finalShipCost || 0);
+    totalPieces += +(shipment.qty || 0);
   });
   
-  // Calculate average cost for target country
-  if (pieceTracking[targetCountry] && pieceTracking[targetCountry].length > 0) {
-    const totalCost = pieceTracking[targetCountry].reduce((sum, piece) => sum + piece.cost, 0);
-    return totalCost / pieceTracking[targetCountry].length;
-  }
-  
-  return 0;
+  return totalPieces > 0 ? totalCost / totalPieces : 0;
 }
 
 function calculateProductCostPerPiece(db, productId) {
@@ -230,132 +198,6 @@ function calculateTransitPieces(db, productId = null) {
 }
 
 // ======== PROFIT CALCULATION LOGICS ========
-
-// Logic 1: For "Lifetime Product Costs Analysis" and "Lifetime (This Product)"
-function calculateProfitMetricsLogic1(db, productId, country = null, startDate = null, endDate = null) {
-  const remittances = db.remittances || [];
-  const refunds = db.refunds || [];
-  const shipments = db.shipments || [];
-  const productOrders = db.productOrders || [];
-  const adspend = db.adspend || [];
-  const influencerSpends = db.influencerSpends || [];
-
-  let totalRevenue = 0;
-  let totalBoxleoFees = 0;
-  let totalDeliveredPieces = 0;
-  let totalDeliveredOrders = 0;
-  let totalRefundedOrders = 0;
-  let totalRefundedAmount = 0;
-  let totalOrders = 0;
-  let totalAdSpend = 0;
-  let totalInfluencerSpend = 0;
-
-  // Calculate from remittances
-  remittances.forEach(remittance => {
-    if ((!productId || remittance.productId === productId) &&
-        (!country || remittance.country === country) &&
-        (!startDate || remittance.start >= startDate) &&
-        (!endDate || remittance.end <= endDate)) {
-      totalRevenue += +remittance.revenue || 0;
-      totalBoxleoFees += +remittance.boxleoFees || 0;
-      totalDeliveredPieces += +remittance.pieces || 0;
-      totalDeliveredOrders += +remittance.orders || 0;
-      totalAdSpend += +remittance.adSpend || 0;
-    }
-  });
-
-  // Calculate refunds
-  refunds.forEach(refund => {
-    if ((!productId || refund.productId === productId) &&
-        (!country || refund.country === country) &&
-        (!startDate || refund.date >= startDate) &&
-        (!endDate || refund.date <= endDate)) {
-      totalRefundedOrders += +refund.orders || 0;
-      totalRefundedAmount += +refund.amount || 0;
-    }
-  });
-
-  // Calculate total orders from product orders
-  productOrders.forEach(order => {
-    if ((!productId || order.productId === productId) &&
-        (!country || order.country === country) &&
-        (!startDate || order.startDate >= startDate) &&
-        (!endDate || order.endDate <= endDate)) {
-      totalOrders += (+order.orders || 0);
-    }
-  });
-
-  // Calculate influencer spend
-  influencerSpends.forEach(spend => {
-    if ((!productId || spend.productId === productId) &&
-        (!country || spend.country === country) &&
-        (!startDate || spend.date >= startDate) &&
-        (!endDate || spend.date <= endDate)) {
-      totalInfluencerSpend += +spend.amount || 0;
-    }
-  });
-
-  // Calculate product and shipping costs from TOTAL shipments
-  let totalProductChinaCost = 0;
-  let totalShippingCost = 0;
-
-  shipments.forEach(shipment => {
-    if ((!productId || shipment.productId === productId) &&
-        (!startDate || shipment.departedAt >= startDate) &&
-        (!endDate || shipment.departedAt <= endDate)) {
-      totalProductChinaCost += +(shipment.chinaCost || 0);
-      totalShippingCost += +(shipment.finalShipCost || shipment.shipCost || 0);
-    }
-  });
-
-  const adjustedRevenue = totalRevenue - totalRefundedAmount;
-  const totalCost = totalProductChinaCost + totalShippingCost + totalBoxleoFees + totalAdSpend + totalInfluencerSpend;
-  const profit = adjustedRevenue - totalCost;
-
-  const netDeliveredOrders = totalDeliveredOrders - totalRefundedOrders;
-  const deliveryRate = totalOrders > 0 ? (netDeliveredOrders / totalOrders) * 100 : 0;
-
-  // Enhanced metrics
-  const costPerDeliveredOrder = netDeliveredOrders > 0 ? totalCost / netDeliveredOrders : 0;
-  const costPerDeliveredPiece = totalDeliveredPieces > 0 ? totalCost / totalDeliveredPieces : 0;
-  const adCostPerDeliveredOrder = netDeliveredOrders > 0 ? totalAdSpend / netDeliveredOrders : 0;
-  const adCostPerDeliveredPiece = totalDeliveredPieces > 0 ? totalAdSpend / totalDeliveredPieces : 0;
-  const boxleoPerDeliveredOrder = netDeliveredOrders > 0 ? totalBoxleoFees / netDeliveredOrders : 0;
-  const boxleoPerDeliveredPiece = totalDeliveredPieces > 0 ? totalBoxleoFees / totalDeliveredPieces : 0;
-  const influencerPerDeliveredOrder = netDeliveredOrders > 0 ? totalInfluencerSpend / netDeliveredOrders : 0;
-  const averageOrderValue = netDeliveredOrders > 0 ? adjustedRevenue / netDeliveredOrders : 0;
-  const profitPerOrder = netDeliveredOrders > 0 ? profit / netDeliveredOrders : 0;
-  const profitPerPiece = totalDeliveredPieces > 0 ? profit / totalDeliveredPieces : 0;
-
-  return {
-    totalRevenue: adjustedRevenue,
-    totalBoxleoFees,
-    totalProductChinaCost,
-    totalShippingCost,
-    totalAdSpend,
-    totalInfluencerSpend,
-    totalRefundedAmount,
-    totalRefundedOrders,
-    totalCost,
-    profit,
-    totalDeliveredPieces,
-    totalDeliveredOrders: netDeliveredOrders,
-    totalOrders,
-    deliveryRate,
-    costPerDeliveredOrder,
-    costPerDeliveredPiece,
-    adCostPerDeliveredOrder,
-    adCostPerDeliveredPiece,
-    boxleoPerDeliveredOrder,
-    boxleoPerDeliveredPiece,
-    influencerPerDeliveredOrder,
-    averageOrderValue,
-    profitPerOrder,
-    profitPerPiece,
-    isProfitable: profit > 0,
-    hasData: totalDeliveredPieces > 0 || adjustedRevenue > 0
-  };
-}
 
 // Logic 2: For "Remittance Analytics", "Profit by Country", and "Product Info & Analytics"
 function calculateProfitMetricsLogic2(db, productId, country = null, startDate = null, endDate = null) {
@@ -490,8 +332,6 @@ app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
   
-  console.log('Auth attempt with password:', password);
-  
   if (password === 'logout') {
     res.clearCookie('auth', { httpOnly: true, sameSite: 'Lax', secure: false, path: '/' });
     return res.json({ ok: true });
@@ -505,11 +345,9 @@ app.post('/api/auth', (req, res) => {
       path: '/', 
       maxAge: 365 * 24 * 60 * 60 * 1000
     });
-    console.log('Login successful');
     return res.json({ ok: true });
   }
   
-  console.log('Login failed');
   return res.status(401).json({ error: 'Wrong password' });
 });
 
@@ -591,13 +429,7 @@ app.post('/api/products/:id/status', requireAuth, (req, res) => {
   if (!p) return res.status(404).json({ error: 'Not found' });
   
   const newStatus = req.body.status || 'active';
-  const currentStatus = p.status;
-  
-  if (currentStatus === 'active' && newStatus === 'paused') {
-    p.status = 'paused';
-  } else if (currentStatus === 'paused' && newStatus === 'active') {
-    p.status = 'active';
-  }
+  p.status = newStatus;
   
   saveDB(db); 
   res.json({ ok: true, product: p });
@@ -1518,11 +1350,62 @@ app.get('/api/product-costs-analysis', requireAuth, (req, res) => {
   
   let metrics;
   if (productId === 'all') {
-    metrics = calculateProfitMetricsLogic1(db, null, null, start, end);
-    metrics.isAggregate = true;
-    metrics.productCount = db.products.length;
+    // Aggregate all products
+    const allProducts = db.products || [];
+    let totalRevenue = 0;
+    let totalBoxleoFees = 0;
+    let totalProductChinaCost = 0;
+    let totalShippingCost = 0;
+    let totalAdSpend = 0;
+    let totalInfluencerSpend = 0;
+    let totalRefundedAmount = 0;
+    let totalRefundedOrders = 0;
+    let totalDeliveredPieces = 0;
+    let totalDeliveredOrders = 0;
+    let totalOrders = 0;
+
+    allProducts.forEach(product => {
+      const productMetrics = calculateProfitMetricsLogic2(db, product.id, null, start, end);
+      totalRevenue += productMetrics.totalRevenue;
+      totalBoxleoFees += productMetrics.totalBoxleoFees;
+      totalProductChinaCost += productMetrics.totalProductChinaCost;
+      totalShippingCost += productMetrics.totalShippingCost;
+      totalAdSpend += productMetrics.totalAdSpend;
+      totalInfluencerSpend += productMetrics.totalInfluencerSpend;
+      totalRefundedAmount += productMetrics.totalRefundedAmount;
+      totalRefundedOrders += productMetrics.totalRefundedOrders;
+      totalDeliveredPieces += productMetrics.totalDeliveredPieces;
+      totalDeliveredOrders += productMetrics.totalDeliveredOrders;
+      totalOrders += productMetrics.totalOrders;
+    });
+
+    const totalCost = totalProductChinaCost + totalShippingCost + totalBoxleoFees + totalAdSpend + totalInfluencerSpend;
+    const profit = totalRevenue - totalCost;
+    const netDeliveredOrders = totalDeliveredOrders - totalRefundedOrders;
+    const deliveryRate = totalOrders > 0 ? (netDeliveredOrders / totalOrders) * 100 : 0;
+
+    metrics = {
+      totalRevenue,
+      totalBoxleoFees,
+      totalProductChinaCost,
+      totalShippingCost,
+      totalAdSpend,
+      totalInfluencerSpend,
+      totalRefundedAmount,
+      totalRefundedOrders,
+      totalCost,
+      profit,
+      totalDeliveredPieces,
+      totalDeliveredOrders: netDeliveredOrders,
+      totalOrders,
+      deliveryRate,
+      isProfitable: profit > 0,
+      hasData: totalDeliveredPieces > 0 || totalRevenue > 0,
+      isAggregate: true,
+      productCount: allProducts.length
+    };
   } else {
-    metrics = calculateProfitMetricsLogic1(db, productId, null, start, end);
+    metrics = calculateProfitMetricsLogic2(db, productId, null, start, end);
     metrics.isAggregate = false;
     metrics.productCount = 1;
   }
