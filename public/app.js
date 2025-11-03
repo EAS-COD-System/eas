@@ -16,7 +16,7 @@ async function api(path, opts = {}) {
   const timeoutId = setTimeout(() => controller.abort(), 30000);
   
   try {
-    const res = await fetch(path, {
+    const res = await fetch(path, { 
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
