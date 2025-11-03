@@ -648,6 +648,29 @@ select.input {
   font-style: italic;
 }
 
+/* ---------- Profit/Loss Row Styles ---------- */
+.profit-row {
+  background: linear-gradient(90deg, rgba(5, 150, 105, 0.1) 0%, transparent 100%) !important;
+}
+
+.loss-row {
+  background: linear-gradient(90deg, rgba(220, 38, 38, 0.1) 0%, transparent 100%) !important;
+}
+
+.no-data-row {
+  background: linear-gradient(90deg, rgba(217, 119, 6, 0.1) 0%, transparent 100%) !important;
+}
+
+.profit-bg {
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, transparent 50%) !important;
+  border-left: 4px solid var(--success) !important;
+}
+
+.loss-bg {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, transparent 50%) !important;
+  border-left: 4px solid var(--danger) !important;
+}
+
 /* ---------- PRODUCT PAGE SPECIFIC FIXES ---------- */
 #product .container {
   max-width: 100%;
@@ -861,6 +884,313 @@ select.input {
   font-weight: 600;
 }
 
+/* ---------- Brainstorming Styles ---------- */
+.ideas-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.idea-card {
+  background: var(--bg-card-light);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 15px;
+  transition: all var(--transition-normal);
+}
+
+.idea-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--primary);
+}
+
+.idea-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.idea-header strong {
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.idea-category {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.idea-category.product {
+  background: var(--primary-light);
+  color: white;
+}
+
+.idea-category.marketing {
+  background: var(--accent-teal);
+  color: white;
+}
+
+.idea-category.operation {
+  background: var(--accent-amber);
+  color: white;
+}
+
+.idea-category.improvement {
+  background: var(--accent-blue);
+  color: white;
+}
+
+.idea-category.general {
+  background: var(--gray-500);
+  color: white;
+}
+
+.idea-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.idea-description {
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.idea-date {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* ---------- Tested Products Styles ---------- */
+.tested-products-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.tested-product-card {
+  background: var(--bg-card-light);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 15px;
+  transition: all var(--transition-normal);
+}
+
+.tested-product-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--primary);
+}
+
+.tested-product-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tested-product-header strong {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.tested-product-countries {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.country-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+}
+
+.country-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 100px;
+}
+
+.country-stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stat-badge {
+  padding: 4px 8px;
+  background: var(--primary-50);
+  border: 1px solid var(--primary-light);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--primary);
+}
+
+/* ---------- Product Notes Styles ---------- */
+.notes-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.note-card {
+  background: var(--bg-card-light);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 15px;
+  transition: all var(--transition-normal);
+}
+
+.note-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--primary);
+}
+
+.note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.note-country {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.note-content {
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+}
+
+.note-date {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* ---------- Product Info Results ---------- */
+.product-info-results {
+  margin-top: 20px;
+}
+
+.product-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid var(--border);
+}
+
+.product-info-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.product-status {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.product-status.active {
+  background: var(--success-light);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+.product-status.paused {
+  background: var(--warning-light);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+}
+
+.profit-budgets-section,
+.product-notes-section {
+  margin-bottom: 25px;
+}
+
+.profit-budgets-section h4,
+.product-notes-section h4 {
+  color: var(--text-primary);
+  margin-bottom: 15px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 15px;
+}
+
+/* ---------- Costs Analysis Styles ---------- */
+.costs-analysis-summary {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-top: 15px;
+}
+
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid var(--border);
+}
+
+.summary-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.net-profit {
+  font-size: 1.5rem;
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: 8px;
+}
+
+/* ---------- Date Range Selector ---------- */
+.date-range-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.custom-range {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 /* ---------- Utilities ---------- */
 .hide { display: none !important; }
 .muted { color: var(--text-muted); }
@@ -927,6 +1257,87 @@ select.input {
 .row.compact { gap: 6px; }
 .row.compact .input { min-height: auto; }
 
+/* ---------- Top Products Ranking Styles ---------- */
+.table .rank-column {
+  text-align: center;
+  font-weight: 700;
+  background: var(--primary-50);
+}
+
+.table .highlight-column {
+  background: var(--success-light);
+  font-weight: 700;
+}
+
+/* Analytics Table Improvements */
+.table-scroll .table {
+  font-size: 0.82rem;
+}
+
+.table-scroll .table th {
+  white-space: nowrap;
+  padding: 8px 10px;
+}
+
+.table-scroll .table td {
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+/* Financial table specific styles */
+.financial-table .cost-column {
+  background: var(--warning-light);
+}
+
+.financial-table .profit-column {
+  background: var(--success-light);
+}
+
+/* Compact financial inputs */
+.finance-input-compact {
+  max-width: 120px;
+}
+
+/* Date range compact */
+.date-range-compact {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.date-range-compact .input {
+  min-width: 140px;
+}
+
+/* Performance section specific */
+#performance .card {
+  margin-bottom: 20px;
+}
+
+#performance .section {
+  margin-bottom: 25px;
+}
+
+/* Top products highlight */
+.top-product-row {
+  background: linear-gradient(90deg, var(--success-light) 0%, transparent 100%);
+}
+
+.top-product-row:nth-child(1) {
+  background: linear-gradient(90deg, var(--accent-amber) 0%, transparent 100%);
+  font-weight: 700;
+}
+
+.top-product-row:nth-child(2) {
+  background: linear-gradient(90deg, var(--primary-100) 0%, transparent 100%);
+  font-weight: 600;
+}
+
+.top-product-row:nth-child(3) {
+  background: linear-gradient(90deg, var(--primary-50) 0%, transparent 100%);
+  font-weight: 500;
+}
+
 /* ---------- Mobile Navigation Styles ---------- */
 @media (max-width: 1024px) {
   .nav {
@@ -987,6 +1398,22 @@ select.input {
   .stats-row-compact {
     grid-template-columns: 1fr;
     gap: 6px;
+  }
+  
+  .notes-list,
+  .notes-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .country-stats {
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .country-result {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
   
   h1 { font-size: 1.8rem; }
