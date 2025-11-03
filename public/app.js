@@ -24,20 +24,16 @@ async function api(path, opts = {}) {
     });
     clearTimeout(timeoutId);
     
-    console.log(`API ${path} response status:`, res.status);
-    
     const ct = res.headers.get('content-type') || '';
     const body = ct.includes('application/json') ? await res.json() : await res.text();
     
     if (!res.ok) {
-      console.error(`API error ${res.status}:`, body);
       throw new Error(body?.error || body || `HTTP ${res.status}`);
     }
     
     return body;
   } catch (error) {
     clearTimeout(timeoutId);
-    console.error('API call failed:', error);
     throw error;
   }
 }
@@ -69,13 +65,9 @@ const state = {
 
 // Main boot function
 async function boot() {
-  console.log('🚀 Boot starting...');
-  
   // Check authentication first
   try {
-    console.log('🔐 Checking authentication...');
     await api('/api/auth/status');
-    console.log('✅ Authenticated successfully');
     
     // Hide login, show main
     const loginEl = document.getElementById('login');
@@ -101,19 +93,14 @@ async function boot() {
     }
     
     setupDailyBackupButton();
-    console.log('✅ Boot completed successfully');
     
   } catch (error) {
-    console.error('❌ Authentication failed:', error);
-    
     // Show login, hide main
     const loginEl = document.getElementById('login');
     const mainEl = document.getElementById('main');
     
     if (loginEl) loginEl.classList.remove('hide');
     if (mainEl) mainEl.style.display = 'none';
-    
-    console.log('👤 Please log in');
   }
 }
 
@@ -221,18 +208,14 @@ async function preload() {
 
     // Load all shipments for stock calculation
     try {
-      console.log('🔄 Preload: Loading shipments...');
       const shipments = await api('/api/shipments');
       state.allShipments = shipments.shipments || [];
-      console.log('✅ Preload: Loaded', state.allShipments.length, 'shipments');
     } catch (error) {
-      console.error('❌ Preload: Failed to load shipments:', error);
       state.allShipments = [];
     }
 
     fillCommonSelects();
   } catch (error) {
-    console.error('❌ Preload failed:', error);
     throw error;
   }
 }
@@ -456,7 +439,6 @@ async function calculateTransitPieces() {
       totalTransit: chinaTransit + interCountryTransit
     };
   } catch (error) {
-    console.error('Error calculating transit:', error);
     return { chinaTransit: 0, interCountryTransit: 0, totalTransit: 0 };
   }
 }
@@ -482,7 +464,6 @@ async function calculateStockByCountry(productId = null) {
       return totalStock;
     }
   } catch (error) {
-    console.error('Error calculating stock:', error);
     return {};
   }
 }
@@ -546,7 +527,6 @@ async function renderCountryStockSpend() {
     Q('#adTotal') && (Q('#adTotal').textContent = fmt(totalAd));
   } catch (error) {
     body.innerHTML = `<tr><td colspan="6" class="muted">Error loading data</td></tr>`;
-    console.error('Dashboard error:', error);
   }
 }
 
