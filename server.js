@@ -421,60 +421,33 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
     }
   });
 
-  // Calculate product cost per piece from shipments
+  // FIXED: Calculate product cost using your existing function
   const productCostPerPiece = calculateProductCostPerPiece(db, productId);
   
-  // FIXED: Calculate shipping cost - use direct shipment cost aggregation
-  let totalShippingCost = 0;
-  const shipments = db.shipments || [];
-  
-  if (productId && country) {
-    // For specific product and country - get all shipments to that country
-    const relevantShipments = shipments.filter(s => 
-      s.productId === productId && 
-      s.toCountry === country &&
-      s.arrivedAt &&
-      s.paymentStatus === 'paid'
-    );
-    
-    relevantShipments.forEach(shipment => {
-      totalShippingCost += +(shipment.finalShipCost || shipment.shipCost || 0);
-    });
-  } else if (productId) {
-    // For specific product only - get all shipments for this product
-    const relevantShipments = shipments.filter(s => 
-      s.productId === productId && 
-      s.arrivedAt &&
-      s.paymentStatus === 'paid'
-    );
-    
-    relevantShipments.forEach(shipment => {
-      totalShippingCost += +(shipment.finalShipCost || shipment.shipCost || 0);
-    });
-  } else if (country) {
-    // For specific country only - get all shipments to that country
-    const relevantShipments = shipments.filter(s => 
-      s.toCountry === country &&
-      s.arrivedAt &&
-      s.paymentStatus === 'paid'
-    );
-    
-    relevantShipments.forEach(shipment => {
-      totalShippingCost += +(shipment.finalShipCost || shipment.shipCost || 0);
-    });
+  // FIXED: Calculate shipping cost using your advanced piece tracking
+  let shippingCostPerPiece = 0;
+  if (country) {
+    shippingCostPerPiece = calculateActualShippingCostPerPiece(db, productId, country);
   } else {
-    // For all products and countries
-    const relevantShipments = shipments.filter(s => 
-      s.arrivedAt &&
-      s.paymentStatus === 'paid'
-    );
+    // If no country specified, calculate average shipping cost across all countries
+    const countries = db.countries.filter(c => c !== 'china');
+    let totalShipping = 0;
+    let countryCount = 0;
     
-    relevantShipments.forEach(shipment => {
-      totalShippingCost += +(shipment.finalShipCost || shipment.shipCost || 0);
+    countries.forEach(c => {
+      const cost = calculateActualShippingCostPerPiece(db, productId, c);
+      if (cost > 0) {
+        totalShipping += cost;
+        countryCount++;
+      }
     });
+    
+    shippingCostPerPiece = countryCount > 0 ? totalShipping / countryCount : 0;
   }
 
+  // FIXED: Calculate total costs based on actual delivered pieces
   const totalProductChinaCost = totalDeliveredPieces * productCostPerPiece;
+  const totalShippingCost = totalDeliveredPieces * shippingCostPerPiece;
 
   const adjustedRevenue = totalRevenue - totalRefundedAmount;
   const totalCost = totalProductChinaCost + totalShippingCost + totalAdSpend + totalBoxleoFees + totalInfluencerSpend;
