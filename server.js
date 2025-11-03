@@ -76,6 +76,8 @@ function saveDB(db) {
 function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
   
+  console.log(`🔍 calculateActualShippingCostPerPiece: productId=${productId}, targetCountry=${targetCountry}, totalShipments=${shipments.length}`);
+  
   // Get all shipments for this product that arrived and are paid
   const relevantShipments = shipments.filter(s => 
     s.productId === productId && 
@@ -83,6 +85,8 @@ function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
     s.paymentStatus === 'paid' &&
     s.finalShipCost
   );
+  
+  console.log(`🔍 Relevant shipments: ${relevantShipments.length}`);
   
   if (relevantShipments.length === 0) return 0;
   
@@ -99,6 +103,8 @@ function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
     const toCountry = shipment.toCountry;
     const quantity = +shipment.qty || 0;
     const shippingCostPerPiece = (+shipment.finalShipCost || +shipment.shipCost || 0) / quantity;
+    
+    console.log(`🔍 Processing shipment: ${fromCountry}→${toCountry}, qty=${quantity}, costPerPiece=$${shippingCostPerPiece}`);
     
     if (fromCountry === 'china') {
       // New pieces from China
@@ -128,9 +134,12 @@ function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
   // Calculate average cost for target country
   if (pieceTracking[targetCountry] && pieceTracking[targetCountry].length > 0) {
     const totalCost = pieceTracking[targetCountry].reduce((sum, piece) => sum + piece.cost, 0);
-    return totalCost / pieceTracking[targetCountry].length;
+    const averageCost = totalCost / pieceTracking[targetCountry].length;
+    console.log(`🔍 Result for ${targetCountry}: ${pieceTracking[targetCountry].length} pieces, average cost=$${averageCost}`);
+    return averageCost;
   }
   
+  console.log(`🔍 No pieces found in ${targetCountry}`);
   return 0;
 }
 
@@ -421,13 +430,31 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
     }
   });
 
-  // KEEP YOUR ORIGINAL LOGIC - JUST MAKE SURE VALUES APPEAR
+  // Calculate product cost per piece from shipments - FIXED TO USE ALL TIME DATA
   const productCostPerPiece = calculateProductCostPerPiece(db, productId);
+  
+  // Calculate shipping cost using actual piece tracking - FIXED TO USE ALL TIME DATA
   let shippingCostPerPiece = 0;
   if (country) {
     shippingCostPerPiece = calculateActualShippingCostPerPiece(db, productId, country);
+  } else if (productId) {
+    // If no country specified but product specified, calculate average shipping cost across all countries
+    const countries = db.countries.filter(c => c !== 'china');
+    let totalShippingCost = 0;
+    let countryCount = 0;
+    
+    countries.forEach(c => {
+      const cost = calculateActualShippingCostPerPiece(db, productId, c);
+      if (cost > 0) {
+        totalShippingCost += cost;
+        countryCount++;
+      }
+    });
+    
+    shippingCostPerPiece = countryCount > 0 ? totalShippingCost / countryCount : 0;
   }
 
+  // Calculate total costs - FIXED: Use the actual delivered pieces to calculate costs
   const totalProductChinaCost = totalDeliveredPieces * productCostPerPiece;
   const totalShippingCost = totalDeliveredPieces * shippingCostPerPiece;
 
@@ -457,8 +484,8 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
     totalRevenue: adjustedRevenue,
     totalAdSpend,
     totalBoxleoFees,
-    totalProductChinaCost,  // This should now show the calculated value
-    totalShippingCost,      // This should now show the calculated value  
+    totalProductChinaCost,
+    totalShippingCost,
     totalInfluencerSpend,
     totalRefundedAmount,
     totalRefundedOrders,
@@ -479,10 +506,16 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
     profitPerOrder,
     profitPerPiece,
     isProfitable: profit > 0,
-    hasData
+    hasData,
+    // Debug info to help identify issues
+    _debug: {
+      productCostPerPiece,
+      shippingCostPerPiece,
+      totalDeliveredPieces,
+      relevantRemittances: remittances.filter(r => (!productId || r.productId === productId) && (!country || r.country === country)).length
+    }
   };
 }
-
 // ======== ROUTES ========
 
 // Authentication
