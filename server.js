@@ -60,6 +60,11 @@ function ensureDB() {
       weeklyTodos: {}
     };
     fs.writeJsonSync(DATA_FILE, initialData, { spaces: 2 });
+  } else {
+    // Auto-manage status for existing database
+    const db = loadDB();
+    autoManageProductStatus(db);
+    saveDB(db);
   }
 }
 
@@ -71,7 +76,27 @@ function loadDB() {
 function saveDB(db) { 
   fs.writeJsonSync(DATA_FILE, db, { spaces: 2 }); 
 }
-
+// ADD THE AUTO MANAGE PRODUCT STATUS FUNCTION RIGHT HERE:
+function autoManageProductStatus(db) {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  
+  const recentAdSpends = (db.adspend || []).filter(ad => 
+    new Date(ad.date) >= thirtyDaysAgo
+  );
+  
+  db.products.forEach(product => {
+    const hasRecentAdSpend = recentAdSpends.some(ad => ad.productId === product.id);
+    
+    if (hasRecentAdSpend && product.status === 'paused') {
+      // Auto-activate if there's recent ad spend
+      product.status = 'active';
+    } else if (!hasRecentAdSpend && product.status === 'active') {
+      // Auto-pause if no recent ad spend for 30 days
+      product.status = 'paused';
+    }
+  });
+}
 // ======== ADVANCED SHIPPING COST CALCULATION ========
 function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
@@ -589,19 +614,42 @@ app.get('/api/meta', requireAuth, (req, res) => {
   res.json({ countries: db.countries || [] });
 });
 
-// In server.js, fix the products endpoint to include stock for ALL products
+// Products
 app.get('/api/products', requireAuth, (req, res) => { 
   const db = loadDB();
+  
+  // Get recent ad spends (last 30 days) to determine active products
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const recentAdSpends = (db.adspend || []).filter(ad => 
+    new Date(ad.date) >= thirtyDaysAgo
+  );
+
   let products = (db.products || []).map(product => {
     const metrics = calculateProfitMetricsLogic2(db, product.id, null, '2000-01-01', '2100-01-01');
     const stock = calculateProductStock(db, product.id);
     const transit = calculateTransitPieces(db, product.id);
     const totalStock = Object.values(stock).reduce((sum, qty) => sum + qty, 0);
     
-    // Calculate stock - include ALL products regardless of status
-    const stockByCountry = {};
+    // Check if product has recent advertising spend
+    const hasRecentAdSpend = recentAdSpends.some(ad => ad.productId === product.id);
+    
+    // Auto-manage status: if has recent ad spend, make active; if no ad spend for 30 days, make paused
+    let autoStatus = product.status;
+    if (hasRecentAdSpend && product.status === 'paused') {
+      // Automatically activate if there's recent ad spend
+      autoStatus = 'active';
+      product.status = 'active'; // Update in database
+    } else if (!hasRecentAdSpend && product.status === 'active') {
+      // Automatically pause if no recent ad spend for 30 days
+      autoStatus = 'paused';
+      product.status = 'paused'; // Update in database
+    }
+
+    // Only count stock for active products
+    const activeStockByCountry = {};
     Object.keys(stock).forEach(country => {
-      stockByCountry[country] = stock[country]; // Always include the actual stock value
+      activeStockByCountry[country] = autoStatus === 'active' ? stock[country] : 0;
     });
 
     const adSpendByCountry = {};
@@ -611,16 +659,21 @@ app.get('/api/products', requireAuth, (req, res) => {
 
     return {
       ...product,
+      status: autoStatus, // Use auto-managed status
       isProfitable: metrics.isProfitable,
       hasData: metrics.hasData,
-      stockByCountry: stockByCountry, // This now contains stock for ALL products
-      totalStock: totalStock, // Show actual total stock regardless of status
+      stockByCountry: activeStockByCountry,
+      totalStock: autoStatus === 'active' ? totalStock : 0,
       transitPieces: transit.totalTransit,
-      totalPiecesIncludingTransit: totalStock + transit.totalTransit, // Include all stock
-      adSpendByCountry: adSpendByCountry
+      totalPiecesIncludingTransit: (autoStatus === 'active' ? totalStock : 0) + transit.totalTransit,
+      adSpendByCountry: adSpendByCountry,
+      hasRecentAdSpend: hasRecentAdSpend // For debugging
     };
   });
 
+  // Save the updated statuses to database
+  saveDB(db);
+  
   res.json({ products });
 });
 // In server.js, update the products POST endpoint to prevent duplicates
@@ -839,6 +892,7 @@ app.get('/api/adspend', requireAuth, (req, res) => {
   res.json({ adSpends: db.adspend || [] });
 });
 
+// In server.js, update the adspend POST endpoint
 app.post('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.adspend = db.adspend || [];
@@ -863,6 +917,12 @@ app.post('/api/adspend', requireAuth, (req, res) => {
       amount: +amount || 0,
       date: date
     });
+  }
+  
+  // Automatically activate the product when ad spend is added
+  const product = db.products.find(p => p.id === productId);
+  if (product && product.status === 'paused') {
+    product.status = 'active';
   }
   
   saveDB(db); 
