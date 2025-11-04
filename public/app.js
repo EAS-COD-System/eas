@@ -1433,11 +1433,12 @@ function renderProductsTable() {
         }
 
         // Determine if status is auto-managed
-        const isAutoManaged = p.hasRecentAdSpend !== undefined;
-        const statusBadge = p.status === 'active' ? 
-          `<span class="badge ${isAutoManaged ? 'success' : ''}">${p.status}${isAutoManaged ? ' (Auto)' : ''}</span>` :
-          `<span class="badge muted ${isAutoManaged ? 'muted' : ''}">${p.status}${isAutoManaged ? ' (Auto)' : ''}</span>`;
-
+        // In the renderProductsTable function, update the status badge part:
+// Determine if status is auto-managed
+const isAutoManaged = p.hasAnyAdSpend !== undefined;
+const statusBadge = p.status === 'active' ? 
+  `<span class="badge ${isAutoManaged ? 'success' : ''}">${p.status}${isAutoManaged ? ' (Auto)' : ''}</span>` :
+  `<span class="badge muted ${isAutoManaged ? 'muted' : ''}">${p.status}${isAutoManaged ? ' (Auto)' : ''}</span>`;
         let rowHTML = `
           <tr class="${rowClass}">
             <td>${p.name || 'Unnamed'}</td>
@@ -1479,40 +1480,53 @@ function renderProductsTable() {
     // Render pagination
     renderProductsPagination(sortedProducts.length, productsPerPage);
 
-    // Update product toggle to show warning for auto-managed products
-    tb.onclick = async (e) => {
-      const id = e.target.dataset?.id; 
-      if (!id) return;
-      
-      if (e.target.classList.contains('act-toggle')) {
-        const p = state.products.find(x => x.id === id); 
-        if (!p) return;
-        
-        const newStatus = p.status === 'active' ? 'paused' : 'active';
-        
-        // Check if product has recent ad spend
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const hasRecentAdSpend = p.hasRecentAdSpend;
-        
-        if (newStatus === 'paused' && hasRecentAdSpend) {
-          if (!confirm(`This product has recent advertising spend. Are you sure you want to pause it? It will be automatically re-activated if new ad spend is added.`)) {
-            return;
-          }
-        } else if (newStatus === 'active' && !hasRecentAdSpend) {
-          if (!confirm(`This product has no recent advertising spend. Are you sure you want to activate it? It will be automatically paused if no ad spend is added within 30 days.`)) {
-            return;
-          }
-        }
-        
-        await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: newStatus }) });
-        await preload(); 
-        renderProductsTable(); 
-        renderCompactKpis();
-        renderCountryStockSpend();
+    // In app.js, update the product toggle handler to reflect immediate logic
+tb.onclick = async (e) => {
+  const id = e.target.dataset?.id; 
+  if (!id) return;
+  
+  if (e.target.classList.contains('act-toggle')) {
+    const p = state.products.find(x => x.id === id); 
+    if (!p) return;
+    
+    const newStatus = p.status === 'active' ? 'paused' : 'active';
+    
+    // Check if product has any ad spend
+    const hasAnyAdSpend = p.hasAnyAdSpend;
+    
+    if (newStatus === 'paused' && hasAnyAdSpend) {
+      if (!confirm(`This product has advertising spend. Are you sure you want to pause it? It will be automatically re-activated if you add new ad spend.`)) {
+        return;
       }
-      
-      if (e.target.classList.contains('act-del')) {
+    } else if (newStatus === 'active' && !hasAnyAdSpend) {
+      if (!confirm(`This product has no advertising spend. Are you sure you want to activate it? It will be automatically paused if you remove all ad spend.`)) {
+        return;
+      }
+    }
+    
+    await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: newStatus }) });
+    await preload(); 
+    renderProductsTable(); 
+    renderCompactKpis();
+    renderCountryStockSpend();
+  }
+  
+  if (e.target.classList.contains('act-del')) {
+    const p = state.products.find(x => x.id === id);
+    if (!p) return;
+    
+    if (!confirm(`Are you sure you want to delete "${p.name}" and ALL its data? This action cannot be undone.`)) {
+      return;
+    }
+    
+    await api(`/api/products/${id}`, { method: 'DELETE' });
+    await preload(); 
+    renderProductsTable(); 
+    renderCompactKpis();
+    renderCountryStockSpend();
+  }
+};
+     if (e.target.classList.contains('act-del')) {
         const p = state.products.find(x => x.id === id);
         if (!p) return;
         
