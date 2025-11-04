@@ -31,6 +31,69 @@ function requireAuth(req, res, next) {
 
 // ======== DATABASE FUNCTIONS ========
 // In server.js, fix the ensureDB function to not call autoManageProductStatus on every load
+// ======== DATABASE UTILITIES ========
+function loadDB() {
+  ensureDB();
+  try {
+    return fs.readJsonSync(DATA_FILE);
+  } catch (error) {
+    console.error('Error loading DB:', error);
+    // Return empty structure if file is corrupted
+    return {
+      password: 'eastafricashop',
+      countries: ['china', 'kenya', 'tanzania', 'uganda', 'zambia', 'zimbabwe'],
+      products: [],
+      productNotes: [],
+      productSellingPrices: [],
+      productOrders: [],
+      brainstorming: [],
+      testedProducts: [],
+      adspend: [],
+      deliveries: [],
+      shipments: [],
+      remittances: [],
+      refunds: [],
+      finance: {
+        categories: {
+          debit: [],
+          credit: []
+        },
+        entries: []
+      },
+      influencers: [],
+      influencerSpends: [],
+      snapshots: [],
+      todos: [],
+      weeklyTodos: {}
+    };
+  }
+}
+
+function saveDB(db) {
+  try {
+    fs.writeJsonSync(DATA_FILE, db, { spaces: 2 });
+    return true;
+  } catch (error) {
+    console.error('Error saving DB:', error);
+    return false;
+  }
+}
+
+function autoManageProductStatus(db) {
+  const allAdSpends = db.adspend || [];
+  
+  db.products.forEach(product => {
+    // Check if product has ANY advertising spend
+    const hasAnyAdSpend = allAdSpends.some(ad => ad.productId === product.id);
+    
+    // Auto-manage status: if has ANY ad spend, make active; if no ad spend, make paused
+    if (hasAnyAdSpend) {
+      product.status = 'active';
+    } else {
+      product.status = 'paused';
+    }
+  });
+}
 function ensureDB() {
   if (!fs.existsSync(DATA_FILE)) {
     const initialData = {
@@ -554,17 +617,15 @@ app.post('/api/auth', (req, res) => {
   const db = loadDB();
   
   if (password === 'logout') {
-    res.clearCookie('auth', { httpOnly: true, sameSite: 'Lax', secure: false, path: '/' });
+    res.clearCookie('auth');
     return res.json({ ok: true });
   }
   
   if (password && password === db.password) {
+    // Set a simple cookie without complex options that might cause issues
     res.cookie('auth', '1', { 
-      httpOnly: true, 
-      sameSite: 'Lax', 
-      secure: false, 
-      path: '/', 
-      maxAge: 365 * 24 * 60 * 60 * 1000
+      httpOnly: false, // Set to true in production
+      maxAge: 365 * 24 * 60 * 60 * 1000 // 1 year
     });
     return res.json({ ok: true });
   }
@@ -819,7 +880,25 @@ app.get('/api/product-orders', requireAuth, (req, res) => {
     }
   });
 });
+// Force add product orders (for duplicates)
+app.post('/api/product-orders/force', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.productOrders = db.productOrders || [];
+  const { productId, country, startDate, endDate, orders } = req.body || {};
+  if (!productId || !country || !startDate || !endDate) return res.status(400).json({ error: 'Missing fields' });
 
+  db.productOrders.push({
+    id: uuidv4(),
+    productId,
+    country,
+    startDate,
+    endDate,
+    orders: +orders || 0
+  });
+
+  saveDB(db); 
+  res.json({ ok: true });
+});
 app.post('/api/product-orders', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.productOrders = db.productOrders || [];
@@ -854,7 +933,13 @@ app.post('/api/product-orders', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// In server.js, update the adspend POST endpoint (simplify it)
+// Get all ad spends
+app.get('/api/adspend', requireAuth, (req, res) => {
+  const db = loadDB();
+  res.json({ adSpends: db.adspend || [] });
+});
+
+// Add new ad spend
 app.post('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.adspend = db.adspend || [];
@@ -880,22 +965,24 @@ app.post('/api/adspend', requireAuth, (req, res) => {
       date: date
     });
   }
- // In server.js, add this to the adspend DELETE endpoint if it doesn't exist
+  
+  // Automatically activate the product when ANY ad spend is added
+  const product = db.products.find(p => p.id === productId);
+  if (product) {
+    product.status = 'active';
+  }
+  
+  saveDB(db); 
+  res.json({ ok: true });
+});
+
+// Delete ad spend
 app.delete('/api/adspend/:id', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.adspend = (db.adspend || []).filter(a => a.id !== req.params.id);
   
   // After deleting ad spend, check if any products need to be auto-paused
   autoManageProductStatus(db);
-  
-  saveDB(db); 
-  res.json({ ok: true });
-}); 
-  // Automatically activate the product when ANY ad spend is added
-  const product = db.products.find(p => p.id === productId);
-  if (product) {
-    product.status = 'active';
-  }
   
   saveDB(db); 
   res.json({ ok: true });
@@ -1070,7 +1157,30 @@ app.post('/api/remittances', requireAuth, (req, res) => {
   saveDB(db); 
   res.json({ ok: true, remittance: r });
 });
+app.post('/api/remittances/force', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.remittances = db.remittances || [];
+  const { start, end, country, productId, orders, pieces, revenue, adSpend, boxleoFees } = req.body || {};
+  
+  if (!start || !end || !country || !productId) return res.status(400).json({ error: 'Missing required fields' });
 
+  const r = {
+    id: uuidv4(),
+    start,
+    end,
+    country,
+    productId,
+    orders: +orders || 0,
+    pieces: +pieces || 0,
+    revenue: +revenue || 0,
+    adSpend: +adSpend || 0,
+    boxleoFees: +boxleoFees || 0
+  };
+
+  db.remittances.push(r); 
+  saveDB(db); 
+  res.json({ ok: true, remittance: r });
+});
 app.delete('/api/remittances/:id', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.remittances = (db.remittances || []).filter(r => r.id !== req.params.id);
