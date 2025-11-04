@@ -170,33 +170,27 @@ async function boot() {
 // In app.js, update the login handler
 document.addEventListener('DOMContentLoaded', () => {
   // Login handler
-  Q('#loginBtn')?.addEventListener('click', async () => {
-    const password = Q('#pw')?.value || '';
-    console.log('Login attempted with password length:', password.length);
+ Q('#loginBtn')?.addEventListener('click', async () => {
+  const password = Q('#pw')?.value;
+  
+  try {
+    const response = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
     
-    if (!password) {
-      alert('Please enter password');
-      return;
+    if (response.ok) {
+      // Login successful
+      location.reload(); // Simple reload approach
+    } else {
+      const error = await response.json();
+      alert('Login failed: ' + (error.error || 'Unknown error'));
     }
-    
-    try {
-      console.log('Sending auth request...');
-      const result = await api('/api/auth', { 
-        method: 'POST', 
-        body: JSON.stringify({ password }) 
-      });
-      console.log('Auth response:', result);
-      
-      // Check if we got the auth cookie
-      console.log('Cookies after auth:', document.cookie);
-      
-      await boot();
-    } catch (e) {
-      console.error('Login error:', e);
-      alert('Wrong password or server error: ' + e.message);
-    }
-  });
-
+  } catch (error) {
+    alert('Network error: ' + error.message);
+  }
+});
   // Also allow Enter key in password field
   Q('#pw')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
