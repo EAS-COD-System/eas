@@ -589,7 +589,7 @@ app.get('/api/meta', requireAuth, (req, res) => {
   res.json({ countries: db.countries || [] });
 });
 
-// Products
+// In server.js, fix the products endpoint to include stock for ALL products
 app.get('/api/products', requireAuth, (req, res) => { 
   const db = loadDB();
   let products = (db.products || []).map(product => {
@@ -598,10 +598,10 @@ app.get('/api/products', requireAuth, (req, res) => {
     const transit = calculateTransitPieces(db, product.id);
     const totalStock = Object.values(stock).reduce((sum, qty) => sum + qty, 0);
     
-    // Only count stock for active products
-    const activeStockByCountry = {};
+    // Calculate stock - include ALL products regardless of status
+    const stockByCountry = {};
     Object.keys(stock).forEach(country => {
-      activeStockByCountry[country] = product.status === 'active' ? stock[country] : 0;
+      stockByCountry[country] = stock[country]; // Always include the actual stock value
     });
 
     const adSpendByCountry = {};
@@ -613,17 +613,16 @@ app.get('/api/products', requireAuth, (req, res) => {
       ...product,
       isProfitable: metrics.isProfitable,
       hasData: metrics.hasData,
-      stockByCountry: activeStockByCountry,
-      totalStock: product.status === 'active' ? totalStock : 0,
+      stockByCountry: stockByCountry, // This now contains stock for ALL products
+      totalStock: totalStock, // Show actual total stock regardless of status
       transitPieces: transit.totalTransit,
-      totalPiecesIncludingTransit: (product.status === 'active' ? totalStock : 0) + transit.totalTransit,
+      totalPiecesIncludingTransit: totalStock + transit.totalTransit, // Include all stock
       adSpendByCountry: adSpendByCountry
     };
   });
 
   res.json({ products });
 });
-
 // In server.js, update the products POST endpoint to prevent duplicates
 app.post('/api/products', requireAuth, (req, res) => {
   const db = loadDB(); 
