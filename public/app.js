@@ -53,15 +53,19 @@ async function debugStockData() {
 // debugStockData();
 // Enhanced API function with better error handling
 // Enhanced API function with better error handling
+// Enhanced API function
 async function api(path, opts = {}) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
   
   try {
     console.log(`API Call: ${path}`, opts.method || 'GET');
     const res = await fetch(path, { 
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // Important for cookies
+      headers: { 
+        'Content-Type': 'application/json',
+        ...opts.headers 
+      },
       signal: controller.signal,
       ...opts
     });
@@ -69,18 +73,29 @@ async function api(path, opts = {}) {
     
     console.log(`API Response: ${path} - Status: ${res.status}`);
     
-    const ct = res.headers.get('content-type') || '';
-    const body = ct.includes('application/json') ? await res.json() : await res.text();
+    // Check if response is JSON
+    const contentType = res.headers.get('content-type');
+    let data;
     
-    if (!res.ok) {
-      console.error(`API Error ${res.status}:`, body);
-      throw new Error(body?.error || body || `HTTP ${res.status}`);
+    if (contentType && contentType.includes('application/json')) {
+      data = await res.json();
+    } else {
+      data = await res.text();
     }
     
-    return body;
+    if (!res.ok) {
+      throw new Error(data?.error || data || `HTTP ${res.status}`);
+    }
+    
+    return data;
   } catch (error) {
     clearTimeout(timeoutId);
     console.error(`API Error: ${path}`, error);
+    
+    if (error.name === 'AbortError') {
+      throw new Error('Request timeout');
+    }
+    
     throw error;
   }
 }
@@ -152,7 +167,7 @@ async function boot() {
     if (mainEl) mainEl.style.display = 'none';
   }
 }
-// In app.js, update the login handler to properly handle authentication
+// In app.js, update the login handler
 document.addEventListener('DOMContentLoaded', () => {
   // Login handler
   Q('#loginBtn')?.addEventListener('click', async () => {
@@ -172,44 +187,24 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       console.log('Auth response:', result);
       
-      if (result.ok) {
-        console.log('Login successful, booting app...');
-        await boot();
-      } else {
-        alert('Wrong password');
-      }
+      // Check if we got the auth cookie
+      console.log('Cookies after auth:', document.cookie);
+      
+      await boot();
     } catch (e) {
       console.error('Login error:', e);
-      alert('Wrong password or server error');
+      alert('Wrong password or server error: ' + e.message);
     }
   });
 
-  // Logout handler
-  Q('#logoutLink')?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    try { 
-      await api('/api/auth', { 
-        method: 'POST', 
-        body: JSON.stringify({ password: 'logout' }) 
-      }); 
-    } catch { } 
-    location.reload();
-  });
-
-  // Enter key for login
+  // Also allow Enter key in password field
   Q('#pw')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
       Q('#loginBtn').click();
     }
   });
-
-  // Try to boot immediately if already authenticated
-  setTimeout(() => {
-    boot().catch(() => {
-      console.log('Not authenticated, showing login form');
-    });
-  }, 100);
 });
+
 // Navigation handling
 function initSimpleNavigation() {
   const nav = Q('.nav');
