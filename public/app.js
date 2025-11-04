@@ -64,51 +64,6 @@ const state = {
 };
 let isAddingProduct = false; // Prevent multiple product additions
 // Global click protection
-let isProcessing = false;
-
-function withClickProtection(fn) {
-  return function(...args) {
-    if (isProcessing) return;
-    isProcessing = true;
-    
-    try {
-      const result = fn.apply(this, args);
-      if (result && typeof result.finally === 'function') {
-        return result.finally(() => {
-          isProcessing = false;
-        });
-      } else {
-        isProcessing = false;
-        return result;
-      }
-    } catch (error) {
-      isProcessing = false;
-      throw error;
-    }
-  };
-}
-
-// Wrap all button click handlers with protection
-document.addEventListener('DOMContentLoaded', () => {
-  // Wrap existing event handlers
-  const protectedHandlers = [
-    '#loginBtn', '#logoutLink', '#adSave', '#weeklySave', '#weeklyReset',
-    '#pAdd', '#spSave', '#poSave', '#pcaRun', '#remAnalyticsRun', '#pcRun',
-    '#remAddSave', '#refundSave', '#mvAdd', '#adspendSave', '#adspendRun',
-    '#feAdd', '#feRun', '#fcAdd', '#fcSearchRun', '#ctyAdd', '#epSave',
-    '#snapSave', '#createDailyBackup', '#productInfoRun', '#pdNoteSave',
-    '#pdLPRun', '#pdInfAdd', '#pdInfSpendAdd', '#pdInfRun', '#todoAdd',
-    '#brainAdd', '#testAdd'
-  ];
-  
-  protectedHandlers.forEach(selector => {
-    const element = Q(selector);
-    if (element && element.onclick) {
-      const originalHandler = element.onclick;
-      element.onclick = withClickProtection(originalHandler);
-    }
-  });
-});
 // Main boot function
 async function boot() {
   // Check authentication first
@@ -4038,6 +3993,106 @@ function bindGlobalNav() {
   showView('home');
   initSimpleNavigation();
 }
+// Remove the global click protection code entirely and replace it with:
 
+// Individual button protection
+function createProtectedButtonHandler(buttonId, handler) {
+  const button = Q(buttonId);
+  if (!button) return;
+  
+  let isProcessing = false;
+  
+  button.addEventListener('click', async (e) => {
+    if (isProcessing) return;
+    isProcessing = true;
+    
+    try {
+      await handler(e);
+    } catch (error) {
+      console.error('Button handler error:', error);
+    } finally {
+      isProcessing = false;
+    }
+  });
+}
+
+// Apply protection to specific problematic buttons
+document.addEventListener('DOMContentLoaded', () => {
+  // Weekly deliveries save button
+  createProtectedButtonHandler('#weeklySave', async () => {
+    const payload = [];
+    QA('.wd-cell').forEach(inp => {
+      const val = +inp.value || 0;
+      if (val > 0) payload.push({ 
+        date: inp.dataset.date, 
+        country: inp.dataset.country, 
+        delivered: val 
+      });
+    });
+    
+    try {
+      await api('/api/deliveries/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ deliveries: payload })
+      });
+      alert('Weekly deliveries saved successfully!');
+    } catch (e) { 
+      alert('Save failed: ' + e.message); 
+    }
+  });
+
+  // Todo delete buttons (event delegation)
+  Q('#todoList')?.addEventListener('click', (e) => {
+    if (e.target.classList.contains('todo-delete')) {
+      if (e.target.disabled) return;
+      e.target.disabled = true;
+      
+      const deleteTodo = () => {
+        api(`/api/todos/${e.target.dataset.id}`, { method: 'DELETE' })
+          .then(renderQuick)
+          .catch(alert)
+          .finally(() => {
+            e.target.disabled = false;
+          });
+      };
+      
+      if (confirm('Delete this task?')) {
+        deleteTodo();
+      } else {
+        e.target.disabled = false;
+      }
+    }
+  });
+
+  // Brainstorming delete (event delegation)
+  const brainstormingContainer = Q('#brainstormingSection');
+  if (brainstormingContainer) {
+    brainstormingContainer.addEventListener('click', (e) => {
+      if (e.target.classList.contains('brain-del')) {
+        if (e.target.disabled) return;
+        e.target.disabled = true;
+        
+        const deleteIdea = () => {
+          api(`/api/brainstorming/${e.target.dataset.id}`, { method: 'DELETE' })
+            .then(() => api('/api/brainstorming'))
+            .then(data => {
+              state.brainstorming = data.ideas || [];
+              renderBrainstorming();
+            })
+            .catch(alert)
+            .finally(() => {
+              e.target.disabled = false;
+            });
+        };
+        
+        if (confirm('Delete this idea?')) {
+          deleteIdea();
+        } else {
+          e.target.disabled = false;
+        }
+      }
+    });
+  }
+});
 // Initialize the application
 document.addEventListener('DOMContentLoaded', boot);
