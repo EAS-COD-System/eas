@@ -2385,24 +2385,34 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
   if (!tbody) return;
 
   if (shipments.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" class="muted">No shipments in transit</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="muted">No shipments in transit</td></tr>';
     return;
   }
 
   tbody.innerHTML = shipments.map(shipment => {
+    const product = state.products.find(p => p.id === shipment.productId);
+    const productName = product ? product.name : shipment.productId;
     const route = `${shipment.fromCountry} → ${shipment.toCountry}`;
     
-    return `
+    let rowHTML = `
       <tr>
         <td>${shipment.id.slice(0, 8)}</td>
+        <td>${productName}</td>
         <td>${route}</td>
         <td>${fmt(shipment.qty)}</td>
         <td>${fmt(shipment.shipCost)}</td>
         <td>${shipment.finalShipCost ? fmt(shipment.finalShipCost) : '-'}</td>
-        ${showChinaCost ? `<td>${shipment.chinaCost ? fmt(shipment.chinaCost) : '-'}</td>` : ''}
+    `;
+    
+    if (showChinaCost) {
+      rowHTML += `<td>${shipment.chinaCost ? fmt(shipment.chinaCost) : '-'}</td>`;
+    }
+    
+    rowHTML += `
         <td>${shipment.departedAt || '-'}</td>
         <td>${shipment.arrivedAt || '-'}</td>
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
+        <td>${shipment.note || '-'}</td>
         <td>
           ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
           ${shipment.paymentStatus === 'pending' ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
@@ -2411,6 +2421,8 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
         </td>
       </tr>
     `;
+    
+    return rowHTML;
   }).join('');
 
   // Add event listeners for shipment actions
@@ -3213,21 +3225,27 @@ function renderProductShipmentTable(selector, shipments, showChinaCost) {
   if (!tbody) return;
 
   if (shipments.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" class="muted">No shipments</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="muted">No shipments</td></tr>';
     return;
   }
 
   tbody.innerHTML = shipments.map(shipment => {
     const route = `${shipment.fromCountry} → ${shipment.toCountry}`;
     
-    return `
+    let rowHTML = `
       <tr>
         <td>${shipment.id.slice(0, 8)}</td>
         <td>${route}</td>
         <td>${fmt(shipment.qty)}</td>
         <td>${fmt(shipment.shipCost)}</td>
         <td>${shipment.finalShipCost ? fmt(shipment.finalShipCost) : '-'}</td>
-        ${showChinaCost ? `<td>${shipment.chinaCost ? fmt(shipment.chinaCost) : '-'}</td>` : ''}
+    `;
+    
+    if (showChinaCost) {
+      rowHTML += `<td>${shipment.chinaCost ? fmt(shipment.chinaCost) : '-'}</td>`;
+    }
+    
+    rowHTML += `
         <td>${shipment.departedAt || '-'}</td>
         <td>${shipment.arrivedAt || '-'}</td>
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
@@ -3239,22 +3257,26 @@ function renderProductShipmentTable(selector, shipments, showChinaCost) {
         </td>
       </tr>
     `;
+    
+    return rowHTML;
   }).join('');
 
   // Add event listeners
   addShipmentEventListeners(tbody);
 }
-// Also update the renderArrivedShipmentsTable function
+   // Update the renderArrivedShipmentsTable function
 function renderArrivedShipmentsTable(shipments) {
   const tbody = Q('#pdArrivedBody');
   if (!tbody) return;
 
   if (shipments.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="12" class="muted">No arrived shipments</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" class="muted">No arrived shipments</td></tr>';
     return;
   }
 
   tbody.innerHTML = shipments.map(shipment => {
+    const product = state.products.find(p => p.id === shipment.productId);
+    const productName = product ? product.name : shipment.productId;
     const route = `${shipment.fromCountry} → ${shipment.toCountry}`;
     const departed = new Date(shipment.departedAt);
     const arrived = new Date(shipment.arrivedAt);
@@ -3263,6 +3285,7 @@ function renderArrivedShipmentsTable(shipments) {
     return `
       <tr>
         <td>${shipment.id.slice(0, 8)}</td>
+        <td>${productName}</td>
         <td>${route}</td>
         <td>${fmt(shipment.qty)}</td>
         <td>${fmt(shipment.shipCost)}</td>
