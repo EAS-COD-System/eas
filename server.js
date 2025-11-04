@@ -78,25 +78,23 @@ function saveDB(db) {
 }
 // ADD THE AUTO MANAGE PRODUCT STATUS FUNCTION RIGHT HERE:
 function autoManageProductStatus(db) {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  
-  const recentAdSpends = (db.adspend || []).filter(ad => 
-    new Date(ad.date) >= thirtyDaysAgo
-  );
+  // Get ALL ad spends (not just recent ones)
+  const allAdSpends = db.adspend || [];
   
   db.products.forEach(product => {
-    const hasRecentAdSpend = recentAdSpends.some(ad => ad.productId === product.id);
+    // Check if product has ANY advertising spend at all
+    const hasAnyAdSpend = allAdSpends.some(ad => ad.productId === product.id);
     
-    if (hasRecentAdSpend && product.status === 'paused') {
-      // Auto-activate if there's recent ad spend
+    if (hasAnyAdSpend) {
+      // Auto-activate if there's ANY ad spend
       product.status = 'active';
-    } else if (!hasRecentAdSpend && product.status === 'active') {
-      // Auto-pause if no recent ad spend for 30 days
+    } else {
+      // Auto-pause if NO ad spend at all
       product.status = 'paused';
     }
   });
 }
+
 // ======== ADVANCED SHIPPING COST CALCULATION ========
 function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
@@ -618,12 +616,8 @@ app.get('/api/meta', requireAuth, (req, res) => {
 app.get('/api/products', requireAuth, (req, res) => { 
   const db = loadDB();
   
-  // Get recent ad spends (last 30 days) to determine active products
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const recentAdSpends = (db.adspend || []).filter(ad => 
-    new Date(ad.date) >= thirtyDaysAgo
-  );
+  // Get ALL ad spends to determine active products
+  const allAdSpends = db.adspend || [];
 
   let products = (db.products || []).map(product => {
     const metrics = calculateProfitMetricsLogic2(db, product.id, null, '2000-01-01', '2100-01-01');
@@ -631,17 +625,17 @@ app.get('/api/products', requireAuth, (req, res) => {
     const transit = calculateTransitPieces(db, product.id);
     const totalStock = Object.values(stock).reduce((sum, qty) => sum + qty, 0);
     
-    // Check if product has recent advertising spend
-    const hasRecentAdSpend = recentAdSpends.some(ad => ad.productId === product.id);
+    // Check if product has ANY advertising spend
+    const hasAnyAdSpend = allAdSpends.some(ad => ad.productId === product.id);
     
-    // Auto-manage status: if has recent ad spend, make active; if no ad spend for 30 days, make paused
+    // Auto-manage status: if has ANY ad spend, make active; if no ad spend, make paused
     let autoStatus = product.status;
-    if (hasRecentAdSpend && product.status === 'paused') {
-      // Automatically activate if there's recent ad spend
+    if (hasAnyAdSpend && product.status === 'paused') {
+      // Automatically activate if there's ANY ad spend
       autoStatus = 'active';
       product.status = 'active'; // Update in database
-    } else if (!hasRecentAdSpend && product.status === 'active') {
-      // Automatically pause if no recent ad spend for 30 days
+    } else if (!hasAnyAdSpend && product.status === 'active') {
+      // Automatically pause if NO ad spend at all
       autoStatus = 'paused';
       product.status = 'paused'; // Update in database
     }
@@ -667,7 +661,7 @@ app.get('/api/products', requireAuth, (req, res) => {
       transitPieces: transit.totalTransit,
       totalPiecesIncludingTransit: (autoStatus === 'active' ? totalStock : 0) + transit.totalTransit,
       adSpendByCountry: adSpendByCountry,
-      hasRecentAdSpend: hasRecentAdSpend // For debugging
+      hasAnyAdSpend: hasAnyAdSpend // For debugging
     };
   });
 
@@ -675,8 +669,7 @@ app.get('/api/products', requireAuth, (req, res) => {
   saveDB(db);
   
   res.json({ products });
-});
-// In server.js, update the products POST endpoint to prevent duplicates
+});// In server.js, update the products POST endpoint to prevent duplicates
 app.post('/api/products', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.products = db.products || [];
