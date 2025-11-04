@@ -30,69 +30,6 @@ function requireAuth(req, res, next) {
 }
 
 // ======== DATABASE FUNCTIONS ========
-function loadDB() {
-  ensureDB();
-  try {
-    return fs.readJsonSync(DATA_FILE);
-  } catch (error) {
-    console.error('Error loading DB:', error);
-    // Return empty structure if file is corrupted
-    return {
-      password: 'eastafricashop',
-      countries: ['china', 'kenya', 'tanzania', 'uganda', 'zambia', 'zimbabwe'],
-      products: [],
-      productNotes: [],
-      productSellingPrices: [],
-      productOrders: [],
-      brainstorming: [],
-      testedProducts: [],
-      adspend: [],
-      deliveries: [],
-      shipments: [],
-      remittances: [],
-      refunds: [],
-      finance: {
-        categories: {
-          debit: [],
-          credit: []
-        },
-        entries: []
-      },
-      influencers: [],
-      influencerSpends: [],
-      snapshots: [],
-      todos: [],
-      weeklyTodos: {}
-    };
-  }
-}
-
-function saveDB(db) {
-  try {
-    fs.writeJsonSync(DATA_FILE, db, { spaces: 2 });
-    return true;
-  } catch (error) {
-    console.error('Error saving DB:', error);
-    return false;
-  }
-}
-
-function autoManageProductStatus(db) {
-  const allAdSpends = db.adspend || [];
-  
-  db.products.forEach(product => {
-    // Check if product has ANY advertising spend
-    const hasAnyAdSpend = allAdSpends.some(ad => ad.productId === product.id);
-    
-    // Auto-manage status: if has ANY ad spend, make active; if no ad spend, make paused
-    if (hasAnyAdSpend) {
-      product.status = 'active';
-    } else {
-      product.status = 'paused';
-    }
-  });
-}
-
 function ensureDB() {
   if (!fs.existsSync(DATA_FILE)) {
     const initialData = {
@@ -124,6 +61,15 @@ function ensureDB() {
     };
     fs.writeJsonSync(DATA_FILE, initialData, { spaces: 2 });
   }
+}
+
+function loadDB() { 
+  ensureDB(); 
+  return fs.readJsonSync(DATA_FILE); 
+}
+
+function saveDB(db) { 
+  fs.writeJsonSync(DATA_FILE, db, { spaces: 2 }); 
 }
 
 // ======== ADVANCED SHIPPING COST CALCULATION ========
@@ -607,34 +553,32 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
     hasData
   };
 }
-
 // ======== ROUTES ========
 
+// Authentication
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
   
-  console.log('Auth attempt received');
-  
   if (password === 'logout') {
-    res.clearCookie('auth');
-    console.log('Logout successful');
+    res.clearCookie('auth', { httpOnly: true, sameSite: 'Lax', secure: false, path: '/' });
     return res.json({ ok: true });
   }
   
   if (password && password === db.password) {
-    // SIMPLIFIED cookie settings
     res.cookie('auth', '1', { 
-      maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
-      sameSite: 'lax'
+      httpOnly: true, 
+      sameSite: 'Lax', 
+      secure: false, 
+      path: '/', 
+      maxAge: 365 * 24 * 60 * 60 * 1000
     });
-    console.log('Login successful');
     return res.json({ ok: true });
   }
   
-  console.log('Login failed - wrong password');
   return res.status(401).json({ error: 'Wrong password' });
 });
+
 app.get('/api/auth/status', requireAuth, (req, res) => {
   res.json({ authenticated: true });
 });
@@ -648,39 +592,16 @@ app.get('/api/meta', requireAuth, (req, res) => {
 // Products
 app.get('/api/products', requireAuth, (req, res) => { 
   const db = loadDB();
-  
-  // Auto-manage product status only when loading products (after auth)
-  autoManageProductStatus(db);
-  
-  // Get ALL ad spends to determine active products
-  const allAdSpends = db.adspend || [];
-
   let products = (db.products || []).map(product => {
     const metrics = calculateProfitMetricsLogic2(db, product.id, null, '2000-01-01', '2100-01-01');
     const stock = calculateProductStock(db, product.id);
     const transit = calculateTransitPieces(db, product.id);
     const totalStock = Object.values(stock).reduce((sum, qty) => sum + qty, 0);
     
-    // Check if product has ANY advertising spend
-    const hasAnyAdSpend = allAdSpends.some(ad => ad.productId === product.id);
-    
-    // Auto-manage status: if has ANY ad spend, make active; if no ad spend, make paused
-    let autoStatus = product.status;
-    if (hasAnyAdSpend) {
-      // Automatically activate if there's ANY ad spend
-      autoStatus = 'active';
-    } else {
-      // Automatically pause if NO ad spend at all
-      autoStatus = 'paused';
-    }
-
-    // Update product status in database
-    product.status = autoStatus;
-
     // Only count stock for active products
     const activeStockByCountry = {};
     Object.keys(stock).forEach(country => {
-      activeStockByCountry[country] = autoStatus === 'active' ? stock[country] : 0;
+      activeStockByCountry[country] = product.status === 'active' ? stock[country] : 0;
     });
 
     const adSpendByCountry = {};
@@ -690,36 +611,22 @@ app.get('/api/products', requireAuth, (req, res) => {
 
     return {
       ...product,
-      status: autoStatus,
       isProfitable: metrics.isProfitable,
       hasData: metrics.hasData,
       stockByCountry: activeStockByCountry,
-      totalStock: autoStatus === 'active' ? totalStock : 0,
+      totalStock: product.status === 'active' ? totalStock : 0,
       transitPieces: transit.totalTransit,
-      totalPiecesIncludingTransit: (autoStatus === 'active' ? totalStock : 0) + transit.totalTransit,
-      adSpendByCountry: adSpendByCountry,
-      hasAnyAdSpend: hasAnyAdSpend
+      totalPiecesIncludingTransit: (product.status === 'active' ? totalStock : 0) + transit.totalTransit,
+      adSpendByCountry: adSpendByCountry
     };
   });
 
-  // Save the updated statuses to database
-  saveDB(db);
-  
   res.json({ products });
 });
 
 app.post('/api/products', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.products = db.products || [];
-  
-  // Check if product with same name already exists
-  const productName = (req.body.name || '').trim().toLowerCase();
-  const existingProduct = db.products.find(p => p.name.toLowerCase() === productName);
-  
-  if (existingProduct) {
-    return res.status(409).json({ error: 'Product with this name already exists' });
-  }
-  
   const p = {
     id: uuidv4(),
     status: 'active',
@@ -727,9 +634,7 @@ app.post('/api/products', requireAuth, (req, res) => {
     sku: req.body.sku || '',
     createdAt: new Date().toISOString()
   };
-  
   if (!p.name) return res.status(400).json({ error: 'Name required' });
-  
   db.products.push(p); 
   saveDB(db); 
   res.json({ ok: true, product: p });
@@ -918,35 +823,12 @@ app.post('/api/product-orders', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// Product orders force endpoint (for duplicates)
-app.post('/api/product-orders/force', requireAuth, (req, res) => {
+// Ad Spend
+app.get('/api/adspend', requireAuth, (req, res) => { 
   const db = loadDB(); 
-  db.productOrders = db.productOrders || [];
-  const { productId, country, startDate, endDate, orders } = req.body || {};
-  if (!productId || !country || !startDate || !endDate) return res.status(400).json({ error: 'Missing fields' });
-
-  db.productOrders.push({
-    id: uuidv4(),
-    productId,
-    country,
-    startDate,
-    endDate,
-    orders: +orders || 0
-  });
-
-  saveDB(db); 
-  res.json({ ok: true });
-});
-
-// ======== ADSPEND ROUTES ========
-
-// Adspend GET endpoint
-app.get('/api/adspend', requireAuth, (req, res) => {
-  const db = loadDB();
   res.json({ adSpends: db.adspend || [] });
 });
 
-// Adspend POST endpoint
 app.post('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.adspend = db.adspend || [];
@@ -973,24 +855,6 @@ app.post('/api/adspend', requireAuth, (req, res) => {
     });
   }
   
-  // Automatically activate the product when ANY ad spend is added
-  const product = db.products.find(p => p.id === productId);
-  if (product) {
-    product.status = 'active';
-  }
-  
-  saveDB(db); 
-  res.json({ ok: true });
-});
-
-// Adspend DELETE endpoint
-app.delete('/api/adspend/:id', requireAuth, (req, res) => {
-  const db = loadDB(); 
-  db.adspend = (db.adspend || []).filter(a => a.id !== req.params.id);
-  
-  // After deleting ad spend, check if any products need to be auto-paused
-  autoManageProductStatus(db);
-  
   saveDB(db); 
   res.json({ ok: true });
 });
@@ -1014,18 +878,7 @@ app.post('/api/deliveries', requireAuth, (req, res) => {
 // Shipments
 app.get('/api/shipments', requireAuth, (req, res) => {
   const db = loadDB(); 
-  const shipments = db.shipments || [];
-  
-  // Enhance shipments with product names
-  const enhancedShipments = shipments.map(shipment => {
-    const product = db.products.find(p => p.id === shipment.productId);
-    return {
-      ...shipment,
-      productName: product ? product.name : 'Unknown Product'
-    };
-  });
-  
-  res.json({ shipments: enhancedShipments });
+  res.json({ shipments: db.shipments || [] });
 });
 
 app.post('/api/shipments', requireAuth, (req, res) => {
@@ -1080,15 +933,9 @@ app.post('/api/shipments/:id/mark-paid', requireAuth, (req, res) => {
   s.paymentStatus = 'paid';
   s.paidAt = new Date().toISOString();
   
-  // DO NOT automatically mark as arrived - keep it in transit until explicitly marked as arrived
-  // if (!s.arrivedAt) {
-  //   s.arrivedAt = new Date().toISOString();
-  // }
-  
   saveDB(db); 
   res.json({ ok: true, shipment: s });
 });
-
 app.delete('/api/shipments/:id', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.shipments = (db.shipments || []).filter(x => x.id !== req.params.id);
@@ -1146,32 +993,6 @@ app.post('/api/remittances', requireAuth, (req, res) => {
       existingRemittance 
     });
   }
-
-  const r = {
-    id: uuidv4(),
-    start,
-    end,
-    country,
-    productId,
-    orders: +orders || 0,
-    pieces: +pieces || 0,
-    revenue: +revenue || 0,
-    adSpend: +adSpend || 0,
-    boxleoFees: +boxleoFees || 0
-  };
-
-  db.remittances.push(r); 
-  saveDB(db); 
-  res.json({ ok: true, remittance: r });
-});
-
-// Remittances force endpoint (for duplicates)
-app.post('/api/remittances/force', requireAuth, (req, res) => {
-  const db = loadDB(); 
-  db.remittances = db.remittances || [];
-  const { start, end, country, productId, orders, pieces, revenue, adSpend, boxleoFees } = req.body || {};
-  
-  if (!start || !end || !country || !productId) return res.status(400).json({ error: 'Missing required fields' });
 
   const r = {
     id: uuidv4(),
