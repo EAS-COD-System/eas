@@ -936,7 +936,6 @@ app.post('/api/shipments/:id/mark-paid', requireAuth, (req, res) => {
   saveDB(db); 
   res.json({ ok: true, shipment: s });
 });
-
 app.delete('/api/shipments/:id', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.shipments = (db.shipments || []).filter(x => x.id !== req.params.id);
