@@ -52,7 +52,7 @@ async function debugStockData() {
 // Call this in boot function temporarily
 // debugStockData();
 // Enhanced API function with better error handling
-// In app.js, update the api function with better error handling
+// Enhanced API function with better error handling
 async function api(path, opts = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000);
@@ -73,6 +73,7 @@ async function api(path, opts = {}) {
     const body = ct.includes('application/json') ? await res.json() : await res.text();
     
     if (!res.ok) {
+      console.error(`API Error ${res.status}:`, body);
       throw new Error(body?.error || body || `HTTP ${res.status}`);
     }
     
@@ -112,7 +113,9 @@ const state = {
 async function boot() {
   // Check authentication first
   try {
+    console.log('Checking authentication status...');
     await api('/api/auth/status');
+    console.log('Authentication successful');
     
     // Hide login, show main
     const loginEl = document.getElementById('login');
@@ -140,6 +143,7 @@ async function boot() {
     setupDailyBackupButton();
     
   } catch (error) {
+    console.log('Authentication failed:', error);
     // Show login, hide main
     const loginEl = document.getElementById('login');
     const mainEl = document.getElementById('main');
@@ -148,8 +152,7 @@ async function boot() {
     if (mainEl) mainEl.style.display = 'none';
   }
 }
-
-// In app.js, update the login handler to add debugging
+// In app.js, update the login handler to properly handle authentication
 document.addEventListener('DOMContentLoaded', () => {
   // Login handler
   Q('#loginBtn')?.addEventListener('click', async () => {
@@ -169,10 +172,15 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       console.log('Auth response:', result);
       
-      await boot();
+      if (result.ok) {
+        console.log('Login successful, booting app...');
+        await boot();
+      } else {
+        alert('Wrong password');
+      }
     } catch (e) {
       console.error('Login error:', e);
-      alert('Wrong password');
+      alert('Wrong password or server error');
     }
   });
 
@@ -194,6 +202,13 @@ document.addEventListener('DOMContentLoaded', () => {
       Q('#loginBtn').click();
     }
   });
+
+  // Try to boot immediately if already authenticated
+  setTimeout(() => {
+    boot().catch(() => {
+      console.log('Not authenticated, showing login form');
+    });
+  }, 100);
 });
 // Navigation handling
 function initSimpleNavigation() {
