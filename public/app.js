@@ -9,7 +9,48 @@ const fmt = n => (Number(n || 0)).toLocaleString(undefined, { maximumFractionDig
 const isoToday = () => new Date().toISOString().slice(0, 10);
 const getQuery = k => new URLSearchParams(location.search).get(k);
 const safeJSON = v => { try { return JSON.parse(v); } catch { return null; } };
+// In app.js, add this debug function
+async function debugStockData() {
+  try {
+    console.log('=== DEBUG STOCK DATA ===');
+    
+    // Check what the products API actually returns
+    const productsResponse = await api('/api/products');
+    console.log('Full products API response:', productsResponse);
+    
+    // Check paused products specifically
+    const pausedProducts = productsResponse.products.filter(p => p.status === 'paused');
+    console.log('Paused products:', pausedProducts);
+    
+    pausedProducts.forEach(product => {
+      console.log(`Paused product "${product.name}":`, {
+        id: product.id,
+        status: product.status,
+        stockByCountry: product.stockByCountry,
+        totalStock: product.totalStock
+      });
+    });
+    
+    // Check if stockByCountry exists and has values
+    let hasStockData = false;
+    productsResponse.products.forEach(product => {
+      if (product.stockByCountry && Object.keys(product.stockByCountry).length > 0) {
+        console.log(`Product "${product.name}" has stock data:`, product.stockByCountry);
+        hasStockData = true;
+      }
+    });
+    
+    if (!hasStockData) {
+      console.log('WARNING: No products have stockByCountry data!');
+    }
+    
+  } catch (error) {
+    console.error('Debug error:', error);
+  }
+}
 
+// Call this in boot function temporarily
+// debugStockData();
 // Enhanced API function with better error handling
 async function api(path, opts = {}) {
   const controller = new AbortController();
@@ -28,7 +69,7 @@ async function api(path, opts = {}) {
     const body = ct.includes('application/json') ? await res.json() : await res.text();
     
     if (!res.ok) {
-      throw new Error(body?.error || body || `HTTP ${res.status}`);
+      throw new Error(body?.error || body || `HTTPf ${res.status}`);
     }
     
     return body;
@@ -443,58 +484,59 @@ async function calculateTransitPieces() {
   }
 }
 
-// In app.js, let's debug the actual product data structure first
+// In app.js, rewrite the calculateStockByCountry function to use the actual API data
 async function calculateStockByCountry(productId = null) {
   try {
-    const db = await api('/api/products');
+    // Get products with their actual stock data from the API
+    const productsResponse = await api('/api/products');
+    const products = productsResponse.products || [];
     
-    console.log('DEBUG - All products data:', db.products);
+    console.log('DEBUG - Products for stock calculation:', products.length);
     
     if (productId) {
-      const product = db.products.find(p => p.id === productId);
-      return product ? product.stockByCountry : {};
-    } else {
-      const activeStock = {};
-      const inactiveStock = {};
-      
-      // Initialize stock for all countries
-      state.countries.forEach(country => {
-        activeStock[country] = 0;
-        inactiveStock[country] = 0;
-      });
-      
-      // Calculate stock for each product
-      db.products.forEach(product => {
-        console.log(`DEBUG - Product: ${product.name}, Status: ${product.status}, Stock:`, product.stockByCountry);
-        
-        const stockByCountry = product.stockByCountry || {};
-        
-        Object.keys(stockByCountry).forEach(country => {
-          const stock = stockByCountry[country] || 0;
-          console.log(`DEBUG - Country: ${country}, Stock: ${stock}, Product Status: ${product.status}`);
-          
-          if (product.status === 'active') {
-            activeStock[country] = (activeStock[country] || 0) + stock;
-          } else {
-            inactiveStock[country] = (inactiveStock[country] || 0) + stock;
-          }
-        });
-      });
-      
-      console.log('DEBUG - Final active stock:', activeStock);
-      console.log('DEBUG - Final inactive stock:', inactiveStock);
-      
-      return {
-        active: activeStock,
-        inactive: inactiveStock
-      };
+      const product = products.find(p => p.id === productId);
+      return product ? (product.stockByCountry || {}) : {};
     }
+    
+    const activeStock = {};
+    const inactiveStock = {};
+    
+    // Initialize stock for all countries
+    state.countries.forEach(country => {
+      activeStock[country] = 0;
+      inactiveStock[country] = 0;
+    });
+    
+    // Calculate stock for each product using the actual stockByCountry from API
+    products.forEach(product => {
+      const stockByCountry = product.stockByCountry || {};
+      const productStatus = product.status || 'active';
+      
+      console.log(`DEBUG - Processing product: ${product.name}, Status: ${productStatus}, Stock:`, stockByCountry);
+      
+      Object.keys(stockByCountry).forEach(country => {
+        const stock = Number(stockByCountry[country]) || 0;
+        
+        if (productStatus === 'active') {
+          activeStock[country] = (Number(activeStock[country]) || 0) + stock;
+        } else {
+          inactiveStock[country] = (Number(inactiveStock[country]) || 0) + stock;
+        }
+      });
+    });
+    
+    console.log('DEBUG - Final stock calculation:', { activeStock, inactiveStock });
+    
+    return {
+      active: activeStock,
+      inactive: inactiveStock
+    };
+    
   } catch (error) {
     console.error('Error calculating stock:', error);
     return { active: {}, inactive: {} };
   }
 }
-
 // Update renderCompactKpis to show what's happening
 async function renderCompactKpis() {
   Q('#kpiProducts') && (Q('#kpiProducts').textContent = state.products.length);
