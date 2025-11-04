@@ -52,11 +52,13 @@ async function debugStockData() {
 // Call this in boot function temporarily
 // debugStockData();
 // Enhanced API function with better error handling
+// In app.js, update the api function with better error handling
 async function api(path, opts = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000);
   
   try {
+    console.log(`API Call: ${path}`, opts.method || 'GET');
     const res = await fetch(path, { 
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -65,20 +67,22 @@ async function api(path, opts = {}) {
     });
     clearTimeout(timeoutId);
     
+    console.log(`API Response: ${path} - Status: ${res.status}`);
+    
     const ct = res.headers.get('content-type') || '';
     const body = ct.includes('application/json') ? await res.json() : await res.text();
     
     if (!res.ok) {
-      throw new Error(body?.error || body || `HTTPf ${res.status}`);
+      throw new Error(body?.error || body || `HTTP ${res.status}`);
     }
     
     return body;
   } catch (error) {
     clearTimeout(timeoutId);
+    console.error(`API Error: ${path}`, error);
     throw error;
   }
 }
-
 // Application state
 const state = {
   productId: getQuery('id'),
