@@ -2432,13 +2432,19 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
     }
 
     if (e.target.classList.contains('act-pay')) {
+      // Show popup to enter final shipping cost
       const finalCost = prompt('Enter final shipping cost:');
       if (finalCost && !isNaN(finalCost)) {
-        await api(`/api/shipments/${id}/mark-paid`, {
-          method: 'POST',
-          body: JSON.stringify({ finalShipCost: +finalCost })
-        });
-        renderShipmentTables();
+        try {
+          await api(`/api/shipments/${id}/mark-paid`, {
+            method: 'POST',
+            body: JSON.stringify({ finalShipCost: +finalCost })
+          });
+          renderShipmentTables();
+          alert('Shipment marked as paid successfully!');
+        } catch (error) {
+          alert('Error marking shipment as paid: ' + error.message);
+        }
       }
     }
 
@@ -3228,12 +3234,8 @@ function renderProductShipmentTable(selector, shipments, showChinaCost) {
         <td>${shipment.arrivedAt || '-'}</td>
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
         <td>
-          ${!shipment.arrivedAt ? `
-            <button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>
-          ` : ''}
-          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `
-            <button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>
-          ` : ''}
+          ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
+          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
           <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
@@ -3244,7 +3246,6 @@ function renderProductShipmentTable(selector, shipments, showChinaCost) {
   // Add event listeners
   addShipmentEventListeners(tbody);
 }
-
 function renderArrivedShipmentsTable(shipments) {
   const tbody = Q('#pdArrivedBody');
   if (!tbody) return;
@@ -3299,13 +3300,19 @@ function addShipmentEventListeners(container) {
     }
 
     if (e.target.classList.contains('act-pay')) {
+      // Show popup to enter final shipping cost
       const finalCost = prompt('Enter final shipping cost:');
       if (finalCost && !isNaN(finalCost)) {
-        await api(`/api/shipments/${id}/mark-paid`, {
-          method: 'POST',
-          body: JSON.stringify({ finalShipCost: +finalCost })
-        });
-        renderProductShipments();
+        try {
+          await api(`/api/shipments/${id}/mark-paid`, {
+            method: 'POST',
+            body: JSON.stringify({ finalShipCost: +finalCost })
+          });
+          renderProductShipments();
+          alert('Shipment marked as paid successfully!');
+        } catch (error) {
+          alert('Error marking shipment as paid: ' + error.message);
+        }
       }
     }
 
