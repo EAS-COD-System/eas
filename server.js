@@ -548,7 +548,7 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
 }
 // ======== ROUTES ========
 
-// Authentication
+// In server.js, make sure the auth endpoint is clean
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
@@ -571,7 +571,6 @@ app.post('/api/auth', (req, res) => {
   
   return res.status(401).json({ error: 'Wrong password' });
 });
-
 app.get('/api/auth/status', requireAuth, (req, res) => {
   res.json({ authenticated: true });
 });
@@ -583,8 +582,12 @@ app.get('/api/meta', requireAuth, (req, res) => {
 });
 
 // Products
+// In server.js, update the products endpoint to only run auto-management when authenticated
 app.get('/api/products', requireAuth, (req, res) => { 
   const db = loadDB();
+  
+  // Auto-manage product status only when loading products (after auth)
+  autoManageProductStatus(db);
   
   // Get ALL ad spends to determine active products
   const allAdSpends = db.adspend || [];
@@ -600,15 +603,16 @@ app.get('/api/products', requireAuth, (req, res) => {
     
     // Auto-manage status: if has ANY ad spend, make active; if no ad spend, make paused
     let autoStatus = product.status;
-    if (hasAnyAdSpend && product.status === 'paused') {
+    if (hasAnyAdSpend) {
       // Automatically activate if there's ANY ad spend
       autoStatus = 'active';
-      product.status = 'active'; // Update in database
-    } else if (!hasAnyAdSpend && product.status === 'active') {
+    } else {
       // Automatically pause if NO ad spend at all
       autoStatus = 'paused';
-      product.status = 'paused'; // Update in database
     }
+
+    // Update product status in database
+    product.status = autoStatus;
 
     // Only count stock for active products
     const activeStockByCountry = {};
@@ -623,7 +627,7 @@ app.get('/api/products', requireAuth, (req, res) => {
 
     return {
       ...product,
-      status: autoStatus, // Use auto-managed status
+      status: autoStatus,
       isProfitable: metrics.isProfitable,
       hasData: metrics.hasData,
       stockByCountry: activeStockByCountry,
@@ -631,7 +635,7 @@ app.get('/api/products', requireAuth, (req, res) => {
       transitPieces: transit.totalTransit,
       totalPiecesIncludingTransit: (autoStatus === 'active' ? totalStock : 0) + transit.totalTransit,
       adSpendByCountry: adSpendByCountry,
-      hasAnyAdSpend: hasAnyAdSpend // For debugging
+      hasAnyAdSpend: hasAnyAdSpend
     };
   });
 
