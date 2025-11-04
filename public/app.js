@@ -125,80 +125,134 @@ const state = {
 };
 
 // Main boot function
+// Main boot function - FIXED
 async function boot() {
-  // Check authentication first
+  console.log('Boot started - checking authentication...');
+  
   try {
-    console.log('Checking authentication status...');
     await api('/api/auth/status');
     console.log('Authentication successful');
     
-    // Hide login, show main
+    // Hide login, show main - FIXED: Use display instead of class
     const loginEl = document.getElementById('login');
     const mainEl = document.getElementById('main');
     
-    if (loginEl) loginEl.classList.add('hide');
-    if (mainEl) mainEl.style.display = 'block';
+    if (loginEl) {
+      loginEl.style.display = 'none';
+      console.log('Login form hidden');
+    }
+    if (mainEl) {
+      mainEl.style.display = 'block';
+      console.log('Main content shown');
+    }
     
     // Load data and initialize app
+    console.log('Loading application data...');
     await preload();
     bindGlobalNav();
     
     if (state.productId) {
+      console.log('Rendering product page for:', state.productId);
       renderProductPage();
     } else {
+      console.log('Rendering dashboard page');
       renderDashboardPage();
-      renderProductsPage();
-      renderPerformancePage();
-      renderStockMovementPage();
-      renderAdspendPage();
-      renderFinancePage();
-      renderSettingsPage();
+      // Keep other render calls but they should handle their own errors
+      try { renderProductsPage(); } catch(e) { console.error('Products page error:', e); }
+      try { renderPerformancePage(); } catch(e) { console.error('Performance page error:', e); }
+      try { renderStockMovementPage(); } catch(e) { console.error('Stock movement page error:', e); }
+      try { renderAdspendPage(); } catch(e) { console.error('Adspend page error:', e); }
+      try { renderFinancePage(); } catch(e) { console.error('Finance page error:', e); }
+      try { renderSettingsPage(); } catch(e) { console.error('Settings page error:', e); }
     }
     
     setupDailyBackupButton();
+    console.log('Boot completed successfully');
     
   } catch (error) {
-    console.log('Authentication failed:', error);
-    // Show login, hide main
+    console.log('Authentication failed, showing login form:', error.message);
+    // Show login, hide main - FIXED: Use display instead of class
     const loginEl = document.getElementById('login');
     const mainEl = document.getElementById('main');
     
-    if (loginEl) loginEl.classList.remove('hide');
-    if (mainEl) mainEl.style.display = 'none';
+    if (loginEl) {
+      loginEl.style.display = 'block';
+      console.log('Login form shown');
+    }
+    if (mainEl) {
+      mainEl.style.display = 'none';
+      console.log('Main content hidden');
+    }
   }
 }
-// In app.js, update the login handler
-document.addEventListener('DOMContentLoaded', () => {
-  // Login handler
- Q('#loginBtn')?.addEventListener('click', async () => {
-  const password = Q('#pw')?.value;
+// FIXED: Single DOMContentLoaded handler with better error handling
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('DOM loaded - initializing login handlers');
   
-  try {
-    const response = await fetch('/api/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password })
+  // Login handler - FIXED
+  const loginBtn = document.getElementById('loginBtn');
+  const pwInput = document.getElementById('pw');
+  
+  if (loginBtn && pwInput) {
+    loginBtn.addEventListener('click', async function() {
+      const password = pwInput.value;
+      console.log('Login attempt with password length:', password.length);
+      
+      if (!password) {
+        alert('Please enter password');
+        return;
+      }
+      
+      try {
+        console.log('Sending auth request...');
+        const result = await api('/api/auth', { 
+          method: 'POST', 
+          body: JSON.stringify({ password }) 
+        });
+        console.log('Auth response:', result);
+        
+        // FIX: Reload the page after successful login
+        location.reload();
+        
+      } catch (e) {
+        console.error('Login error:', e);
+        alert('Wrong password: ' + e.message);
+      }
     });
-    
-    if (response.ok) {
-      // Login successful
-      location.reload(); // Simple reload approach
-    } else {
-      const error = await response.json();
-      alert('Login failed: ' + (error.error || 'Unknown error'));
-    }
-  } catch (error) {
-    alert('Network error: ' + error.message);
+
+    // Enter key for login
+    pwInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        loginBtn.click();
+      }
+    });
+  } else {
+    console.error('Login elements not found!');
   }
-});
-  // Also allow Enter key in password field
-  Q('#pw')?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      Q('#loginBtn').click();
-    }
+
+  // Logout handler
+  const logoutLink = document.getElementById('logoutLink');
+  if (logoutLink) {
+    logoutLink.addEventListener('click', async function(e) {
+      e.preventDefault();
+      try { 
+        await api('/api/auth', { 
+          method: 'POST', 
+          body: JSON.stringify({ password: 'logout' }) 
+        }); 
+      } catch (e) { 
+        console.error('Logout error:', e);
+      } 
+      location.reload();
+    });
+  }
+
+  // Initialize the app
+  console.log('Starting boot process...');
+  boot().catch(error => {
+    console.error('Boot failed:', error);
   });
 });
-
 // Navigation handling
 function initSimpleNavigation() {
   const nav = Q('.nav');
