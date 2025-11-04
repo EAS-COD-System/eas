@@ -62,7 +62,7 @@ const state = {
   profitCountrySortBy: 'totalDeliveredPieces',
   profitCountrySortOrder: 'desc'
 };
-
+let isAddingProduct = false; // Prevent multiple product additions
 // Main boot function
 async function boot() {
   // Check authentication first
@@ -196,7 +196,7 @@ function initSimpleNavigation() {
   }
 }
 
-// Preload essential data
+// In the preload function, update how we handle products
 async function preload() {
   try {
     const meta = await api('/api/meta');
@@ -204,8 +204,10 @@ async function preload() {
 
     const pr = await api('/api/products');
     state.products = pr.products || [];
-    state.productsActive = state.products.filter(p => p.status !== 'paused');
-
+    
+    // FIX: Keep all products in productsActive for display, but filter for operations
+    state.productsActive = state.products.filter(p => p.status === 'active');
+    
     const cats = await api('/api/finance/categories');
     state.categories = cats || { debit: [], credit: [] };
 
@@ -491,7 +493,10 @@ async function calculateStockByCountry(productId = null) {
     const db = await api('/api/products');
     if (productId) {
       const product = db.products.find(p => p.id === productId);
-      return product ? product.stockByCountry : {};
+      return product ? { 
+        activeStock: product.stockByCountry, 
+        inactiveStock: product.status === 'paused' ? product.stockByCountry : {} 
+      } : { activeStock: {}, inactiveStock: {} };
     } else {
       const activeStock = {};
       const inactiveStock = {};
@@ -517,7 +522,6 @@ async function calculateStockByCountry(productId = null) {
     return { activeStock: {}, inactiveStock: {} };
   }
 }
-
 async function renderCountryStockSpend() {
   const body = Q('#stockByCountryBody'); 
   if (!body) return;
@@ -525,7 +529,8 @@ async function renderCountryStockSpend() {
   body.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
 
   try {
-    const stockByCountry = await calculateStockByCountry();
+    const stockData = await calculateStockByCountry();
+    const stockByCountry = stockData.activeStock || {};
     
     let st = 0, fb = 0, tt = 0, gg = 0, totalAd = 0;
     
@@ -538,7 +543,8 @@ async function renderCountryStockSpend() {
 
     (adSpends.adSpends || []).forEach(ad => {
       const product = state.products.find(p => p.id === ad.productId);
-      if (product && product.status === 'active' && adBreakdown[ad.country]) {
+      // FIX: Include ALL products for ad spend calculation
+      if (adBreakdown[ad.country]) {
         const amount = +ad.amount || 0;
         if (ad.platform === 'facebook') adBreakdown[ad.country].facebook += amount;
         else if (ad.platform === 'tiktok') adBreakdown[ad.country].tiktok += amount;
@@ -579,7 +585,6 @@ async function renderCountryStockSpend() {
     body.innerHTML = `<tr><td colspan="6" class="muted">Error loading data</td></tr>`;
   }
 }
-
 function bindDailyAdSpend() {
   const btn = Q('#adSave');
   if (!btn) return;
@@ -827,8 +832,8 @@ function initTodos() {
       const arr = data.todos || [];
       listEl.innerHTML = arr.map(t => `<div class="flex">
         <span>${t.done ? '✅ ' : ''}${t.text}</span>
-        <button class="btn outline" data-done="${t.id}">${t.done ? 'Undo' : 'Done'}</button>
-        <button class="btn outline" data-del="${t.id}">Delete</button>
+        <button class="btn outline todo-done" data-id="${t.id}">${t.done ? 'Undo' : 'Done'}</button>
+        <button class="btn outline todo-delete" data-id="${t.id}">Delete</button>
       </div>`).join('') || '<div class="muted">No tasks</div>';
     }).catch(console.error);
   }
@@ -837,23 +842,30 @@ function initTodos() {
     const v = Q('#todoText')?.value.trim(); 
     if (!v) return;
     
+    addBtn.disabled = true;
+    
     api('/api/todos', {
       method: 'POST',
       body: JSON.stringify({ text: v, done: false })
     }).then(() => {
       Q('#todoText').value = '';
       renderQuick();
-    }).catch(alert);
+    }).catch(alert).finally(() => {
+      addBtn.disabled = false;
+    });
   });
   
   listEl?.addEventListener('click', (e) => {
-    if (e.target.dataset.done) {
-      api(`/api/todos/${e.target.dataset.done}/toggle`, { method: 'POST' })
+    if (e.target.classList.contains('todo-done')) {
+      e.target.disabled = true;
+      api(`/api/todos/${e.target.dataset.id}/toggle`, { method: 'POST' })
         .then(renderQuick)
         .catch(alert);
     }
-    if (e.target.dataset.del) {
-      api(`/api/todos/${e.target.dataset.del}`, { method: 'DELETE' })
+    if (e.target.classList.contains('todo-delete')) {
+      if (!confirm('Delete this task?')) return;
+      e.target.disabled = true;
+      api(`/api/todos/${e.target.dataset.id}`, { method: 'DELETE' })
         .then(renderQuick)
         .catch(alert);
     }
@@ -861,7 +873,6 @@ function initTodos() {
   
   renderQuick();
 }
-
 // Weekly Todo lists
 function initWeeklyTodos() {
   const container = Q('#weeklyWrap');
@@ -1076,12 +1087,18 @@ function renderProductsPage() {
       }
     }
 
-    Q('#pAdd')?.addEventListener('click', async () => {
+   Q('#pAdd')?.addEventListener('click', async () => {
+      if (isAddingProduct) return; // Prevent multiple clicks
+      
       const p = {
         name: Q('#pName')?.value.trim(),
         sku: Q('#pSku')?.value.trim()
       };
       if (!p.name) return alert('Name required');
+      
+      isAddingProduct = true;
+      Q('#pAdd').disabled = true;
+      Q('#pAdd').textContent = 'Adding...';
       
       try {
         await api('/api/products', { method: 'POST', body: JSON.stringify(p) });
@@ -1100,9 +1117,12 @@ function renderProductsPage() {
         alert('Product added successfully!');
       } catch (error) {
         alert('Error adding product: ' + error.message);
+      } finally {
+        isAddingProduct = false;
+        Q('#pAdd').disabled = false;
+        Q('#pAdd').textContent = '🚀 Add Product';
       }
     });
-
     Q('#spSave')?.addEventListener('click', async () => {
       const productId = Q('#spProduct')?.value;
       const country = Q('#spCountry')?.value;
@@ -1268,7 +1288,7 @@ function renderProductsTable() {
       return;
     }
 
-    // Filter and sort products
+    // Filter and sort products - include ALL products (active and paused)
     const filteredProducts = filterProducts(state.products, state.productsSearchTerm);
     const countryFilter = Q('#productsCountryFilter')?.value || 'all';
     const sortedProducts = sortProducts(filteredProducts, state.productsSortBy, countryFilter);
@@ -1653,7 +1673,7 @@ function handlePlatformClick(e) {
       const amount = parseFloat(newAmount);
       
       if (amount >= 0) {
-        // Update the ad spend
+        // FIX: Use the exact amount entered, don't add to existing
         api('/api/adspend', {
           method: 'POST',
           body: JSON.stringify({
@@ -1661,12 +1681,12 @@ function handlePlatformClick(e) {
             productId: productId,
             country: country,
             platform: platform,
-            amount: amount
+            amount: amount  // This replaces the existing amount for today
           })
         }).then(() => {
           // Refresh the advertising overview
           renderAdvertisingOverview();
-          alert(`${platform} spend updated successfully!`);
+          alert(`${platform} spend updated to $${amount}!`);
         }).catch(error => {
           alert('Error updating spend: ' + error.message);
         });
@@ -2103,15 +2123,21 @@ function addSortingToAnalytics() {
   headers.forEach(header => {
     header.style.cursor = 'pointer';
     header.addEventListener('click', function() {
-      const sortBy = this.textContent.trim().toLowerCase().replace(/\s+/g, '');
-      state.remittanceSortOrder = state.remittanceSortBy === sortBy ? 
-        (state.remittanceSortOrder === 'desc' ? 'asc' : 'desc') : 'desc';
-      state.remittanceSortBy = sortBy;
+      const sortBy = this.getAttribute('data-sort') || this.textContent.trim().toLowerCase().replace(/\s+/g, '');
+      
+      // Toggle sort order only if clicking the same column
+      if (state.remittanceSortBy === sortBy) {
+        state.remittanceSortOrder = state.remittanceSortOrder === 'desc' ? 'asc' : 'desc';
+      } else {
+        state.remittanceSortBy = sortBy;
+        state.remittanceSortOrder = 'desc'; // Default to desc for new column
+      }
       
       // Update sort indicators
       headers.forEach(h => {
         h.classList.remove('sort-asc', 'sort-desc');
-        if (h.textContent.trim().toLowerCase().replace(/\s+/g, '') === sortBy) {
+        const hSort = h.getAttribute('data-sort') || h.textContent.trim().toLowerCase().replace(/\s+/g, '');
+        if (hSort === sortBy) {
           h.classList.add(state.remittanceSortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
         }
       });
@@ -2119,8 +2145,40 @@ function addSortingToAnalytics() {
       Q('#remAnalyticsRun').click();
     });
   });
+  
+  // Add data-sort attributes to headers for consistency
+  const sortMappings = {
+    'Product Name': 'productName',
+    'Country': 'country', 
+    'Orders': 'totalOrders',
+    'Delivered Orders': 'totalDeliveredOrders',
+    'Refunded Orders': 'totalRefundedOrders',
+    'Delivered Pieces': 'totalDeliveredPieces',
+    'Revenue': 'totalRevenue',
+    'Refunded Amount': 'totalRefundedAmount',
+    'Advertising Spend': 'totalAdSpend',
+    'Influencer Spend': 'totalInfluencerSpend',
+    'Boxleo Fees': 'totalBoxleoFees',
+    'Product Cost China': 'totalProductChinaCost',
+    'Total Shipping Cost': 'totalShippingCost',
+    'Boxleo/Order': 'boxleoPerDeliveredOrder',
+    'Boxleo/Piece': 'boxleoPerDeliveredPiece',
+    'Ad Cost/Order': 'adCostPerDeliveredOrder',
+    'Ad Cost/Piece': 'adCostPerDeliveredPiece',
+    'Profit/Order': 'profitPerOrder',
+    'Profit/Piece': 'profitPerPiece',
+    'Delivery Rate': 'deliveryRate',
+    'Avg Order Value': 'averageOrderValue',
+    'Profit': 'profit'
+  };
+  
+  headers.forEach(header => {
+    const text = header.textContent.trim();
+    if (sortMappings[text]) {
+      header.setAttribute('data-sort', sortMappings[text]);
+    }
+  });
 }
-
 function bindProfitByCountry() {
   const btn = Q('#pcRun');
   if (!btn) return;
@@ -3366,7 +3424,17 @@ function addShipmentEventListeners(container) {
         }
       }
     }
-
+// In addShipmentEventListeners function, update the arrived button handler:
+if (e.target.classList.contains('act-arrive')) {
+  if (!confirm('Are you sure you want to mark this shipment as arrived?')) {
+    return;
+  }
+  await api(`/api/shipments/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ arrivedAt: isoToday() })
+  });
+  renderProductShipments();
+}
     if (e.target.classList.contains('act-edit-ship')) {
       editShipment(id);
     }
