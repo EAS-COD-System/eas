@@ -624,9 +624,19 @@ app.get('/api/products', requireAuth, (req, res) => {
   res.json({ products });
 });
 
+// In server.js, update the products POST endpoint to prevent duplicates
 app.post('/api/products', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.products = db.products || [];
+  
+  // Check if product with same name already exists
+  const productName = (req.body.name || '').trim().toLowerCase();
+  const existingProduct = db.products.find(p => p.name.toLowerCase() === productName);
+  
+  if (existingProduct) {
+    return res.status(409).json({ error: 'Product with this name already exists' });
+  }
+  
   const p = {
     id: uuidv4(),
     status: 'active',
@@ -634,12 +644,13 @@ app.post('/api/products', requireAuth, (req, res) => {
     sku: req.body.sku || '',
     createdAt: new Date().toISOString()
   };
+  
   if (!p.name) return res.status(400).json({ error: 'Name required' });
+  
   db.products.push(p); 
   saveDB(db); 
   res.json({ ok: true, product: p });
 });
-
 app.put('/api/products/:id', requireAuth, (req, res) => {
   const db = loadDB();
   const p = (db.products || []).find(x => x.id === req.params.id);
