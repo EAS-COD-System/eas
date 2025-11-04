@@ -30,8 +30,6 @@ function requireAuth(req, res, next) {
 }
 
 // ======== DATABASE FUNCTIONS ========
-// In server.js, fix the ensureDB function to not call autoManageProductStatus on every load
-// ======== DATABASE UTILITIES ========
 function loadDB() {
   ensureDB();
   try {
@@ -94,6 +92,7 @@ function autoManageProductStatus(db) {
     }
   });
 }
+
 function ensureDB() {
   if (!fs.existsSync(DATA_FILE)) {
     const initialData = {
@@ -125,7 +124,6 @@ function ensureDB() {
     };
     fs.writeJsonSync(DATA_FILE, initialData, { spaces: 2 });
   }
-  // Remove the autoManageProductStatus call from here
 }
 
 // ======== ADVANCED SHIPPING COST CALCULATION ========
@@ -609,9 +607,10 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
     hasData
   };
 }
+
 // ======== ROUTES ========
 
-// In server.js, make sure the auth endpoint is clean
+// Authentication
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
@@ -632,6 +631,7 @@ app.post('/api/auth', (req, res) => {
   
   return res.status(401).json({ error: 'Wrong password' });
 });
+
 app.get('/api/auth/status', requireAuth, (req, res) => {
   res.json({ authenticated: true });
 });
@@ -643,7 +643,6 @@ app.get('/api/meta', requireAuth, (req, res) => {
 });
 
 // Products
-// In server.js, update the products endpoint to only run auto-management when authenticated
 app.get('/api/products', requireAuth, (req, res) => { 
   const db = loadDB();
   
@@ -705,7 +704,7 @@ app.get('/api/products', requireAuth, (req, res) => {
   
   res.json({ products });
 });
-// In server.js, update the products POST endpoint to prevent duplicates
+
 app.post('/api/products', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.products = db.products || [];
@@ -732,6 +731,7 @@ app.post('/api/products', requireAuth, (req, res) => {
   saveDB(db); 
   res.json({ ok: true, product: p });
 });
+
 app.put('/api/products/:id', requireAuth, (req, res) => {
   const db = loadDB();
   const p = (db.products || []).find(x => x.id === req.params.id);
@@ -880,25 +880,7 @@ app.get('/api/product-orders', requireAuth, (req, res) => {
     }
   });
 });
-// Force add product orders (for duplicates)
-app.post('/api/product-orders/force', requireAuth, (req, res) => {
-  const db = loadDB(); 
-  db.productOrders = db.productOrders || [];
-  const { productId, country, startDate, endDate, orders } = req.body || {};
-  if (!productId || !country || !startDate || !endDate) return res.status(400).json({ error: 'Missing fields' });
 
-  db.productOrders.push({
-    id: uuidv4(),
-    productId,
-    country,
-    startDate,
-    endDate,
-    orders: +orders || 0
-  });
-
-  saveDB(db); 
-  res.json({ ok: true });
-});
 app.post('/api/product-orders', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.productOrders = db.productOrders || [];
@@ -933,13 +915,35 @@ app.post('/api/product-orders', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// Get all ad spends
+// Product orders force endpoint (for duplicates)
+app.post('/api/product-orders/force', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.productOrders = db.productOrders || [];
+  const { productId, country, startDate, endDate, orders } = req.body || {};
+  if (!productId || !country || !startDate || !endDate) return res.status(400).json({ error: 'Missing fields' });
+
+  db.productOrders.push({
+    id: uuidv4(),
+    productId,
+    country,
+    startDate,
+    endDate,
+    orders: +orders || 0
+  });
+
+  saveDB(db); 
+  res.json({ ok: true });
+});
+
+// ======== ADSPEND ROUTES ========
+
+// Adspend GET endpoint
 app.get('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB();
   res.json({ adSpends: db.adspend || [] });
 });
 
-// Add new ad spend
+// Adspend POST endpoint
 app.post('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.adspend = db.adspend || [];
@@ -976,7 +980,7 @@ app.post('/api/adspend', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// Delete ad spend
+// Adspend DELETE endpoint
 app.delete('/api/adspend/:id', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.adspend = (db.adspend || []).filter(a => a.id !== req.params.id);
@@ -987,6 +991,7 @@ app.delete('/api/adspend/:id', requireAuth, (req, res) => {
   saveDB(db); 
   res.json({ ok: true });
 });
+
 // Deliveries
 app.get('/api/deliveries', requireAuth, (req, res) => {
   const db = loadDB(); 
@@ -1004,7 +1009,6 @@ app.post('/api/deliveries', requireAuth, (req, res) => {
 });
 
 // Shipments
-// In server.js, update the shipments endpoint to include product names
 app.get('/api/shipments', requireAuth, (req, res) => {
   const db = loadDB(); 
   const shipments = db.shipments || [];
@@ -1061,7 +1065,6 @@ app.put('/api/shipments/:id', requireAuth, (req, res) => {
   res.json({ ok: true, shipment: s });
 });
 
-// In server.js, update the mark-paid endpoint to NOT automatically mark as arrived
 app.post('/api/shipments/:id/mark-paid', requireAuth, (req, res) => {
   const db = loadDB(); 
   const s = (db.shipments || []).find(x => x.id === req.params.id);
@@ -1082,6 +1085,7 @@ app.post('/api/shipments/:id/mark-paid', requireAuth, (req, res) => {
   saveDB(db); 
   res.json({ ok: true, shipment: s });
 });
+
 app.delete('/api/shipments/:id', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.shipments = (db.shipments || []).filter(x => x.id !== req.params.id);
@@ -1157,6 +1161,8 @@ app.post('/api/remittances', requireAuth, (req, res) => {
   saveDB(db); 
   res.json({ ok: true, remittance: r });
 });
+
+// Remittances force endpoint (for duplicates)
 app.post('/api/remittances/force', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.remittances = db.remittances || [];
@@ -1181,6 +1187,7 @@ app.post('/api/remittances/force', requireAuth, (req, res) => {
   saveDB(db); 
   res.json({ ok: true, remittance: r });
 });
+
 app.delete('/api/remittances/:id', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.remittances = (db.remittances || []).filter(r => r.id !== req.params.id);
