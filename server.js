@@ -669,7 +669,8 @@ app.get('/api/products', requireAuth, (req, res) => {
   saveDB(db);
   
   res.json({ products });
-});// In server.js, update the products POST endpoint to prevent duplicates
+});
+// In server.js, update the products POST endpoint to prevent duplicates
 app.post('/api/products', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.products = db.products || [];
@@ -879,13 +880,7 @@ app.post('/api/product-orders', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// Ad Spend
-app.get('/api/adspend', requireAuth, (req, res) => { 
-  const db = loadDB(); 
-  res.json({ adSpends: db.adspend || [] });
-});
-
-// In server.js, update the adspend POST endpoint
+// In server.js, update the adspend POST endpoint (simplify it)
 app.post('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.adspend = db.adspend || [];
@@ -912,16 +907,15 @@ app.post('/api/adspend', requireAuth, (req, res) => {
     });
   }
   
-  // Automatically activate the product when ad spend is added
+  // Automatically activate the product when ANY ad spend is added
   const product = db.products.find(p => p.id === productId);
-  if (product && product.status === 'paused') {
+  if (product) {
     product.status = 'active';
   }
   
   saveDB(db); 
   res.json({ ok: true });
 });
-
 // Deliveries
 app.get('/api/deliveries', requireAuth, (req, res) => {
   const db = loadDB(); 
