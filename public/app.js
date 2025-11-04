@@ -2419,9 +2419,6 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
   }).join('');
 
   // Add event listeners for shipment actions
-  addShipmentEventListeners(tbody);
-}
-  // Add event listeners for shipment actions
   tbody.onclick = async (e) => {
     const id = e.target.dataset?.id;
     if (!id) return;
