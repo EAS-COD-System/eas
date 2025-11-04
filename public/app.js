@@ -443,10 +443,12 @@ async function calculateTransitPieces() {
   }
 }
 
-// In app.js, completely rewrite the calculateStockByCountry function
+// In app.js, let's debug the actual product data structure first
 async function calculateStockByCountry(productId = null) {
   try {
     const db = await api('/api/products');
+    
+    console.log('DEBUG - All products data:', db.products);
     
     if (productId) {
       const product = db.products.find(p => p.id === productId);
@@ -463,10 +465,13 @@ async function calculateStockByCountry(productId = null) {
       
       // Calculate stock for each product
       db.products.forEach(product => {
+        console.log(`DEBUG - Product: ${product.name}, Status: ${product.status}, Stock:`, product.stockByCountry);
+        
         const stockByCountry = product.stockByCountry || {};
         
         Object.keys(stockByCountry).forEach(country => {
           const stock = stockByCountry[country] || 0;
+          console.log(`DEBUG - Country: ${country}, Stock: ${stock}, Product Status: ${product.status}`);
           
           if (product.status === 'active') {
             activeStock[country] = (activeStock[country] || 0) + stock;
@@ -475,6 +480,9 @@ async function calculateStockByCountry(productId = null) {
           }
         });
       });
+      
+      console.log('DEBUG - Final active stock:', activeStock);
+      console.log('DEBUG - Final inactive stock:', inactiveStock);
       
       return {
         active: activeStock,
@@ -487,7 +495,7 @@ async function calculateStockByCountry(productId = null) {
   }
 }
 
-// Update the renderCompactKpis function to use the correct calculation
+// Update renderCompactKpis to show what's happening
 async function renderCompactKpis() {
   Q('#kpiProducts') && (Q('#kpiProducts').textContent = state.products.length);
   Q('#kpiCountries') && (Q('#kpiCountries').textContent = state.countries.length);
@@ -503,6 +511,8 @@ async function renderCompactKpis() {
       inactiveStock += stockData.inactive[country] || 0;
     });
 
+    console.log('DEBUG - KPIs - Active Stock:', activeStock, 'Inactive Stock:', inactiveStock);
+    
     const transitData = await calculateTransitPieces();
     
     Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = transitData.chinaTransit);
@@ -510,7 +520,6 @@ async function renderCompactKpis() {
     Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = activeStock);
     Q('#kpiInactiveStock') && (Q('#kpiInactiveStock').textContent = inactiveStock);
     
-    console.log('Stock calculation:', { activeStock, inactiveStock, stockData });
   } catch (error) { 
     console.error('Error in renderCompactKpis:', error);
     Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = '—');
@@ -528,7 +537,6 @@ async function renderCompactKpis() {
   const t = Q('#wAllT')?.textContent || '0';
   Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = t);
 }
-
 // Update the renderCountryStockSpend function
 async function renderCountryStockSpend() {
   const body = Q('#stockByCountryBody'); 
