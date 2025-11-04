@@ -921,6 +921,7 @@ app.put('/api/shipments/:id', requireAuth, (req, res) => {
   res.json({ ok: true, shipment: s });
 });
 
+// Add this route for marking shipments as paid
 app.post('/api/shipments/:id/mark-paid', requireAuth, (req, res) => {
   const db = loadDB(); 
   const s = (db.shipments || []).find(x => x.id === req.params.id);
