@@ -610,7 +610,7 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
 
 // ======== ROUTES ========
 
-// Authentication
+// In server.js, update the auth route
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
@@ -621,17 +621,18 @@ app.post('/api/auth', (req, res) => {
   }
   
   if (password && password === db.password) {
-    // Set a simple cookie without complex options that might cause issues
+    // Use simpler cookie settings
     res.cookie('auth', '1', { 
-      httpOnly: false, // Set to true in production
-      maxAge: 365 * 24 * 60 * 60 * 1000 // 1 year
+      httpOnly: false,
+      secure: false, // Set to true in production with HTTPS
+      sameSite: 'lax',
+      maxAge: 365 * 24 * 60 * 60 * 1000
     });
     return res.json({ ok: true });
   }
   
   return res.status(401).json({ error: 'Wrong password' });
 });
-
 app.get('/api/auth/status', requireAuth, (req, res) => {
   res.json({ authenticated: true });
 });
