@@ -9,96 +9,35 @@ const fmt = n => (Number(n || 0)).toLocaleString(undefined, { maximumFractionDig
 const isoToday = () => new Date().toISOString().slice(0, 10);
 const getQuery = k => new URLSearchParams(location.search).get(k);
 const safeJSON = v => { try { return JSON.parse(v); } catch { return null; } };
-// In app.js, add this debug function
-async function debugStockData() {
-  try {
-    console.log('=== DEBUG STOCK DATA ===');
-    
-    // Check what the products API actually returns
-    const productsResponse = await api('/api/products');
-    console.log('Full products API response:', productsResponse);
-    
-    // Check paused products specifically
-    const pausedProducts = productsResponse.products.filter(p => p.status === 'paused');
-    console.log('Paused products:', pausedProducts);
-    
-    pausedProducts.forEach(product => {
-      console.log(`Paused product "${product.name}":`, {
-        id: product.id,
-        status: product.status,
-        stockByCountry: product.stockByCountry,
-        totalStock: product.totalStock
-      });
-    });
-    
-    // Check if stockByCountry exists and has values
-    let hasStockData = false;
-    productsResponse.products.forEach(product => {
-      if (product.stockByCountry && Object.keys(product.stockByCountry).length > 0) {
-        console.log(`Product "${product.name}" has stock data:`, product.stockByCountry);
-        hasStockData = true;
-      }
-    });
-    
-    if (!hasStockData) {
-      console.log('WARNING: No products have stockByCountry data!');
-    }
-    
-  } catch (error) {
-    console.error('Debug error:', error);
-  }
-}
 
-// Call this in boot function temporarily
-// debugStockData();
 // Enhanced API function with better error handling
-// Enhanced API function with better error handling
-// Enhanced API function
 async function api(path, opts = {}) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
   
   try {
-    console.log(`API Call: ${path}`, opts.method || 'GET');
     const res = await fetch(path, { 
-      credentials: 'include', // Important for cookies
-      headers: { 
-        'Content-Type': 'application/json',
-        ...opts.headers 
-      },
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
       ...opts
     });
     clearTimeout(timeoutId);
     
-    console.log(`API Response: ${path} - Status: ${res.status}`);
-    
-    // Check if response is JSON
-    const contentType = res.headers.get('content-type');
-    let data;
-    
-    if (contentType && contentType.includes('application/json')) {
-      data = await res.json();
-    } else {
-      data = await res.text();
-    }
+    const ct = res.headers.get('content-type') || '';
+    const body = ct.includes('application/json') ? await res.json() : await res.text();
     
     if (!res.ok) {
-      throw new Error(data?.error || data || `HTTP ${res.status}`);
+      throw new Error(body?.error || body || `HTTP ${res.status}`);
     }
     
-    return data;
+    return body;
   } catch (error) {
     clearTimeout(timeoutId);
-    console.error(`API Error: ${path}`, error);
-    
-    if (error.name === 'AbortError') {
-      throw new Error('Request timeout');
-    }
-    
     throw error;
   }
 }
+
 // Application state
 const state = {
   productId: getQuery('id'),
@@ -125,134 +64,84 @@ const state = {
 };
 
 // Main boot function
-// Main boot function - FIXED
 async function boot() {
-  console.log('Boot started - checking authentication...');
-  
+  // Check authentication first
   try {
     await api('/api/auth/status');
-    console.log('Authentication successful');
     
-    // Hide login, show main - FIXED: Use display instead of class
+    // Hide login, show main
     const loginEl = document.getElementById('login');
     const mainEl = document.getElementById('main');
     
-    if (loginEl) {
-      loginEl.style.display = 'none';
-      console.log('Login form hidden');
-    }
-    if (mainEl) {
-      mainEl.style.display = 'block';
-      console.log('Main content shown');
-    }
+    if (loginEl) loginEl.classList.add('hide');
+    if (mainEl) mainEl.style.display = 'block';
     
     // Load data and initialize app
-    console.log('Loading application data...');
     await preload();
     bindGlobalNav();
     
     if (state.productId) {
-      console.log('Rendering product page for:', state.productId);
       renderProductPage();
     } else {
-      console.log('Rendering dashboard page');
       renderDashboardPage();
-      // Keep other render calls but they should handle their own errors
-      try { renderProductsPage(); } catch(e) { console.error('Products page error:', e); }
-      try { renderPerformancePage(); } catch(e) { console.error('Performance page error:', e); }
-      try { renderStockMovementPage(); } catch(e) { console.error('Stock movement page error:', e); }
-      try { renderAdspendPage(); } catch(e) { console.error('Adspend page error:', e); }
-      try { renderFinancePage(); } catch(e) { console.error('Finance page error:', e); }
-      try { renderSettingsPage(); } catch(e) { console.error('Settings page error:', e); }
+      renderProductsPage();
+      renderPerformancePage();
+      renderStockMovementPage();
+      renderAdspendPage();
+      renderFinancePage();
+      renderSettingsPage();
     }
     
     setupDailyBackupButton();
-    console.log('Boot completed successfully');
     
   } catch (error) {
-    console.log('Authentication failed, showing login form:', error.message);
-    // Show login, hide main - FIXED: Use display instead of class
+    // Show login, hide main
     const loginEl = document.getElementById('login');
     const mainEl = document.getElementById('main');
     
-    if (loginEl) {
-      loginEl.style.display = 'block';
-      console.log('Login form shown');
-    }
-    if (mainEl) {
-      mainEl.style.display = 'none';
-      console.log('Main content hidden');
-    }
+    if (loginEl) loginEl.classList.remove('hide');
+    if (mainEl) mainEl.style.display = 'none';
   }
 }
-// FIXED: Single DOMContentLoaded handler with better error handling
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('DOM loaded - initializing login handlers');
-  
-  // Login handler - FIXED
-  const loginBtn = document.getElementById('loginBtn');
-  const pwInput = document.getElementById('pw');
-  
-  if (loginBtn && pwInput) {
-    loginBtn.addEventListener('click', async function() {
-      const password = pwInput.value;
-      console.log('Login attempt with password length:', password.length);
-      
-      if (!password) {
-        alert('Please enter password');
-        return;
-      }
-      
-      try {
-        console.log('Sending auth request...');
-        const result = await api('/api/auth', { 
-          method: 'POST', 
-          body: JSON.stringify({ password }) 
-        });
-        console.log('Auth response:', result);
-        
-        // FIX: Reload the page after successful login
-        location.reload();
-        
-      } catch (e) {
-        console.error('Login error:', e);
-        alert('Wrong password: ' + e.message);
-      }
-    });
 
-    // Enter key for login
-    pwInput.addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        loginBtn.click();
-      }
-    });
-  } else {
-    console.error('Login elements not found!');
-  }
+// Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+  // Login handler
+  Q('#loginBtn')?.addEventListener('click', async () => {
+    const password = Q('#pw')?.value || '';
+    if (!password) return alert('Please enter password');
+    
+    try {
+      await api('/api/auth', { 
+        method: 'POST', 
+        body: JSON.stringify({ password }) 
+      });
+      await boot();
+    } catch (e) {
+      alert('Wrong password');
+    }
+  });
 
   // Logout handler
-  const logoutLink = document.getElementById('logoutLink');
-  if (logoutLink) {
-    logoutLink.addEventListener('click', async function(e) {
-      e.preventDefault();
-      try { 
-        await api('/api/auth', { 
-          method: 'POST', 
-          body: JSON.stringify({ password: 'logout' }) 
-        }); 
-      } catch (e) { 
-        console.error('Logout error:', e);
-      } 
-      location.reload();
-    });
-  }
+  Q('#logoutLink')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    try { 
+      await api('/api/auth', { 
+        method: 'POST', 
+        body: JSON.stringify({ password: 'logout' }) 
+      }); 
+    } catch { } 
+    location.reload();
+  });
 
-  // Initialize the app
-  console.log('Starting boot process...');
-  boot().catch(error => {
-    console.error('Boot failed:', error);
+  // Enter key for login
+  Q('#pw')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      Q('#loginBtn').click();
+    }
   });
 });
+
 // Navigation handling
 function initSimpleNavigation() {
   const nav = Q('.nav');
@@ -554,102 +443,31 @@ async function calculateTransitPieces() {
   }
 }
 
-// In app.js, rewrite the calculateStockByCountry function to use the actual API data
 async function calculateStockByCountry(productId = null) {
   try {
-    // Get products with their actual stock data from the API
-    const productsResponse = await api('/api/products');
-    const products = productsResponse.products || [];
-    
-    console.log('DEBUG - Products for stock calculation:', products.length);
-    
+    const db = await api('/api/products');
     if (productId) {
-      const product = products.find(p => p.id === productId);
-      return product ? (product.stockByCountry || {}) : {};
-    }
-    
-    const activeStock = {};
-    const inactiveStock = {};
-    
-    // Initialize stock for all countries
-    state.countries.forEach(country => {
-      activeStock[country] = 0;
-      inactiveStock[country] = 0;
-    });
-    
-    // Calculate stock for each product using the actual stockByCountry from API
-    products.forEach(product => {
-      const stockByCountry = product.stockByCountry || {};
-      const productStatus = product.status || 'active';
-      
-      console.log(`DEBUG - Processing product: ${product.name}, Status: ${productStatus}, Stock:`, stockByCountry);
-      
-      Object.keys(stockByCountry).forEach(country => {
-        const stock = Number(stockByCountry[country]) || 0;
-        
-        if (productStatus === 'active') {
-          activeStock[country] = (Number(activeStock[country]) || 0) + stock;
-        } else {
-          inactiveStock[country] = (Number(inactiveStock[country]) || 0) + stock;
-        }
+      const product = db.products.find(p => p.id === productId);
+      return product ? product.stockByCountry : {};
+    } else {
+      const totalStock = {};
+      state.countries.forEach(country => {
+        totalStock[country] = 0;
       });
-    });
-    
-    console.log('DEBUG - Final stock calculation:', { activeStock, inactiveStock });
-    
-    return {
-      active: activeStock,
-      inactive: inactiveStock
-    };
-    
+      
+      db.products.forEach(product => {
+        Object.keys(product.stockByCountry || {}).forEach(country => {
+          totalStock[country] = (totalStock[country] || 0) + (product.stockByCountry[country] || 0);
+        });
+      });
+      
+      return totalStock;
+    }
   } catch (error) {
-    console.error('Error calculating stock:', error);
-    return { active: {}, inactive: {} };
+    return {};
   }
 }
-// Update renderCompactKpis to show what's happening
-async function renderCompactKpis() {
-  Q('#kpiProducts') && (Q('#kpiProducts').textContent = state.products.length);
-  Q('#kpiCountries') && (Q('#kpiCountries').textContent = state.countries.length);
 
-  try {
-    const stockData = await calculateStockByCountry();
-    let activeStock = 0;
-    let inactiveStock = 0;
-    
-    // Sum up all countries
-    state.countries.forEach(country => {
-      activeStock += stockData.active[country] || 0;
-      inactiveStock += stockData.inactive[country] || 0;
-    });
-
-    console.log('DEBUG - KPIs - Active Stock:', activeStock, 'Inactive Stock:', inactiveStock);
-    
-    const transitData = await calculateTransitPieces();
-    
-    Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = transitData.chinaTransit);
-    Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = transitData.interCountryTransit);
-    Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = activeStock);
-    Q('#kpiInactiveStock') && (Q('#kpiInactiveStock').textContent = inactiveStock);
-    
-  } catch (error) { 
-    console.error('Error in renderCompactKpis:', error);
-    Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = '—');
-    Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = '—');
-    Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = '—');
-    Q('#kpiInactiveStock') && (Q('#kpiInactiveStock').textContent = '—');
-  }
-
-  try {
-    const a = await api('/api/adspend');
-    const total = (a.adSpends || []).reduce((t, x) => t + (+x.amount || 0), 0);
-    Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = `${fmt(total)} USD`);
-  } catch { Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = '—'); }
-
-  const t = Q('#wAllT')?.textContent || '0';
-  Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = t);
-}
-// Update the renderCountryStockSpend function
 async function renderCountryStockSpend() {
   const body = Q('#stockByCountryBody'); 
   if (!body) return;
@@ -657,7 +475,7 @@ async function renderCountryStockSpend() {
   body.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
 
   try {
-    const stockData = await calculateStockByCountry();
+    const stockByCountry = await calculateStockByCountry();
     
     let st = 0, fb = 0, tt = 0, gg = 0, totalAd = 0;
     
@@ -679,7 +497,7 @@ async function renderCountryStockSpend() {
     });
 
     const rows = state.countries.map(country => {
-      const stock = stockData.active[country] || 0; // Only show active stock
+      const stock = stockByCountry[country] || 0;
       const adData = adBreakdown[country] || { facebook: 0, tiktok: 0, google: 0 };
       const countryAdTotal = adData.facebook + adData.tiktok + adData.google;
 
@@ -711,6 +529,7 @@ async function renderCountryStockSpend() {
     body.innerHTML = `<tr><td colspan="6" class="muted">Error loading data</td></tr>`;
   }
 }
+
 function bindDailyAdSpend() {
   const btn = Q('#adSave');
   if (!btn) return;
@@ -1188,7 +1007,7 @@ function initTestedProducts() {
   }
 }
 
-// In app.js, update the product addition to prevent double submission
+// ======== PRODUCTS PAGE ========
 function renderProductsPage() {
   try {
     renderCompactCountryStats();
@@ -1207,26 +1026,12 @@ function renderProductsPage() {
       }
     }
 
-    // Fix: Prevent double submission by disabling button during API call
     Q('#pAdd')?.addEventListener('click', async () => {
-      const btn = Q('#pAdd');
-      const originalText = btn.textContent;
-      
-      // Disable button to prevent double click
-      btn.disabled = true;
-      btn.textContent = 'Adding...';
-      
       const p = {
         name: Q('#pName')?.value.trim(),
         sku: Q('#pSku')?.value.trim()
       };
-      
-      if (!p.name) {
-        alert('Name required');
-        btn.disabled = false;
-        btn.textContent = originalText;
-        return;
-      }
+      if (!p.name) return alert('Name required');
       
       try {
         await api('/api/products', { method: 'POST', body: JSON.stringify(p) });
@@ -1244,15 +1049,7 @@ function renderProductsPage() {
         
         alert('Product added successfully!');
       } catch (error) {
-        if (error.message.includes('already exists')) {
-          alert('Product with this name already exists!');
-        } else {
-          alert('Error adding product: ' + error.message);
-        }
-      } finally {
-        // Re-enable button
-        btn.disabled = false;
-        btn.textContent = originalText;
+        alert('Error adding product: ' + error.message);
       }
     });
 
@@ -1409,7 +1206,6 @@ function sortProducts(products, sortBy, countryFilter = 'all') {
   return filteredProducts;
 }
 
-// In app.js, update the renderProductsTable function to show auto-status
 function renderProductsTable() {
   try {
     const tb = Q('#productsTable tbody'); 
@@ -1453,20 +1249,19 @@ function renderProductsTable() {
     const endIndex = startIndex + productsPerPage;
     const paginatedProducts = sortedProducts.slice(startIndex, endIndex);
 
-    // Build table header
+    // Build table header with colored columns
     const countryColors = {
-      'kenya': '#1e3a8a',
-      'tanzania': '#7c2d12', 
-      'uganda': '#166534',
-      'zambia': '#9d174d',
-      'zimbabwe': '#701a75'
+      'kenya': '#1e3a8a', // Dark blue
+      'tanzania': '#7c2d12', // Dark brown
+      'uganda': '#166534', // Dark green
+      'zambia': '#9d174d', // Dark pink
+      'zimbabwe': '#701a75' // Dark purple
     };
     
     let headerHTML = `
       <th>Name</th>
       <th>SKU</th>
       <th>Status</th>
-      <th>Auto-Managed</th>
       <th>Total Stock</th>
       <th>Total Transit</th>
       <th>Total Pieces</th>
@@ -1488,7 +1283,7 @@ function renderProductsTable() {
 
     // Build table body
     if (paginatedProducts.length === 0) {
-      tb.innerHTML = `<tr><td colspan="${7 + (state.countries ? (state.countries.length - 1) * 2 : 0) + 1}" class="muted">No products found</td></tr>`;
+      tb.innerHTML = `<tr><td colspan="${6 + (state.countries ? (state.countries.length - 1) * 2 : 0) + 1}" class="muted">No products found</td></tr>`;
     } else {
       tb.innerHTML = paginatedProducts.map(p => {
         if (!p) return '';
@@ -1502,19 +1297,11 @@ function renderProductsTable() {
           rowClass = 'loss-row';
         }
 
-        // Determine if status is auto-managed
-        // In the renderProductsTable function, update the status badge part:
-// Determine if status is auto-managed
-const isAutoManaged = p.hasAnyAdSpend !== undefined;
-const statusBadge = p.status === 'active' ? 
-  `<span class="badge ${isAutoManaged ? 'success' : ''}">${p.status}${isAutoManaged ? ' (Auto)' : ''}</span>` :
-  `<span class="badge muted ${isAutoManaged ? 'muted' : ''}">${p.status}${isAutoManaged ? ' (Auto)' : ''}</span>`;
         let rowHTML = `
           <tr class="${rowClass}">
             <td>${p.name || 'Unnamed'}</td>
             <td>${p.sku || '-'}</td>
-            <td>${statusBadge}</td>
-            <td>${isAutoManaged ? '✅' : '❌'}</td>
+            <td><span class="badge ${p.status === 'paused' ? 'muted' : ''}">${p.status || 'active'}</span></td>
             <td>${fmt(p.totalStock || 0)}</td>
             <td>${fmt(p.transitPieces || 0)}</td>
             <td>${fmt(p.totalPiecesIncludingTransit || 0)}</td>
@@ -1550,53 +1337,36 @@ const statusBadge = p.status === 'active' ?
     // Render pagination
     renderProductsPagination(sortedProducts.length, productsPerPage);
 
-    // In app.js, update the product toggle handler to reflect immediate logic
-tb.onclick = async (e) => {
-  const id = e.target.dataset?.id; 
-  if (!id) return;
-  
-  if (e.target.classList.contains('act-toggle')) {
-    const p = state.products.find(x => x.id === id); 
-    if (!p) return;
-    
-    const newStatus = p.status === 'active' ? 'paused' : 'active';
-    
-    // Check if product has any ad spend
-    const hasAnyAdSpend = p.hasAnyAdSpend;
-    
-    if (newStatus === 'paused' && hasAnyAdSpend) {
-      if (!confirm(`This product has advertising spend. Are you sure you want to pause it? It will be automatically re-activated if you add new ad spend.`)) {
-        return;
+    // Add event listeners for product actions with confirmation
+    tb.onclick = async (e) => {
+      const id = e.target.dataset?.id; 
+      if (!id) return;
+      
+      if (e.target.classList.contains('act-toggle')) {
+        const p = state.products.find(x => x.id === id); 
+        if (!p) return;
+        
+        const newStatus = p.status === 'active' ? 'paused' : 'active';
+        const action = p.status === 'active' ? 'pause' : 'activate';
+        
+        if (p.status === 'active') {
+          if (!confirm(`Are you sure you want to pause "${p.name}"? The stock will be moved to inactive stock.`)) {
+            return;
+          }
+        } else {
+          if (!confirm(`Are you sure you want to activate "${p.name}"?`)) {
+            return;
+          }
+        }
+        
+        await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: newStatus }) });
+        await preload(); 
+        renderProductsTable(); 
+        renderCompactKpis();
+        renderCountryStockSpend();
       }
-    } else if (newStatus === 'active' && !hasAnyAdSpend) {
-      if (!confirm(`This product has no advertising spend. Are you sure you want to activate it? It will be automatically paused if you remove all ad spend.`)) {
-        return;
-      }
-    }
-    
-    await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: newStatus }) });
-    await preload(); 
-    renderProductsTable(); 
-    renderCompactKpis();
-    renderCountryStockSpend();
-  }
-  
-  if (e.target.classList.contains('act-del')) {
-    const p = state.products.find(x => x.id === id);
-    if (!p) return;
-    
-    if (!confirm(`Are you sure you want to delete "${p.name}" and ALL its data? This action cannot be undone.`)) {
-      return;
-    }
-    
-    await api(`/api/products/${id}`, { method: 'DELETE' });
-    await preload(); 
-    renderProductsTable(); 
-    renderCompactKpis();
-    renderCountryStockSpend();
-  }
-};
-     if (e.target.classList.contains('act-del')) {
+      
+      if (e.target.classList.contains('act-del')) {
         const p = state.products.find(x => x.id === id);
         if (!p) return;
         
@@ -2586,12 +2356,11 @@ function bindStockMovement() {
   };
 }
 
-// In app.js, update the renderShipmentTables function to include paid but not arrived shipments
 async function renderShipmentTables() {
   try {
     const shipments = await api('/api/shipments');
     
-    // Filter to show shipments that haven't arrived yet (regardless of payment status)
+    // Filter out arrived shipments (they should only appear on product pages)
     const transitShipments = shipments.shipments.filter(s => !s.arrivedAt);
     
     // China → Kenya shipments
@@ -2610,7 +2379,6 @@ async function renderShipmentTables() {
   }
 }
 
-// Update the renderShipmentTable function to show payment status properly
 function renderShipmentTable(selector, shipments, showChinaCost) {
   const tbody = Q(selector);
   if (!tbody) return;
@@ -2625,7 +2393,7 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
     const productName = product ? product.name : shipment.productId;
     const route = `${shipment.fromCountry} → ${shipment.toCountry}`;
     
-    let rowHTML = `
+    return `
       <tr>
         <td>${shipment.id.slice(0, 8)}</td>
         <td>${productName}</td>
@@ -2633,27 +2401,19 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
         <td>${fmt(shipment.qty)}</td>
         <td>${fmt(shipment.shipCost)}</td>
         <td>${shipment.finalShipCost ? fmt(shipment.finalShipCost) : '-'}</td>
-    `;
-    
-    if (showChinaCost) {
-      rowHTML += `<td>${shipment.chinaCost ? fmt(shipment.chinaCost) : '-'}</td>`;
-    }
-    
-    rowHTML += `
+        ${showChinaCost ? `<td>${shipment.chinaCost ? fmt(shipment.chinaCost) : '-'}</td>` : ''}
         <td>${shipment.departedAt || '-'}</td>
         <td>${shipment.arrivedAt || '-'}</td>
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
         <td>${shipment.note || '-'}</td>
         <td>
           ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
-          ${shipment.paymentStatus === 'pending' ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
+          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
           <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
       </tr>
     `;
-    
-    return rowHTML;
   }).join('');
 
   // Add event listeners for shipment actions
@@ -3450,64 +3210,52 @@ async function renderProductShipments() {
   }
 }
 
-// Update the renderProductShipmentTable function similarly
 function renderProductShipmentTable(selector, shipments, showChinaCost) {
   const tbody = Q(selector);
   if (!tbody) return;
 
   if (shipments.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="11" class="muted">No shipments</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="muted">No shipments</td></tr>';
     return;
   }
 
   tbody.innerHTML = shipments.map(shipment => {
     const route = `${shipment.fromCountry} → ${shipment.toCountry}`;
     
-    let rowHTML = `
+    return `
       <tr>
         <td>${shipment.id.slice(0, 8)}</td>
         <td>${route}</td>
         <td>${fmt(shipment.qty)}</td>
         <td>${fmt(shipment.shipCost)}</td>
         <td>${shipment.finalShipCost ? fmt(shipment.finalShipCost) : '-'}</td>
-    `;
-    
-    if (showChinaCost) {
-      rowHTML += `<td>${shipment.chinaCost ? fmt(shipment.chinaCost) : '-'}</td>`;
-    }
-    
-    rowHTML += `
+        ${showChinaCost ? `<td>${shipment.chinaCost ? fmt(shipment.chinaCost) : '-'}</td>` : ''}
         <td>${shipment.departedAt || '-'}</td>
         <td>${shipment.arrivedAt || '-'}</td>
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
         <td>
           ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
-          ${shipment.paymentStatus === 'pending' ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
+          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
           <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
       </tr>
     `;
-    
-    return rowHTML;
   }).join('');
 
   // Add event listeners
   addShipmentEventListeners(tbody);
 }
-   // Update the renderArrivedShipmentsTable function
 function renderArrivedShipmentsTable(shipments) {
   const tbody = Q('#pdArrivedBody');
   if (!tbody) return;
 
   if (shipments.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="13" class="muted">No arrived shipments</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="muted">No arrived shipments</td></tr>';
     return;
   }
 
   tbody.innerHTML = shipments.map(shipment => {
-    const product = state.products.find(p => p.id === shipment.productId);
-    const productName = product ? product.name : shipment.productId;
     const route = `${shipment.fromCountry} → ${shipment.toCountry}`;
     const departed = new Date(shipment.departedAt);
     const arrived = new Date(shipment.arrivedAt);
@@ -3516,7 +3264,6 @@ function renderArrivedShipmentsTable(shipments) {
     return `
       <tr>
         <td>${shipment.id.slice(0, 8)}</td>
-        <td>${productName}</td>
         <td>${route}</td>
         <td>${fmt(shipment.qty)}</td>
         <td>${fmt(shipment.shipCost)}</td>
@@ -3528,7 +3275,6 @@ function renderArrivedShipmentsTable(shipments) {
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
         <td>${shipment.note || '-'}</td>
         <td>
-          ${shipment.paymentStatus === 'pending' ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
           <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
@@ -3539,8 +3285,7 @@ function renderArrivedShipmentsTable(shipments) {
   // Add event listeners
   addShipmentEventListeners(tbody);
 }
-   
-// Update the addShipmentEventListeners function to handle the new pay logic
+
 function addShipmentEventListeners(container) {
   container.addEventListener('click', async (e) => {
     const id = e.target.dataset?.id;
@@ -3552,7 +3297,6 @@ function addShipmentEventListeners(container) {
         body: JSON.stringify({ arrivedAt: isoToday() })
       });
       renderProductShipments();
-      renderShipmentTables();
     }
 
     if (e.target.classList.contains('act-pay')) {
@@ -3565,7 +3309,6 @@ function addShipmentEventListeners(container) {
             body: JSON.stringify({ finalShipCost: +finalCost })
           });
           renderProductShipments();
-          renderShipmentTables();
           alert('Shipment marked as paid successfully!');
         } catch (error) {
           alert('Error marking shipment as paid: ' + error.message);
@@ -3581,12 +3324,12 @@ function addShipmentEventListeners(container) {
       if (confirm('Delete this shipment?')) {
         await api(`/api/shipments/${id}`, { method: 'DELETE' });
         renderProductShipments();
-        renderShipmentTables();
       }
     }
   });
 }
-   async function editShipment(shipmentId) {
+
+async function editShipment(shipmentId) {
   try {
     const shipments = await api('/api/shipments');
     const shipment = shipments.shipments.find(s => s.id === shipmentId);
