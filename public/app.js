@@ -78,6 +78,10 @@ async function boot() {
     
     // Load data and initialize app
     await preload();
+    
+    // Auto-manage product status based on ad spend
+    await autoManageProductStatus();
+    
     bindGlobalNav();
     
     if (state.productId) {
@@ -103,7 +107,6 @@ async function boot() {
     if (mainEl) mainEl.style.display = 'none';
   }
 }
-
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
   // Login handler
@@ -219,7 +222,48 @@ async function preload() {
     throw error;
   }
 }
-
+// Add this function to automatically manage product status based on ad spend
+async function autoManageProductStatus() {
+  try {
+    const adSpends = await api('/api/adspend');
+    const products = await api('/api/products');
+    
+    const productsWithAdSpend = new Set();
+    
+    // Find all products that have advertising spend
+    (adSpends.adSpends || []).forEach(spend => {
+      productsWithAdSpend.add(spend.productId);
+    });
+    
+    // Update product statuses
+    for (const product of products.products) {
+      const hasAdSpend = productsWithAdSpend.has(product.id);
+      const shouldBeActive = hasAdSpend;
+      
+      if (shouldBeActive && product.status === 'paused') {
+        // Activate product if it has ad spend but is paused
+        await api(`/api/products/${product.id}/status`, {
+          method: 'POST',
+          body: JSON.stringify({ status: 'active' })
+        });
+        console.log(`✅ Auto-activated product: ${product.name}`);
+      } else if (!shouldBeActive && product.status === 'active') {
+        // Pause product if it has no ad spend but is active
+        await api(`/api/products/${product.id}/status`, {
+          method: 'POST', 
+          body: JSON.stringify({ status: 'paused' })
+        });
+        console.log(`⏸️ Auto-paused product: ${product.name}`);
+      }
+    }
+    
+    // Reload products data
+    await preload();
+    
+  } catch (error) {
+    console.error('Error in auto product status management:', error);
+  }
+}
 // Fill common dropdown selects
 function fillCommonSelects() {
   const countrySelects = ['#adCountry', '#rCountry', '#pdAdCountry', '#pdRCountry',
@@ -387,14 +431,13 @@ async function renderCompactKpis() {
   Q('#kpiCountries') && (Q('#kpiCountries').textContent = state.countries.length);
 
   try {
-    const stockByCountry = await calculateStockByCountry();
+    const stockData = await calculateStockByCountry();
     let activeStock = 0;
     let inactiveStock = 0;
     
     state.countries.forEach(country => {
-      const stock = stockByCountry[country] || 0;
-      if (stock > 0) activeStock += stock;
-      if (stock < 0) inactiveStock += Math.abs(stock);
+      activeStock += stockData.activeStock[country] || 0;
+      inactiveStock += stockData.inactiveStock[country] || 0;
     });
 
     const transitData = await calculateTransitPieces();
@@ -450,21 +493,28 @@ async function calculateStockByCountry(productId = null) {
       const product = db.products.find(p => p.id === productId);
       return product ? product.stockByCountry : {};
     } else {
-      const totalStock = {};
+      const activeStock = {};
+      const inactiveStock = {};
+      
       state.countries.forEach(country => {
-        totalStock[country] = 0;
+        activeStock[country] = 0;
+        inactiveStock[country] = 0;
       });
       
       db.products.forEach(product => {
         Object.keys(product.stockByCountry || {}).forEach(country => {
-          totalStock[country] = (totalStock[country] || 0) + (product.stockByCountry[country] || 0);
+          if (product.status === 'active') {
+            activeStock[country] = (activeStock[country] || 0) + (product.stockByCountry[country] || 0);
+          } else {
+            inactiveStock[country] = (inactiveStock[country] || 0) + (product.stockByCountry[country] || 0);
+          }
         });
       });
       
-      return totalStock;
+      return { activeStock, inactiveStock };
     }
   } catch (error) {
-    return {};
+    return { activeStock: {}, inactiveStock: {} };
   }
 }
 
@@ -2408,7 +2458,7 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
         <td>${shipment.note || '-'}</td>
         <td>
           ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
-          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
+          ${shipment.paymentStatus === 'pending' ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
           <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
@@ -3235,7 +3285,7 @@ function renderProductShipmentTable(selector, shipments, showChinaCost) {
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
         <td>
           ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
-          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
+          ${shipment.paymentStatus === 'pending' ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
           <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
@@ -3275,6 +3325,7 @@ function renderArrivedShipmentsTable(shipments) {
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
         <td>${shipment.note || '-'}</td>
         <td>
+          ${shipment.paymentStatus === 'pending' ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
           <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
