@@ -921,21 +921,32 @@ app.put('/api/shipments/:id', requireAuth, (req, res) => {
   res.json({ ok: true, shipment: s });
 });
 
-// Add this route for marking shipments as paid
+// Make sure this route is placed in the correct position in your routes
 app.post('/api/shipments/:id/mark-paid', requireAuth, (req, res) => {
-  const db = loadDB(); 
-  const s = (db.shipments || []).find(x => x.id === req.params.id);
-  if (!s) return res.status(404).json({ error: 'Not found' });
-  
-  const { finalShipCost } = req.body || {};
-  if (!finalShipCost) return res.status(400).json({ error: 'Final shipping cost required' });
-  
-  s.finalShipCost = +finalShipCost || 0;
-  s.paymentStatus = 'paid';
-  s.paidAt = new Date().toISOString();
-  
-  saveDB(db); 
-  res.json({ ok: true, shipment: s });
+  try {
+    const db = loadDB(); 
+    const shipment = (db.shipments || []).find(x => x.id === req.params.id);
+    
+    if (!shipment) {
+      return res.status(404).json({ error: 'Shipment not found' });
+    }
+    
+    const { finalShipCost } = req.body || {};
+    
+    if (!finalShipCost && finalShipCost !== 0) {
+      return res.status(400).json({ error: 'Final shipping cost required' });
+    }
+    
+    shipment.finalShipCost = Number(finalShipCost) || 0;
+    shipment.paymentStatus = 'paid';
+    shipment.paidAt = new Date().toISOString();
+    
+    saveDB(db); 
+    res.json({ ok: true, shipment: shipment });
+  } catch (error) {
+    console.error('Error marking shipment as paid:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 app.delete('/api/shipments/:id', requireAuth, (req, res) => {
   const db = loadDB(); 
