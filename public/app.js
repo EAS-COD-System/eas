@@ -443,49 +443,51 @@ async function calculateTransitPieces() {
   }
 }
 
-// In app.js, update the calculateStockByCountry function
+// In app.js, completely rewrite the calculateStockByCountry function
 async function calculateStockByCountry(productId = null) {
   try {
     const db = await api('/api/products');
+    
     if (productId) {
       const product = db.products.find(p => p.id === productId);
       return product ? product.stockByCountry : {};
     } else {
-      const totalStock = {};
+      const activeStock = {};
       const inactiveStock = {};
       
       // Initialize stock for all countries
       state.countries.forEach(country => {
-        totalStock[country] = 0;
+        activeStock[country] = 0;
         inactiveStock[country] = 0;
       });
       
-      // Calculate active and inactive stock
+      // Calculate stock for each product
       db.products.forEach(product => {
-        Object.keys(product.stockByCountry || {}).forEach(country => {
+        const stockByCountry = product.stockByCountry || {};
+        
+        Object.keys(stockByCountry).forEach(country => {
+          const stock = stockByCountry[country] || 0;
+          
           if (product.status === 'active') {
-            totalStock[country] = (totalStock[country] || 0) + (product.stockByCountry[country] || 0);
+            activeStock[country] = (activeStock[country] || 0) + stock;
           } else {
-            inactiveStock[country] = (inactiveStock[country] || 0) + (product.stockByCountry[country] || 0);
+            inactiveStock[country] = (inactiveStock[country] || 0) + stock;
           }
         });
       });
       
       return {
-        active: totalStock,
-        inactive: inactiveStock,
-        total: Object.keys(totalStock).reduce((acc, country) => {
-          acc[country] = (totalStock[country] || 0) + (inactiveStock[country] || 0);
-          return acc;
-        }, {})
+        active: activeStock,
+        inactive: inactiveStock
       };
     }
   } catch (error) {
-    return { active: {}, inactive: {}, total: {} };
+    console.error('Error calculating stock:', error);
+    return { active: {}, inactive: {} };
   }
 }
 
-// Update the renderCompactKpis function
+// Update the renderCompactKpis function to use the correct calculation
 async function renderCompactKpis() {
   Q('#kpiProducts') && (Q('#kpiProducts').textContent = state.products.length);
   Q('#kpiCountries') && (Q('#kpiCountries').textContent = state.countries.length);
@@ -495,6 +497,7 @@ async function renderCompactKpis() {
     let activeStock = 0;
     let inactiveStock = 0;
     
+    // Sum up all countries
     state.countries.forEach(country => {
       activeStock += stockData.active[country] || 0;
       inactiveStock += stockData.inactive[country] || 0;
@@ -506,7 +509,10 @@ async function renderCompactKpis() {
     Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = transitData.interCountryTransit);
     Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = activeStock);
     Q('#kpiInactiveStock') && (Q('#kpiInactiveStock').textContent = inactiveStock);
-  } catch { 
+    
+    console.log('Stock calculation:', { activeStock, inactiveStock, stockData });
+  } catch (error) { 
+    console.error('Error in renderCompactKpis:', error);
     Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = '—');
     Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = '—');
     Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = '—');
@@ -1419,29 +1425,31 @@ function renderProductsTable() {
       const id = e.target.dataset?.id; 
       if (!id) return;
       
-      if (e.target.classList.contains('act-toggle')) {
-        const p = state.products.find(x => x.id === id); 
-        if (!p) return;
-        
-        const newStatus = p.status === 'active' ? 'paused' : 'active';
-        const action = p.status === 'active' ? 'pause' : 'activate';
-        
-        if (p.status === 'active') {
-          if (!confirm(`Are you sure you want to pause "${p.name}"? The stock will be moved to inactive stock.`)) {
-            return;
-          }
-        } else {
-          if (!confirm(`Are you sure you want to activate "${p.name}"?`)) {
-            return;
-          }
-        }
-        
-        await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: newStatus }) });
-        await preload(); 
-        renderProductsTable(); 
-        renderCompactKpis();
-        renderCountryStockSpend();
-      }
+// Also update the product toggle function to refresh stock data
+// In the products table onclick handler, update the act-toggle section:
+if (e.target.classList.contains('act-toggle')) {
+  const p = state.products.find(x => x.id === id); 
+  if (!p) return;
+  
+  const newStatus = p.status === 'active' ? 'paused' : 'active';
+  const action = p.status === 'active' ? 'pause' : 'activate';
+  
+  if (p.status === 'active') {
+    if (!confirm(`Are you sure you want to pause "${p.name}"? The stock will be moved to inactive stock.`)) {
+      return;
+    }
+  } else {
+    if (!confirm(`Are you sure you want to activate "${p.name}"?`)) {
+      return;
+    }
+  }
+  
+  await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: newStatus }) });
+  await preload(); 
+  renderProductsTable(); 
+  renderCompactKpis(); // Refresh KPIs
+  renderCountryStockSpend(); // Refresh stock table
+}
       
       if (e.target.classList.contains('act-del')) {
         const p = state.products.find(x => x.id === id);
