@@ -553,6 +553,7 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
     hasData
   };
 }
+
 // ======== ROUTES ========
 
 // Authentication
@@ -598,11 +599,8 @@ app.get('/api/products', requireAuth, (req, res) => {
     const transit = calculateTransitPieces(db, product.id);
     const totalStock = Object.values(stock).reduce((sum, qty) => sum + qty, 0);
     
-    // Only count stock for active products
-    const activeStockByCountry = {};
-    Object.keys(stock).forEach(country => {
-      activeStockByCountry[country] = product.status === 'active' ? stock[country] : 0;
-    });
+    // FIX: Show stock for ALL products (active and paused)
+    const stockByCountry = stock;
 
     const adSpendByCountry = {};
     (db.adspend || []).filter(ad => ad.productId === product.id).forEach(ad => {
@@ -613,10 +611,10 @@ app.get('/api/products', requireAuth, (req, res) => {
       ...product,
       isProfitable: metrics.isProfitable,
       hasData: metrics.hasData,
-      stockByCountry: activeStockByCountry,
-      totalStock: product.status === 'active' ? totalStock : 0,
+      stockByCountry: stockByCountry, // Show stock for all products
+      totalStock: totalStock, // Show total stock for all products
       transitPieces: transit.totalTransit,
-      totalPiecesIncludingTransit: (product.status === 'active' ? totalStock : 0) + transit.totalTransit,
+      totalPiecesIncludingTransit: totalStock + transit.totalTransit,
       adSpendByCountry: adSpendByCountry
     };
   });
@@ -835,16 +833,19 @@ app.post('/api/adspend', requireAuth, (req, res) => {
   const { productId, country, platform, amount, date } = req.body || {};
   if (!productId || !country || !platform || !date) return res.status(400).json({ error: 'Missing fields' });
   
-  const ex = db.adspend.find(a => 
+  // FIX: Find and replace existing entry for the same day
+  const existingIndex = db.adspend.findIndex(a => 
     a.productId === productId && 
     a.country === country && 
     a.platform === platform &&
     a.date === date
   );
   
-  if (ex) {
-    ex.amount = +amount || 0;
+  if (existingIndex >= 0) {
+    // Replace existing entry
+    db.adspend[existingIndex].amount = +amount || 0;
   } else {
+    // Add new entry
     db.adspend.push({ 
       id: uuidv4(), 
       productId, 
@@ -858,23 +859,7 @@ app.post('/api/adspend', requireAuth, (req, res) => {
   saveDB(db); 
   res.json({ ok: true });
 });
-// Cleanup adspend entries
-app.post('/api/adspend/cleanup', requireAuth, (req, res) => {
-  const db = loadDB(); 
-  const { productId, country, platform } = req.body || {};
-  
-  if (!productId || !country || !platform) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-  
-  // Remove all entries for this product/country/platform combination
-  db.adspend = (db.adspend || []).filter(ad => 
-    !(ad.productId === productId && ad.country === country && ad.platform === platform)
-  );
-  
-  saveDB(db); 
-  res.json({ ok: true });
-});
+
 // Deliveries
 app.get('/api/deliveries', requireAuth, (req, res) => {
   const db = loadDB(); 
@@ -886,40 +871,28 @@ app.post('/api/deliveries', requireAuth, (req, res) => {
   db.deliveries = db.deliveries || [];
   const { date, country, delivered, productId } = req.body || {};
   if (!date || !country) return res.status(400).json({ error: 'Missing date/country' });
-  db.deliveries.push({ id: uuidv4(), date, country, delivered: +delivered || 0, productId: productId || '' });
-  saveDB(db); 
-  res.json({ ok: true });
-});
-// Bulk save deliveries
-app.post('/api/deliveries/bulk', requireAuth, (req, res) => {
-  const db = loadDB(); 
-  db.deliveries = db.deliveries || [];
-  const { deliveries } = req.body || {};
   
-  if (!deliveries || !Array.isArray(deliveries)) {
-    return res.status(400).json({ error: 'Missing deliveries array' });
+  // FIX: Replace existing entry instead of adding duplicate
+  const existingIndex = db.deliveries.findIndex(d => 
+    d.date === date && d.country === country
+  );
+  
+  if (existingIndex >= 0) {
+    db.deliveries[existingIndex].delivered = +delivered || 0;
+  } else {
+    db.deliveries.push({ 
+      id: uuidv4(), 
+      date, 
+      country, 
+      delivered: +delivered || 0, 
+      productId: productId || '' 
+    });
   }
   
-  deliveries.forEach(delivery => {
-    const { date, country, delivered } = delivery;
-    if (!date || !country) return;
-    
-    const existing = db.deliveries.find(d => d.date === date && d.country === country);
-    if (existing) {
-      existing.delivered = +delivered || 0;
-    } else {
-      db.deliveries.push({ 
-        id: uuidv4(), 
-        date, 
-        country, 
-        delivered: +delivered || 0 
-      });
-    }
-  });
-  
   saveDB(db); 
   res.json({ ok: true });
 });
+
 // Shipments
 app.get('/api/shipments', requireAuth, (req, res) => {
   const db = loadDB(); 
@@ -981,6 +954,7 @@ app.post('/api/shipments/:id/mark-paid', requireAuth, (req, res) => {
   saveDB(db); 
   res.json({ ok: true, shipment: s });
 });
+
 app.delete('/api/shipments/:id', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.shipments = (db.shipments || []).filter(x => x.id !== req.params.id);
