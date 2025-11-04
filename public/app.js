@@ -63,7 +63,6 @@ const state = {
   profitCountrySortOrder: 'desc'
 };
 let isAddingProduct = false; // Prevent multiple product additions
-// Global click protection
 // Main boot function
 async function boot() {
   // Check authentication first
@@ -532,6 +531,7 @@ async function renderCountryStockSpend() {
   try {
     const stockData = await calculateStockByCountry();
     const stockByCountry = stockData.activeStock || {};
+    const inactiveStockByCountry = stockData.inactiveStock || {};
     
     let st = 0, fb = 0, tt = 0, gg = 0, totalAd = 0;
     
@@ -713,28 +713,38 @@ function renderWeeklyDelivered() {
     if (e.target.classList.contains('wd-cell')) computeWeeklyTotals(); 
   });
   
-Q('#weeklySave')?.addEventListener('click', async () => {
-  const payload = [];
-  QA('.wd-cell').forEach(inp => {
-    const val = +inp.value || 0;
-    if (val > 0) payload.push({ 
-      date: inp.dataset.date, 
-      country: inp.dataset.country, 
-      delivered: val 
+  let isSaving = false;
+  Q('#weeklySave')?.addEventListener('click', async () => {
+    if (isSaving) return;
+    isSaving = true;
+    
+    const payload = [];
+    QA('.wd-cell').forEach(inp => {
+      const val = +inp.value || 0;
+      if (val > 0) payload.push({ 
+        date: inp.dataset.date, 
+        country: inp.dataset.country, 
+        delivered: val 
+      });
     });
+    
+    try {
+      for (const row of payload) {
+        await api('/api/deliveries', { 
+          method: 'POST', 
+          body: JSON.stringify(row) 
+        });
+      }
+      alert('Weekly deliveries saved successfully!');
+    } catch (e) { 
+      alert('Save failed: ' + e.message); 
+    } finally {
+      isSaving = false;
+    }
   });
-  
-  try {
-    // Single API call to save all deliveries at once
-    await api('/api/deliveries/bulk', {
-      method: 'POST',
-      body: JSON.stringify({ deliveries: payload })
-    });
-    alert('Weekly deliveries saved successfully!');
-  } catch (e) { 
-    alert('Save failed: ' + e.message); 
-  }
-});
+
+  updateGrid();
+}
 
 // Brainstorming functionality
 function initBrainstorming() {
@@ -805,28 +815,20 @@ function initBrainstorming() {
     }).catch(alert);
   }
 
-function handleBrainstormingActions(e) {
-  if (e.target.classList.contains('brain-del')) {
-    if (e.target.disabled) return; // Prevent multiple clicks
-    e.target.disabled = true;
-    
-    const deleteIdea = () => {
-      api(`/api/brainstorming/${e.target.dataset.id}`, { method: 'DELETE' })
+  function handleBrainstormingActions(e) {
+    if (e.target.classList.contains('brain-del')) {
+      if (!confirm('Delete this idea?')) return;
+      
+      const ideaId = e.target.dataset.id;
+      e.target.disabled = true;
+      
+      api(`/api/brainstorming/${ideaId}`, { method: 'DELETE' })
         .then(() => api('/api/brainstorming'))
         .then(data => {
           state.brainstorming = data.ideas || [];
           renderBrainstorming();
         })
-        .catch(alert)
-        .finally(() => {
-          e.target.disabled = false;
-        });
-    };
-    
-    if (confirm('Delete this idea?')) {
-      deleteIdea();
-    } else {
-      e.target.disabled = false;
+        .catch(alert);
     }
   }
 }
@@ -864,40 +866,37 @@ function initTodos() {
     });
   });
   
-listEl?.addEventListener('click', (e) => {
-  if (e.target.classList.contains('todo-done')) {
-    if (e.target.disabled) return; // Prevent multiple clicks
-    e.target.disabled = true;
+  let isProcessing = false;
+  listEl?.addEventListener('click', (e) => {
+    if (isProcessing) return;
     
-    api(`/api/todos/${e.target.dataset.id}/toggle`, { method: 'POST' })
-      .then(renderQuick)
-      .catch(alert)
-      .finally(() => {
-        e.target.disabled = false;
-      });
-  }
-  
-  if (e.target.classList.contains('todo-delete')) {
-    if (e.target.disabled) return; // Prevent multiple clicks
-    e.target.disabled = true;
-    
-    const deleteTodo = () => {
+    if (e.target.classList.contains('todo-done')) {
+      isProcessing = true;
+      e.target.disabled = true;
+      api(`/api/todos/${e.target.dataset.id}/toggle`, { method: 'POST' })
+        .then(renderQuick)
+        .catch(alert)
+        .finally(() => {
+          isProcessing = false;
+        });
+    }
+    if (e.target.classList.contains('todo-delete')) {
+      if (!confirm('Delete this task?')) return;
+      
+      isProcessing = true;
+      e.target.disabled = true;
       api(`/api/todos/${e.target.dataset.id}`, { method: 'DELETE' })
         .then(renderQuick)
         .catch(alert)
         .finally(() => {
-          e.target.disabled = false;
+          isProcessing = false;
         });
-    };
-    
-    if (confirm('Delete this task?')) {
-      deleteTodo();
-    } else {
-      e.target.disabled = false;
     }
-  }
-});
-   // Weekly Todo lists
+  });
+  
+  renderQuick();
+}
+// Weekly Todo lists
 function initWeeklyTodos() {
   const container = Q('#weeklyWrap');
   if (!container) return;
@@ -967,20 +966,39 @@ function initWeeklyTodos() {
     }).catch(alert);
   }
 
+  let isProcessingWeekly = false;
   function handleWeeklyTodoActions(e) {
+    if (isProcessingWeekly) return;
+    
     if (e.target.classList.contains('weekly-todo-toggle')) {
+      isProcessingWeekly = true;
       const { day, id } = e.target.dataset;
+      e.target.disabled = true;
+      
       api(`/api/weekly-todos/${day}/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ done: true })
-      }).then(renderWeeklyTodos).catch(alert);
+      }).then(renderWeeklyTodos)
+        .catch(alert)
+        .finally(() => {
+          isProcessingWeekly = false;
+        });
     }
     
     if (e.target.classList.contains('weekly-todo-delete')) {
+      if (!confirm('Delete this task?')) return;
+      
+      isProcessingWeekly = true;
       const { day, id } = e.target.dataset;
+      e.target.disabled = true;
+      
       api(`/api/weekly-todos/${day}/${id}`, {
         method: 'DELETE'
-      }).then(renderWeeklyTodos).catch(alert);
+      }).then(renderWeeklyTodos)
+        .catch(alert)
+        .finally(() => {
+          isProcessingWeekly = false;
+        });
     }
   }
   
@@ -1081,7 +1099,11 @@ function initTestedProducts() {
   function handleTestedProductActions(e) {
     if (e.target.classList.contains('test-del')) {
       if (!confirm('Delete all test results for this product?')) return;
-      api(`/api/tested-products/${e.target.dataset.id}`, { method: 'DELETE' })
+      
+      const productId = e.target.dataset.id;
+      e.target.disabled = true;
+      
+      api(`/api/tested-products/${productId}`, { method: 'DELETE' })
         .then(() => api('/api/tested-products'))
         .then(data => {
           state.testedProducts = data.testedProducts || [];
@@ -1432,7 +1454,10 @@ function renderProductsTable() {
     renderProductsPagination(sortedProducts.length, productsPerPage);
 
     // Add event listeners for product actions with confirmation
+    let isProcessingProduct = false;
     tb.onclick = async (e) => {
+      if (isProcessingProduct) return;
+      
       const id = e.target.dataset?.id; 
       if (!id) return;
       
@@ -1453,11 +1478,16 @@ function renderProductsTable() {
           }
         }
         
+        isProcessingProduct = true;
+        e.target.disabled = true;
+        
         await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: newStatus }) });
         await preload(); 
         renderProductsTable(); 
         renderCompactKpis();
         renderCountryStockSpend();
+        
+        isProcessingProduct = false;
       }
       
       if (e.target.classList.contains('act-del')) {
@@ -1468,11 +1498,16 @@ function renderProductsTable() {
           return;
         }
         
+        isProcessingProduct = true;
+        e.target.disabled = true;
+        
         await api(`/api/products/${id}`, { method: 'DELETE' });
         await preload(); 
         renderProductsTable(); 
         renderCompactKpis();
         renderCountryStockSpend();
+        
+        isProcessingProduct = false;
       }
     };
   } catch (error) {
@@ -1697,26 +1732,16 @@ function handlePlatformClick(e) {
       const amount = parseFloat(newAmount);
       
       if (amount >= 0) {
-        // First, remove existing entries for this product/country/platform combination
-        api('/api/adspend/cleanup', {
+        // FIX: Use the exact amount entered, don't add to existing
+        api('/api/adspend', {
           method: 'POST',
           body: JSON.stringify({
+            date: isoToday(),
             productId: productId,
             country: country,
-            platform: platform
+            platform: platform,
+            amount: amount  // This replaces the existing amount for today
           })
-        }).then(() => {
-          // Then add the new amount
-          return api('/api/adspend', {
-            method: 'POST',
-            body: JSON.stringify({
-              date: isoToday(),
-              productId: productId,
-              country: country,
-              platform: platform,
-              amount: amount
-            })
-          });
         }).then(() => {
           // Refresh the advertising overview
           renderAdvertisingOverview();
@@ -1730,6 +1755,7 @@ function handlePlatformClick(e) {
     }
   }
 }
+
 function renderProductInfoResults(productInfo) {
   const container = Q('#productInfoResults');
   if (!container) return;
@@ -2034,7 +2060,7 @@ function bindRemittanceAnalytics() {
   if (!btn) return;
 
   btn.onclick = async () => {
-    const dateRange = getDateRange(btn.closest('.row'));
+    const dateRange = getDateRange(btn.closest('.row');
     const country = Q('#remAnalyticsCountry')?.value || '';
     const productId = Q('#remAnalyticsProduct')?.value || '';
 
@@ -3429,22 +3455,37 @@ function renderArrivedShipmentsTable(shipments) {
 }
 
 function addShipmentEventListeners(container) {
+  let isProcessingShipment = false;
   container.addEventListener('click', async (e) => {
+    if (isProcessingShipment) return;
+    
     const id = e.target.dataset?.id;
     if (!id) return;
 
     if (e.target.classList.contains('act-arrive')) {
+      if (!confirm('Are you sure you want to mark this shipment as arrived?')) {
+        return;
+      }
+      
+      isProcessingShipment = true;
+      e.target.disabled = true;
+      
       await api(`/api/shipments/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ arrivedAt: isoToday() })
       });
       renderProductShipments();
+      
+      isProcessingShipment = false;
     }
 
     if (e.target.classList.contains('act-pay')) {
       // Show popup to enter final shipping cost
       const finalCost = prompt('Enter final shipping cost:');
       if (finalCost && !isNaN(finalCost)) {
+        isProcessingShipment = true;
+        e.target.disabled = true;
+        
         try {
           await api(`/api/shipments/${id}/mark-paid`, {
             method: 'POST',
@@ -3454,28 +3495,25 @@ function addShipmentEventListeners(container) {
           alert('Shipment marked as paid successfully!');
         } catch (error) {
           alert('Error marking shipment as paid: ' + error.message);
+        } finally {
+          isProcessingShipment = false;
         }
       }
     }
-// In addShipmentEventListeners function, update the arrived button handler:
-if (e.target.classList.contains('act-arrive')) {
-  if (!confirm('Are you sure you want to mark this shipment as arrived?')) {
-    return;
-  }
-  await api(`/api/shipments/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify({ arrivedAt: isoToday() })
-  });
-  renderProductShipments();
-}
+
     if (e.target.classList.contains('act-edit-ship')) {
       editShipment(id);
     }
 
     if (e.target.classList.contains('act-del-ship')) {
       if (confirm('Delete this shipment?')) {
+        isProcessingShipment = true;
+        e.target.disabled = true;
+        
         await api(`/api/shipments/${id}`, { method: 'DELETE' });
         renderProductShipments();
+        
+        isProcessingShipment = false;
       }
     }
   });
@@ -3993,106 +4031,6 @@ function bindGlobalNav() {
   showView('home');
   initSimpleNavigation();
 }
-// Remove the global click protection code entirely and replace it with:
 
-// Individual button protection
-function createProtectedButtonHandler(buttonId, handler) {
-  const button = Q(buttonId);
-  if (!button) return;
-  
-  let isProcessing = false;
-  
-  button.addEventListener('click', async (e) => {
-    if (isProcessing) return;
-    isProcessing = true;
-    
-    try {
-      await handler(e);
-    } catch (error) {
-      console.error('Button handler error:', error);
-    } finally {
-      isProcessing = false;
-    }
-  });
-}
-
-// Apply protection to specific problematic buttons
-document.addEventListener('DOMContentLoaded', () => {
-  // Weekly deliveries save button
-  createProtectedButtonHandler('#weeklySave', async () => {
-    const payload = [];
-    QA('.wd-cell').forEach(inp => {
-      const val = +inp.value || 0;
-      if (val > 0) payload.push({ 
-        date: inp.dataset.date, 
-        country: inp.dataset.country, 
-        delivered: val 
-      });
-    });
-    
-    try {
-      await api('/api/deliveries/bulk', {
-        method: 'POST',
-        body: JSON.stringify({ deliveries: payload })
-      });
-      alert('Weekly deliveries saved successfully!');
-    } catch (e) { 
-      alert('Save failed: ' + e.message); 
-    }
-  });
-
-  // Todo delete buttons (event delegation)
-  Q('#todoList')?.addEventListener('click', (e) => {
-    if (e.target.classList.contains('todo-delete')) {
-      if (e.target.disabled) return;
-      e.target.disabled = true;
-      
-      const deleteTodo = () => {
-        api(`/api/todos/${e.target.dataset.id}`, { method: 'DELETE' })
-          .then(renderQuick)
-          .catch(alert)
-          .finally(() => {
-            e.target.disabled = false;
-          });
-      };
-      
-      if (confirm('Delete this task?')) {
-        deleteTodo();
-      } else {
-        e.target.disabled = false;
-      }
-    }
-  });
-
-  // Brainstorming delete (event delegation)
-  const brainstormingContainer = Q('#brainstormingSection');
-  if (brainstormingContainer) {
-    brainstormingContainer.addEventListener('click', (e) => {
-      if (e.target.classList.contains('brain-del')) {
-        if (e.target.disabled) return;
-        e.target.disabled = true;
-        
-        const deleteIdea = () => {
-          api(`/api/brainstorming/${e.target.dataset.id}`, { method: 'DELETE' })
-            .then(() => api('/api/brainstorming'))
-            .then(data => {
-              state.brainstorming = data.ideas || [];
-              renderBrainstorming();
-            })
-            .catch(alert)
-            .finally(() => {
-              e.target.disabled = false;
-            });
-        };
-        
-        if (confirm('Delete this idea?')) {
-          deleteIdea();
-        } else {
-          e.target.disabled = false;
-        }
-      }
-    });
-  }
-});
 // Initialize the application
 document.addEventListener('DOMContentLoaded', boot);
