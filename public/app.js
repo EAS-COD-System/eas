@@ -145,20 +145,29 @@ async function boot() {
   }
 }
 
-// Event Listeners
+// In app.js, update the login handler to add debugging
 document.addEventListener('DOMContentLoaded', () => {
   // Login handler
   Q('#loginBtn')?.addEventListener('click', async () => {
     const password = Q('#pw')?.value || '';
-    if (!password) return alert('Please enter password');
+    console.log('Login attempted with password length:', password.length);
+    
+    if (!password) {
+      alert('Please enter password');
+      return;
+    }
     
     try {
-      await api('/api/auth', { 
+      console.log('Sending auth request...');
+      const result = await api('/api/auth', { 
         method: 'POST', 
         body: JSON.stringify({ password }) 
       });
+      console.log('Auth response:', result);
+      
       await boot();
     } catch (e) {
+      console.error('Login error:', e);
       alert('Wrong password');
     }
   });
@@ -182,7 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
-
 // Navigation handling
 function initSimpleNavigation() {
   const nav = Q('.nav');
