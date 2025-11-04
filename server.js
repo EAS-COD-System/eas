@@ -876,9 +876,21 @@ app.post('/api/deliveries', requireAuth, (req, res) => {
 });
 
 // Shipments
+// In server.js, update the shipments endpoint to include product names
 app.get('/api/shipments', requireAuth, (req, res) => {
   const db = loadDB(); 
-  res.json({ shipments: db.shipments || [] });
+  const shipments = db.shipments || [];
+  
+  // Enhance shipments with product names
+  const enhancedShipments = shipments.map(shipment => {
+    const product = db.products.find(p => p.id === shipment.productId);
+    return {
+      ...shipment,
+      productName: product ? product.name : 'Unknown Product'
+    };
+  });
+  
+  res.json({ shipments: enhancedShipments });
 });
 
 app.post('/api/shipments', requireAuth, (req, res) => {
