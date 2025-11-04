@@ -1339,6 +1339,7 @@ function sortProducts(products, sortBy, countryFilter = 'all') {
   return filteredProducts;
 }
 
+// In app.js, update the renderProductsTable function to show auto-status
 function renderProductsTable() {
   try {
     const tb = Q('#productsTable tbody'); 
@@ -1382,19 +1383,20 @@ function renderProductsTable() {
     const endIndex = startIndex + productsPerPage;
     const paginatedProducts = sortedProducts.slice(startIndex, endIndex);
 
-    // Build table header with colored columns
+    // Build table header
     const countryColors = {
-      'kenya': '#1e3a8a', // Dark blue
-      'tanzania': '#7c2d12', // Dark brown
-      'uganda': '#166534', // Dark green
-      'zambia': '#9d174d', // Dark pink
-      'zimbabwe': '#701a75' // Dark purple
+      'kenya': '#1e3a8a',
+      'tanzania': '#7c2d12', 
+      'uganda': '#166534',
+      'zambia': '#9d174d',
+      'zimbabwe': '#701a75'
     };
     
     let headerHTML = `
       <th>Name</th>
       <th>SKU</th>
       <th>Status</th>
+      <th>Auto-Managed</th>
       <th>Total Stock</th>
       <th>Total Transit</th>
       <th>Total Pieces</th>
@@ -1416,7 +1418,7 @@ function renderProductsTable() {
 
     // Build table body
     if (paginatedProducts.length === 0) {
-      tb.innerHTML = `<tr><td colspan="${6 + (state.countries ? (state.countries.length - 1) * 2 : 0) + 1}" class="muted">No products found</td></tr>`;
+      tb.innerHTML = `<tr><td colspan="${7 + (state.countries ? (state.countries.length - 1) * 2 : 0) + 1}" class="muted">No products found</td></tr>`;
     } else {
       tb.innerHTML = paginatedProducts.map(p => {
         if (!p) return '';
@@ -1430,11 +1432,18 @@ function renderProductsTable() {
           rowClass = 'loss-row';
         }
 
+        // Determine if status is auto-managed
+        const isAutoManaged = p.hasRecentAdSpend !== undefined;
+        const statusBadge = p.status === 'active' ? 
+          `<span class="badge ${isAutoManaged ? 'success' : ''}">${p.status}${isAutoManaged ? ' (Auto)' : ''}</span>` :
+          `<span class="badge muted ${isAutoManaged ? 'muted' : ''}">${p.status}${isAutoManaged ? ' (Auto)' : ''}</span>`;
+
         let rowHTML = `
           <tr class="${rowClass}">
             <td>${p.name || 'Unnamed'}</td>
             <td>${p.sku || '-'}</td>
-            <td><span class="badge ${p.status === 'paused' ? 'muted' : ''}">${p.status || 'active'}</span></td>
+            <td>${statusBadge}</td>
+            <td>${isAutoManaged ? '✅' : '❌'}</td>
             <td>${fmt(p.totalStock || 0)}</td>
             <td>${fmt(p.transitPieces || 0)}</td>
             <td>${fmt(p.totalPiecesIncludingTransit || 0)}</td>
@@ -1470,36 +1479,38 @@ function renderProductsTable() {
     // Render pagination
     renderProductsPagination(sortedProducts.length, productsPerPage);
 
-    // Add event listeners for product actions with confirmation
+    // Update product toggle to show warning for auto-managed products
     tb.onclick = async (e) => {
       const id = e.target.dataset?.id; 
       if (!id) return;
       
-// Also update the product toggle function to refresh stock data
-// In the products table onclick handler, update the act-toggle section:
-if (e.target.classList.contains('act-toggle')) {
-  const p = state.products.find(x => x.id === id); 
-  if (!p) return;
-  
-  const newStatus = p.status === 'active' ? 'paused' : 'active';
-  const action = p.status === 'active' ? 'pause' : 'activate';
-  
-  if (p.status === 'active') {
-    if (!confirm(`Are you sure you want to pause "${p.name}"? The stock will be moved to inactive stock.`)) {
-      return;
-    }
-  } else {
-    if (!confirm(`Are you sure you want to activate "${p.name}"?`)) {
-      return;
-    }
-  }
-  
-  await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: newStatus }) });
-  await preload(); 
-  renderProductsTable(); 
-  renderCompactKpis(); // Refresh KPIs
-  renderCountryStockSpend(); // Refresh stock table
-}
+      if (e.target.classList.contains('act-toggle')) {
+        const p = state.products.find(x => x.id === id); 
+        if (!p) return;
+        
+        const newStatus = p.status === 'active' ? 'paused' : 'active';
+        
+        // Check if product has recent ad spend
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const hasRecentAdSpend = p.hasRecentAdSpend;
+        
+        if (newStatus === 'paused' && hasRecentAdSpend) {
+          if (!confirm(`This product has recent advertising spend. Are you sure you want to pause it? It will be automatically re-activated if new ad spend is added.`)) {
+            return;
+          }
+        } else if (newStatus === 'active' && !hasRecentAdSpend) {
+          if (!confirm(`This product has no recent advertising spend. Are you sure you want to activate it? It will be automatically paused if no ad spend is added within 30 days.`)) {
+            return;
+          }
+        }
+        
+        await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: newStatus }) });
+        await preload(); 
+        renderProductsTable(); 
+        renderCompactKpis();
+        renderCountryStockSpend();
+      }
       
       if (e.target.classList.contains('act-del')) {
         const p = state.products.find(x => x.id === id);
