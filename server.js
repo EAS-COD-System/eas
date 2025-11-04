@@ -906,7 +906,17 @@ app.post('/api/adspend', requireAuth, (req, res) => {
       date: date
     });
   }
+ // In server.js, add this to the adspend DELETE endpoint if it doesn't exist
+app.delete('/api/adspend/:id', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.adspend = (db.adspend || []).filter(a => a.id !== req.params.id);
   
+  // After deleting ad spend, check if any products need to be auto-paused
+  autoManageProductStatus(db);
+  
+  saveDB(db); 
+  res.json({ ok: true });
+}); 
   // Automatically activate the product when ANY ad spend is added
   const product = db.products.find(p => p.id === productId);
   if (product) {
