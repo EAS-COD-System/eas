@@ -2360,17 +2360,19 @@ async function renderShipmentTables() {
   try {
     const shipments = await api('/api/shipments');
     
-    // Filter out arrived shipments (they should only appear on product pages)
-    const transitShipments = shipments.shipments.filter(s => !s.arrivedAt);
+    // Show both transit shipments AND arrived-but-unpaid shipments
+    const relevantShipments = shipments.shipments.filter(s => 
+      !s.arrivedAt || (s.arrivedAt && s.paymentStatus === 'pending')
+    );
     
     // China → Kenya shipments
-    const chinaKenyaShipments = transitShipments.filter(s => 
+    const chinaKenyaShipments = relevantShipments.filter(s => 
       s.fromCountry === 'china' && s.toCountry === 'kenya'
     );
     renderShipmentTable('#shipCKBody', chinaKenyaShipments, true);
     
     // Inter-country shipments (excluding China → Kenya)
-    const interCountryShipments = transitShipments.filter(s => 
+    const interCountryShipments = relevantShipments.filter(s => 
       s.fromCountry !== 'china' || s.toCountry !== 'kenya'
     );
     renderShipmentTable('#shipICBody', interCountryShipments, false);
@@ -2384,7 +2386,7 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
   if (!tbody) return;
 
   if (shipments.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="12" class="muted">No shipments in transit</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="muted">No shipments in transit or pending payment</td></tr>';
     return;
   }
 
@@ -2416,6 +2418,9 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
     `;
   }).join('');
 
+  // Add event listeners for shipment actions
+  addShipmentEventListeners(tbody);
+}
   // Add event listeners for shipment actions
   tbody.onclick = async (e) => {
     const id = e.target.dataset?.id;
