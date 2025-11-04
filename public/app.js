@@ -63,6 +63,52 @@ const state = {
   profitCountrySortOrder: 'desc'
 };
 let isAddingProduct = false; // Prevent multiple product additions
+// Global click protection
+let isProcessing = false;
+
+function withClickProtection(fn) {
+  return function(...args) {
+    if (isProcessing) return;
+    isProcessing = true;
+    
+    try {
+      const result = fn.apply(this, args);
+      if (result && typeof result.finally === 'function') {
+        return result.finally(() => {
+          isProcessing = false;
+        });
+      } else {
+        isProcessing = false;
+        return result;
+      }
+    } catch (error) {
+      isProcessing = false;
+      throw error;
+    }
+  };
+}
+
+// Wrap all button click handlers with protection
+document.addEventListener('DOMContentLoaded', () => {
+  // Wrap existing event handlers
+  const protectedHandlers = [
+    '#loginBtn', '#logoutLink', '#adSave', '#weeklySave', '#weeklyReset',
+    '#pAdd', '#spSave', '#poSave', '#pcaRun', '#remAnalyticsRun', '#pcRun',
+    '#remAddSave', '#refundSave', '#mvAdd', '#adspendSave', '#adspendRun',
+    '#feAdd', '#feRun', '#fcAdd', '#fcSearchRun', '#ctyAdd', '#epSave',
+    '#snapSave', '#createDailyBackup', '#productInfoRun', '#pdNoteSave',
+    '#pdLPRun', '#pdInfAdd', '#pdInfSpendAdd', '#pdInfRun', '#todoAdd',
+    '#brainAdd', '#testAdd'
+  ];
+  
+  protectedHandlers.forEach(selector => {
+    const element = Q(selector);
+    if (element && element.onclick) {
+      const originalHandler = element.onclick;
+      element.onclick = withClickProtection(originalHandler);
+    }
+  });
+});
 // Main boot function
 async function boot() {
   // Check authentication first
@@ -494,7 +540,7 @@ async function calculateStockByCountry(productId = null) {
     if (productId) {
       const product = db.products.find(p => p.id === productId);
       return product ? { 
-        activeStock: product.stockByCountry, 
+        activeStock: product.status === 'active' ? product.stockByCountry : {},
         inactiveStock: product.status === 'paused' ? product.stockByCountry : {} 
       } : { activeStock: {}, inactiveStock: {} };
     } else {
@@ -712,32 +758,28 @@ function renderWeeklyDelivered() {
     if (e.target.classList.contains('wd-cell')) computeWeeklyTotals(); 
   });
   
-  Q('#weeklySave')?.addEventListener('click', async () => {
-    const payload = [];
-    QA('.wd-cell').forEach(inp => {
-      const val = +inp.value || 0;
-      if (val > 0) payload.push({ 
-        date: inp.dataset.date, 
-        country: inp.dataset.country, 
-        delivered: val 
-      });
+Q('#weeklySave')?.addEventListener('click', async () => {
+  const payload = [];
+  QA('.wd-cell').forEach(inp => {
+    const val = +inp.value || 0;
+    if (val > 0) payload.push({ 
+      date: inp.dataset.date, 
+      country: inp.dataset.country, 
+      delivered: val 
     });
-    
-    try {
-      for (const row of payload) {
-        await api('/api/deliveries', { 
-          method: 'POST', 
-          body: JSON.stringify(row) 
-        });
-      }
-      alert('Weekly deliveries saved successfully!');
-    } catch (e) { 
-      alert('Save failed: ' + e.message); 
-    }
   });
-
-  updateGrid();
-}
+  
+  try {
+    // Single API call to save all deliveries at once
+    await api('/api/deliveries/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ deliveries: payload })
+    });
+    alert('Weekly deliveries saved successfully!');
+  } catch (e) { 
+    alert('Save failed: ' + e.message); 
+  }
+});
 
 // Brainstorming functionality
 function initBrainstorming() {
@@ -808,16 +850,28 @@ function initBrainstorming() {
     }).catch(alert);
   }
 
-  function handleBrainstormingActions(e) {
-    if (e.target.classList.contains('brain-del')) {
-      if (!confirm('Delete this idea?')) return;
+function handleBrainstormingActions(e) {
+  if (e.target.classList.contains('brain-del')) {
+    if (e.target.disabled) return; // Prevent multiple clicks
+    e.target.disabled = true;
+    
+    const deleteIdea = () => {
       api(`/api/brainstorming/${e.target.dataset.id}`, { method: 'DELETE' })
         .then(() => api('/api/brainstorming'))
         .then(data => {
           state.brainstorming = data.ideas || [];
           renderBrainstorming();
         })
-        .catch(alert);
+        .catch(alert)
+        .finally(() => {
+          e.target.disabled = false;
+        });
+    };
+    
+    if (confirm('Delete this idea?')) {
+      deleteIdea();
+    } else {
+      e.target.disabled = false;
     }
   }
 }
@@ -855,25 +909,40 @@ function initTodos() {
     });
   });
   
-  listEl?.addEventListener('click', (e) => {
-    if (e.target.classList.contains('todo-done')) {
-      e.target.disabled = true;
-      api(`/api/todos/${e.target.dataset.id}/toggle`, { method: 'POST' })
-        .then(renderQuick)
-        .catch(alert);
-    }
-    if (e.target.classList.contains('todo-delete')) {
-      if (!confirm('Delete this task?')) return;
-      e.target.disabled = true;
+listEl?.addEventListener('click', (e) => {
+  if (e.target.classList.contains('todo-done')) {
+    if (e.target.disabled) return; // Prevent multiple clicks
+    e.target.disabled = true;
+    
+    api(`/api/todos/${e.target.dataset.id}/toggle`, { method: 'POST' })
+      .then(renderQuick)
+      .catch(alert)
+      .finally(() => {
+        e.target.disabled = false;
+      });
+  }
+  
+  if (e.target.classList.contains('todo-delete')) {
+    if (e.target.disabled) return; // Prevent multiple clicks
+    e.target.disabled = true;
+    
+    const deleteTodo = () => {
       api(`/api/todos/${e.target.dataset.id}`, { method: 'DELETE' })
         .then(renderQuick)
-        .catch(alert);
+        .catch(alert)
+        .finally(() => {
+          e.target.disabled = false;
+        });
+    };
+    
+    if (confirm('Delete this task?')) {
+      deleteTodo();
+    } else {
+      e.target.disabled = false;
     }
-  });
-  
-  renderQuick();
-}
-// Weekly Todo lists
+  }
+});
+   // Weekly Todo lists
 function initWeeklyTodos() {
   const container = Q('#weeklyWrap');
   if (!container) return;
@@ -1673,16 +1742,26 @@ function handlePlatformClick(e) {
       const amount = parseFloat(newAmount);
       
       if (amount >= 0) {
-        // FIX: Use the exact amount entered, don't add to existing
-        api('/api/adspend', {
+        // First, remove existing entries for this product/country/platform combination
+        api('/api/adspend/cleanup', {
           method: 'POST',
           body: JSON.stringify({
-            date: isoToday(),
             productId: productId,
             country: country,
-            platform: platform,
-            amount: amount  // This replaces the existing amount for today
+            platform: platform
           })
+        }).then(() => {
+          // Then add the new amount
+          return api('/api/adspend', {
+            method: 'POST',
+            body: JSON.stringify({
+              date: isoToday(),
+              productId: productId,
+              country: country,
+              platform: platform,
+              amount: amount
+            })
+          });
         }).then(() => {
           // Refresh the advertising overview
           renderAdvertisingOverview();
@@ -1696,7 +1775,6 @@ function handlePlatformClick(e) {
     }
   }
 }
-
 function renderProductInfoResults(productInfo) {
   const container = Q('#productInfoResults');
   if (!container) return;
