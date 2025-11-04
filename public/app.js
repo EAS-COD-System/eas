@@ -2417,9 +2417,6 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
   }).join('');
 
   // Add event listeners for shipment actions
-  addShipmentEventListeners(tbody);
-}
-  // Add event listeners for shipment actions
   tbody.onclick = async (e) => {
     const id = e.target.dataset?.id;
     if (!id) return;
@@ -3278,7 +3275,6 @@ function renderArrivedShipmentsTable(shipments) {
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
         <td>${shipment.note || '-'}</td>
         <td>
-          ${shipment.paymentStatus === 'pending' ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
           <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
@@ -3300,7 +3296,7 @@ function addShipmentEventListeners(container) {
         method: 'PUT',
         body: JSON.stringify({ arrivedAt: isoToday() })
       });
-      renderShipmentTables();
+      renderProductShipments();
     }
 
     if (e.target.classList.contains('act-pay')) {
@@ -3312,7 +3308,7 @@ function addShipmentEventListeners(container) {
             method: 'POST',
             body: JSON.stringify({ finalShipCost: +finalCost })
           });
-          renderShipmentTables();
+          renderProductShipments();
           alert('Shipment marked as paid successfully!');
         } catch (error) {
           alert('Error marking shipment as paid: ' + error.message);
@@ -3327,7 +3323,7 @@ function addShipmentEventListeners(container) {
     if (e.target.classList.contains('act-del-ship')) {
       if (confirm('Delete this shipment?')) {
         await api(`/api/shipments/${id}`, { method: 'DELETE' });
-        renderShipmentTables();
+        renderProductShipments();
       }
     }
   });
