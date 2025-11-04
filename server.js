@@ -933,7 +933,7 @@ app.put('/api/shipments/:id', requireAuth, (req, res) => {
   res.json({ ok: true, shipment: s });
 });
 
-// In server.js, update the mark-paid endpoint
+// In server.js, update the mark-paid endpoint to NOT automatically mark as arrived
 app.post('/api/shipments/:id/mark-paid', requireAuth, (req, res) => {
   const db = loadDB(); 
   const s = (db.shipments || []).find(x => x.id === req.params.id);
@@ -946,10 +946,10 @@ app.post('/api/shipments/:id/mark-paid', requireAuth, (req, res) => {
   s.paymentStatus = 'paid';
   s.paidAt = new Date().toISOString();
   
-  // If not arrived yet, mark as arrived as well when paying
-  if (!s.arrivedAt) {
-    s.arrivedAt = new Date().toISOString();
-  }
+  // DO NOT automatically mark as arrived - keep it in transit until explicitly marked as arrived
+  // if (!s.arrivedAt) {
+  //   s.arrivedAt = new Date().toISOString();
+  // }
   
   saveDB(db); 
   res.json({ ok: true, shipment: s });
