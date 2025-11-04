@@ -858,7 +858,23 @@ app.post('/api/adspend', requireAuth, (req, res) => {
   saveDB(db); 
   res.json({ ok: true });
 });
-
+// Cleanup adspend entries
+app.post('/api/adspend/cleanup', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  const { productId, country, platform } = req.body || {};
+  
+  if (!productId || !country || !platform) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  
+  // Remove all entries for this product/country/platform combination
+  db.adspend = (db.adspend || []).filter(ad => 
+    !(ad.productId === productId && ad.country === country && ad.platform === platform)
+  );
+  
+  saveDB(db); 
+  res.json({ ok: true });
+});
 // Deliveries
 app.get('/api/deliveries', requireAuth, (req, res) => {
   const db = loadDB(); 
@@ -874,7 +890,36 @@ app.post('/api/deliveries', requireAuth, (req, res) => {
   saveDB(db); 
   res.json({ ok: true });
 });
-
+// Bulk save deliveries
+app.post('/api/deliveries/bulk', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  db.deliveries = db.deliveries || [];
+  const { deliveries } = req.body || {};
+  
+  if (!deliveries || !Array.isArray(deliveries)) {
+    return res.status(400).json({ error: 'Missing deliveries array' });
+  }
+  
+  deliveries.forEach(delivery => {
+    const { date, country, delivered } = delivery;
+    if (!date || !country) return;
+    
+    const existing = db.deliveries.find(d => d.date === date && d.country === country);
+    if (existing) {
+      existing.delivered = +delivered || 0;
+    } else {
+      db.deliveries.push({ 
+        id: uuidv4(), 
+        date, 
+        country, 
+        delivered: +delivered || 0 
+      });
+    }
+  });
+  
+  saveDB(db); 
+  res.json({ ok: true });
+});
 // Shipments
 app.get('/api/shipments', requireAuth, (req, res) => {
   const db = loadDB(); 
