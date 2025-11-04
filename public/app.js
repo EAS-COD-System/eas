@@ -2356,11 +2356,12 @@ function bindStockMovement() {
   };
 }
 
+// In app.js, update the renderShipmentTables function to include paid but not arrived shipments
 async function renderShipmentTables() {
   try {
     const shipments = await api('/api/shipments');
     
-    // Filter out arrived shipments (they should only appear on product pages)
+    // Filter to show shipments that haven't arrived yet (regardless of payment status)
     const transitShipments = shipments.shipments.filter(s => !s.arrivedAt);
     
     // China → Kenya shipments
@@ -2379,7 +2380,7 @@ async function renderShipmentTables() {
   }
 }
 
-// In app.js, update the renderShipmentTable function
+// Update the renderShipmentTable function to show payment status properly
 function renderShipmentTable(selector, shipments, showChinaCost) {
   const tbody = Q(selector);
   if (!tbody) return;
@@ -3219,7 +3220,7 @@ async function renderProductShipments() {
   }
 }
 
-// Update the renderProductShipmentTable function for product page
+// Update the renderProductShipmentTable function similarly
 function renderProductShipmentTable(selector, shipments, showChinaCost) {
   const tbody = Q(selector);
   if (!tbody) return;
