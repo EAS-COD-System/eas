@@ -30,6 +30,7 @@ function requireAuth(req, res, next) {
 }
 
 // ======== DATABASE FUNCTIONS ========
+// In server.js, fix the ensureDB function to not call autoManageProductStatus on every load
 function ensureDB() {
   if (!fs.existsSync(DATA_FILE)) {
     const initialData = {
@@ -60,39 +61,8 @@ function ensureDB() {
       weeklyTodos: {}
     };
     fs.writeJsonSync(DATA_FILE, initialData, { spaces: 2 });
-  } else {
-    // Auto-manage status for existing database
-    const db = loadDB();
-    autoManageProductStatus(db);
-    saveDB(db);
   }
-}
-
-function loadDB() { 
-  ensureDB(); 
-  return fs.readJsonSync(DATA_FILE); 
-}
-
-function saveDB(db) { 
-  fs.writeJsonSync(DATA_FILE, db, { spaces: 2 }); 
-}
-// ADD THE AUTO MANAGE PRODUCT STATUS FUNCTION RIGHT HERE:
-function autoManageProductStatus(db) {
-  // Get ALL ad spends (not just recent ones)
-  const allAdSpends = db.adspend || [];
-  
-  db.products.forEach(product => {
-    // Check if product has ANY advertising spend at all
-    const hasAnyAdSpend = allAdSpends.some(ad => ad.productId === product.id);
-    
-    if (hasAnyAdSpend) {
-      // Auto-activate if there's ANY ad spend
-      product.status = 'active';
-    } else {
-      // Auto-pause if NO ad spend at all
-      product.status = 'paused';
-    }
-  });
+  // Remove the autoManageProductStatus call from here
 }
 
 // ======== ADVANCED SHIPPING COST CALCULATION ========
