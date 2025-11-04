@@ -443,6 +443,7 @@ async function calculateTransitPieces() {
   }
 }
 
+// In app.js, update the calculateStockByCountry function
 async function calculateStockByCountry(productId = null) {
   try {
     const db = await api('/api/products');
@@ -451,23 +452,78 @@ async function calculateStockByCountry(productId = null) {
       return product ? product.stockByCountry : {};
     } else {
       const totalStock = {};
+      const inactiveStock = {};
+      
+      // Initialize stock for all countries
       state.countries.forEach(country => {
         totalStock[country] = 0;
+        inactiveStock[country] = 0;
       });
       
+      // Calculate active and inactive stock
       db.products.forEach(product => {
         Object.keys(product.stockByCountry || {}).forEach(country => {
-          totalStock[country] = (totalStock[country] || 0) + (product.stockByCountry[country] || 0);
+          if (product.status === 'active') {
+            totalStock[country] = (totalStock[country] || 0) + (product.stockByCountry[country] || 0);
+          } else {
+            inactiveStock[country] = (inactiveStock[country] || 0) + (product.stockByCountry[country] || 0);
+          }
         });
       });
       
-      return totalStock;
+      return {
+        active: totalStock,
+        inactive: inactiveStock,
+        total: Object.keys(totalStock).reduce((acc, country) => {
+          acc[country] = (totalStock[country] || 0) + (inactiveStock[country] || 0);
+          return acc;
+        }, {})
+      };
     }
   } catch (error) {
-    return {};
+    return { active: {}, inactive: {}, total: {} };
   }
 }
 
+// Update the renderCompactKpis function
+async function renderCompactKpis() {
+  Q('#kpiProducts') && (Q('#kpiProducts').textContent = state.products.length);
+  Q('#kpiCountries') && (Q('#kpiCountries').textContent = state.countries.length);
+
+  try {
+    const stockData = await calculateStockByCountry();
+    let activeStock = 0;
+    let inactiveStock = 0;
+    
+    state.countries.forEach(country => {
+      activeStock += stockData.active[country] || 0;
+      inactiveStock += stockData.inactive[country] || 0;
+    });
+
+    const transitData = await calculateTransitPieces();
+    
+    Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = transitData.chinaTransit);
+    Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = transitData.interCountryTransit);
+    Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = activeStock);
+    Q('#kpiInactiveStock') && (Q('#kpiInactiveStock').textContent = inactiveStock);
+  } catch { 
+    Q('#kpiChinaTransit') && (Q('#kpiChinaTransit').textContent = '—');
+    Q('#kpiInterTransit') && (Q('#kpiInterTransit').textContent = '—');
+    Q('#kpiActiveStock') && (Q('#kpiActiveStock').textContent = '—');
+    Q('#kpiInactiveStock') && (Q('#kpiInactiveStock').textContent = '—');
+  }
+
+  try {
+    const a = await api('/api/adspend');
+    const total = (a.adSpends || []).reduce((t, x) => t + (+x.amount || 0), 0);
+    Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = `${fmt(total)} USD`);
+  } catch { Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = '—'); }
+
+  const t = Q('#wAllT')?.textContent || '0';
+  Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = t);
+}
+
+// Update the renderCountryStockSpend function
 async function renderCountryStockSpend() {
   const body = Q('#stockByCountryBody'); 
   if (!body) return;
@@ -475,7 +531,7 @@ async function renderCountryStockSpend() {
   body.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
 
   try {
-    const stockByCountry = await calculateStockByCountry();
+    const stockData = await calculateStockByCountry();
     
     let st = 0, fb = 0, tt = 0, gg = 0, totalAd = 0;
     
@@ -497,7 +553,7 @@ async function renderCountryStockSpend() {
     });
 
     const rows = state.countries.map(country => {
-      const stock = stockByCountry[country] || 0;
+      const stock = stockData.active[country] || 0; // Only show active stock
       const adData = adBreakdown[country] || { facebook: 0, tiktok: 0, google: 0 };
       const countryAdTotal = adData.facebook + adData.tiktok + adData.google;
 
@@ -529,7 +585,6 @@ async function renderCountryStockSpend() {
     body.innerHTML = `<tr><td colspan="6" class="muted">Error loading data</td></tr>`;
   }
 }
-
 function bindDailyAdSpend() {
   const btn = Q('#adSave');
   if (!btn) return;
@@ -1007,7 +1062,7 @@ function initTestedProducts() {
   }
 }
 
-// ======== PRODUCTS PAGE ========
+// In app.js, update the product addition to prevent double submission
 function renderProductsPage() {
   try {
     renderCompactCountryStats();
@@ -1026,12 +1081,26 @@ function renderProductsPage() {
       }
     }
 
+    // Fix: Prevent double submission by disabling button during API call
     Q('#pAdd')?.addEventListener('click', async () => {
+      const btn = Q('#pAdd');
+      const originalText = btn.textContent;
+      
+      // Disable button to prevent double click
+      btn.disabled = true;
+      btn.textContent = 'Adding...';
+      
       const p = {
         name: Q('#pName')?.value.trim(),
         sku: Q('#pSku')?.value.trim()
       };
-      if (!p.name) return alert('Name required');
+      
+      if (!p.name) {
+        alert('Name required');
+        btn.disabled = false;
+        btn.textContent = originalText;
+        return;
+      }
       
       try {
         await api('/api/products', { method: 'POST', body: JSON.stringify(p) });
@@ -1049,7 +1118,15 @@ function renderProductsPage() {
         
         alert('Product added successfully!');
       } catch (error) {
-        alert('Error adding product: ' + error.message);
+        if (error.message.includes('already exists')) {
+          alert('Product with this name already exists!');
+        } else {
+          alert('Error adding product: ' + error.message);
+        }
+      } finally {
+        // Re-enable button
+        btn.disabled = false;
+        btn.textContent = originalText;
       }
     });
 
