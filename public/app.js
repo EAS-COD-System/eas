@@ -2379,24 +2379,22 @@ async function renderShipmentTables() {
   }
 }
 
+// In app.js, update the renderShipmentTable function
 function renderShipmentTable(selector, shipments, showChinaCost) {
   const tbody = Q(selector);
   if (!tbody) return;
 
   if (shipments.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="12" class="muted">No shipments in transit</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="muted">No shipments in transit</td></tr>';
     return;
   }
 
   tbody.innerHTML = shipments.map(shipment => {
-    const product = state.products.find(p => p.id === shipment.productId);
-    const productName = product ? product.name : shipment.productId;
     const route = `${shipment.fromCountry} → ${shipment.toCountry}`;
     
     return `
       <tr>
         <td>${shipment.id.slice(0, 8)}</td>
-        <td>${productName}</td>
         <td>${route}</td>
         <td>${fmt(shipment.qty)}</td>
         <td>${fmt(shipment.shipCost)}</td>
@@ -2405,10 +2403,9 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
         <td>${shipment.departedAt || '-'}</td>
         <td>${shipment.arrivedAt || '-'}</td>
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
-        <td>${shipment.note || '-'}</td>
         <td>
           ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
-          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
+          ${shipment.paymentStatus === 'pending' ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
           <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
@@ -3210,6 +3207,7 @@ async function renderProductShipments() {
   }
 }
 
+// Update the renderProductShipmentTable function for product page
 function renderProductShipmentTable(selector, shipments, showChinaCost) {
   const tbody = Q(selector);
   if (!tbody) return;
@@ -3235,7 +3233,7 @@ function renderProductShipmentTable(selector, shipments, showChinaCost) {
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
         <td>
           ${!shipment.arrivedAt ? `<button class="btn small outline act-arrive" data-id="${shipment.id}">Arrived</button>` : ''}
-          ${shipment.paymentStatus === 'pending' && shipment.arrivedAt ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
+          ${shipment.paymentStatus === 'pending' ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
           <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
@@ -3246,6 +3244,7 @@ function renderProductShipmentTable(selector, shipments, showChinaCost) {
   // Add event listeners
   addShipmentEventListeners(tbody);
 }
+// Also update the renderArrivedShipmentsTable function
 function renderArrivedShipmentsTable(shipments) {
   const tbody = Q('#pdArrivedBody');
   if (!tbody) return;
@@ -3275,6 +3274,7 @@ function renderArrivedShipmentsTable(shipments) {
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
         <td>${shipment.note || '-'}</td>
         <td>
+          ${shipment.paymentStatus === 'pending' ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
           <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
@@ -3285,7 +3285,8 @@ function renderArrivedShipmentsTable(shipments) {
   // Add event listeners
   addShipmentEventListeners(tbody);
 }
-
+   
+// Update the addShipmentEventListeners function to handle the new pay logic
 function addShipmentEventListeners(container) {
   container.addEventListener('click', async (e) => {
     const id = e.target.dataset?.id;
@@ -3297,6 +3298,7 @@ function addShipmentEventListeners(container) {
         body: JSON.stringify({ arrivedAt: isoToday() })
       });
       renderProductShipments();
+      renderShipmentTables();
     }
 
     if (e.target.classList.contains('act-pay')) {
@@ -3309,6 +3311,7 @@ function addShipmentEventListeners(container) {
             body: JSON.stringify({ finalShipCost: +finalCost })
           });
           renderProductShipments();
+          renderShipmentTables();
           alert('Shipment marked as paid successfully!');
         } catch (error) {
           alert('Error marking shipment as paid: ' + error.message);
@@ -3324,12 +3327,12 @@ function addShipmentEventListeners(container) {
       if (confirm('Delete this shipment?')) {
         await api(`/api/shipments/${id}`, { method: 'DELETE' });
         renderProductShipments();
+        renderShipmentTables();
       }
     }
   });
 }
-
-async function editShipment(shipmentId) {
+   async function editShipment(shipmentId) {
   try {
     const shipments = await api('/api/shipments');
     const shipment = shipments.shipments.find(s => s.id === shipmentId);
