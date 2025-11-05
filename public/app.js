@@ -713,35 +713,35 @@ function renderWeeklyDelivered() {
     if (e.target.classList.contains('wd-cell')) computeWeeklyTotals(); 
   });
   
-  let isSaving = false;
-  Q('#weeklySave')?.addEventListener('click', async () => {
-    if (isSaving) return;
-    isSaving = true;
-    
-    const payload = [];
-    QA('.wd-cell').forEach(inp => {
-      const val = +inp.value || 0;
-      if (val > 0) payload.push({ 
-        date: inp.dataset.date, 
-        country: inp.dataset.country, 
-        delivered: val 
-      });
+let isSaving = false;
+Q('#weeklySave')?.addEventListener('click', async () => {
+  if (isSaving) return;
+  isSaving = true;
+  
+  const payload = [];
+  QA('.wd-cell').forEach(inp => {
+    const val = +inp.value || 0;
+    if (val > 0) payload.push({ 
+      date: inp.dataset.date, 
+      country: inp.dataset.country, 
+      delivered: val 
     });
-    
-    try {
-      for (const row of payload) {
-        await api('/api/deliveries', { 
-          method: 'POST', 
-          body: JSON.stringify(row) 
-        });
-      }
-      alert('Weekly deliveries saved successfully!');
-    } catch (e) { 
-      alert('Save failed: ' + e.message); 
-    } finally {
-      isSaving = false;
-    }
   });
+  
+  try {
+    for (const row of payload) {
+      await api('/api/deliveries', { 
+        method: 'POST', 
+        body: JSON.stringify(row) 
+      });
+    }
+    alert('Weekly deliveries saved successfully!');
+  } catch (e) { 
+    alert('Save failed: ' + e.message); 
+  } finally {
+    isSaving = false;
+  }
+});
 
   updateGrid();
 }
@@ -815,24 +815,29 @@ function initBrainstorming() {
     }).catch(alert);
   }
 
-  function handleBrainstormingActions(e) {
-    if (e.target.classList.contains('brain-del')) {
-      if (!confirm('Delete this idea?')) return;
-      
-      const ideaId = e.target.dataset.id;
-      e.target.disabled = true;
-      
-      api(`/api/brainstorming/${ideaId}`, { method: 'DELETE' })
-        .then(() => api('/api/brainstorming'))
-        .then(data => {
-          state.brainstorming = data.ideas || [];
-          renderBrainstorming();
-        })
-        .catch(alert);
-    }
+ let isProcessingBrainstorming = false;
+function handleBrainstormingActions(e) {
+  if (isProcessingBrainstorming) return;
+  
+  if (e.target.classList.contains('brain-del')) {
+    if (!confirm('Delete this idea?')) return;
+    
+    const ideaId = e.target.dataset.id;
+    isProcessingBrainstorming = true;
+    e.target.disabled = true;
+    
+    api(`/api/brainstorming/${ideaId}`, { method: 'DELETE' })
+      .then(() => api('/api/brainstorming'))
+      .then(data => {
+        state.brainstorming = data.ideas || [];
+        renderBrainstorming();
+      })
+      .catch(alert)
+      .finally(() => {
+        isProcessingBrainstorming = false;
+      });
   }
 }
-
 // Todo lists
 function initTodos() {
   const listEl = Q('#todoList'); 
@@ -866,20 +871,33 @@ function initTodos() {
     });
   });
   
-  let isProcessing = false;
-  listEl?.addEventListener('click', (e) => {
-    if (isProcessing) return;
+ let isProcessing = false;
+listEl?.addEventListener('click', (e) => {
+  if (isProcessing) return;
+  
+  if (e.target.classList.contains('todo-done')) {
+    isProcessing = true;
+    e.target.disabled = true;
+    api(`/api/todos/${e.target.dataset.id}/toggle`, { method: 'POST' })
+      .then(renderQuick)
+      .catch(alert)
+      .finally(() => {
+        isProcessing = false;
+      });
+  }
+  if (e.target.classList.contains('todo-delete')) {
+    if (!confirm('Delete this task?')) return;
     
-    if (e.target.classList.contains('todo-done')) {
-      isProcessing = true;
-      e.target.disabled = true;
-      api(`/api/todos/${e.target.dataset.id}/toggle`, { method: 'POST' })
-        .then(renderQuick)
-        .catch(alert)
-        .finally(() => {
-          isProcessing = false;
-        });
-    }
+    isProcessing = true;
+    e.target.disabled = true;
+    api(`/api/todos/${e.target.dataset.id}`, { method: 'DELETE' })
+      .then(renderQuick)
+      .catch(alert)
+      .finally(() => {
+        isProcessing = false;
+      });
+  }
+});
     if (e.target.classList.contains('todo-delete')) {
       if (!confirm('Delete this task?')) return;
       
@@ -1755,7 +1773,6 @@ function handlePlatformClick(e) {
     }
   }
 }
-
 function renderProductInfoResults(productInfo) {
   const container = Q('#productInfoResults');
   if (!container) return;
