@@ -64,13 +64,16 @@ const state = {
 };
 let isAddingProduct = false; // Prevent multiple product additions
 
-// Main boot function - SIMPLIFIED
+// Main boot function
 async function boot() {
+  console.log('🔐 Checking authentication status...');
+  
+  // Check authentication first
   try {
-    // Check authentication first
     await api('/api/auth/status');
+    console.log('✅ User is authenticated');
     
-    // If we get here, user is authenticated
+    // Hide login, show main
     const loginEl = document.getElementById('login');
     const mainEl = document.getElementById('main');
     
@@ -100,8 +103,8 @@ async function boot() {
     setupDailyBackupButton();
     
   } catch (error) {
-    // Not authenticated or other error
-    console.log('Authentication failed:', error);
+    console.log('❌ User not authenticated, showing login form');
+    // Show login, hide main
     const loginEl = document.getElementById('login');
     const mainEl = document.getElementById('main');
     
@@ -110,24 +113,13 @@ async function boot() {
   }
 }
 
-// Event Listeners - SIMPLE FIX
+// Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-  // Login handler - SIMPLE FIX
-  Q('#loginBtn')?.addEventListener('click', async () => {
-    const password = Q('#pw')?.value || '';
-    if (!password) return alert('Please enter password');
-    
-    try {
-      await api('/api/auth', { 
-        method: 'POST', 
-        body: JSON.stringify({ password }) 
-      });
-      location.reload(); // Just reload the page
-    } catch (e) {
-      alert('Wrong password');
-    }
-  });
-
+  console.log('🚀 DOM loaded, initializing application...');
+  
+  // Login handler - FIXED VERSION
+  Q('#loginBtn')?.addEventListener('click', handleLogin);
+  
   // Logout handler
   Q('#logoutLink')?.addEventListener('click', async (e) => {
     e.preventDefault();
@@ -142,8 +134,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Enter key for login
   Q('#pw')?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') Q('#loginBtn').click();
+    if (e.key === 'Enter') {
+      handleLogin();
+    }
   });
+});
+
+// Fixed login handler function
+async function handleLogin() {
+  console.log('🔐 Login attempt...');
+  const password = Q('#pw')?.value || '';
+  
+  if (!password) {
+    alert('Please enter password');
+    return;
+  }
+  
+  const loginBtn = Q('#loginBtn');
+  const originalText = loginBtn.textContent;
+  
+  try {
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Logging in...';
+    
+    console.log('📡 Sending authentication request...');
+    const result = await api('/api/auth', { 
+      method: 'POST', 
+      body: JSON.stringify({ password }) 
+    });
+    
+    console.log('✅ Authentication successful:', result);
+    
+    // Small delay to ensure cookie is set
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Reload the application
+    await boot();
+    
+  } catch (e) {
+    console.error('❌ Login failed:', e);
+    alert('Wrong password or login failed. Please try again.');
+    loginBtn.disabled = false;
+    loginBtn.textContent = originalText;
+  }
+}
 
 // Navigation handling
 function initSimpleNavigation() {
@@ -199,6 +233,7 @@ function initSimpleNavigation() {
 // In the preload function, update how we handle products
 async function preload() {
   try {
+    console.log('📥 Preloading application data...');
     const meta = await api('/api/meta');
     state.countries = (meta.countries || []).filter(country => country !== 'china');
 
@@ -220,10 +255,13 @@ async function preload() {
     }
 
     fillCommonSelects();
+    console.log('✅ Preload completed successfully');
   } catch (error) {
+    console.error('❌ Preload failed:', error);
     throw error;
   }
 }
+
 // Add this function to automatically manage product status based on ad spend
 async function autoManageProductStatus() {
   try {
@@ -266,6 +304,7 @@ async function autoManageProductStatus() {
     console.error('Error in auto product status management:', error);
   }
 }
+
 // Fill common dropdown selects
 function fillCommonSelects() {
   const countrySelects = ['#adCountry', '#rCountry', '#pdAdCountry', '#pdRCountry',
@@ -522,6 +561,7 @@ async function calculateStockByCountry(productId = null) {
     return { activeStock: {}, inactiveStock: {} };
   }
 }
+
 async function renderCountryStockSpend() {
   const body = Q('#stockByCountryBody'); 
   if (!body) return;
@@ -586,6 +626,7 @@ async function renderCountryStockSpend() {
     body.innerHTML = `<tr><td colspan="6" class="muted">Error loading data</td></tr>`;
   }
 }
+
 function bindDailyAdSpend() {
   const btn = Q('#adSave');
   if (!btn) return;
@@ -838,6 +879,8 @@ function handleBrainstormingActions(e) {
       });
   }
 }
+}
+
 // Todo lists
 function initTodos() {
   const listEl = Q('#todoList'); 
@@ -898,22 +941,10 @@ listEl?.addEventListener('click', (e) => {
       });
   }
 });
-    if (e.target.classList.contains('todo-delete')) {
-      if (!confirm('Delete this task?')) return;
-      
-      isProcessing = true;
-      e.target.disabled = true;
-      api(`/api/todos/${e.target.dataset.id}`, { method: 'DELETE' })
-        .then(renderQuick)
-        .catch(alert)
-        .finally(() => {
-          isProcessing = false;
-        });
-    }
-  });
   
   renderQuick();
 }
+
 // Weekly Todo lists
 function initWeeklyTodos() {
   const container = Q('#weeklyWrap');
@@ -1773,6 +1804,7 @@ function handlePlatformClick(e) {
     }
   }
 }
+
 function renderProductInfoResults(productInfo) {
   const container = Q('#productInfoResults');
   if (!container) return;
@@ -2077,7 +2109,7 @@ function bindRemittanceAnalytics() {
   if (!btn) return;
 
   btn.onclick = async () => {
-    const dateRange = getDateRange(btn.closest('.row');
+    const dateRange = getDateRange(btn.closest('.row'));
     const country = Q('#remAnalyticsCountry')?.value || '';
     const productId = Q('#remAnalyticsProduct')?.value || '';
 
@@ -2255,6 +2287,7 @@ function addSortingToAnalytics() {
     }
   });
 }
+
 function bindProfitByCountry() {
   const btn = Q('#pcRun');
   if (!btn) return;
@@ -3430,6 +3463,7 @@ function renderProductShipmentTable(selector, shipments, showChinaCost) {
   // Add event listeners
   addShipmentEventListeners(tbody);
 }
+
 function renderArrivedShipmentsTable(shipments) {
   const tbody = Q('#pdArrivedBody');
   if (!tbody) return;
