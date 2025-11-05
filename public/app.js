@@ -64,13 +64,13 @@ const state = {
 };
 let isAddingProduct = false; // Prevent multiple product additions
 
-// Main boot function
+// Main boot function - SIMPLIFIED
 async function boot() {
-  // Check authentication first
   try {
+    // Check authentication first
     await api('/api/auth/status');
     
-    // Hide login, show main
+    // If we get here, user is authenticated
     const loginEl = document.getElementById('login');
     const mainEl = document.getElementById('main');
     
@@ -100,7 +100,8 @@ async function boot() {
     setupDailyBackupButton();
     
   } catch (error) {
-    // Show login, hide main
+    // Not authenticated or other error
+    console.log('Authentication failed:', error);
     const loginEl = document.getElementById('login');
     const mainEl = document.getElementById('main');
     
@@ -109,9 +110,9 @@ async function boot() {
   }
 }
 
-// Event Listeners - FIXED VERSION
+// Event Listeners - SIMPLIFIED AND FIXED
 document.addEventListener('DOMContentLoaded', () => {
-  // Login handler - FIXED
+  // Login handler - FIXED AND SIMPLIFIED
   Q('#loginBtn')?.addEventListener('click', async () => {
     const password = Q('#pw')?.value || '';
     if (!password) return alert('Please enter password');
@@ -122,13 +123,17 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ password }) 
       });
       
+      console.log('Login result:', result);
+      
       if (result.ok) {
-        await boot();
+        // Successful login - reload the page to refresh authentication state
+        location.reload();
       } else {
         alert('Login failed');
       }
     } catch (e) {
-      alert('Wrong password or connection error');
+      console.error('Login error:', e);
+      alert('Wrong password or connection error: ' + e.message);
     }
   });
 
@@ -140,7 +145,9 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'POST', 
         body: JSON.stringify({ password: 'logout' }) 
       }); 
-    } catch { } 
+    } catch (e) {
+      console.log('Logout error:', e);
+    }
     location.reload();
   });
 
@@ -150,7 +157,6 @@ document.addEventListener('DOMContentLoaded', () => {
       Q('#loginBtn').click();
     }
   });
-});
 
 // Navigation handling
 function initSimpleNavigation() {
