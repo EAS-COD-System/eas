@@ -72,6 +72,7 @@ function saveDB(db) {
   fs.writeJsonSync(DATA_FILE, db, { spaces: 2 }); 
 }
 
+
 // ======== ADVANCED SHIPPING COST CALCULATION ========
 function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
@@ -548,23 +549,20 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
 
 // ======== ROUTES ========
 
-// Authentication
+// Authentication - FIXED VERSION
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
   
   if (password === 'logout') {
-    res.clearCookie('auth', { httpOnly: true, sameSite: 'Lax', secure: false, path: '/' });
+    res.clearCookie('auth');
     return res.json({ ok: true });
   }
   
   if (password && password === db.password) {
+    // SIMPLIFIED COOKIE SETTINGS - removed problematic options
     res.cookie('auth', '1', { 
-      httpOnly: true, 
-      sameSite: 'Lax', 
-      secure: false, 
-      path: '/', 
-      maxAge: 365 * 24 * 60 * 60 * 1000
+      maxAge: 365 * 24 * 60 * 60 * 1000 // 1 year
     });
     return res.json({ ok: true });
   }
@@ -575,7 +573,6 @@ app.post('/api/auth', (req, res) => {
 app.get('/api/auth/status', requireAuth, (req, res) => {
   res.json({ authenticated: true });
 });
-
 // Meta data
 app.get('/api/meta', requireAuth, (req, res) => {
   const db = loadDB();
