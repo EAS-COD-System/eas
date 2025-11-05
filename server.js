@@ -72,7 +72,6 @@ function saveDB(db) {
   fs.writeJsonSync(DATA_FILE, db, { spaces: 2 }); 
 }
 
-
 // ======== ADVANCED SHIPPING COST CALCULATION ========
 function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
@@ -549,27 +548,39 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
 
 // ======== ROUTES ========
 
-// Authentication - SIMPLE FIX
+// Authentication - FIXED VERSION
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
   
+  console.log('🔐 Authentication attempt received');
+  
   if (password === 'logout') {
-    res.clearCookie('auth');
+    res.clearCookie('auth', { httpOnly: true, sameSite: 'Lax', secure: false, path: '/' });
+    console.log('🚪 User logged out');
     return res.json({ ok: true });
   }
   
   if (password && password === db.password) {
-    res.cookie('auth', '1');
+    console.log('✅ Password correct, setting auth cookie');
+    res.cookie('auth', '1', { 
+      httpOnly: true, 
+      sameSite: 'Lax', 
+      secure: false, 
+      path: '/', 
+      maxAge: 365 * 24 * 60 * 60 * 1000
+    });
     return res.json({ ok: true });
   }
   
+  console.log('❌ Wrong password attempt');
   return res.status(401).json({ error: 'Wrong password' });
 });
 
-app.get('/api/auth/status', (req, res) => {
-  res.json({ authenticated: req.cookies.auth === '1' });
+app.get('/api/auth/status', requireAuth, (req, res) => {
+  res.json({ authenticated: true });
 });
+
 // Meta data
 app.get('/api/meta', requireAuth, (req, res) => {
   const db = loadDB();
