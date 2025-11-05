@@ -76,8 +76,6 @@ function saveDB(db) {
 function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
   
-  console.log(`🔍 calculateActualShippingCostPerPiece: productId=${productId}, targetCountry=${targetCountry}, totalShipments=${shipments.length}`);
-  
   // Get all shipments for this product that arrived and are paid
   const relevantShipments = shipments.filter(s => 
     s.productId === productId && 
@@ -85,8 +83,6 @@ function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
     s.paymentStatus === 'paid' &&
     s.finalShipCost
   );
-  
-  console.log(`🔍 Relevant shipments: ${relevantShipments.length}`);
   
   if (relevantShipments.length === 0) return 0;
   
@@ -103,8 +99,6 @@ function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
     const toCountry = shipment.toCountry;
     const quantity = +shipment.qty || 0;
     const shippingCostPerPiece = (+shipment.finalShipCost || +shipment.shipCost || 0) / quantity;
-    
-    console.log(`🔍 Processing shipment: ${fromCountry}→${toCountry}, qty=${quantity}, costPerPiece=$${shippingCostPerPiece}`);
     
     if (fromCountry === 'china') {
       // New pieces from China
@@ -135,11 +129,9 @@ function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
   if (pieceTracking[targetCountry] && pieceTracking[targetCountry].length > 0) {
     const totalCost = pieceTracking[targetCountry].reduce((sum, piece) => sum + piece.cost, 0);
     const averageCost = totalCost / pieceTracking[targetCountry].length;
-    console.log(`🔍 Result for ${targetCountry}: ${pieceTracking[targetCountry].length} pieces, average cost=$${averageCost}`);
     return averageCost;
   }
   
-  console.log(`🔍 No pieces found in ${targetCountry}`);
   return 0;
 }
 
