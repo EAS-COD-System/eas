@@ -549,7 +549,7 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
 
 // ======== ROUTES ========
 
-// Authentication - FIXED VERSION
+// Authentication - COMPLETELY SIMPLIFIED
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
@@ -560,18 +560,19 @@ app.post('/api/auth', (req, res) => {
   }
   
   if (password && password === db.password) {
-    // SIMPLIFIED COOKIE SETTINGS - removed problematic options
-    res.cookie('auth', '1', { 
-      maxAge: 365 * 24 * 60 * 60 * 1000 // 1 year
-    });
+    // Simple cookie without complex settings
+    res.cookie('auth', '1');
     return res.json({ ok: true });
   }
   
   return res.status(401).json({ error: 'Wrong password' });
 });
 
-app.get('/api/auth/status', requireAuth, (req, res) => {
-  res.json({ authenticated: true });
+app.get('/api/auth/status', (req, res) => {
+  if (req.cookies.auth === '1') {
+    return res.json({ authenticated: true });
+  }
+  return res.status(401).json({ error: 'Not authenticated' });
 });
 // Meta data
 app.get('/api/meta', requireAuth, (req, res) => {
