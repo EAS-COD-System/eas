@@ -110,30 +110,21 @@ async function boot() {
   }
 }
 
-// Event Listeners - SIMPLIFIED AND FIXED
+// Event Listeners - SIMPLE FIX
 document.addEventListener('DOMContentLoaded', () => {
-  // Login handler - FIXED AND SIMPLIFIED
+  // Login handler - SIMPLE FIX
   Q('#loginBtn')?.addEventListener('click', async () => {
     const password = Q('#pw')?.value || '';
     if (!password) return alert('Please enter password');
     
     try {
-      const result = await api('/api/auth', { 
+      await api('/api/auth', { 
         method: 'POST', 
         body: JSON.stringify({ password }) 
       });
-      
-      console.log('Login result:', result);
-      
-      if (result.ok) {
-        // Successful login - reload the page to refresh authentication state
-        location.reload();
-      } else {
-        alert('Login failed');
-      }
+      location.reload(); // Just reload the page
     } catch (e) {
-      console.error('Login error:', e);
-      alert('Wrong password or connection error: ' + e.message);
+      alert('Wrong password');
     }
   });
 
@@ -145,17 +136,13 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'POST', 
         body: JSON.stringify({ password: 'logout' }) 
       }); 
-    } catch (e) {
-      console.log('Logout error:', e);
-    }
+    } catch { } 
     location.reload();
   });
 
   // Enter key for login
   Q('#pw')?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      Q('#loginBtn').click();
-    }
+    if (e.key === 'Enter') Q('#loginBtn').click();
   });
 
 // Navigation handling
