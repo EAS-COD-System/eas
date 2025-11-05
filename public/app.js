@@ -63,6 +63,7 @@ const state = {
   profitCountrySortOrder: 'desc'
 };
 let isAddingProduct = false; // Prevent multiple product additions
+
 // Main boot function
 async function boot() {
   // Check authentication first
@@ -107,21 +108,27 @@ async function boot() {
     if (mainEl) mainEl.style.display = 'none';
   }
 }
-// Event Listeners
+
+// Event Listeners - FIXED VERSION
 document.addEventListener('DOMContentLoaded', () => {
-  // Login handler
+  // Login handler - FIXED
   Q('#loginBtn')?.addEventListener('click', async () => {
     const password = Q('#pw')?.value || '';
     if (!password) return alert('Please enter password');
     
     try {
-      await api('/api/auth', { 
+      const result = await api('/api/auth', { 
         method: 'POST', 
         body: JSON.stringify({ password }) 
       });
-      await boot();
+      
+      if (result.ok) {
+        await boot();
+      } else {
+        alert('Login failed');
+      }
     } catch (e) {
-      alert('Wrong password');
+      alert('Wrong password or connection error');
     }
   });
 
