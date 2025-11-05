@@ -549,7 +549,7 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
 
 // ======== ROUTES ========
 
-// Authentication - COMPLETELY SIMPLIFIED
+// Authentication - SIMPLE FIX
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
   const db = loadDB();
@@ -560,7 +560,6 @@ app.post('/api/auth', (req, res) => {
   }
   
   if (password && password === db.password) {
-    // Simple cookie without complex settings
     res.cookie('auth', '1');
     return res.json({ ok: true });
   }
@@ -569,10 +568,7 @@ app.post('/api/auth', (req, res) => {
 });
 
 app.get('/api/auth/status', (req, res) => {
-  if (req.cookies.auth === '1') {
-    return res.json({ authenticated: true });
-  }
-  return res.status(401).json({ error: 'Not authenticated' });
+  res.json({ authenticated: req.cookies.auth === '1' });
 });
 // Meta data
 app.get('/api/meta', requireAuth, (req, res) => {
