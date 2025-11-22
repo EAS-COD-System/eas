@@ -718,7 +718,7 @@ function bindDailyAdSpend() {
         });
         await renderCountryStockSpend();
         await renderCompactKpis();
-        alert('Ad spend saved successfully!');
+        alert(`✅ Ad spend ${payload.amount ? 'saved' : 'removed'} for today!`);
         Q('#adAmount').value = '';
       } catch (e) { 
         alert('Error: ' + e.message); 
@@ -1918,26 +1918,28 @@ function handlePlatformClick(e) {
     
     const currentAmount = parseFloat(e.target.textContent.split(': ')[1]) || 0;
     
-    const newAmount = prompt(`Enter new ${platform} spend for ${country}:`, currentAmount);
+    const newAmount = prompt(`Enter new ${platform} spend for ${country} for TODAY (${isoToday()}):`, currentAmount);
     
     if (newAmount !== null && !isNaN(newAmount)) {
       const amount = parseFloat(newAmount);
       
       if (amount >= 0) {
-        // FIX: Use the exact amount entered, don't add to existing
+        // This will update ONLY today's spend for this specific combination
         api('/api/adspend', {
           method: 'POST',
           body: JSON.stringify({
-            date: isoToday(),
+            date: isoToday(), // Always use today's date for updates
             productId: productId,
             country: country,
             platform: platform,
-            amount: amount  // This replaces the existing amount for today
+            amount: amount
           })
         }).then(() => {
           // Refresh the advertising overview
           renderAdvertisingOverview();
-          alert(`${platform} spend updated to $${amount}!`);
+          renderCountryStockSpend();
+          renderCompactKpis();
+          alert(`✅ ${platform} spend updated to $${amount} for today!`);
         }).catch(error => {
           alert('Error updating spend: ' + error.message);
         });
