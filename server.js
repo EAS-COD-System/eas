@@ -71,6 +71,46 @@ function loadDB() {
 function saveDB(db) { 
   fs.writeJsonSync(DATA_FILE, db, { spaces: 2 }); 
 }
+// Add this endpoint to manually fix ad spend data for specific products
+app.post('/api/fix-adspend', requireAuth, (req, res) => {
+  const db = loadDB();
+  const { productId } = req.body || {};
+  
+  if (!productId) {
+    return res.status(400).json({ error: 'Product ID required' });
+  }
+  
+  const productEntries = db.adspend.filter(ad => ad.productId === productId);
+  let fixedCount = 0;
+  
+  productEntries.forEach(entry => {
+    // Ensure all required fields are present
+    if (!entry.id) {
+      entry.id = uuidv4();
+      fixedCount++;
+    }
+    if (!entry.createdAt) {
+      entry.createdAt = new Date().toISOString();
+      fixedCount++;
+    }
+    if (!entry.updatedAt) {
+      entry.updatedAt = new Date().toISOString();
+      fixedCount++;
+    }
+    if (typeof entry.amount === 'string') {
+      entry.amount = parseFloat(entry.amount) || 0;
+      fixedCount++;
+    }
+  });
+  
+  saveDB(db);
+  
+  res.json({ 
+    ok: true, 
+    message: `Fixed ${fixedCount} issues in ${productEntries.length} entries for product ${productId}`,
+    entries: productEntries 
+  });
+});
 // Data migration for old ad spend entries
 function migrateAdSpendData() {
   const db = loadDB();
