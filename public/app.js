@@ -520,7 +520,84 @@ function getDateRange(container) {
     end: dateRange.end || ''
   };
 }
-
+// Update the updateAdSpendDirectly function in app.js to handle old entries better
+async function updateAdSpendDirectly(productId, country, platform, newAmount) {
+  try {
+    const adData = await api('/api/adspend');
+    const adSpends = adData.adSpends || [];
+    
+    // Find ALL entries for this combination
+    const existingEntries = adSpends.filter(ad => 
+      ad.productId === productId && 
+      ad.country === country && 
+      ad.platform === platform
+    );
+    
+    if (existingEntries.length > 0) {
+      // Try to find an entry with proper ID first
+      let entryToUpdate = existingEntries.find(entry => entry.id && entry.createdAt);
+      
+      // If no proper entry found, use the most recent one
+      if (!entryToUpdate) {
+        entryToUpdate = existingEntries.sort((a, b) => {
+          const dateA = a.date || a.createdAt || '2000-01-01';
+          const dateB = b.date || b.createdAt || '2000-01-01';
+          return new Date(dateB) - new Date(dateA);
+        })[0];
+      }
+      
+      // If the entry doesn't have an ID, we need to fix it first
+      if (!entryToUpdate.id) {
+        console.log('🔄 Fixing old ad spend entry before update...');
+        // Try to fix the data first
+        await api('/api/fix-adspend', {
+          method: 'POST',
+          body: JSON.stringify({ productId: productId })
+        });
+        
+        // Re-fetch the data after fix
+        const fixedData = await api('/api/adspend');
+        const fixedEntries = fixedData.adSpends.filter(ad => 
+          ad.productId === productId && 
+          ad.country === country && 
+          ad.platform === platform
+        );
+        
+        if (fixedEntries.length > 0) {
+          entryToUpdate = fixedEntries[0];
+        }
+      }
+      
+      if (entryToUpdate && entryToUpdate.id) {
+        await api(`/api/adspend/${entryToUpdate.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ amount: newAmount })
+        });
+        console.log(`✅ Updated existing ad spend entry: ${entryToUpdate.id} to $${newAmount}`);
+      } else {
+        throw new Error('Could not find or fix ad spend entry to update');
+      }
+    } else {
+      // Create new entry
+      await api('/api/adspend', {
+        method: 'POST',
+        body: JSON.stringify({
+          date: isoToday(),
+          productId: productId,
+          country: country,
+          platform: platform,
+          amount: newAmount
+        })
+      });
+      console.log(`✅ Created new ad spend entry: $${newAmount}`);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error updating ad spend:', error);
+    throw error;
+  }
+}
 // ======== DASHBOARD PAGE ========
 function renderDashboardPage() {
   renderCompactKpis();
