@@ -356,7 +356,7 @@ async function autoManageProductStatus() {
   }
 }
 
-// Fill common dropdown selects - FIXED: Include all products for ad spend
+// Fill common dropdown selects - FIXED: Include all products for ad spend, sorted by status and name
 function fillCommonSelects() {
   const countrySelects = ['#adCountry', '#rCountry', '#pdAdCountry', '#pdRCountry',
     '#pdInfCountry', '#pdInfFilterCountry', '#pcCountry', '#remCountry', '#remAddCountry',
@@ -381,24 +381,36 @@ function fillCommonSelects() {
     }
   }));
 
-  // FIXED: Show ALL products (active and paused) for ad spend
+  // FIXED: Show ALL products (active and paused) for ad spend, sorted by status and name
   const allProductInputs = ['#mvProduct', '#adProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct', '#refundProduct', '#adspendProduct'];
   allProductInputs.forEach(sel => QA(sel).forEach(el => {
     if (!el) return;
-    // Show all products sorted by creation date (newest first)
+    // Show all products sorted by status (active first) then name (A-Z)
     const allProducts = state.products
-      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      .sort((a, b) => {
+        // First sort by status: active first
+        if (a.status === 'active' && b.status !== 'active') return -1;
+        if (a.status !== 'active' && b.status === 'active') return 1;
+        // Then sort by name A-Z
+        return a.name.localeCompare(b.name);
+      });
     
     el.innerHTML = `<option value="">Select Product...</option>` +
       allProducts.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}${p.status === 'paused' ? ' [PAUSED]' : ''}</option>`).join('');
   }));
 
-  // All products for analytics
+  // All products for analytics - FIXED: Sort by status and name
   const allProductsNewestFirst = ['#pcaProduct', '#remAnalyticsProduct', '#productInfoSelect', '#remProduct', '#adspendFilterProduct'];
   allProductsNewestFirst.forEach(sel => QA(sel).forEach(el => {
     if (!el) return;
     const allProductsSorted = state.products
-      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      .sort((a, b) => {
+        // First sort by status: active first
+        if (a.status === 'active' && b.status !== 'active') return -1;
+        if (a.status !== 'active' && b.status === 'active') return 1;
+        // Then sort by name A-Z
+        return a.name.localeCompare(b.name);
+      });
     
     if (sel === '#pcaProduct' || sel === '#remAnalyticsProduct' || sel === '#adspendFilterProduct') {
       el.innerHTML = `<option value="all">All products</option>` +
@@ -3348,9 +3360,17 @@ function bindProductEdit() {
   const select = Q('#epSelect');
   if (!select) return;
 
-  // Populate product select
+  // Populate product select - FIXED: Sort by status and name
+  const sortedProducts = state.products.sort((a, b) => {
+    // First sort by status: active first
+    if (a.status === 'active' && b.status !== 'active') return -1;
+    if (a.status !== 'active' && b.status === 'active') return 1;
+    // Then sort by name A-Z
+    return a.name.localeCompare(b.name);
+  });
+  
   select.innerHTML = '<option value="">Select product…</option>' +
-    state.products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    sortedProducts.map(p => `<option value="${p.id}">${p.name}${p.status === 'paused' ? ' [PAUSED]' : ''}</option>`).join('');
 
   if (!eventListeners.has('epSelect')) {
     select.addEventListener('change', function() {
@@ -4359,11 +4379,12 @@ async function renderProductInfluencers() {
     const total = filteredSpends.reduce((sum, spend) => sum + (+spend.amount || 0), 0);
     if (totalEl) totalEl.textContent = fmt(total);
 
-    // Populate influencer select
+    // Populate influencer select - FIXED: Sort by name
     const infSelect = Q('#pdInfSelect');
     if (infSelect) {
+      const sortedInfluencers = influencers.influencers.sort((a, b) => a.name.localeCompare(b.name));
       infSelect.innerHTML = '<option value="">Select influencer</option>' +
-        influencers.influencers.map(inf => `<option value="${inf.id}">${inf.name}</option>`).join('');
+        sortedInfluencers.map(inf => `<option value="${inf.id}">${inf.name}</option>`).join('');
     }
 
     if (filteredSpends.length === 0) {
