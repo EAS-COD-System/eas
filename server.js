@@ -1804,6 +1804,9 @@ app.get('/product.html', (req, res) => res.sendFile(path.join(ROOT, 'product.htm
 app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
 
 app.listen(PORT, async () => {
+  // Run data migration first
+  migrateAdSpendData();
+  
   await createStartupBackup();
   console.log('✅ EAS Tracker listening on', PORT);
   console.log('DB:', DATA_FILE);
