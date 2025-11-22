@@ -71,7 +71,60 @@ function loadDB() {
 function saveDB(db) { 
   fs.writeJsonSync(DATA_FILE, db, { spaces: 2 }); 
 }
-
+// Data migration for old ad spend entries
+function migrateAdSpendData() {
+  const db = loadDB();
+  let needsMigration = false;
+  
+  if (db.adspend && Array.isArray(db.adspend)) {
+    db.adspend.forEach(entry => {
+      // Add missing fields to old entries
+      if (!entry.id) {
+        entry.id = uuidv4();
+        needsMigration = true;
+      }
+      if (!entry.createdAt) {
+        entry.createdAt = new Date().toISOString();
+        needsMigration = true;
+      }
+      if (!entry.updatedAt) {
+        entry.updatedAt = new Date().toISOString();
+        needsMigration = true;
+      }
+      // Ensure amount is a number
+      if (typeof entry.amount === 'string') {
+        entry.amount = parseFloat(entry.amount) || 0;
+        needsMigration = true;
+      }
+    });
+    
+    // Remove any potential duplicates that might have been created
+    const uniqueEntries = [];
+    const seenCombinations = new Set();
+    
+    db.adspend.forEach(entry => {
+      const key = `${entry.productId}-${entry.country}-${entry.platform}-${entry.date}`;
+      if (!seenCombinations.has(key)) {
+        seenCombinations.add(key);
+        uniqueEntries.push(entry);
+      } else {
+        needsMigration = true;
+        console.log(`Removing duplicate ad spend entry: ${key}`);
+      }
+    });
+    
+    if (uniqueEntries.length !== db.adspend.length) {
+      db.adspend = uniqueEntries;
+      needsMigration = true;
+    }
+  }
+  
+  if (needsMigration) {
+    console.log('🔄 Migrating old ad spend data to new format...');
+    saveDB(db);
+    console.log('✅ Ad spend data migration completed');
+  }
+}
 // ======== ADVANCED SHIPPING COST CALCULATION ========
 function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
