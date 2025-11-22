@@ -62,7 +62,9 @@ const state = {
   profitCountrySortBy: 'totalDeliveredPieces',
   profitCountrySortOrder: 'desc'
 };
-let isAddingProduct = false; // Prevent multiple product additions
+
+// Track event listeners to prevent duplicates
+const eventListeners = new Map();
 
 // Main boot function
 async function boot() {
@@ -113,31 +115,43 @@ async function boot() {
   }
 }
 
-// Event Listeners
+// Event Listeners - FIXED: Prevent multiple bindings
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🚀 DOM loaded, initializing application...');
   
   // Login handler - FIXED VERSION
-  Q('#loginBtn')?.addEventListener('click', handleLogin);
+  const loginBtn = Q('#loginBtn');
+  if (loginBtn && !eventListeners.has('loginBtn')) {
+    loginBtn.addEventListener('click', handleLogin);
+    eventListeners.set('loginBtn', true);
+  }
   
   // Logout handler
-  Q('#logoutLink')?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    try { 
-      await api('/api/auth', { 
-        method: 'POST', 
-        body: JSON.stringify({ password: 'logout' }) 
-      }); 
-    } catch { } 
-    location.reload();
-  });
+  const logoutLink = Q('#logoutLink');
+  if (logoutLink && !eventListeners.has('logoutLink')) {
+    logoutLink.addEventListener('click', async (e) => {
+      e.preventDefault();
+      try { 
+        await api('/api/auth', { 
+          method: 'POST', 
+          body: JSON.stringify({ password: 'logout' }) 
+        }); 
+      } catch { } 
+      location.reload();
+    });
+    eventListeners.set('logoutLink', true);
+  }
 
   // Enter key for login
-  Q('#pw')?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      handleLogin();
-    }
-  });
+  const pwInput = Q('#pw');
+  if (pwInput && !eventListeners.has('pwInput')) {
+    pwInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        handleLogin();
+      }
+    });
+    eventListeners.set('pwInput', true);
+  }
 });
 
 // Fixed login handler function
@@ -215,19 +229,56 @@ function initSimpleNavigation() {
     lastScrollY = currentScrollY;
   }
 
-  window.addEventListener('scroll', handleScroll, { passive: true });
+  if (!eventListeners.has('scroll')) {
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    eventListeners.set('scroll', true);
+  }
 
-  document.addEventListener('touchstart', (e) => {
-    if (e.touches[0].clientY < 10) {
-      showNav();
-    }
-  }, { passive: true });
+  if (!eventListeners.has('touchstart')) {
+    document.addEventListener('touchstart', (e) => {
+      if (e.touches[0].clientY < 10) {
+        showNav();
+      }
+    }, { passive: true });
+    eventListeners.set('touchstart', true);
+  }
 
   if (window.scrollY === 0) {
     showNav();
   } else {
     hideNav();
   }
+}
+
+function bindGlobalNav() {
+  const navLinks = QA('nav a[data-view]');
+  navLinks.forEach(link => {
+    if (!eventListeners.has(`nav-${link.dataset.view}`)) {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const view = link.dataset.view;
+        
+        // Hide all sections
+        QA('#main > .container > section').forEach(section => {
+          section.style.display = 'none';
+        });
+        
+        // Show selected section
+        const targetSection = Q(`#${view}`);
+        if (targetSection) {
+          targetSection.style.display = 'block';
+        }
+        
+        // Update active nav link
+        navLinks.forEach(navLink => navLink.classList.remove('active'));
+        link.classList.add('active');
+        
+        // Scroll to top
+        window.scrollTo(0, 0);
+      });
+      eventListeners.set(`nav-${link.dataset.view}`, true);
+    }
+  });
 }
 
 // In the preload function, update how we handle products
@@ -305,7 +356,7 @@ async function autoManageProductStatus() {
   }
 }
 
-// Fill common dropdown selects
+// Fill common dropdown selects - FIXED: Include all products for ad spend
 function fillCommonSelects() {
   const countrySelects = ['#adCountry', '#rCountry', '#pdAdCountry', '#pdRCountry',
     '#pdInfCountry', '#pdInfFilterCountry', '#pcCountry', '#remCountry', '#remAddCountry',
@@ -330,31 +381,31 @@ function fillCommonSelects() {
     }
   }));
 
-  // Active products only
-  const activeProductInputs = ['#mvProduct', '#adProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct', '#refundProduct'];
-  activeProductInputs.forEach(sel => QA(sel).forEach(el => {
+  // FIXED: Show ALL products (active and paused) for ad spend
+  const allProductInputs = ['#mvProduct', '#adProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct', '#refundProduct', '#adspendProduct'];
+  allProductInputs.forEach(sel => QA(sel).forEach(el => {
     if (!el) return;
-    const activeProducts = state.products
-      .filter(p => p.status === 'active')
+    // Show all products sorted by creation date (newest first)
+    const allProducts = state.products
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     
     el.innerHTML = `<option value="">Select Product...</option>` +
-      activeProducts.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+      allProducts.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}${p.status === 'paused' ? ' [PAUSED]' : ''}</option>`).join('');
   }));
 
-  // All products
-  const allProductsNewestFirst = ['#pcaProduct', '#remAnalyticsProduct', '#productInfoSelect', '#remProduct'];
+  // All products for analytics
+  const allProductsNewestFirst = ['#pcaProduct', '#remAnalyticsProduct', '#productInfoSelect', '#remProduct', '#adspendFilterProduct'];
   allProductsNewestFirst.forEach(sel => QA(sel).forEach(el => {
     if (!el) return;
     const allProductsSorted = state.products
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     
-    if (sel === '#pcaProduct' || sel === '#remAnalyticsProduct') {
+    if (sel === '#pcaProduct' || sel === '#remAnalyticsProduct' || sel === '#adspendFilterProduct') {
       el.innerHTML = `<option value="all">All products</option>` +
-        allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+        allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}${p.status === 'paused' ? ' [PAUSED]' : ''}</option>`).join('');
     } else {
       el.innerHTML = `<option value="all">All products</option>` +
-        allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+        allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}${p.status === 'paused' ? ' [PAUSED]' : ''}</option>`).join('');
     }
   }));
 
@@ -416,21 +467,24 @@ function initDateRangeSelectors() {
     const container = select.closest('.row');
     const customRange = container?.querySelector('.custom-range');
 
-    select.addEventListener('change', function () {
-      if (!customRange) return;
-      if (this.value === 'custom') {
-        customRange.style.display = 'flex';
-      } else {
-        customRange.style.display = 'none';
-        const dateRange = calculateDateRange(this.value);
-        if (dateRange.start && dateRange.end) {
-          const startInput = container.querySelector('.custom-start');
-          const endInput = container.querySelector('.custom-end');
-          if (startInput) startInput.value = dateRange.start;
-          if (endInput) endInput.value = dateRange.end;
+    if (!eventListeners.has(select)) {
+      select.addEventListener('change', function () {
+        if (!customRange) return;
+        if (this.value === 'custom') {
+          customRange.style.display = 'flex';
+        } else {
+          customRange.style.display = 'none';
+          const dateRange = calculateDateRange(this.value);
+          if (dateRange.start && dateRange.end) {
+            const startInput = container.querySelector('.custom-start');
+            const endInput = container.querySelector('.custom-end');
+            if (startInput) startInput.value = dateRange.start;
+            if (endInput) endInput.value = dateRange.end;
+          }
         }
-      }
-    });
+      });
+      eventListeners.set(select, true);
+    }
   });
 }
 
@@ -631,32 +685,35 @@ function bindDailyAdSpend() {
   const btn = Q('#adSave');
   if (!btn) return;
   
-  btn.onclick = async () => {
-    const payload = {
-      date: isoToday(),
-      productId: Q('#adProduct')?.value,
-      country: Q('#adCountry')?.value,
-      platform: Q('#adPlatform')?.value,
-      amount: +Q('#adAmount')?.value || 0
+  if (!eventListeners.has('adSave')) {
+    btn.onclick = async () => {
+      const payload = {
+        date: isoToday(),
+        productId: Q('#adProduct')?.value,
+        country: Q('#adCountry')?.value,
+        platform: Q('#adPlatform')?.value,
+        amount: +Q('#adAmount')?.value || 0
+      };
+      
+      if (!payload.productId || !payload.country || !payload.platform) {
+        return alert('Please fill all fields');
+      }
+      
+      try {
+        await api('/api/adspend', { 
+          method: 'POST', 
+          body: JSON.stringify(payload) 
+        });
+        await renderCountryStockSpend();
+        await renderCompactKpis();
+        alert('Ad spend saved successfully!');
+        Q('#adAmount').value = '';
+      } catch (e) { 
+        alert('Error: ' + e.message); 
+      }
     };
-    
-    if (!payload.productId || !payload.country || !payload.platform) {
-      return alert('Please fill all fields');
-    }
-    
-    try {
-      await api('/api/adspend', { 
-        method: 'POST', 
-        body: JSON.stringify(payload) 
-      });
-      await renderCountryStockSpend();
-      await renderCompactKpis();
-      alert('Ad spend saved successfully!');
-      Q('#adAmount').value = '';
-    } catch (e) { 
-      alert('Error: ' + e.message); 
-    }
-  };
+    eventListeners.set('adSave', true);
+  }
 }
 
 // Weekly delivered tracking
@@ -731,63 +788,79 @@ function renderWeeklyDelivered() {
     Q('#kpiDelivered') && (Q('#kpiDelivered').textContent = fmt(grand));
   }
 
-  Q('#weeklyPrev')?.addEventListener('click', () => { 
-    const d = new Date(anchor); 
-    d.setDate(d.getDate() - 7); 
-    anchor = d.toISOString().slice(0, 10); 
-    updateGrid(); 
-  });
-  
-  Q('#weeklyNext')?.addEventListener('click', () => { 
-    const d = new Date(anchor); 
-    d.setDate(d.getDate() + 7); 
-    anchor = d.toISOString().slice(0, 10); 
-    updateGrid(); 
-  });
-  
-  Q('#weeklyReset')?.addEventListener('click', () => { 
-    QA('.wd-cell').forEach(el => el.value = ''); 
-    computeWeeklyTotals(); 
-  });
-  
-  Q('#weeklyTable')?.addEventListener('input', (e) => { 
-    if (e.target.classList.contains('wd-cell')) computeWeeklyTotals(); 
-  });
-  
-let isSaving = false;
-Q('#weeklySave')?.addEventListener('click', async () => {
-  if (isSaving) return;
-  isSaving = true;
-  
-  const payload = [];
-  QA('.wd-cell').forEach(inp => {
-    const val = +inp.value || 0;
-    if (val > 0) payload.push({ 
-      date: inp.dataset.date, 
-      country: inp.dataset.country, 
-      delivered: val 
+  // Add event listeners only once
+  if (!eventListeners.has('weeklyPrev')) {
+    Q('#weeklyPrev')?.addEventListener('click', () => { 
+      const d = new Date(anchor); 
+      d.setDate(d.getDate() - 7); 
+      anchor = d.toISOString().slice(0, 10); 
+      updateGrid(); 
     });
-  });
-  
-  try {
-    for (const row of payload) {
-      await api('/api/deliveries', { 
-        method: 'POST', 
-        body: JSON.stringify(row) 
-      });
-    }
-    alert('Weekly deliveries saved successfully!');
-  } catch (e) { 
-    alert('Save failed: ' + e.message); 
-  } finally {
-    isSaving = false;
+    eventListeners.set('weeklyPrev', true);
   }
-});
+  
+  if (!eventListeners.has('weeklyNext')) {
+    Q('#weeklyNext')?.addEventListener('click', () => { 
+      const d = new Date(anchor); 
+      d.setDate(d.getDate() + 7); 
+      anchor = d.toISOString().slice(0, 10); 
+      updateGrid(); 
+    });
+    eventListeners.set('weeklyNext', true);
+  }
+  
+  if (!eventListeners.has('weeklyReset')) {
+    Q('#weeklyReset')?.addEventListener('click', () => { 
+      QA('.wd-cell').forEach(el => el.value = ''); 
+      computeWeeklyTotals(); 
+    });
+    eventListeners.set('weeklyReset', true);
+  }
+  
+  if (!eventListeners.has('weeklyTable')) {
+    Q('#weeklyTable')?.addEventListener('input', (e) => { 
+      if (e.target.classList.contains('wd-cell')) computeWeeklyTotals(); 
+    });
+    eventListeners.set('weeklyTable', true);
+  }
+  
+  if (!eventListeners.has('weeklySave')) {
+    let isSaving = false;
+    Q('#weeklySave')?.addEventListener('click', async () => {
+      if (isSaving) return;
+      isSaving = true;
+      
+      const payload = [];
+      QA('.wd-cell').forEach(inp => {
+        const val = +inp.value || 0;
+        if (val > 0) payload.push({ 
+          date: inp.dataset.date, 
+          country: inp.dataset.country, 
+          delivered: val 
+        });
+      });
+      
+      try {
+        for (const row of payload) {
+          await api('/api/deliveries', { 
+            method: 'POST', 
+            body: JSON.stringify(row) 
+          });
+        }
+        alert('Weekly deliveries saved successfully!');
+      } catch (e) { 
+        alert('Save failed: ' + e.message); 
+      } finally {
+        isSaving = false;
+      }
+    });
+    eventListeners.set('weeklySave', true);
+  }
 
   updateGrid();
 }
 
-// Brainstorming functionality
+// Brainstorming functionality - FIXED: Prevent duplicate event listeners
 function initBrainstorming() {
   const container = Q('#brainstormingSection');
   if (!container) return;
@@ -832,7 +905,14 @@ function initBrainstorming() {
       </div>
     `;
 
-    Q('#brainAdd')?.addEventListener('click', addBrainstormingIdea);
+    // Add event listeners only once
+    if (!eventListeners.has('brainAdd')) {
+      Q('#brainAdd')?.addEventListener('click', addBrainstormingIdea);
+      eventListeners.set('brainAdd', true);
+    }
+    
+    // Use event delegation for dynamic elements
+    container.removeEventListener('click', handleBrainstormingActions);
     container.addEventListener('click', handleBrainstormingActions);
   }
 
@@ -856,32 +936,32 @@ function initBrainstorming() {
     }).catch(alert);
   }
 
- let isProcessingBrainstorming = false;
-function handleBrainstormingActions(e) {
-  if (isProcessingBrainstorming) return;
-  
-  if (e.target.classList.contains('brain-del')) {
-    if (!confirm('Delete this idea?')) return;
+let isProcessingBrainstorming = false;
+  function handleBrainstormingActions(e) {
+    if (isProcessingBrainstorming) return;
     
-    const ideaId = e.target.dataset.id;
-    isProcessingBrainstorming = true;
-    e.target.disabled = true;
-    
-    api(`/api/brainstorming/${ideaId}`, { method: 'DELETE' })
-      .then(() => api('/api/brainstorming'))
-      .then(data => {
-        state.brainstorming = data.ideas || [];
-        renderBrainstorming();
-      })
-      .catch(alert)
-      .finally(() => {
-        isProcessingBrainstorming = false;
-      });
+    if (e.target.classList.contains('brain-del')) {
+      if (!confirm('Delete this idea?')) return;
+      
+      const ideaId = e.target.dataset.id;
+      isProcessingBrainstorming = true;
+      e.target.disabled = true;
+      
+      api(`/api/brainstorming/${ideaId}`, { method: 'DELETE' })
+        .then(() => api('/api/brainstorming'))
+        .then(data => {
+          state.brainstorming = data.ideas || [];
+          renderBrainstorming();
+        })
+        .catch(alert)
+        .finally(() => {
+          isProcessingBrainstorming = false;
+        });
+    }
   }
 }
-}
 
-// Todo lists
+// Todo lists - FIXED: Prevent duplicate event listeners
 function initTodos() {
   const listEl = Q('#todoList'); 
   const addBtn = Q('#todoAdd');
@@ -897,55 +977,61 @@ function initTodos() {
     }).catch(console.error);
   }
   
-  addBtn?.addEventListener('click', () => {
-    const v = Q('#todoText')?.value.trim(); 
-    if (!v) return;
-    
-    addBtn.disabled = true;
-    
-    api('/api/todos', {
-      method: 'POST',
-      body: JSON.stringify({ text: v, done: false })
-    }).then(() => {
-      Q('#todoText').value = '';
-      renderQuick();
-    }).catch(alert).finally(() => {
-      addBtn.disabled = false;
+  if (!eventListeners.has('todoAdd')) {
+    addBtn?.addEventListener('click', () => {
+      const v = Q('#todoText')?.value.trim(); 
+      if (!v) return;
+      
+      addBtn.disabled = true;
+      
+      api('/api/todos', {
+        method: 'POST',
+        body: JSON.stringify({ text: v, done: false })
+      }).then(() => {
+        Q('#todoText').value = '';
+        renderQuick();
+      }).catch(alert).finally(() => {
+        addBtn.disabled = false;
+      });
     });
-  });
-  
- let isProcessing = false;
-listEl?.addEventListener('click', (e) => {
-  if (isProcessing) return;
-  
-  if (e.target.classList.contains('todo-done')) {
-    isProcessing = true;
-    e.target.disabled = true;
-    api(`/api/todos/${e.target.dataset.id}/toggle`, { method: 'POST' })
-      .then(renderQuick)
-      .catch(alert)
-      .finally(() => {
-        isProcessing = false;
-      });
+    eventListeners.set('todoAdd', true);
   }
-  if (e.target.classList.contains('todo-delete')) {
-    if (!confirm('Delete this task?')) return;
-    
-    isProcessing = true;
-    e.target.disabled = true;
-    api(`/api/todos/${e.target.dataset.id}`, { method: 'DELETE' })
-      .then(renderQuick)
-      .catch(alert)
-      .finally(() => {
-        isProcessing = false;
-      });
+  
+  let isProcessing = false;
+  if (!eventListeners.has('todoList')) {
+    listEl?.addEventListener('click', (e) => {
+      if (isProcessing) return;
+      
+      if (e.target.classList.contains('todo-done')) {
+        isProcessing = true;
+        e.target.disabled = true;
+        api(`/api/todos/${e.target.dataset.id}/toggle`, { method: 'POST' })
+          .then(renderQuick)
+          .catch(alert)
+          .finally(() => {
+            isProcessing = false;
+          });
+      }
+      if (e.target.classList.contains('todo-delete')) {
+        if (!confirm('Delete this task?')) return;
+        
+        isProcessing = true;
+        e.target.disabled = true;
+        api(`/api/todos/${e.target.dataset.id}`, { method: 'DELETE' })
+          .then(renderQuick)
+          .catch(alert)
+          .finally(() => {
+            isProcessing = false;
+          });
+      }
+    });
+    eventListeners.set('todoList', true);
   }
-});
   
   renderQuick();
 }
 
-// Weekly Todo lists
+// Weekly Todo lists - FIXED: Prevent duplicate event listeners
 function initWeeklyTodos() {
   const container = Q('#weeklyWrap');
   if (!container) return;
@@ -984,19 +1070,26 @@ function initWeeklyTodos() {
         `;
       }).join('');
       
-      // Add event listeners
+      // Add event listeners only once per render
+      container.removeEventListener('click', handleWeeklyTodoActions);
       container.addEventListener('click', handleWeeklyTodoActions);
+      
       QA('.weekly-todo-add').forEach(btn => {
+        btn.removeEventListener('click', addWeeklyTodo);
         btn.addEventListener('click', addWeeklyTodo);
       });
+      
       QA('.weekly-todo-input').forEach(input => {
-        input.addEventListener('keypress', (e) => {
-          if (e.key === 'Enter') {
-            addWeeklyTodo({ target: e.target.closest('.weekly-todo-add') });
-          }
-        });
+        input.removeEventListener('keypress', handleWeeklyTodoEnter);
+        input.addEventListener('keypress', handleWeeklyTodoEnter);
       });
     }).catch(console.error);
+  }
+
+  function handleWeeklyTodoEnter(e) {
+    if (e.key === 'Enter') {
+      addWeeklyTodo({ target: e.target.closest('.weekly-todo-add') });
+    }
   }
 
   function addWeeklyTodo(e) {
@@ -1054,7 +1147,7 @@ function initWeeklyTodos() {
   renderWeeklyTodos();
 }
 
-// Tested products
+// Tested products - FIXED: Prevent duplicate event listeners
 function initTestedProducts() {
   const container = Q('#testedProductsSection');
   if (!container) return;
@@ -1088,7 +1181,12 @@ function initTestedProducts() {
       </div>
     `;
 
-    Q('#testAdd')?.addEventListener('click', addTestedProduct);
+    if (!eventListeners.has('testAdd')) {
+      Q('#testAdd')?.addEventListener('click', addTestedProduct);
+      eventListeners.set('testAdd', true);
+    }
+    
+    container.removeEventListener('click', handleTestedProductActions);
     container.addEventListener('click', handleTestedProductActions);
   }
 
@@ -1182,58 +1280,64 @@ function renderProductsPage() {
       }
     }
 
-   Q('#pAdd')?.addEventListener('click', async () => {
-      if (isAddingProduct) return; // Prevent multiple clicks
-      
-      const p = {
-        name: Q('#pName')?.value.trim(),
-        sku: Q('#pSku')?.value.trim()
-      };
-      if (!p.name) return alert('Name required');
-      
-      isAddingProduct = true;
-      Q('#pAdd').disabled = true;
-      Q('#pAdd').textContent = 'Adding...';
-      
-      try {
-        await api('/api/products', { method: 'POST', body: JSON.stringify(p) });
+    // Add product button - FIXED: Prevent multiple listeners
+    if (!eventListeners.has('pAdd')) {
+      Q('#pAdd')?.addEventListener('click', async () => {
+        const p = {
+          name: Q('#pName')?.value.trim(),
+          sku: Q('#pSku')?.value.trim()
+        };
+        if (!p.name) return alert('Name required');
         
-        await preload();
+        const addBtn = Q('#pAdd');
+        addBtn.disabled = true;
+        addBtn.textContent = 'Adding...';
         
-        Q('#pName').value = '';
-        Q('#pSku').value = '';
-        
-        renderProductsTable();
-        renderCompactCountryStats();
-        renderAdvertisingOverview();
-        
-        fillCommonSelects();
-        
-        alert('Product added successfully!');
-      } catch (error) {
-        alert('Error adding product: ' + error.message);
-      } finally {
-        isAddingProduct = false;
-        Q('#pAdd').disabled = false;
-        Q('#pAdd').textContent = '🚀 Add Product';
-      }
-    });
-    Q('#spSave')?.addEventListener('click', async () => {
-      const productId = Q('#spProduct')?.value;
-      const country = Q('#spCountry')?.value;
-      const price = +Q('#spPrice')?.value || 0;
-
-      if (!productId || !country) return alert('Select product and country');
-      if (price <= 0) return alert('Enter valid selling price');
-
-      await api(`/api/products/${productId}/prices`, {
-        method: 'POST',
-        body: JSON.stringify({ country, price })
+        try {
+          await api('/api/products', { method: 'POST', body: JSON.stringify(p) });
+          
+          await preload();
+          
+          Q('#pName').value = '';
+          Q('#pSku').value = '';
+          
+          renderProductsTable();
+          renderCompactCountryStats();
+          renderAdvertisingOverview();
+          
+          fillCommonSelects();
+          
+          alert('Product added successfully!');
+        } catch (error) {
+          alert('Error adding product: ' + error.message);
+        } finally {
+          addBtn.disabled = false;
+          addBtn.textContent = '🚀 Add Product';
+        }
       });
+      eventListeners.set('pAdd', true);
+    }
 
-      Q('#spPrice').value = '';
-      alert('Selling price saved successfully!');
-    });
+    // Selling price button
+    if (!eventListeners.has('spSave')) {
+      Q('#spSave')?.addEventListener('click', async () => {
+        const productId = Q('#spProduct')?.value;
+        const country = Q('#spCountry')?.value;
+        const price = +Q('#spPrice')?.value || 0;
+
+        if (!productId || !country) return alert('Select product and country');
+        if (price <= 0) return alert('Enter valid selling price');
+
+        await api(`/api/products/${productId}/prices`, {
+          method: 'POST',
+          body: JSON.stringify({ country, price })
+        });
+
+        Q('#spPrice').value = '';
+        alert('Selling price saved successfully!');
+      });
+      eventListeners.set('spSave', true);
+    }
 
     renderProductInfoSection();
   } catch (error) {
@@ -1270,42 +1374,57 @@ function initProductSearch() {
       `;
       searchCard.appendChild(filterRow);
       
-      Q('#applyFilters').addEventListener('click', () => {
-        state.productsSortBy = Q('#productsSortBy').value;
-        state.currentProductsPage = 1;
-        renderProductsTable();
-      });
+      if (!eventListeners.has('applyFilters')) {
+        Q('#applyFilters').addEventListener('click', () => {
+          state.productsSortBy = Q('#productsSortBy').value;
+          state.currentProductsPage = 1;
+          renderProductsTable();
+        });
+        eventListeners.set('applyFilters', true);
+      }
       
-      Q('#productsCountryFilter').addEventListener('change', () => {
-        state.currentProductsPage = 1;
-        renderProductsTable();
-      });
+      if (!eventListeners.has('productsCountryFilter')) {
+        Q('#productsCountryFilter').addEventListener('change', () => {
+          state.currentProductsPage = 1;
+          renderProductsTable();
+        });
+        eventListeners.set('productsCountryFilter', true);
+      }
     }
 
     let searchTimeout;
-    searchInput.addEventListener('input', (e) => {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
-        state.productsSearchTerm = e.target.value.toLowerCase().trim();
+    if (!eventListeners.has('productSearch')) {
+      searchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          state.productsSearchTerm = e.target.value.toLowerCase().trim();
+          state.currentProductsPage = 1;
+          renderProductsTable();
+        }, 300);
+      });
+      eventListeners.set('productSearch', true);
+    }
+
+    if (!eventListeners.has('clearSearch')) {
+      clearBtn?.addEventListener('click', () => {
+        searchInput.value = '';
+        state.productsSearchTerm = '';
         state.currentProductsPage = 1;
         renderProductsTable();
-      }, 300);
-    });
+      });
+      eventListeners.set('clearSearch', true);
+    }
 
-    clearBtn?.addEventListener('click', () => {
-      searchInput.value = '';
-      state.productsSearchTerm = '';
-      state.currentProductsPage = 1;
-      renderProductsTable();
-    });
-
-    searchInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        state.productsSearchTerm = e.target.value.toLowerCase().trim();
-        state.currentProductsPage = 1;
-        renderProductsTable();
-      }
-    });
+    if (!eventListeners.has('productSearchEnter')) {
+      searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          state.productsSearchTerm = e.target.value.toLowerCase().trim();
+          state.currentProductsPage = 1;
+          renderProductsTable();
+        }
+      });
+      eventListeners.set('productSearchEnter', true);
+    }
   } catch (error) {
     console.error('Error in initProductSearch:', error);
   }
@@ -1333,8 +1452,13 @@ function sortProducts(products, sortBy, countryFilter = 'all') {
     );
   }
   
-  // Apply sorting
+  // FIXED: Sort active products first, then by the selected criteria
   filteredProducts.sort((a, b) => {
+    // First, sort by status (active first)
+    if (a.status === 'active' && b.status !== 'active') return -1;
+    if (a.status !== 'active' && b.status === 'active') return 1;
+    
+    // Then sort by the selected criteria
     let aValue, bValue;
     
     switch(sortBy) {
@@ -1502,69 +1626,72 @@ function renderProductsTable() {
     // Render pagination
     renderProductsPagination(sortedProducts.length, productsPerPage);
 
-    // Add event listeners for product actions with confirmation
-    let isProcessingProduct = false;
-    tb.onclick = async (e) => {
-      if (isProcessingProduct) return;
-      
-      const id = e.target.dataset?.id; 
-      if (!id) return;
-      
-      if (e.target.classList.contains('act-toggle')) {
-        const p = state.products.find(x => x.id === id); 
-        if (!p) return;
-        
-        const newStatus = p.status === 'active' ? 'paused' : 'active';
-        const action = p.status === 'active' ? 'pause' : 'activate';
-        
-        if (p.status === 'active') {
-          if (!confirm(`Are you sure you want to pause "${p.name}"? The stock will be moved to inactive stock.`)) {
-            return;
-          }
-        } else {
-          if (!confirm(`Are you sure you want to activate "${p.name}"?`)) {
-            return;
-          }
-        }
-        
-        isProcessingProduct = true;
-        e.target.disabled = true;
-        
-        await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: newStatus }) });
-        await preload(); 
-        renderProductsTable(); 
-        renderCompactKpis();
-        renderCountryStockSpend();
-        
-        isProcessingProduct = false;
-      }
-      
-      if (e.target.classList.contains('act-del')) {
-        const p = state.products.find(x => x.id === id);
-        if (!p) return;
-        
-        if (!confirm(`Are you sure you want to delete "${p.name}" and ALL its data? This action cannot be undone.`)) {
-          return;
-        }
-        
-        isProcessingProduct = true;
-        e.target.disabled = true;
-        
-        await api(`/api/products/${id}`, { method: 'DELETE' });
-        await preload(); 
-        renderProductsTable(); 
-        renderCompactKpis();
-        renderCountryStockSpend();
-        
-        isProcessingProduct = false;
-      }
-    };
+    // Add event listeners for product actions with confirmation - FIXED: Use event delegation
+    tb.removeEventListener('click', handleProductActions);
+    tb.addEventListener('click', handleProductActions);
   } catch (error) {
     console.error('Error in renderProductsTable:', error);
     const tb = Q('#productsTable tbody');
     if (tb) {
       tb.innerHTML = '<tr><td colspan="20" class="muted">Error loading products</td></tr>';
     }
+  }
+}
+
+let isProcessingProduct = false;
+async function handleProductActions(e) {
+  if (isProcessingProduct) return;
+  
+  const id = e.target.dataset?.id; 
+  if (!id) return;
+  
+  if (e.target.classList.contains('act-toggle')) {
+    const p = state.products.find(x => x.id === id); 
+    if (!p) return;
+    
+    const newStatus = p.status === 'active' ? 'paused' : 'active';
+    const action = p.status === 'active' ? 'pause' : 'activate';
+    
+    if (p.status === 'active') {
+      if (!confirm(`Are you sure you want to pause "${p.name}"? The stock will be moved to inactive stock.`)) {
+        return;
+      }
+    } else {
+      if (!confirm(`Are you sure you want to activate "${p.name}"?`)) {
+        return;
+      }
+    }
+    
+    isProcessingProduct = true;
+    e.target.disabled = true;
+    
+    await api(`/api/products/${id}/status`, { method: 'POST', body: JSON.stringify({ status: newStatus }) });
+    await preload(); 
+    renderProductsTable(); 
+    renderCompactKpis();
+    renderCountryStockSpend();
+    
+    isProcessingProduct = false;
+  }
+  
+  if (e.target.classList.contains('act-del')) {
+    const p = state.products.find(x => x.id === id);
+    if (!p) return;
+    
+    if (!confirm(`Are you sure you want to delete "${p.name}" and ALL its data? This action cannot be undone.`)) {
+      return;
+    }
+    
+    isProcessingProduct = true;
+    e.target.disabled = true;
+    
+    await api(`/api/products/${id}`, { method: 'DELETE' });
+    await preload(); 
+    renderProductsTable(); 
+    renderCompactKpis();
+    renderCountryStockSpend();
+    
+    isProcessingProduct = false;
   }
 }
 
@@ -1596,20 +1723,23 @@ function renderProductsPagination(totalItems, itemsPerPage) {
 
     container.innerHTML = html;
 
-    container.addEventListener('click', (e) => {
-      if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
-        const page = parseInt(e.target.dataset.page);
-        state.currentProductsPage = page;
-        renderProductsTable();
-        
-        const table = Q('#productsTable');
-        if (table) {
-          table.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }
-    });
+    container.removeEventListener('click', handleProductsPagination);
+    container.addEventListener('click', handleProductsPagination);
   } catch (error) {
     console.error('Error in renderProductsPagination:', error);
+  }
+}
+
+function handleProductsPagination(e) {
+  if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
+    const page = parseInt(e.target.dataset.page);
+    state.currentProductsPage = page;
+    renderProductsTable();
+    
+    const table = Q('#productsTable');
+    if (table) {
+      table.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 }
 
@@ -1752,6 +1882,7 @@ async function renderAdvertisingOverview() {
         container.innerHTML = html || '<div class="card"><div class="muted">No advertising data yet</div></div>';
         
         // Add click handlers for platform badges
+        container.removeEventListener('click', handlePlatformClick);
         container.addEventListener('click', handlePlatformClick);
         
         resolve();
@@ -1874,17 +2005,20 @@ function renderProductInfoSection() {
   const btn = Q('#productInfoRun');
   if (!btn) return;
 
-  btn.onclick = async () => {
-    const productId = Q('#productInfoSelect')?.value;
-    if (!productId) return alert('Please select a product');
+  if (!eventListeners.has('productInfoRun')) {
+    btn.onclick = async () => {
+      const productId = Q('#productInfoSelect')?.value;
+      if (!productId) return alert('Please select a product');
 
-    try {
-      const productInfo = await api(`/api/product-info/${productId}`);
-      renderProductInfoResults(productInfo);
-    } catch (e) {
-      alert('Error loading product info: ' + e.message);
-    }
-  };
+      try {
+        const productInfo = await api(`/api/product-info/${productId}`);
+        renderProductInfoResults(productInfo);
+      } catch (e) {
+        alert('Error loading product info: ' + e.message);
+      }
+    };
+    eventListeners.set('productInfoRun', true);
+  }
 }
 
 // ======== PERFORMANCE PAGE ========
@@ -1908,57 +2042,63 @@ function bindProductOrders() {
   const btn = Q('#poSave');
   if (!btn) return;
 
-  btn.onclick = async () => {
-    const payload = {
-      productId: Q('#poProduct')?.value,
-      country: Q('#poCountry')?.value,
-      startDate: Q('#poStartDate')?.value,
-      endDate: Q('#poEndDate')?.value,
-      orders: +Q('#poOrders')?.value || 0
-    };
+  if (!eventListeners.has('poSave')) {
+    btn.onclick = async () => {
+      const payload = {
+        productId: Q('#poProduct')?.value,
+        country: Q('#poCountry')?.value,
+        startDate: Q('#poStartDate')?.value,
+        endDate: Q('#poEndDate')?.value,
+        orders: +Q('#poOrders')?.value || 0
+      };
 
-    if (!payload.productId || !payload.country || !payload.startDate || !payload.endDate) {
-      return alert('Please select product, country, and date range');
-    }
-
-    try {
-      await api('/api/product-orders', { method: 'POST', body: JSON.stringify(payload) });
-      alert('Orders data saved successfully!');
-      Q('#poOrders').value = '';
-    } catch (e) {
-      if (e.message.includes('Duplicate order period')) {
-        const confirmAdd = confirm('You already entered orders in that period for that product. Are you sure you want to enter again?');
-        if (confirmAdd) {
-          await api('/api/product-orders/force', { method: 'POST', body: JSON.stringify(payload) });
-          alert('Orders data saved successfully!');
-          Q('#poOrders').value = '';
-        }
-      } else {
-        alert('Error saving orders: ' + e.message);
+      if (!payload.productId || !payload.country || !payload.startDate || !payload.endDate) {
+        return alert('Please select product, country, and date range');
       }
-    }
-  };
+
+      try {
+        await api('/api/product-orders', { method: 'POST', body: JSON.stringify(payload) });
+        alert('Orders data saved successfully!');
+        Q('#poOrders').value = '';
+      } catch (e) {
+        if (e.message.includes('Duplicate order period')) {
+          const confirmAdd = confirm('You already entered orders in that period for that product. Are you sure you want to enter again?');
+          if (confirmAdd) {
+            await api('/api/product-orders/force', { method: 'POST', body: JSON.stringify(payload) });
+            alert('Orders data saved successfully!');
+            Q('#poOrders').value = '';
+          }
+        } else {
+          alert('Error saving orders: ' + e.message);
+        }
+      }
+    };
+    eventListeners.set('poSave', true);
+  }
 }
 
 function bindProductCostsAnalysis() {
   const btn = Q('#pcaRun');
   if (!btn) return;
 
-  btn.onclick = async () => {
-    const productId = Q('#pcaProduct')?.value || '';
-    const dateRange = getDateRange(Q('#pcaRun').closest('.row'));
+  if (!eventListeners.has('pcaRun')) {
+    btn.onclick = async () => {
+      const productId = Q('#pcaProduct')?.value || '';
+      const dateRange = getDateRange(Q('#pcaRun').closest('.row'));
 
-    try {
-      const analysis = await api('/api/product-costs-analysis?' + new URLSearchParams({
-        productId,
-        ...dateRange
-      }));
+      try {
+        const analysis = await api('/api/product-costs-analysis?' + new URLSearchParams({
+          productId,
+          ...dateRange
+        }));
 
-      renderProductCostsAnalysis(analysis);
-    } catch (e) {
-      alert('Error generating analysis: ' + e.message);
-    }
-  };
+        renderProductCostsAnalysis(analysis);
+      } catch (e) {
+        alert('Error generating analysis: ' + e.message);
+      }
+    };
+    eventListeners.set('pcaRun', true);
+  }
 }
 
 function renderProductCostsAnalysis(analysis) {
@@ -2108,25 +2248,28 @@ function bindRemittanceAnalytics() {
   const btn = Q('#remAnalyticsRun');
   if (!btn) return;
 
-  btn.onclick = async () => {
-    const dateRange = getDateRange(btn.closest('.row'));
-    const country = Q('#remAnalyticsCountry')?.value || '';
-    const productId = Q('#remAnalyticsProduct')?.value || '';
+  if (!eventListeners.has('remAnalyticsRun')) {
+    btn.onclick = async () => {
+      const dateRange = getDateRange(btn.closest('.row'));
+      const country = Q('#remAnalyticsCountry')?.value || '';
+      const productId = Q('#remAnalyticsProduct')?.value || '';
 
-    try {
-      const analytics = await api('/api/analytics/remittance?' + new URLSearchParams({
-        ...dateRange,
-        country,
-        productId,
-        sortBy: state.remittanceSortBy,
-        sortOrder: state.remittanceSortOrder
-      }));
+      try {
+        const analytics = await api('/api/analytics/remittance?' + new URLSearchParams({
+          ...dateRange,
+          country,
+          productId,
+          sortBy: state.remittanceSortBy,
+          sortOrder: state.remittanceSortOrder
+        }));
 
-      renderRemittanceAnalytics(analytics.analytics || []);
-    } catch (e) {
-      alert('Error loading remittance analytics: ' + e.message);
-    }
-  };
+        renderRemittanceAnalytics(analytics.analytics || []);
+      } catch (e) {
+        alert('Error loading remittance analytics: ' + e.message);
+      }
+    };
+    eventListeners.set('remAnalyticsRun', true);
+  }
 }
 
 function renderRemittanceAnalytics(analytics) {
@@ -2230,28 +2373,31 @@ function addSortingToAnalytics() {
   const headers = QA('.analytics-table th.sortable');
   headers.forEach(header => {
     header.style.cursor = 'pointer';
-    header.addEventListener('click', function() {
-      const sortBy = this.getAttribute('data-sort') || this.textContent.trim().toLowerCase().replace(/\s+/g, '');
-      
-      // Toggle sort order only if clicking the same column
-      if (state.remittanceSortBy === sortBy) {
-        state.remittanceSortOrder = state.remittanceSortOrder === 'desc' ? 'asc' : 'desc';
-      } else {
-        state.remittanceSortBy = sortBy;
-        state.remittanceSortOrder = 'desc'; // Default to desc for new column
-      }
-      
-      // Update sort indicators
-      headers.forEach(h => {
-        h.classList.remove('sort-asc', 'sort-desc');
-        const hSort = h.getAttribute('data-sort') || h.textContent.trim().toLowerCase().replace(/\s+/g, '');
-        if (hSort === sortBy) {
-          h.classList.add(state.remittanceSortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
+    if (!eventListeners.has(`analytics-${header.textContent}`)) {
+      header.addEventListener('click', function() {
+        const sortBy = this.getAttribute('data-sort') || this.textContent.trim().toLowerCase().replace(/\s+/g, '');
+        
+        // Toggle sort order only if clicking the same column
+        if (state.remittanceSortBy === sortBy) {
+          state.remittanceSortOrder = state.remittanceSortOrder === 'desc' ? 'asc' : 'desc';
+        } else {
+          state.remittanceSortBy = sortBy;
+          state.remittanceSortOrder = 'desc'; // Default to desc for new column
         }
+        
+        // Update sort indicators
+        headers.forEach(h => {
+          h.classList.remove('sort-asc', 'sort-desc');
+          const hSort = h.getAttribute('data-sort') || h.textContent.trim().toLowerCase().replace(/\s+/g, '');
+          if (hSort === sortBy) {
+            h.classList.add(state.remittanceSortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
+          }
+        });
+        
+        Q('#remAnalyticsRun').click();
       });
-      
-      Q('#remAnalyticsRun').click();
-    });
+      eventListeners.set(`analytics-${header.textContent}`, true);
+    }
   });
   
   // Add data-sort attributes to headers for consistency
@@ -2292,23 +2438,26 @@ function bindProfitByCountry() {
   const btn = Q('#pcRun');
   if (!btn) return;
 
-  btn.onclick = async () => {
-    const dateRange = getDateRange(btn.closest('.row'));
-    const country = Q('#pcCountry')?.value || '';
+  if (!eventListeners.has('pcRun')) {
+    btn.onclick = async () => {
+      const dateRange = getDateRange(btn.closest('.row'));
+      const country = Q('#pcCountry')?.value || '';
 
-    try {
-      const analytics = await api('/api/analytics/profit-by-country?' + new URLSearchParams({
-        ...dateRange,
-        country,
-        sortBy: state.profitCountrySortBy,
-        sortOrder: state.profitCountrySortOrder
-      }));
+      try {
+        const analytics = await api('/api/analytics/profit-by-country?' + new URLSearchParams({
+          ...dateRange,
+          country,
+          sortBy: state.profitCountrySortBy,
+          sortOrder: state.profitCountrySortOrder
+        }));
 
-      renderProfitByCountry(analytics.analytics || []);
-    } catch (e) {
-      alert('Error loading profit by country: ' + e.message);
-    }
-  };
+        renderProfitByCountry(analytics.analytics || []);
+      } catch (e) {
+        alert('Error loading profit by country: ' + e.message);
+      }
+    };
+    eventListeners.set('pcRun', true);
+  }
 }
 
 function renderProfitByCountry(analytics) {
@@ -2411,22 +2560,25 @@ function addSortingToProfitCountry() {
   const headers = QA('.profit-country-table th.sortable');
   headers.forEach(header => {
     header.style.cursor = 'pointer';
-    header.addEventListener('click', function() {
-      const sortBy = this.textContent.trim().toLowerCase().replace(/\s+/g, '');
-      state.profitCountrySortOrder = state.profitCountrySortBy === sortBy ? 
-        (state.profitCountrySortOrder === 'desc' ? 'asc' : 'desc') : 'desc';
-      state.profitCountrySortBy = sortBy;
-      
-      // Update sort indicators
-      headers.forEach(h => {
-        h.classList.remove('sort-asc', 'sort-desc');
-        if (h.textContent.trim().toLowerCase().replace(/\s+/g, '') === sortBy) {
-          h.classList.add(state.profitCountrySortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
-        }
+    if (!eventListeners.has(`profitCountry-${header.textContent}`)) {
+      header.addEventListener('click', function() {
+        const sortBy = this.textContent.trim().toLowerCase().replace(/\s+/g, '');
+        state.profitCountrySortOrder = state.profitCountrySortBy === sortBy ? 
+          (state.profitCountrySortOrder === 'desc' ? 'asc' : 'desc') : 'desc';
+        state.profitCountrySortBy = sortBy;
+        
+        // Update sort indicators
+        headers.forEach(h => {
+          h.classList.remove('sort-asc', 'sort-desc');
+          if (h.textContent.trim().toLowerCase().replace(/\s+/g, '') === sortBy) {
+            h.classList.add(state.profitCountrySortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
+          }
+        });
+        
+        Q('#pcRun').click();
       });
-      
-      Q('#pcRun').click();
-    });
+      eventListeners.set(`profitCountry-${header.textContent}`, true);
+    }
   });
 }
 
@@ -2434,84 +2586,90 @@ function bindRemittanceAdd() {
   const btn = Q('#remAddSave');
   if (!btn) return;
 
-  btn.onclick = async () => {
-    const payload = {
-      start: Q('#remAddStart')?.value,
-      end: Q('#remAddEnd')?.value,
-      country: Q('#remAddCountry')?.value,
-      productId: Q('#remAddProduct')?.value,
-      orders: +Q('#remAddOrders')?.value || 0,
-      pieces: +Q('#remAddPieces')?.value || 0,
-      revenue: +Q('#remAddRevenue')?.value || 0,
-      adSpend: +Q('#remAddAdSpend')?.value || 0,
-      boxleoFees: +Q('#remAddBoxleo')?.value || 0
-    };
+  if (!eventListeners.has('remAddSave')) {
+    btn.onclick = async () => {
+      const payload = {
+        start: Q('#remAddStart')?.value,
+        end: Q('#remAddEnd')?.value,
+        country: Q('#remAddCountry')?.value,
+        productId: Q('#remAddProduct')?.value,
+        orders: +Q('#remAddOrders')?.value || 0,
+        pieces: +Q('#remAddPieces')?.value || 0,
+        revenue: +Q('#remAddRevenue')?.value || 0,
+        adSpend: +Q('#remAddAdSpend')?.value || 0,
+        boxleoFees: +Q('#remAddBoxleo')?.value || 0
+      };
 
-    if (!payload.start || !payload.end || !payload.country || !payload.productId) {
-      return alert('Fill all required fields');
-    }
-
-    try {
-      await api('/api/remittances', { method: 'POST', body: JSON.stringify(payload) });
-      alert('Remittance entry saved successfully!');
-      
-      // Clear form
-      ['#remAddStart', '#remAddEnd', '#remAddOrders', '#remAddPieces', '#remAddRevenue', '#remAddAdSpend', '#remAddBoxleo'].forEach(sel => {
-        const el = Q(sel);
-        if (el) el.value = '';
-      });
-    } catch (e) {
-      if (e.message.includes('Duplicate remittance period')) {
-        const confirmAdd = confirm('You already entered a remittance for this product in this country during this period. Are you sure you want to enter again?');
-        if (confirmAdd) {
-          await api('/api/remittances/force', { method: 'POST', body: JSON.stringify(payload) });
-          alert('Remittance entry saved successfully!');
-          
-          // Clear form
-          ['#remAddStart', '#remAddEnd', '#remAddOrders', '#remAddPieces', '#remAddRevenue', '#remAddAdSpend', '#remAddBoxleo'].forEach(sel => {
-            const el = Q(sel);
-            if (el) el.value = '';
-          });
-        }
-      } else {
-        alert('Error saving remittance: ' + e.message);
+      if (!payload.start || !payload.end || !payload.country || !payload.productId) {
+        return alert('Fill all required fields');
       }
-    }
-  };
+
+      try {
+        await api('/api/remittances', { method: 'POST', body: JSON.stringify(payload) });
+        alert('Remittance entry saved successfully!');
+        
+        // Clear form
+        ['#remAddStart', '#remAddEnd', '#remAddOrders', '#remAddPieces', '#remAddRevenue', '#remAddAdSpend', '#remAddBoxleo'].forEach(sel => {
+          const el = Q(sel);
+          if (el) el.value = '';
+        });
+      } catch (e) {
+        if (e.message.includes('Duplicate remittance period')) {
+          const confirmAdd = confirm('You already entered a remittance for this product in this country during this period. Are you sure you want to enter again?');
+          if (confirmAdd) {
+            await api('/api/remittances/force', { method: 'POST', body: JSON.stringify(payload) });
+            alert('Remittance entry saved successfully!');
+            
+            // Clear form
+            ['#remAddStart', '#remAddEnd', '#remAddOrders', '#remAddPieces', '#remAddRevenue', '#remAddAdSpend', '#remAddBoxleo'].forEach(sel => {
+              const el = Q(sel);
+              if (el) el.value = '';
+            });
+          }
+        } else {
+          alert('Error saving remittance: ' + e.message);
+        }
+      }
+    };
+    eventListeners.set('remAddSave', true);
+  }
 }
 
 function bindRefundAdd() {
   const btn = Q('#refundSave');
   if (!btn) return;
 
-  btn.onclick = async () => {
-    const payload = {
-      date: Q('#refundDate')?.value,
-      country: Q('#refundCountry')?.value,
-      productId: Q('#refundProduct')?.value,
-      orders: +Q('#refundOrders')?.value || 0,
-      pieces: +Q('#refundPieces')?.value || 0,
-      amount: +Q('#refundAmount')?.value || 0,
-      reason: Q('#refundReason')?.value || ''
+  if (!eventListeners.has('refundSave')) {
+    btn.onclick = async () => {
+      const payload = {
+        date: Q('#refundDate')?.value,
+        country: Q('#refundCountry')?.value,
+        productId: Q('#refundProduct')?.value,
+        orders: +Q('#refundOrders')?.value || 0,
+        pieces: +Q('#refundPieces')?.value || 0,
+        amount: +Q('#refundAmount')?.value || 0,
+        reason: Q('#refundReason')?.value || ''
+      };
+
+      if (!payload.date || !payload.country || !payload.productId) {
+        return alert('Fill all required fields');
+      }
+
+      try {
+        await api('/api/refunds', { method: 'POST', body: JSON.stringify(payload) });
+        alert('Refund entry saved successfully!');
+        
+        // Clear form
+        ['#refundDate', '#refundOrders', '#refundPieces', '#refundAmount', '#refundReason'].forEach(sel => {
+          const el = Q(sel);
+          if (el) el.value = '';
+        });
+      } catch (e) {
+        alert('Error saving refund: ' + e.message);
+      }
     };
-
-    if (!payload.date || !payload.country || !payload.productId) {
-      return alert('Fill all required fields');
-    }
-
-    try {
-      await api('/api/refunds', { method: 'POST', body: JSON.stringify(payload) });
-      alert('Refund entry saved successfully!');
-      
-      // Clear form
-      ['#refundDate', '#refundOrders', '#refundPieces', '#refundAmount', '#refundReason'].forEach(sel => {
-        const el = Q(sel);
-        if (el) el.value = '';
-      });
-    } catch (e) {
-      alert('Error saving refund: ' + e.message);
-    }
-  };
+    eventListeners.set('refundSave', true);
+  }
 }
 
 // ======== STOCK MOVEMENT PAGE ========
@@ -2525,52 +2683,58 @@ function bindStockMovement() {
   if (!btn) return;
 
   // Show China cost field only when shipping from China
-  Q('#mvFrom')?.addEventListener('change', function() {
-    const chinaCostField = Q('#chinaCostField');
-    if (this.value === 'china') {
-      chinaCostField.style.display = 'block';
-    } else {
-      chinaCostField.style.display = 'none';
-    }
-  });
+  if (!eventListeners.has('mvFrom')) {
+    Q('#mvFrom')?.addEventListener('change', function() {
+      const chinaCostField = Q('#chinaCostField');
+      if (this.value === 'china') {
+        chinaCostField.style.display = 'block';
+      } else {
+        chinaCostField.style.display = 'none';
+      }
+    });
+    eventListeners.set('mvFrom', true);
+  }
 
-  btn.onclick = async () => {
-    const payload = {
-      productId: Q('#mvProduct')?.value,
-      fromCountry: Q('#mvFrom')?.value,
-      toCountry: Q('#mvTo')?.value,
-      qty: +Q('#mvQty')?.value || 0,
-      shipCost: +Q('#mvShip')?.value || 0,
-      note: Q('#mvNote')?.value || '',
-      departedAt: isoToday()
+  if (!eventListeners.has('mvAdd')) {
+    btn.onclick = async () => {
+      const payload = {
+        productId: Q('#mvProduct')?.value,
+        fromCountry: Q('#mvFrom')?.value,
+        toCountry: Q('#mvTo')?.value,
+        qty: +Q('#mvQty')?.value || 0,
+        shipCost: +Q('#mvShip')?.value || 0,
+        note: Q('#mvNote')?.value || '',
+        departedAt: isoToday()
+      };
+
+      if (payload.fromCountry === 'china') {
+        payload.chinaCost = +Q('#mvChinaCost')?.value || 0;
+      }
+
+      if (!payload.productId || !payload.fromCountry || !payload.toCountry || !payload.qty) {
+        return alert('Fill all required fields');
+      }
+
+      try {
+        await api('/api/shipments', { method: 'POST', body: JSON.stringify(payload) });
+        alert('Stock movement added successfully!');
+        
+        // Clear form
+        Q('#mvQty').value = '';
+        Q('#mvShip').value = '';
+        Q('#mvChinaCost').value = '';
+        Q('#mvNote').value = '';
+        
+        // Refresh tables
+        renderShipmentTables();
+        renderProductsTable();
+        renderCompactKpis();
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
     };
-
-    if (payload.fromCountry === 'china') {
-      payload.chinaCost = +Q('#mvChinaCost')?.value || 0;
-    }
-
-    if (!payload.productId || !payload.fromCountry || !payload.toCountry || !payload.qty) {
-      return alert('Fill all required fields');
-    }
-
-    try {
-      await api('/api/shipments', { method: 'POST', body: JSON.stringify(payload) });
-      alert('Stock movement added successfully!');
-      
-      // Clear form
-      Q('#mvQty').value = '';
-      Q('#mvShip').value = '';
-      Q('#mvChinaCost').value = '';
-      Q('#mvNote').value = '';
-      
-      // Refresh tables
-      renderShipmentTables();
-      renderProductsTable();
-      renderCompactKpis();
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  };
+    eventListeners.set('mvAdd', true);
+  }
 }
 
 async function renderShipmentTables() {
@@ -2633,51 +2797,92 @@ function renderShipmentTable(selector, shipments, showChinaCost) {
     `;
   }).join('');
 
-  // Add event listeners for shipment actions
-  tbody.onclick = async (e) => {
-    const id = e.target.dataset?.id;
-    if (!id) return;
+  // Add event listeners
+  tbody.removeEventListener('click', handleShipmentActions);
+  tbody.addEventListener('click', handleShipmentActions);
+}
 
-    if (e.target.classList.contains('act-arrive')) {
+let isProcessingShipment = false;
+async function handleShipmentActions(e) {
+  if (isProcessingShipment) return;
+  
+  const id = e.target.dataset?.id;
+  if (!id) return;
+
+  if (e.target.classList.contains('act-arrive')) {
+    // FIXED: Require final shipping cost before marking as arrived
+    const finalCost = prompt('Enter final shipping cost before marking as arrived:');
+    if (finalCost === null) return; // User cancelled
+    
+    if (!finalCost || isNaN(finalCost) || +finalCost < 0) {
+      return alert('Please enter a valid final shipping cost');
+    }
+    
+    if (!confirm('Are you sure you want to mark this shipment as arrived?')) {
+      return;
+    }
+    
+    isProcessingShipment = true;
+    e.target.disabled = true;
+    
+    try {
+      // First mark as paid with final cost, then mark as arrived
+      await api(`/api/shipments/${id}/mark-paid`, {
+        method: 'POST',
+        body: JSON.stringify({ finalShipCost: +finalCost })
+      });
+      
       await api(`/api/shipments/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ arrivedAt: isoToday() })
       });
+      
       renderShipmentTables();
-      renderProductsTable();
-      renderCompactKpis();
+      alert('Shipment marked as arrived and paid successfully!');
+    } catch (error) {
+      alert('Error: ' + error.message);
+    } finally {
+      isProcessingShipment = false;
     }
+  }
 
-    if (e.target.classList.contains('act-pay')) {
-      // Show popup to enter final shipping cost
-      const finalCost = prompt('Enter final shipping cost:');
-      if (finalCost && !isNaN(finalCost)) {
-        try {
-          await api(`/api/shipments/${id}/mark-paid`, {
-            method: 'POST',
-            body: JSON.stringify({ finalShipCost: +finalCost })
-          });
-          renderShipmentTables();
-          alert('Shipment marked as paid successfully!');
-        } catch (error) {
-          alert('Error marking shipment as paid: ' + error.message);
-        }
-      }
-    }
-
-    if (e.target.classList.contains('act-edit-ship')) {
-      editShipment(id);
-    }
-
-    if (e.target.classList.contains('act-del-ship')) {
-      if (confirm('Delete this shipment?')) {
-        await api(`/api/shipments/${id}`, { method: 'DELETE' });
+  if (e.target.classList.contains('act-pay')) {
+    // Show popup to enter final shipping cost
+    const finalCost = prompt('Enter final shipping cost:');
+    if (finalCost && !isNaN(finalCost)) {
+      isProcessingShipment = true;
+      e.target.disabled = true;
+      
+      try {
+        await api(`/api/shipments/${id}/mark-paid`, {
+          method: 'POST',
+          body: JSON.stringify({ finalShipCost: +finalCost })
+        });
         renderShipmentTables();
-        renderProductsTable();
-        renderCompactKpis();
+        alert('Shipment marked as paid successfully!');
+      } catch (error) {
+        alert('Error marking shipment as paid: ' + error.message);
+      } finally {
+        isProcessingShipment = false;
       }
     }
-  };
+  }
+
+  if (e.target.classList.contains('act-edit-ship')) {
+    editShipment(id);
+  }
+
+  if (e.target.classList.contains('act-del-ship')) {
+    if (confirm('Delete this shipment?')) {
+      isProcessingShipment = true;
+      e.target.disabled = true;
+      
+      await api(`/api/shipments/${id}`, { method: 'DELETE' });
+      renderShipmentTables();
+      
+      isProcessingShipment = false;
+    }
+  }
 }
 
 async function editShipment(shipmentId) {
@@ -2718,66 +2923,72 @@ function bindAdspendDaily() {
   const btn = Q('#adspendSave');
   if (!btn) return;
 
-  btn.onclick = async () => {
-    const payload = {
-      date: isoToday(),
-      productId: Q('#adspendProduct')?.value,
-      country: Q('#adspendCountry')?.value,
-      platform: Q('#adspendPlatform')?.value,
-      amount: +Q('#adspendAmount')?.value || 0
+  if (!eventListeners.has('adspendSave')) {
+    btn.onclick = async () => {
+      const payload = {
+        date: isoToday(),
+        productId: Q('#adspendProduct')?.value,
+        country: Q('#adspendCountry')?.value,
+        platform: Q('#adspendPlatform')?.value,
+        amount: +Q('#adspendAmount')?.value || 0
+      };
+
+      if (!payload.productId || !payload.country || !payload.platform) {
+        return alert('Fill all fields');
+      }
+
+      try {
+        await api('/api/adspend', { method: 'POST', body: JSON.stringify(payload) });
+        alert('Ad spend saved successfully!');
+        Q('#adspendAmount').value = '';
+        renderAdvertisingOverview();
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
     };
-
-    if (!payload.productId || !payload.country || !payload.platform) {
-      return alert('Fill all fields');
-    }
-
-    try {
-      await api('/api/adspend', { method: 'POST', body: JSON.stringify(payload) });
-      alert('Ad spend saved successfully!');
-      Q('#adspendAmount').value = '';
-      renderAdvertisingOverview();
-    } catch (e) {
-      alert('Error: ' + e.message);
-    }
-  };
+    eventListeners.set('adspendSave', true);
+  }
 }
 
 function bindAdspendAnalytics() {
   const btn = Q('#adspendRun');
   if (!btn) return;
 
-  btn.onclick = async () => {
-    const dateRange = getDateRange(btn.closest('.row'));
-    const country = Q('#adspendFilterCountry')?.value || '';
-    const productId = Q('#adspendFilterProduct')?.value || '';
-    const platform = Q('#adspendFilterPlatform')?.value || '';
+  if (!eventListeners.has('adspendRun')) {
+    btn.onclick = async () => {
+      const dateRange = getDateRange(btn.closest('.row'));
+      const country = Q('#adspendFilterCountry')?.value || '';
+      const productId = Q('#adspendFilterProduct')?.value || '';
+      const platform = Q('#adspendFilterPlatform')?.value || '';
 
-    try {
-      const adSpends = await api('/api/adspend');
-      let filteredSpends = adSpends.adSpends || [];
+      try {
+        const adSpends = await api('/api/adspend');
+        let filteredSpends = adSpends.adSpends || [];
 
-      // Apply filters
-      if (dateRange.start) {
-        filteredSpends = filteredSpends.filter(ad => ad.date >= dateRange.start);
-      }
-      if (dateRange.end) {
-        filteredSpends = filteredSpends.filter(ad => ad.date <= dateRange.end);
-      }
-      if (country) {
-        filteredSpends = filteredSpends.filter(ad => ad.country === country);
-      }
-      if (productId && productId !== 'all') {
-        filteredSpends = filteredSpends.filter(ad => ad.productId === productId);
-      }
-      if (platform) {
-        filteredSpends = filteredSpends.filter(ad => ad.platform === platform);
-      }
+        // Apply filters
+        if (dateRange.start) {
+          filteredSpends = filteredSpends.filter(ad => ad.date >= dateRange.start);
+        }
+        if (dateRange.end) {
+          filteredSpends = filteredSpends.filter(ad => ad.date <= dateRange.end);
+        }
+        if (country) {
+          filteredSpends = filteredSpends.filter(ad => ad.country === country);
+        }
+        if (productId && productId !== 'all') {
+          filteredSpends = filteredSpends.filter(ad => ad.productId === productId);
+        }
+        if (platform) {
+          filteredSpends = filteredSpends.filter(ad => ad.platform === platform);
+        }
 
-      renderAdspendResults(filteredSpends);
-    } catch (e) {
-      alert('Error loading ad spend data: ' + e.message);
-    }
-  };
+        renderAdspendResults(filteredSpends);
+      } catch (e) {
+        alert('Error loading ad spend data: ' + e.message);
+      }
+    };
+    eventListeners.set('adspendRun', true);
+  }
 }
 
 function renderAdspendResults(adSpends) {
@@ -2895,7 +3106,7 @@ function renderFinanceCategories() {
 
   // Add event listeners for category deletion
   const chipsContainer = Q('.chips.deletable');
-  if (chipsContainer) {
+  if (chipsContainer && !eventListeners.has('chipsContainer')) {
     chipsContainer.onclick = async (e) => {
       if (e.target.classList.contains('chip-x')) {
         const type = e.target.dataset.type;
@@ -2910,62 +3121,72 @@ function renderFinanceCategories() {
         }
       }
     };
+    eventListeners.set('chipsContainer', true);
   }
 
   // Add new category
-  Q('#fcAdd')?.addEventListener('click', async () => {
-    const type = Q('#fcType')?.value;
-    const name = Q('#fcName')?.value?.trim();
-    
-    if (!name) return alert('Enter category name');
-    
-    await api('/api/finance/categories', {
-      method: 'POST',
-      body: JSON.stringify({ type, name })
+  if (!eventListeners.has('fcAdd')) {
+    Q('#fcAdd')?.addEventListener('click', async () => {
+      const type = Q('#fcType')?.value;
+      const name = Q('#fcName')?.value?.trim();
+      
+      if (!name) return alert('Enter category name');
+      
+      await api('/api/finance/categories', {
+        method: 'POST',
+        body: JSON.stringify({ type, name })
+      });
+      
+      Q('#fcName').value = '';
+      await preload();
+      renderFinanceCategories();
+      fillCommonSelects();
     });
-    
-    Q('#fcName').value = '';
-    await preload();
-    renderFinanceCategories();
-    fillCommonSelects();
-  });
+    eventListeners.set('fcAdd', true);
+  }
 }
 
 function bindFinanceEntries() {
   const btn = Q('#feAdd');
   if (!btn) return;
 
-  btn.onclick = async () => {
-    const payload = {
-      date: Q('#feDate')?.value,
-      type: Q('#feCat')?.value ? (state.categories.debit.includes(Q('#feCat').value) ? 'debit' : 'credit') : '',
-      category: Q('#feCat')?.value,
-      amount: +Q('#feAmt')?.value || 0,
-      note: Q('#feNote')?.value || ''
+  if (!eventListeners.has('feAdd')) {
+    btn.onclick = async () => {
+      const payload = {
+        date: Q('#feDate')?.value,
+        type: Q('#feCat')?.value ? (state.categories.debit.includes(Q('#feCat').value) ? 'debit' : 'credit') : '',
+        category: Q('#feCat')?.value,
+        amount: +Q('#feAmt')?.value || 0,
+        note: Q('#feNote')?.value || ''
+      };
+
+      if (!payload.date || !payload.category || !payload.amount) {
+        return alert('Fill all fields');
+      }
+
+      await api('/api/finance/entries', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      // Clear form
+      Q('#feDate').value = '';
+      Q('#feAmt').value = '';
+      Q('#feNote').value = '';
+      
+      renderFinanceEntries();
+      renderFinanceBalance();
     };
-
-    if (!payload.date || !payload.category || !payload.amount) {
-      return alert('Fill all fields');
-    }
-
-    await api('/api/finance/entries', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-
-    // Clear form
-    Q('#feDate').value = '';
-    Q('#feAmt').value = '';
-    Q('#feNote').value = '';
-    
-    renderFinanceEntries();
-    renderFinanceBalance();
-  };
+    eventListeners.set('feAdd', true);
+  }
 
   // Filter entries
-  Q('#feRun')?.addEventListener('click', () => {
-    renderFinanceEntries();
-  });
+  if (!eventListeners.has('feRun')) {
+    Q('#feRun')?.addEventListener('click', () => {
+      renderFinanceEntries();
+    });
+    eventListeners.set('feRun', true);
+  }
 
   renderFinanceEntries();
 }
@@ -3005,17 +3226,20 @@ async function renderFinanceEntries() {
     }
 
     // Add delete handlers
-    tbody.onclick = async (e) => {
-      if (e.target.classList.contains('act-del-entry')) {
-        if (confirm('Delete this entry?')) {
-          await api(`/api/finance/entries/${e.target.dataset.id}`, { method: 'DELETE' });
-          renderFinanceEntries();
-          renderFinanceBalance();
-        }
-      }
-    };
+    tbody.removeEventListener('click', handleFinanceEntryDelete);
+    tbody.addEventListener('click', handleFinanceEntryDelete);
   } catch (e) {
     console.error('Error loading finance entries:', e);
+  }
+}
+
+async function handleFinanceEntryDelete(e) {
+  if (e.target.classList.contains('act-del-entry')) {
+    if (confirm('Delete this entry?')) {
+      await api(`/api/finance/entries/${e.target.dataset.id}`, { method: 'DELETE' });
+      renderFinanceEntries();
+      renderFinanceBalance();
+    }
   }
 }
 
@@ -3036,32 +3260,35 @@ function bindFinanceSearch() {
   const btn = Q('#fcSearchRun');
   if (!btn) return;
 
-  btn.onclick = async () => {
-    const type = Q('#fcSearchType')?.value || '';
-    const category = Q('#fcSearchCat')?.value || '';
-    const start = Q('#fcSearchStart')?.value || '';
-    const end = Q('#fcSearchEnd')?.value || '';
+  if (!eventListeners.has('fcSearchRun')) {
+    btn.onclick = async () => {
+      const type = Q('#fcSearchType')?.value || '';
+      const category = Q('#fcSearchCat')?.value || '';
+      const start = Q('#fcSearchStart')?.value || '';
+      const end = Q('#fcSearchEnd')?.value || '';
 
-    try {
-      const data = await api('/api/finance/entries?' + new URLSearchParams({
-        type, category, start, end
-      }));
+      try {
+        const data = await api('/api/finance/entries?' + new URLSearchParams({
+          type, category, start, end
+        }));
 
-      const resultEl = Q('#fcSearchResult');
-      const countEl = Q('#fcSearchCount');
-      
-      if (resultEl) {
-        resultEl.textContent = `Total: $${fmt(data.categoryTotal)} USD`;
-        resultEl.className = `badge ${data.categoryTotal >= 0 ? 'success' : 'danger'}`;
+        const resultEl = Q('#fcSearchResult');
+        const countEl = Q('#fcSearchCount');
+        
+        if (resultEl) {
+          resultEl.textContent = `Total: $${fmt(data.categoryTotal)} USD`;
+          resultEl.className = `badge ${data.categoryTotal >= 0 ? 'success' : 'danger'}`;
+        }
+        
+        if (countEl) {
+          countEl.textContent = `Entries: ${data.entries.length}`;
+        }
+      } catch (e) {
+        console.error('Error searching finance:', e);
       }
-      
-      if (countEl) {
-        countEl.textContent = `Entries: ${data.entries.length}`;
-      }
-    } catch (e) {
-      console.error('Error searching finance:', e);
-    }
-  };
+    };
+    eventListeners.set('fcSearchRun', true);
+  }
 }
 
 // ======== SETTINGS PAGE ========
@@ -3083,32 +3310,38 @@ function renderCountries() {
     </div>
   `).join('');
 
-  listEl.onclick = async (e) => {
-    if (e.target.classList.contains('chip-x')) {
-      const name = e.target.dataset.name;
-      if (confirm(`Delete country "${name}"?`)) {
-        await api(`/api/countries/${encodeURIComponent(name)}`, { method: 'DELETE' });
-        await preload();
-        renderCountries();
-        fillCommonSelects();
+  if (!eventListeners.has('ctyList')) {
+    listEl.onclick = async (e) => {
+      if (e.target.classList.contains('chip-x')) {
+        const name = e.target.dataset.name;
+        if (confirm(`Delete country "${name}"?`)) {
+          await api(`/api/countries/${encodeURIComponent(name)}`, { method: 'DELETE' });
+          await preload();
+          renderCountries();
+          fillCommonSelects();
+        }
       }
-    }
-  };
+    };
+    eventListeners.set('ctyList', true);
+  }
 
-  Q('#ctyAdd')?.addEventListener('click', async () => {
-    const name = Q('#cty')?.value?.trim();
-    if (!name) return alert('Enter country name');
-    
-    await api('/api/countries', {
-      method: 'POST',
-      body: JSON.stringify({ name })
+  if (!eventListeners.has('ctyAdd')) {
+    Q('#ctyAdd')?.addEventListener('click', async () => {
+      const name = Q('#cty')?.value?.trim();
+      if (!name) return alert('Enter country name');
+      
+      await api('/api/countries', {
+        method: 'POST',
+        body: JSON.stringify({ name })
+      });
+      
+      Q('#cty').value = '';
+      await preload();
+      renderCountries();
+      fillCommonSelects();
     });
-    
-    Q('#cty').value = '';
-    await preload();
-    renderCountries();
-    fillCommonSelects();
-  });
+    eventListeners.set('ctyAdd', true);
+  }
 }
 
 function bindProductEdit() {
@@ -3119,30 +3352,36 @@ function bindProductEdit() {
   select.innerHTML = '<option value="">Select product…</option>' +
     state.products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
 
-  select.addEventListener('change', function() {
-    const product = state.products.find(p => p.id === this.value);
-    if (product) {
-      Q('#epName').value = product.name || '';
-      Q('#epSku').value = product.sku || '';
-    }
-  });
-
-  Q('#epSave')?.addEventListener('click', async () => {
-    const id = select.value;
-    const name = Q('#epName')?.value?.trim();
-    const sku = Q('#epSku')?.value?.trim();
-
-    if (!id || !name) return alert('Select product and enter name');
-
-    await api(`/api/products/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ name, sku })
+  if (!eventListeners.has('epSelect')) {
+    select.addEventListener('change', function() {
+      const product = state.products.find(p => p.id === this.value);
+      if (product) {
+        Q('#epName').value = product.name || '';
+        Q('#epSku').value = product.sku || '';
+      }
     });
+    eventListeners.set('epSelect', true);
+  }
 
-    await preload();
-    renderProductsTable();
-    alert('Product updated successfully!');
-  });
+  if (!eventListeners.has('epSave')) {
+    Q('#epSave')?.addEventListener('click', async () => {
+      const id = select.value;
+      const name = Q('#epName')?.value?.trim();
+      const sku = Q('#epSku')?.value?.trim();
+
+      if (!id || !name) return alert('Select product and enter name');
+
+      await api(`/api/products/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name, sku })
+      });
+
+      await preload();
+      renderProductsTable();
+      alert('Product updated successfully!');
+    });
+    eventListeners.set('epSave', true);
+  }
 }
 
 function renderSnapshots() {
@@ -3170,60 +3409,69 @@ function bindSnapshotActions() {
   if (!container) return;
 
   // Save snapshot
-  Q('#snapSave')?.addEventListener('click', async () => {
-    const name = Q('#snapName')?.value?.trim() || `Manual-${new Date().toISOString().slice(0, 10)}`;
-    
-    await api('/api/snapshots', {
-      method: 'POST',
-      body: JSON.stringify({ name })
+  if (!eventListeners.has('snapSave')) {
+    Q('#snapSave')?.addEventListener('click', async () => {
+      const name = Q('#snapName')?.value?.trim() || `Manual-${new Date().toISOString().slice(0, 10)}`;
+      
+      await api('/api/snapshots', {
+        method: 'POST',
+        body: JSON.stringify({ name })
+      });
+      
+      Q('#snapName').value = '';
+      renderSnapshots();
+      alert('Snapshot saved successfully!');
     });
-    
-    Q('#snapName').value = '';
-    renderSnapshots();
-    alert('Snapshot saved successfully!');
-  });
+    eventListeners.set('snapSave', true);
+  }
 
   // Handle snapshot actions
-  container.addEventListener('click', async (e) => {
-    if (e.target.classList.contains('act-restore')) {
-      const file = e.target.dataset.file;
-      if (confirm(`Restore snapshot: ${file}? This will replace current data.`)) {
-        try {
-          await api('/api/backup/push-snapshot', {
-            method: 'POST',
-            body: JSON.stringify({ snapshotFile: file })
-          });
-          alert('Snapshot restored! Page will reload.');
-          setTimeout(() => location.reload(), 1000);
-        } catch (error) {
-          alert('Restore failed: ' + error.message);
-        }
-      }
-    }
+  container.removeEventListener('click', handleSnapshotActions);
+  container.addEventListener('click', handleSnapshotActions);
+}
 
-    if (e.target.classList.contains('act-del-snap')) {
-      const id = e.target.dataset.id;
-      if (confirm('Delete this snapshot?')) {
-        await api(`/api/snapshots/${id}`, { method: 'DELETE' });
-        renderSnapshots();
+async function handleSnapshotActions(e) {
+  if (e.target.classList.contains('act-restore')) {
+    const file = e.target.dataset.file;
+    if (confirm(`Restore snapshot: ${file}? This will replace current data.`)) {
+      try {
+        await api('/api/backup/push-snapshot', {
+          method: 'POST',
+          body: JSON.stringify({ snapshotFile: file })
+        });
+        alert('Snapshot restored! Page will reload.');
+        setTimeout(() => location.reload(), 1000);
+      } catch (error) {
+        alert('Restore failed: ' + error.message);
       }
     }
-  });
+  }
+
+  if (e.target.classList.contains('act-del-snap')) {
+    const id = e.target.dataset.id;
+    if (confirm('Delete this snapshot?')) {
+      await api(`/api/snapshots/${id}`, { method: 'DELETE' });
+      renderSnapshots();
+    }
+  }
 }
 
 function setupDailyBackupButton() {
-  Q('#createDailyBackup')?.addEventListener('click', async () => {
-    try {
-      await api('/api/snapshots', {
-        method: 'POST',
-        body: JSON.stringify({ name: `Daily-${new Date().toISOString().slice(0, 10)}` })
-      });
-      alert('Daily backup created successfully!');
-      renderSnapshots();
-    } catch (error) {
-      alert('Backup creation failed: ' + error.message);
-    }
-  });
+  if (!eventListeners.has('createDailyBackup')) {
+    Q('#createDailyBackup')?.addEventListener('click', async () => {
+      try {
+        await api('/api/snapshots', {
+          method: 'POST',
+          body: JSON.stringify({ name: `Daily-${new Date().toISOString().slice(0, 10)}` })
+        });
+        alert('Daily backup created successfully!');
+        renderSnapshots();
+      } catch (error) {
+        alert('Backup creation failed: ' + error.message);
+      }
+    });
+    eventListeners.set('createDailyBackup', true);
+  }
 }
 
 // ======== PRODUCT PAGE ========
@@ -3310,25 +3558,28 @@ function bindProductNotes() {
   // Load existing notes
   loadProductNotes();
 
-  btn.onclick = async () => {
-    const country = Q('#pdNoteCountry')?.value;
-    const note = Q('#pdNoteText')?.value?.trim();
+  if (!eventListeners.has('pdNoteSave')) {
+    btn.onclick = async () => {
+      const country = Q('#pdNoteCountry')?.value;
+      const note = Q('#pdNoteText')?.value?.trim();
 
-    if (!country || !note) return alert('Select country and enter note');
+      if (!country || !note) return alert('Select country and enter note');
 
-    try {
-      await api(`/api/products/${state.productId}/notes`, {
-        method: 'POST',
-        body: JSON.stringify({ country, note })
-      });
-      
-      Q('#pdNoteText').value = '';
-      loadProductNotes();
-      alert('Note saved successfully!');
-    } catch (error) {
-      alert('Error saving note: ' + error.message);
-    }
-  };
+      try {
+        await api(`/api/products/${state.productId}/notes`, {
+          method: 'POST',
+          body: JSON.stringify({ country, note })
+        });
+        
+        Q('#pdNoteText').value = '';
+        loadProductNotes();
+        alert('Note saved successfully!');
+      } catch (error) {
+        alert('Error saving note: ' + error.message);
+      }
+    };
+    eventListeners.set('pdNoteSave', true);
+  }
 }
 
 async function loadProductNotes() {
@@ -3351,17 +3602,20 @@ async function loadProductNotes() {
     `).join('') || '<div class="muted">No notes yet</div>';
 
     // Add delete handlers
-    container.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('act-del-note')) {
-        const noteId = e.target.dataset.id;
-        if (confirm('Delete this note?')) {
-          await api(`/api/products/notes/${noteId}`, { method: 'DELETE' });
-          loadProductNotes();
-        }
-      }
-    });
+    container.removeEventListener('click', handleNoteDelete);
+    container.addEventListener('click', handleNoteDelete);
   } catch (error) {
     console.error('Error loading notes:', error);
+  }
+}
+
+async function handleNoteDelete(e) {
+  if (e.target.classList.contains('act-del-note')) {
+    const noteId = e.target.dataset.id;
+    if (confirm('Delete this note?')) {
+      await api(`/api/products/notes/${noteId}`, { method: 'DELETE' });
+      loadProductNotes();
+    }
   }
 }
 
@@ -3461,7 +3715,8 @@ function renderProductShipmentTable(selector, shipments, showChinaCost) {
   }).join('');
 
   // Add event listeners
-  addShipmentEventListeners(tbody);
+  tbody.removeEventListener('click', handleProductShipmentActions);
+  tbody.addEventListener('click', handleProductShipmentActions);
 }
 
 function renderArrivedShipmentsTable(shipments) {
@@ -3493,7 +3748,6 @@ function renderArrivedShipmentsTable(shipments) {
         <td><span class="badge ${shipment.paymentStatus}">${shipment.paymentStatus}</span></td>
         <td>${shipment.note || '-'}</td>
         <td>
-          ${shipment.paymentStatus === 'pending' ? `<button class="btn small outline act-pay" data-id="${shipment.id}">Pay</button>` : ''}
           <button class="btn small outline act-edit-ship" data-id="${shipment.id}">Edit</button>
           <button class="btn small outline act-del-ship" data-id="${shipment.id}">Delete</button>
         </td>
@@ -3502,75 +3756,93 @@ function renderArrivedShipmentsTable(shipments) {
   }).join('');
 
   // Add event listeners
-  addShipmentEventListeners(tbody);
+  tbody.removeEventListener('click', handleProductShipmentActions);
+  tbody.addEventListener('click', handleProductShipmentActions);
 }
 
-function addShipmentEventListeners(container) {
-  let isProcessingShipment = false;
-  container.addEventListener('click', async (e) => {
-    if (isProcessingShipment) return;
-    
-    const id = e.target.dataset?.id;
-    if (!id) return;
+let isProcessingProductShipment = false;
+async function handleProductShipmentActions(e) {
+  if (isProcessingProductShipment) return;
+  
+  const id = e.target.dataset?.id;
+  if (!id) return;
 
-    if (e.target.classList.contains('act-arrive')) {
-      if (!confirm('Are you sure you want to mark this shipment as arrived?')) {
-        return;
-      }
-      
-      isProcessingShipment = true;
-      e.target.disabled = true;
+  if (e.target.classList.contains('act-arrive')) {
+    // FIXED: Require final shipping cost before marking as arrived
+    const finalCost = prompt('Enter final shipping cost before marking as arrived:');
+    if (finalCost === null) return; // User cancelled
+    
+    if (!finalCost || isNaN(finalCost) || +finalCost < 0) {
+      return alert('Please enter a valid final shipping cost');
+    }
+    
+    if (!confirm('Are you sure you want to mark this shipment as arrived?')) {
+      return;
+    }
+    
+    isProcessingProductShipment = true;
+    e.target.disabled = true;
+    
+    try {
+      // First mark as paid with final cost, then mark as arrived
+      await api(`/api/shipments/${id}/mark-paid`, {
+        method: 'POST',
+        body: JSON.stringify({ finalShipCost: +finalCost })
+      });
       
       await api(`/api/shipments/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ arrivedAt: isoToday() })
       });
+      
+      renderProductShipments();
+      alert('Shipment marked as arrived and paid successfully!');
+    } catch (error) {
+      alert('Error: ' + error.message);
+    } finally {
+      isProcessingProductShipment = false;
+    }
+  }
+
+  if (e.target.classList.contains('act-pay')) {
+    const finalCost = prompt('Enter final shipping cost:');
+    if (finalCost && !isNaN(finalCost)) {
+      isProcessingProductShipment = true;
+      e.target.disabled = true;
+      
+      try {
+        await api(`/api/shipments/${id}/mark-paid`, {
+          method: 'POST',
+          body: JSON.stringify({ finalShipCost: +finalCost })
+        });
+        renderProductShipments();
+        alert('Shipment marked as paid successfully!');
+      } catch (error) {
+        alert('Error marking shipment as paid: ' + error.message);
+      } finally {
+        isProcessingProductShipment = false;
+      }
+    }
+  }
+
+  if (e.target.classList.contains('act-edit-ship')) {
+    editProductShipment(id);
+  }
+
+  if (e.target.classList.contains('act-del-ship')) {
+    if (confirm('Delete this shipment?')) {
+      isProcessingProductShipment = true;
+      e.target.disabled = true;
+      
+      await api(`/api/shipments/${id}`, { method: 'DELETE' });
       renderProductShipments();
       
-      isProcessingShipment = false;
+      isProcessingProductShipment = false;
     }
-
-    if (e.target.classList.contains('act-pay')) {
-      // Show popup to enter final shipping cost
-      const finalCost = prompt('Enter final shipping cost:');
-      if (finalCost && !isNaN(finalCost)) {
-        isProcessingShipment = true;
-        e.target.disabled = true;
-        
-        try {
-          await api(`/api/shipments/${id}/mark-paid`, {
-            method: 'POST',
-            body: JSON.stringify({ finalShipCost: +finalCost })
-          });
-          renderProductShipments();
-          alert('Shipment marked as paid successfully!');
-        } catch (error) {
-          alert('Error marking shipment as paid: ' + error.message);
-        } finally {
-          isProcessingShipment = false;
-        }
-      }
-    }
-
-    if (e.target.classList.contains('act-edit-ship')) {
-      editShipment(id);
-    }
-
-    if (e.target.classList.contains('act-del-ship')) {
-      if (confirm('Delete this shipment?')) {
-        isProcessingShipment = true;
-        e.target.disabled = true;
-        
-        await api(`/api/shipments/${id}`, { method: 'DELETE' });
-        renderProductShipments();
-        
-        isProcessingShipment = false;
-      }
-    }
-  });
+  }
 }
 
-async function editShipment(shipmentId) {
+async function editProductShipment(shipmentId) {
   try {
     const shipments = await api('/api/shipments');
     const shipment = shipments.shipments.find(s => s.id === shipmentId);
@@ -3597,27 +3869,32 @@ async function editShipment(shipmentId) {
   }
 }
 
-function renderProductLifetimePerformance() {
+async function renderProductLifetimePerformance() {
   const btn = Q('#pdLPRun');
   if (!btn) return;
 
-  btn.onclick = async () => {
-    const dateRange = getDateRange(btn.closest('.row'));
-    
-    try {
-      const analytics = await api('/api/analytics/remittance?' + new URLSearchParams({
-        ...dateRange,
-        productId: state.productId
-      }));
+  if (!eventListeners.has('pdLPRun')) {
+    btn.onclick = async () => {
+      const dateRange = getDateRange(btn.closest('.row'));
 
-      renderProductLifetimePerformanceTable(analytics.analytics || []);
-    } catch (error) {
-      alert('Error loading lifetime performance: ' + error.message);
-    }
-  };
+      try {
+        const analytics = await api('/api/analytics/remittance?' + new URLSearchParams({
+          ...dateRange,
+          productId: state.productId
+        }));
 
-  // Trigger initial load
-  setTimeout(() => btn.click(), 500);
+        renderProductLifetimePerformanceTable(analytics.analytics || []);
+      } catch (e) {
+        alert('Error loading lifetime performance: ' + e.message);
+      }
+    };
+    eventListeners.set('pdLPRun', true);
+  }
+
+  // Auto-run on page load
+  setTimeout(() => {
+    if (Q('#pdLPRun')) Q('#pdLPRun').click();
+  }, 500);
 }
 
 function renderProductLifetimePerformanceTable(analytics) {
@@ -3626,7 +3903,7 @@ function renderProductLifetimePerformanceTable(analytics) {
 
   let totalRevenue = 0, totalRefunded = 0, totalAdSpend = 0, totalInfluencer = 0;
   let totalBoxleo = 0, totalProductCost = 0, totalShipping = 0, totalCost = 0;
-  let totalOrders = 0, totalDeliveredOrders = 0, totalRefundedOrders = 0, totalPieces = 0;
+  let totalOrders = 0, totalDeliveredOrders = 0, totalRefundedOrders = 0, totalDeliveredPieces = 0;
   let totalProfit = 0;
   let itemCount = 0;
 
@@ -3647,7 +3924,7 @@ function renderProductLifetimePerformanceTable(analytics) {
     totalOrders += item.totalOrders || 0;
     totalDeliveredOrders += item.totalDeliveredOrders || 0;
     totalRefundedOrders += item.totalRefundedOrders || 0;
-    totalPieces += item.totalDeliveredPieces || 0;
+    totalDeliveredPieces += item.totalDeliveredPieces || 0;
     totalProfit += item.profit || 0;
     itemCount++;
 
@@ -3666,16 +3943,10 @@ function renderProductLifetimePerformanceTable(analytics) {
         <td>${fmt(item.totalDeliveredOrders)}</td>
         <td>${fmt(item.totalRefundedOrders)}</td>
         <td>${fmt(item.totalDeliveredPieces)}</td>
-        <td class="${item.profitPerOrder >= 0 ? 'number-positive' : 'number-negative'}">
-          $${fmt(item.profitPerOrder)}
-        </td>
-        <td class="${item.profitPerPiece >= 0 ? 'number-positive' : 'number-negative'}">
-          $${fmt(item.profitPerPiece)}
-        </td>
+        <td class="${item.profitPerOrder >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(item.profitPerOrder)}</td>
+        <td class="${item.profitPerPiece >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(item.profitPerPiece)}</td>
         <td>${fmt(item.deliveryRate)}%</td>
-        <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">
-          $${fmt(item.profit)}
-        </td>
+        <td class="${item.profit >= 0 ? 'number-positive' : 'number-negative'}">$${fmt(item.profit)}</td>
       </tr>
     `;
   }).join('');
@@ -3697,160 +3968,62 @@ function renderProductLifetimePerformanceTable(analytics) {
   updateTotal('#pdLPOrdersT', totalOrders);
   updateTotal('#pdLPDeliveredOrdersT', totalDeliveredOrders);
   updateTotal('#pdLPRefundedOrdersT', totalRefundedOrders);
-  updateTotal('#pdLPDeliveredPiecesT', totalPieces);
-  updateTotal('#pdLPProfitOrderT', totalDeliveredOrders > 0 ? totalProfit / totalDeliveredOrders : 0);
-  updateTotal('#pdLPProfitPieceT', totalPieces > 0 ? totalProfit / totalPieces : 0);
-  updateTotal('#pdLPDeliveryRateT', totalOrders > 0 ? (totalDeliveredOrders / totalOrders * 100) : 0);
+  updateTotal('#pdLPDeliveredPiecesT', totalDeliveredPieces);
+  updateTotal('#pdLPProfitOrderT', `$${fmt(totalProfit / totalDeliveredOrders)}`);
+  updateTotal('#pdLPProfitPieceT', `$${fmt(totalProfit / totalDeliveredPieces)}`);
+  updateTotal('#pdLPDeliveryRateT', `${fmt(totalDeliveredOrders / totalOrders * 100)}%`);
   updateTotal('#pdLPProfitT', totalProfit);
 }
 
 async function renderProductStoreOrders() {
   const tbody = Q('#pdStoreOrdersBody');
-  const pagination = Q('#pdStoreOrdersPagination');
   if (!tbody) return;
 
   try {
-    const data = await api(`/api/product-orders?productId=${state.productId}&page=1&limit=10`);
+    const data = await api('/api/product-orders?' + new URLSearchParams({
+      productId: state.productId,
+      page: state.currentStoreOrdersPage,
+      limit: '8'
+    }));
+
     const orders = data.orders || [];
+    const pagination = data.pagination || {};
 
     if (orders.length === 0) {
       tbody.innerHTML = '<tr><td colspan="4" class="muted">No store orders found</td></tr>';
-      pagination.innerHTML = '';
-      return;
+    } else {
+      tbody.innerHTML = orders.map(order => {
+        const product = state.products.find(p => p.id === order.productId);
+        const productName = product ? product.name : order.productId;
+        
+        return `
+          <tr>
+            <td>${order.startDate} → ${order.endDate}</td>
+            <td>${order.country}</td>
+            <td>${fmt(order.orders)}</td>
+            <td>
+              <button class="btn small outline act-del-order" data-id="${order.id}">Delete</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
     }
 
-    tbody.innerHTML = orders.map(order => `
-      <tr>
-        <td>${order.startDate} to ${order.endDate}</td>
-        <td>${order.country}</td>
-        <td>${fmt(order.orders)}</td>
-        <td>
-          <button class="btn small outline act-del-order" data-id="${order.id}">Delete</button>
-        </td>
-      </tr>
-    `).join('');
+    // Render pagination
+    renderProductStoreOrdersPagination(pagination);
 
     // Add delete handlers
-    tbody.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('act-del-order')) {
-        const orderId = e.target.dataset.id;
-        if (confirm('Delete this order entry?')) {
-          await api(`/api/product-orders/${orderId}`, { method: 'DELETE' });
-          renderProductStoreOrders();
-        }
-      }
-    });
-
-    // Render pagination
-    renderPagination(pagination, data.pagination, renderProductStoreOrders);
-
+    tbody.removeEventListener('click', handleProductOrderDelete);
+    tbody.addEventListener('click', handleProductOrderDelete);
   } catch (error) {
     console.error('Error loading store orders:', error);
     tbody.innerHTML = '<tr><td colspan="4" class="muted">Error loading data</td></tr>';
   }
 }
 
-async function renderProductRemittances() {
-  const tbody = Q('#pdRemittancesBody');
-  const pagination = Q('#pdRemittancesPagination');
-  if (!tbody) return;
-
-  try {
-    const data = await api(`/api/remittances?productId=${state.productId}&page=1&limit=10`);
-    const remittances = data.remittances || [];
-
-    if (remittances.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" class="muted">No remittances found</td></tr>';
-      pagination.innerHTML = '';
-      return;
-    }
-
-    tbody.innerHTML = remittances.map(remittance => `
-      <tr>
-        <td>${remittance.start} to ${remittance.end}</td>
-        <td>${remittance.country}</td>
-        <td>${fmt(remittance.orders)}</td>
-        <td>${fmt(remittance.pieces)}</td>
-        <td>$${fmt(remittance.revenue)}</td>
-        <td>$${fmt(remittance.adSpend)}</td>
-        <td>$${fmt(remittance.boxleoFees)}</td>
-        <td>
-          <button class="btn small outline act-del-remittance" data-id="${remittance.id}">Delete</button>
-        </td>
-      </tr>
-    `).join('');
-
-    // Add delete handlers
-    tbody.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('act-del-remittance')) {
-        const remittanceId = e.target.dataset.id;
-        if (confirm('Delete this remittance?')) {
-          await api(`/api/remittances/${remittanceId}`, { method: 'DELETE' });
-          renderProductRemittances();
-        }
-      }
-    });
-
-    // Render pagination
-    renderPagination(pagination, data.pagination, renderProductRemittances);
-
-  } catch (error) {
-    console.error('Error loading remittances:', error);
-    tbody.innerHTML = '<tr><td colspan="8" class="muted">Error loading data</td></tr>';
-  }
-}
-
-async function renderProductRefunds() {
-  const tbody = Q('#pdRefundsBody');
-  const pagination = Q('#pdRefundsPagination');
-  if (!tbody) return;
-
-  try {
-    const data = await api(`/api/refunds?productId=${state.productId}&page=1&limit=10`);
-    const refunds = data.refunds || [];
-
-    if (refunds.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="muted">No refunds found</td></tr>';
-      pagination.innerHTML = '';
-      return;
-    }
-
-    tbody.innerHTML = refunds.map(refund => `
-      <tr>
-        <td>${refund.date}</td>
-        <td>${refund.country}</td>
-        <td>${fmt(refund.orders)}</td>
-        <td>${fmt(refund.pieces)}</td>
-        <td>$${fmt(refund.amount)}</td>
-        <td>${refund.reason || '-'}</td>
-        <td>
-          <button class="btn small outline act-del-refund" data-id="${refund.id}">Delete</button>
-        </td>
-      </tr>
-    `).join('');
-
-    // Add delete handlers
-    tbody.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('act-del-refund')) {
-        const refundId = e.target.dataset.id;
-        if (confirm('Delete this refund?')) {
-          await api(`/api/refunds/${refundId}`, { method: 'DELETE' });
-          renderProductRefunds();
-        }
-      }
-    });
-
-    // Render pagination
-    renderPagination(pagination, data.pagination, renderProductRefunds);
-
-  } catch (error) {
-    console.error('Error loading refunds:', error);
-    tbody.innerHTML = '<tr><td colspan="7" class="muted">Error loading data</td></tr>';
-  }
-}
-
-function renderPagination(container, pagination, renderFunction) {
-  if (!container || !pagination) return;
+function renderProductStoreOrdersPagination(pagination) {
+  const container = Q('#pdStoreOrdersPagination');
+  if (!container) return;
 
   const { currentPage, totalPages, totalItems, hasNextPage, hasPrevPage } = pagination;
 
@@ -3871,217 +4044,369 @@ function renderPagination(container, pagination, renderFunction) {
   }
 
   html += `<button class="pagination-btn" ${!hasNextPage ? 'disabled' : ''} data-page="${currentPage + 1}">Next ▶</button>`;
-  html += `<span class="pagination-info">Page ${currentPage} of ${totalPages} (${totalItems} items)</span>`;
+  html += `<span class="pagination-info">Page ${currentPage} of ${totalPages} (${totalItems} orders)</span>`;
 
   container.innerHTML = html;
 
-  container.addEventListener('click', (e) => {
-    if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
-      const page = parseInt(e.target.dataset.page);
-      renderFunction(page);
+  container.removeEventListener('click', handleProductStoreOrdersPagination);
+  container.addEventListener('click', handleProductStoreOrdersPagination);
+}
+
+function handleProductStoreOrdersPagination(e) {
+  if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
+    const page = parseInt(e.target.dataset.page);
+    state.currentStoreOrdersPage = page;
+    renderProductStoreOrders();
+  }
+}
+
+async function handleProductOrderDelete(e) {
+  if (e.target.classList.contains('act-del-order')) {
+    const orderId = e.target.dataset.id;
+    if (confirm('Delete this order entry?')) {
+      await api(`/api/product-orders/${orderId}`, { method: 'DELETE' });
+      renderProductStoreOrders();
     }
-  });
+  }
+}
+
+async function renderProductRemittances() {
+  const tbody = Q('#pdRemittancesBody');
+  if (!tbody) return;
+
+  try {
+    const data = await api('/api/remittances?' + new URLSearchParams({
+      productId: state.productId,
+      page: state.currentRemittancesPage,
+      limit: '8'
+    }));
+
+    const remittances = data.remittances || [];
+    const pagination = data.pagination || {};
+
+    if (remittances.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="muted">No remittances found</td></tr>';
+    } else {
+      tbody.innerHTML = remittances.map(remittance => {
+        const product = state.products.find(p => p.id === remittance.productId);
+        const productName = product ? product.name : remittance.productId;
+        
+        return `
+          <tr>
+            <td>${remittance.start} → ${remittance.end}</td>
+            <td>${remittance.country}</td>
+            <td>${fmt(remittance.orders)}</td>
+            <td>${fmt(remittance.pieces)}</td>
+            <td>$${fmt(remittance.revenue)}</td>
+            <td>$${fmt(remittance.adSpend)}</td>
+            <td>$${fmt(remittance.boxleoFees)}</td>
+            <td>
+              <button class="btn small outline act-del-remittance" data-id="${remittance.id}">Delete</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Render pagination
+    renderProductRemittancesPagination(pagination);
+
+    // Add delete handlers
+    tbody.removeEventListener('click', handleProductRemittanceDelete);
+    tbody.addEventListener('click', handleProductRemittanceDelete);
+  } catch (error) {
+    console.error('Error loading remittances:', error);
+    tbody.innerHTML = '<tr><td colspan="8" class="muted">Error loading data</td></tr>';
+  }
+}
+
+function renderProductRemittancesPagination(pagination) {
+  const container = Q('#pdRemittancesPagination');
+  if (!container) return;
+
+  const { currentPage, totalPages, totalItems, hasNextPage, hasPrevPage } = pagination;
+
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+
+  let html = '';
+
+  html += `<button class="pagination-btn" ${!hasPrevPage ? 'disabled' : ''} data-page="${currentPage - 1}">◀ Previous</button>`;
+
+  const startPage = Math.max(1, currentPage - 2);
+  const endPage = Math.min(totalPages, startPage + 4);
+
+  for (let i = startPage; i <= endPage; i++) {
+    html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+  }
+
+  html += `<button class="pagination-btn" ${!hasNextPage ? 'disabled' : ''} data-page="${currentPage + 1}">Next ▶</button>`;
+  html += `<span class="pagination-info">Page ${currentPage} of ${totalPages} (${totalItems} remittances)</span>`;
+
+  container.innerHTML = html;
+
+  container.removeEventListener('click', handleProductRemittancesPagination);
+  container.addEventListener('click', handleProductRemittancesPagination);
+}
+
+function handleProductRemittancesPagination(e) {
+  if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
+    const page = parseInt(e.target.dataset.page);
+    state.currentRemittancesPage = page;
+    renderProductRemittances();
+  }
+}
+
+async function handleProductRemittanceDelete(e) {
+  if (e.target.classList.contains('act-del-remittance')) {
+    const remittanceId = e.target.dataset.id;
+    if (confirm('Delete this remittance entry?')) {
+      await api(`/api/remittances/${remittanceId}`, { method: 'DELETE' });
+      renderProductRemittances();
+    }
+  }
+}
+
+async function renderProductRefunds() {
+  const tbody = Q('#pdRefundsBody');
+  if (!tbody) return;
+
+  try {
+    const data = await api('/api/refunds?' + new URLSearchParams({
+      productId: state.productId,
+      page: state.currentRefundsPage,
+      limit: '8'
+    }));
+
+    const refunds = data.refunds || [];
+    const pagination = data.pagination || {};
+
+    if (refunds.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="muted">No refunds found</td></tr>';
+    } else {
+      tbody.innerHTML = refunds.map(refund => {
+        const product = state.products.find(p => p.id === refund.productId);
+        const productName = product ? product.name : refund.productId;
+        
+        return `
+          <tr>
+            <td>${refund.date}</td>
+            <td>${refund.country}</td>
+            <td>${fmt(refund.orders)}</td>
+            <td>${fmt(refund.pieces)}</td>
+            <td>$${fmt(refund.amount)}</td>
+            <td>${refund.reason || '-'}</td>
+            <td>
+              <button class="btn small outline act-del-refund" data-id="${refund.id}">Delete</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Render pagination
+    renderProductRefundsPagination(pagination);
+
+    // Add delete handlers
+    tbody.removeEventListener('click', handleProductRefundDelete);
+    tbody.addEventListener('click', handleProductRefundDelete);
+  } catch (error) {
+    console.error('Error loading refunds:', error);
+    tbody.innerHTML = '<tr><td colspan="7" class="muted">Error loading data</td></tr>';
+  }
+}
+
+function renderProductRefundsPagination(pagination) {
+  const container = Q('#pdRefundsPagination');
+  if (!container) return;
+
+  const { currentPage, totalPages, totalItems, hasNextPage, hasPrevPage } = pagination;
+
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+
+  let html = '';
+
+  html += `<button class="pagination-btn" ${!hasPrevPage ? 'disabled' : ''} data-page="${currentPage - 1}">◀ Previous</button>`;
+
+  const startPage = Math.max(1, currentPage - 2);
+  const endPage = Math.min(totalPages, startPage + 4);
+
+  for (let i = startPage; i <= endPage; i++) {
+    html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+  }
+
+  html += `<button class="pagination-btn" ${!hasNextPage ? 'disabled' : ''} data-page="${currentPage + 1}">Next ▶</button>`;
+  html += `<span class="pagination-info">Page ${currentPage} of ${totalPages} (${totalItems} refunds)</span>`;
+
+  container.innerHTML = html;
+
+  container.removeEventListener('click', handleProductRefundsPagination);
+  container.addEventListener('click', handleProductRefundsPagination);
+}
+
+function handleProductRefundsPagination(e) {
+  if (e.target.classList.contains('pagination-btn') && !e.target.disabled) {
+    const page = parseInt(e.target.dataset.page);
+    state.currentRefundsPage = page;
+    renderProductRefunds();
+  }
+}
+
+async function handleProductRefundDelete(e) {
+  if (e.target.classList.contains('act-del-refund')) {
+    const refundId = e.target.dataset.id;
+    if (confirm('Delete this refund entry?')) {
+      await api(`/api/refunds/${refundId}`, { method: 'DELETE' });
+      renderProductRefunds();
+    }
+  }
 }
 
 function bindProductInfluencers() {
   // Add influencer
-  Q('#pdInfAdd')?.addEventListener('click', async () => {
-    const name = Q('#pdInfName')?.value?.trim();
-    const social = Q('#pdInfSocial')?.value?.trim();
-    const country = Q('#pdInfCountry')?.value;
+  if (!eventListeners.has('pdInfAdd')) {
+    Q('#pdInfAdd')?.addEventListener('click', async () => {
+      const name = Q('#pdInfName')?.value?.trim();
+      const social = Q('#pdInfSocial')?.value?.trim();
+      const country = Q('#pdInfCountry')?.value;
 
-    if (!name) return alert('Enter influencer name');
+      if (!name) return alert('Enter influencer name');
 
-    await api('/api/influencers', {
-      method: 'POST',
-      body: JSON.stringify({ name, social, country })
+      await api('/api/influencers', {
+        method: 'POST',
+        body: JSON.stringify({ name, social, country })
+      });
+
+      Q('#pdInfName').value = '';
+      Q('#pdInfSocial').value = '';
+      renderProductInfluencers();
     });
-
-    Q('#pdInfName').value = '';
-    Q('#pdInfSocial').value = '';
-    loadInfluencers();
-    alert('Influencer added');
-  });
-
-  // Add spend
-  Q('#pdInfSpendAdd')?.addEventListener('click', async () => {
-    const date = Q('#pdInfDate')?.value;
-    const influencerId = Q('#pdInfSelect')?.value;
-    const country = Q('#pdInfFilterCountry')?.value;
-    const amount = +Q('#pdInfAmount')?.value || 0;
-
-    if (!influencerId) return alert('Select influencer');
-
-    await api('/api/influencers/spend', {
-      method: 'POST',
-      body: JSON.stringify({
-        date: date || isoToday(),
-        influencerId,
-        country,
-        productId: state.productId,
-        amount
-      })
-    });
-
-    Q('#pdInfAmount').value = '';
-    loadInfluencerSpends();
-    alert('Spend added');
-  });
-
-  // Filter spends
-  Q('#pdInfRun')?.addEventListener('click', loadInfluencerSpends);
-
-  // Initial load
-  loadInfluencers();
-  loadInfluencerSpends();
-}
-
-async function loadInfluencers() {
-  const select = Q('#pdInfSelect');
-  if (!select) return;
-
-  try {
-    const data = await api('/api/influencers');
-    const influencers = data.influencers || [];
-
-    select.innerHTML = '<option value="">Select influencer...</option>' +
-      influencers.map(inf => `<option value="${inf.id}">${inf.name}</option>`).join('');
-  } catch (error) {
-    console.error('Error loading influencers:', error);
+    eventListeners.set('pdInfAdd', true);
   }
+
+  // Add influencer spend
+  if (!eventListeners.has('pdInfSpendAdd')) {
+    Q('#pdInfSpendAdd')?.addEventListener('click', async () => {
+      const date = Q('#pdInfDate')?.value;
+      const influencerId = Q('#pdInfSelect')?.value;
+      const country = Q('#pdInfFilterCountry')?.value;
+      const amount = +Q('#pdInfAmount')?.value || 0;
+
+      if (!date || !influencerId) return alert('Select date and influencer');
+
+      await api('/api/influencers/spend', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          date, 
+          influencerId, 
+          country, 
+          productId: state.productId, 
+          amount 
+        })
+      });
+
+      Q('#pdInfAmount').value = '';
+      renderProductInfluencers();
+    });
+    eventListeners.set('pdInfSpendAdd', true);
+  }
+
+  // Filter influencer spend
+  if (!eventListeners.has('pdInfRun')) {
+    Q('#pdInfRun')?.addEventListener('click', () => {
+      renderProductInfluencers();
+    });
+    eventListeners.set('pdInfRun', true);
+  }
+
+  renderProductInfluencers();
 }
 
-async function loadInfluencerSpends() {
+async function renderProductInfluencers() {
   const tbody = Q('#pdInfBody');
   const totalEl = Q('#pdInfTotal');
   if (!tbody) return;
 
   try {
-    const data = await api('/api/influencers/spend');
-    let spends = data.spends || [];
+    const influencers = await api('/api/influencers');
+    const spends = await api('/api/influencers/spend');
 
-    // Filter by current product
-    spends = spends.filter(spend => spend.productId === state.productId);
+    // Filter spends for this product
+    const productSpends = spends.spends.filter(spend => spend.productId === state.productId);
 
-    // Apply date range filter
+    // Apply date filter
     const dateRange = getDateRange(Q('#pdInfRun')?.closest('.row'));
+    let filteredSpends = productSpends;
+
     if (dateRange.start) {
-      spends = spends.filter(spend => spend.date >= dateRange.start);
+      filteredSpends = filteredSpends.filter(spend => spend.date >= dateRange.start);
     }
     if (dateRange.end) {
-      spends = spends.filter(spend => spend.date <= dateRange.end);
+      filteredSpends = filteredSpends.filter(spend => spend.date <= dateRange.end);
     }
 
     // Apply country filter
-    const country = Q('#pdInfFilterCountry')?.value;
-    if (country) {
-      spends = spends.filter(spend => spend.country === country);
+    const countryFilter = Q('#pdInfFilterCountry')?.value;
+    if (countryFilter) {
+      filteredSpends = filteredSpends.filter(spend => spend.country === countryFilter);
     }
 
-    const total = spends.reduce((sum, spend) => sum + (+spend.amount || 0), 0);
-
+    const total = filteredSpends.reduce((sum, spend) => sum + (+spend.amount || 0), 0);
     if (totalEl) totalEl.textContent = fmt(total);
 
-    if (spends.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="muted">No influencer spends found</td></tr>';
-      return;
+    // Populate influencer select
+    const infSelect = Q('#pdInfSelect');
+    if (infSelect) {
+      infSelect.innerHTML = '<option value="">Select influencer</option>' +
+        influencers.influencers.map(inf => `<option value="${inf.id}">${inf.name}</option>`).join('');
     }
 
-    // Get influencer details
-    const influencersData = await api('/api/influencers');
-    const influencers = influencersData.influencers || [];
-
-    tbody.innerHTML = spends.map(spend => {
-      const influencer = influencers.find(inf => inf.id === spend.influencerId);
-      return `
-        <tr>
-          <td>${spend.date}</td>
-          <td>${spend.country || '-'}</td>
-          <td>${influencer ? influencer.name : spend.influencerId}</td>
-          <td>${influencer ? influencer.social : '-'}</td>
-          <td>$${fmt(spend.amount)}</td>
-          <td>
-            <button class="btn small outline act-del-inf-spend" data-id="${spend.id}">Delete</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
+    if (filteredSpends.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="muted">No influencer spends found</td></tr>';
+    } else {
+      tbody.innerHTML = filteredSpends.map(spend => {
+        const influencer = influencers.influencers.find(inf => inf.id === spend.influencerId);
+        const influencerName = influencer ? influencer.name : spend.influencerId;
+        const social = influencer ? influencer.social : '';
+        
+        return `
+          <tr>
+            <td>${spend.date}</td>
+            <td>${spend.country || '-'}</td>
+            <td>${influencerName}</td>
+            <td>${social || '-'}</td>
+            <td>$${fmt(spend.amount)}</td>
+            <td>
+              <button class="btn small outline act-del-inf-spend" data-id="${spend.id}">Delete</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
 
     // Add delete handlers
-    tbody.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('act-del-inf-spend')) {
-        const spendId = e.target.dataset.id;
-        if (confirm('Delete this influencer spend?')) {
-          await api(`/api/influencers/spend/${spendId}`, { method: 'DELETE' });
-          loadInfluencerSpends();
-        }
-      }
-    });
-
+    tbody.removeEventListener('click', handleProductInfluencerSpendDelete);
+    tbody.addEventListener('click', handleProductInfluencerSpendDelete);
   } catch (error) {
-    console.error('Error loading influencer spends:', error);
+    console.error('Error loading influencers:', error);
     tbody.innerHTML = '<tr><td colspan="6" class="muted">Error loading data</td></tr>';
   }
 }
 
-// ======= NAVIGATION ========
-function bindGlobalNav() {
-  const nav = Q('.nav');
-  const sections = QA('section');
-  let currentView = 'home';
-
-  function showView(viewId) {
-    sections.forEach(s => s.style.display = 'none');
-    const target = Q(`#${viewId}`);
-    if (target) target.style.display = 'block';
-    
-    // Update nav active state
-    QA('.nav a').forEach(a => a.classList.remove('active'));
-    const navItem = Q(`.nav a[data-view="${viewId}"]`);
-    if (navItem) navItem.classList.add('active');
-    
-    currentView = viewId;
-    
-    // Trigger view-specific rendering
-    setTimeout(() => {
-      switch(viewId) {
-        case 'home':
-          renderDashboardPage();
-          break;
-        case 'products':
-          renderProductsPage();
-          break;
-        case 'performance':
-          renderPerformancePage();
-          break;
-        case 'stockMovement':
-          renderStockMovementPage();
-          break;
-        case 'adspend':
-          renderAdspendPage();
-          break;
-        case 'finance':
-          renderFinancePage();
-          break;
-        case 'settings':
-          renderSettingsPage();
-          break;
-      }
-    }, 100);
-  }
-
-  nav?.addEventListener('click', (e) => {
-    const view = e.target.dataset?.view;
-    if (view) {
-      e.preventDefault();
-      showView(view);
+async function handleProductInfluencerSpendDelete(e) {
+  if (e.target.classList.contains('act-del-inf-spend')) {
+    const spendId = e.target.dataset.id;
+    if (confirm('Delete this influencer spend?')) {
+      await api(`/api/influencers/spend/${spendId}`, { method: 'DELETE' });
+      renderProductInfluencers();
     }
-  });
-
-  // Initialize first view
-  showView('home');
-  initSimpleNavigation();
+  }
 }
 
 // Initialize the application
-document.addEventListener('DOMContentLoaded', boot);
+boot();
