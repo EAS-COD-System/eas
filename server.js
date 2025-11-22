@@ -616,6 +616,15 @@ app.get('/api/products', requireAuth, (req, res) => {
     };
   });
 
+  // FIX: Sort products by status (active first) then name (A-Z)
+  products = products.sort((a, b) => {
+    // First sort by status: active first
+    if (a.status === 'active' && b.status !== 'active') return -1;
+    if (a.status !== 'active' && b.status === 'active') return 1;
+    // Then sort by name A-Z
+    return a.name.localeCompare(b.name);
+  });
+
   res.json({ products });
 });
 
@@ -818,7 +827,7 @@ app.post('/api/product-orders', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// Ad Spend - FIXED: Show all products (active and paused)
+// Ad Spend - FIXED: Show all products (active and paused) and properly replace existing entries
 app.get('/api/adspend', requireAuth, (req, res) => { 
   const db = loadDB(); 
   res.json({ adSpends: db.adspend || [] });
@@ -830,7 +839,7 @@ app.post('/api/adspend', requireAuth, (req, res) => {
   const { productId, country, platform, amount, date } = req.body || {};
   if (!productId || !country || !platform || !date) return res.status(400).json({ error: 'Missing fields' });
   
-  // FIX: Find and replace existing entry for the same day
+  // FIXED: Find and replace existing entry for the same day, product, country, and platform
   const existingIndex = db.adspend.findIndex(a => 
     a.productId === productId && 
     a.country === country && 
@@ -841,6 +850,7 @@ app.post('/api/adspend', requireAuth, (req, res) => {
   if (existingIndex >= 0) {
     // Replace existing entry
     db.adspend[existingIndex].amount = +amount || 0;
+    console.log(`✅ Replaced existing ad spend for ${productId} in ${country} on ${platform} for ${date}`);
   } else {
     // Add new entry
     db.adspend.push({ 
@@ -851,6 +861,7 @@ app.post('/api/adspend', requireAuth, (req, res) => {
       amount: +amount || 0,
       date: date
     });
+    console.log(`✅ Added new ad spend for ${productId} in ${country} on ${platform} for ${date}`);
   }
   
   saveDB(db); 
