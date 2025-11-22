@@ -839,7 +839,7 @@ app.post('/api/adspend', requireAuth, (req, res) => {
   const { productId, country, platform, amount, date } = req.body || {};
   if (!productId || !country || !platform || !date) return res.status(400).json({ error: 'Missing fields' });
   
-  // FIXED: Find and replace existing entry for the same day, product, country, and platform
+  // Find existing entry for the same day, product, country, and platform
   const existingIndex = db.adspend.findIndex(a => 
     a.productId === productId && 
     a.country === country && 
@@ -848,9 +848,12 @@ app.post('/api/adspend', requireAuth, (req, res) => {
   );
   
   if (existingIndex >= 0) {
-    // Replace existing entry
+    // Replace only the amount for this specific day
+    const oldAmount = db.adspend[existingIndex].amount;
     db.adspend[existingIndex].amount = +amount || 0;
-    console.log(`✅ Replaced existing ad spend for ${productId} in ${country} on ${platform} for ${date}`);
+    db.adspend[existingIndex].updatedAt = new Date().toISOString();
+    
+    console.log(`✅ Updated ad spend for ${productId} in ${country} on ${platform} for ${date}: $${oldAmount} → $${amount}`);
   } else {
     // Add new entry
     db.adspend.push({ 
@@ -859,9 +862,11 @@ app.post('/api/adspend', requireAuth, (req, res) => {
       country, 
       platform, 
       amount: +amount || 0,
-      date: date
+      date: date,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     });
-    console.log(`✅ Added new ad spend for ${productId} in ${country} on ${platform} for ${date}`);
+    console.log(`✅ Added new ad spend for ${productId} in ${country} on ${platform} for ${date}: $${amount}`);
   }
   
   saveDB(db); 
