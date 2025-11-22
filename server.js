@@ -818,7 +818,7 @@ app.post('/api/product-orders', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// Ad Spend
+// Ad Spend - FIXED: Show all products (active and paused)
 app.get('/api/adspend', requireAuth, (req, res) => { 
   const db = loadDB(); 
   res.json({ adSpends: db.adspend || [] });
