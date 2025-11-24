@@ -23,6 +23,10 @@ app.use(bodyParser.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use('/public', express.static(path.join(ROOT, 'public')));
 
+app.get('/qr', (req, res) => {
+  res.sendFile(path.join(ROOT, 'public', 'qr', 'index.html'));
+});
+
 // ======== AUTHENTICATION MIDDLEWARE ========
 function requireAuth(req, res, next) {
   if (req.cookies.auth === '1') return next();
