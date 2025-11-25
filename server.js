@@ -27,6 +27,7 @@ app.get('/qr', (req, res) => {
   res.sendFile(path.join(ROOT, 'public', 'qr', 'index.html'));
 });
 
+
 // ======== AUTHENTICATION MIDDLEWARE ========
 function requireAuth(req, res, next) {
   if (req.cookies.auth === '1') return next();
