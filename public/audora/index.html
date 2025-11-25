@@ -4,85 +4,90 @@
   <meta charset="UTF-8" />
   <title>AUDORA – Luxury That Speaks Without a Voice</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="AUDORA – A silent, powerful luxury perfume line crafted for those whose presence is felt before it is seen." />
+  <meta name="description" content="AUDORA – Silent power. Extrait de parfum built around modern oud, crafted for those whose presence is felt before it is seen." />
+
   <style>
     :root {
       --bg-dark: #050506;
-      --bg-soft: #111111;
-      --gold: #d4af37;
-      --text-light: #f5f5f5;
-      --text-muted: #b3b3b3;
-      --max-width: 1120px;
+      --bg-soft: #101010;
+      --gold: #d6b253;
+      --gold-soft: #f2dfaa;
+      --text: #f5f5f5;
+      --muted: #b3b3b3;
+      --max: 1160px;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background-color: var(--bg-dark);
-      color: var(--text-light);
-      line-height: 1.6;
+      background: var(--bg-dark);
+      color: var(--text);
       -webkit-font-smoothing: antialiased;
+      line-height: 1.6;
     }
 
-    a {
-      text-decoration: none;
-      color: inherit;
-    }
+    a { color: inherit; text-decoration: none; }
 
-    .page {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+    .page { min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* HEADER */
 
     header {
-      padding: 20px 24px;
-      border-bottom: 1px solid rgba(212, 175, 55, 0.12);
       position: sticky;
       top: 0;
       z-index: 50;
-      backdrop-filter: blur(16px);
+      padding: 16px 20px;
+      backdrop-filter: blur(18px);
       background: linear-gradient(to bottom,
-        rgba(5, 5, 6, 0.96),
-        rgba(5, 5, 6, 0.86),
+        rgba(5,5,6,0.96),
+        rgba(5,5,6,0.88),
         transparent);
+      border-bottom: 1px solid rgba(214,178,83,0.18);
     }
 
     .nav-inner {
-      max-width: var(--max-width);
+      max-width: var(--max);
       margin: 0 auto;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
       gap: 16px;
     }
 
-    .logo-mark {
+    .brand-lockup {
       display: flex;
       align-items: center;
       gap: 12px;
     }
 
-    .logo-circle {
-      width: 32px;
-      height: 32px;
+    .logo-emblem {
+      width: 38px;
+      height: 38px;
       border-radius: 999px;
       border: 1px solid var(--gold);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
-      font-weight: 500;
       color: var(--gold);
+      font-family: "Times New Roman", "Georgia", serif;
+      font-size: 20px;
+      /* power circle – slightly imperfect */
+      transform: scaleX(0.96) rotate(-3deg);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.75);
     }
 
-    .logo-text {
-      letter-spacing: 0.18em;
+    .logo-emblem::before {
+      content: "";
+      position: absolute;
+      inset: 4px;
+      border-radius: 999px;
+      border: 1px solid rgba(214,178,83,0.45);
+      opacity: 0.9;
+    }
+
+    .logo-word {
+      letter-spacing: 0.2em;
       font-size: 14px;
       text-transform: uppercase;
     }
@@ -90,390 +95,335 @@
     .nav-cta {
       display: flex;
       align-items: center;
-      gap: 12px;
-      font-size: 13px;
-      letter-spacing: 0.12em;
+      gap: 14px;
+      font-size: 12px;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
+      color: var(--muted);
     }
 
     .btn {
       border-radius: 999px;
       border: 1px solid var(--gold);
+      background: radial-gradient(circle at 20% 0, var(--gold-soft), var(--gold));
       color: #050506;
-      background: var(--gold);
-      padding: 10px 22px;
-      font-size: 12px;
+      padding: 9px 22px;
+      font-size: 11px;
       font-weight: 500;
-      letter-spacing: 0.16em;
+      letter-spacing: 0.2em;
       text-transform: uppercase;
-      cursor: pointer;
-      transition: all 0.18s ease-out;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
+      cursor: pointer;
+      transition: all 0.17s ease-out;
+      white-space: nowrap;
     }
 
     .btn:hover {
-      filter: brightness(1.08);
+      filter: brightness(1.07);
       transform: translateY(-1px);
-      box-shadow: 0 14px 38px rgba(0, 0, 0, 0.65);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.9);
     }
 
-    main {
-      flex: 1;
-    }
-
-    section {
-      padding: 72px 24px;
-    }
-
-    .section-inner {
-      max-width: var(--max-width);
-      margin: 0 auto;
-    }
-
-    /* HERO */
-
-    .hero {
-      padding-top: 96px;
-      padding-bottom: 80px;
-      background: radial-gradient(circle at top,
-        rgba(212, 175, 55, 0.13),
-        transparent 58%),
-        radial-gradient(circle at bottom,
-        rgba(212, 175, 55, 0.06),
-        transparent 60%);
-    }
-
-    .hero-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-      gap: 48px;
-      align-items: center;
-    }
-
-    .hero-kicker {
-      color: var(--gold);
-      font-size: 12px;
-      letter-spacing: 0.28em;
-      text-transform: uppercase;
-      margin-bottom: 16px;
-    }
-
-    .hero-title {
-      font-family: "Times New Roman", "Georgia", serif;
-      font-size: clamp(40px, 5vw, 56px);
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      margin-bottom: 18px;
-    }
-
-    .hero-subtitle {
-      font-size: 17px;
-      color: var(--text-muted);
-      max-width: 460px;
-      margin-bottom: 30px;
-    }
-
-    .hero-quote {
-      font-size: 14px;
-      color: var(--text-muted);
-      margin-top: 18px;
-      font-style: italic;
-    }
-
-    .hero-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      align-items: center;
-    }
-
-    .btn-ghost {
+    .btn-outline {
       border-radius: 999px;
-      border: 1px solid rgba(212, 175, 55, 0.4);
-      padding: 10px 18px;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      color: var(--text-light);
+      border: 1px solid rgba(214,178,83,0.5);
+      padding: 9px 18px;
       background: transparent;
+      color: var(--text);
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
       display: inline-flex;
       align-items: center;
       gap: 8px;
+      cursor: pointer;
     }
 
-    .btn-ghost span {
-      font-size: 16px;
+    .btn-outline span { font-size: 16px; }
+
+    main { flex: 1; }
+
+    section {
+      padding: 70px 20px;
     }
 
-    .hero-note {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 10px;
+    .section-inner {
+      max-width: var(--max);
+      margin: 0 auto;
     }
 
-    .hero-media {
-      display: flex;
-      justify-content: center;
-    }
-
-    .hero-card {
-      width: 100%;
-      max-width: 360px;
-      background: radial-gradient(circle at top,
-        rgba(255, 255, 255, 0.07),
-        transparent 60%),
-        #050506;
-      border-radius: 28px;
-      padding: 26px 24px 24px;
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      box-shadow:
-        0 32px 120px rgba(0, 0, 0, 0.9),
-        0 0 0 1px rgba(212, 175, 55, 0.08);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 18px;
-    }
-
-    .hero-badge {
+    .tag {
       font-size: 11px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--gold);
-    }
-
-    .hero-bottle {
-      width: 190px;
-      height: 230px;
-      background: linear-gradient(145deg, #050506, #111111);
-      border-radius: 18px;
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.9);
-    }
-
-    .hero-bottle-cap {
-      position: absolute;
-      top: -42px;
-      width: 74px;
-      height: 74px;
-      border-radius: 999px;
-      background: radial-gradient(circle at 20% 0,
-        #ffffff,
-        #f5e4b7 18%,
-        #c79b28 45%,
-        #8b6920 80%);
-      box-shadow: 0 18px 38px rgba(0, 0, 0, 0.85);
-    }
-
-    .hero-bottle-body {
-      width: 140px;
-      height: 190px;
-      border-radius: 18px;
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      background: radial-gradient(circle at top,
-          rgba(255, 255, 255, 0.06),
-          transparent 55%),
-        #050506;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-    }
-
-    .hero-bottle-logo {
-      width: 52px;
-      height: 52px;
-      border-radius: 999px;
-      border: 1px solid var(--gold);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 26px;
-      color: var(--gold);
-      font-family: "Times New Roman", "Georgia", serif;
-    }
-
-    .hero-bottle-name {
-      font-size: 15px;
-      letter-spacing: 0.26em;
-      text-transform: uppercase;
-      color: var(--gold);
-    }
-
-    .hero-bottle-volume {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 6px;
-    }
-
-    .hero-card-foot {
-      width: 100%;
-      font-size: 11px;
-      color: var(--text-muted);
-      text-align: center;
-    }
-
-    .hero-card-foot span {
-      color: var(--gold);
-    }
-
-    /* GENERIC SECTION HEADINGS */
-
-    .section-label {
-      font-size: 11px;
-      letter-spacing: 0.26em;
+      letter-spacing: 0.25em;
       text-transform: uppercase;
       color: var(--gold);
       margin-bottom: 12px;
     }
 
-    .section-title {
+    .title {
       font-family: "Times New Roman", "Georgia", serif;
-      font-size: 26px;
-      letter-spacing: 0.12em;
+      font-size: clamp(36px, 4vw, 52px);
+      letter-spacing: 0.14em;
       text-transform: uppercase;
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }
 
-    .section-text {
-      font-size: 15px;
-      color: var(--text-muted);
-      max-width: 640px;
+    .lead {
+      font-size: 16px;
+      color: var(--muted);
+      max-width: 520px;
     }
 
-    /* PROMISE SECTION */
+    /* HERO */
 
-    .promise {
-      background: #050506;
-      border-top: 1px solid rgba(212, 175, 55, 0.15);
-      border-bottom: 1px solid rgba(212, 175, 55, 0.12);
+    .hero {
+      padding-top: 90px;
+      padding-bottom: 80px;
+      background:
+        radial-gradient(circle at top left, rgba(214,178,83,0.18), transparent 58%),
+        radial-gradient(circle at bottom, rgba(214,178,83,0.06), transparent 60%);
     }
 
-    /* BOTTLE SECTION */
-
-    .bottle-grid {
+    .hero-grid {
       display: grid;
       grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
       gap: 40px;
       align-items: center;
     }
 
-    .bottle-card {
-      background: radial-gradient(circle at top left,
-        rgba(255, 255, 255, 0.04),
-        transparent 60%),
-        var(--bg-soft);
-      border-radius: 26px;
-      padding: 28px 26px;
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      box-shadow: 0 26px 80px rgba(0, 0, 0, 0.9);
+    .hero-meta {
+      margin-top: 18px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .hero-actions {
+      margin-top: 26px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .hero-note {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .hero-quote {
+      margin-top: 18px;
+      font-size: 13px;
+      font-style: italic;
+      color: var(--muted);
+    }
+
+    .hero-visual {
+      position: relative;
       display: flex;
       justify-content: center;
     }
 
-    .bottle-inline {
+    .hero-portrait {
+      width: 100%;
+      max-width: 380px;
+      border-radius: 26px;
+      overflow: hidden;
+      box-shadow:
+        0 28px 80px rgba(0,0,0,0.95),
+        0 0 0 1px rgba(255,255,255,0.04);
+      background: #000;
+    }
+
+    .hero-portrait img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .hero-tag-pill {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(5,5,6,0.9);
+      border-radius: 999px;
+      border: 1px solid rgba(214,178,83,0.5);
+      padding: 6px 14px;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold-soft);
+      backdrop-filter: blur(12px);
+      white-space: nowrap;
+    }
+
+    /* SECOND HERO – WOMAN */
+
+    .duo {
+      background: radial-gradient(circle at center, rgba(214,178,83,0.07), transparent 62%);
+      border-top: 1px solid rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .duo-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+      gap: 38px;
+      align-items: center;
+    }
+
+    .duo-portrait {
+      width: 100%;
+      max-width: 380px;
+      border-radius: 26px;
+      overflow: hidden;
+      box-shadow:
+        0 28px 80px rgba(0,0,0,0.95),
+        0 0 0 1px rgba(255,255,255,0.04);
+      background: #000;
+    }
+
+    .duo-portrait img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .mini-label {
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+
+    .duo-copy {
+      font-size: 15px;
+      color: var(--muted);
+      max-width: 520px;
+    }
+
+    .pill-stack {
+      margin-top: 18px;
       display: flex;
-      flex-direction: column;
-      gap: 14px;
+      flex-wrap: wrap;
+      gap: 8px;
     }
 
-    .bottle-note {
-      font-size: 13px;
-      color: var(--text-muted);
+    .pill {
+      border-radius: 999px;
+      border: 1px solid rgba(214,178,83,0.5);
+      padding: 4px 12px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--muted);
     }
 
-    /* SCENTS SECTION */
+    /* SCENTS CARDS */
 
     .scents {
-      background: radial-gradient(circle at center,
-        rgba(212, 175, 55, 0.06),
-        transparent 65%);
+      background: #050506;
+    }
+
+    .scents-header {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 26px;
     }
 
     .scents-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 24px;
-      margin-top: 28px;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 22px;
     }
 
     .scent-card {
-      background: rgba(10, 10, 10, 0.96);
+      background: rgba(9,9,9,0.96);
       border-radius: 20px;
-      padding: 20px 18px 18px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 18px 18px 20px;
+      border: 1px solid rgba(255,255,255,0.05);
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
     }
 
     .scent-title {
       font-size: 14px;
-      letter-spacing: 0.16em;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
       color: var(--gold);
     }
 
     .scent-tag {
       font-size: 11px;
+      letter-spacing: 0.16em;
       text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--text-muted);
+      color: var(--muted);
     }
 
     .scent-notes {
       font-size: 13px;
-      color: var(--text-muted);
+      color: var(--muted);
     }
 
-    .scent-volume {
+    .scent-meta {
+      margin-top: 4px;
       font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 6px;
+      color: var(--muted);
     }
 
-    /* WHY SECTION */
+    /* STORY / GOLD POSTER */
 
-    .why-grid {
+    .story {
+      padding-top: 80px;
+      padding-bottom: 80px;
+      background:
+        radial-gradient(circle at center, rgba(214,178,83,0.16), transparent 60%);
+    }
+
+    .story-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr);
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
       gap: 32px;
-      margin-top: 24px;
+      align-items: center;
     }
 
-    .why-list {
-      display: grid;
-      gap: 14px;
-      font-size: 14px;
-      color: var(--text-muted);
+    .story-copy {
+      font-size: 15px;
+      color: var(--muted);
+      max-width: 560px;
     }
 
-    .why-item span {
-      color: var(--gold);
-      margin-right: 6px;
+    .poster {
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow:
+        0 26px 80px rgba(0,0,0,0.95),
+        0 0 0 1px rgba(255,255,255,0.04);
+      background: radial-gradient(circle at center, #f5e4b7, #8f6f27);
     }
 
-    .quote-block {
-      border-left: 1px solid rgba(212, 175, 55, 0.4);
-      padding-left: 18px;
-      font-size: 14px;
-      color: var(--text-muted);
-      font-style: italic;
+    .poster img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
 
-    /* PACKAGING */
+    /* PACKAGING / BOTTLES */
 
     .packaging {
+      border-top: 1px solid rgba(255,255,255,0.05);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
       background: #050506;
-      border-top: 1px solid rgba(212, 175, 55, 0.14);
-      border-bottom: 1px solid rgba(212, 175, 55, 0.14);
     }
 
     .packaging-grid {
@@ -483,106 +433,107 @@
       align-items: center;
     }
 
-    .packaging-image {
-      background: radial-gradient(circle at top,
-          rgba(255, 255, 255, 0.08),
-          transparent 60%),
-        #050506;
-      border-radius: 26px;
-      padding: 22px 22px 28px;
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 260px;
-      text-align: center;
-      font-size: 13px;
-      color: var(--text-muted);
+    .bottle-shot {
+      border-radius: 24px;
+      overflow: hidden;
+      background: #000;
+      box-shadow:
+        0 26px 80px rgba(0,0,0,0.95),
+        0 0 0 1px rgba(255,255,255,0.03);
     }
 
-    .packaging-list {
-      font-size: 14px;
-      color: var(--text-muted);
+    .bottle-shot img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .pack-list {
       margin-top: 14px;
+      font-size: 14px;
+      color: var(--muted);
       display: grid;
-      gap: 10px;
+      gap: 8px;
     }
 
-    .packaging-list span {
+    .pack-list span {
       color: var(--gold);
       margin-right: 6px;
     }
 
     /* FINAL CTA */
 
-    .final-cta {
+    .cta {
       text-align: center;
-      padding-bottom: 96px;
-      padding-top: 72px;
+      padding-top: 70px;
+      padding-bottom: 90px;
     }
 
-    .final-cta .section-title {
-      margin-bottom: 10px;
-    }
-
-    .final-cta p {
+    .cta p {
       font-size: 14px;
-      color: var(--text-muted);
-      margin-bottom: 26px;
+      color: var(--muted);
+      max-width: 520px;
+      margin: 0 auto 24px;
     }
 
     footer {
-      border-top: 1px solid rgba(255, 255, 255, 0.07);
-      padding: 20px 24px 28px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding: 18px 20px 24px;
       font-size: 11px;
-      color: var(--text-muted);
+      color: var(--muted);
     }
 
     .footer-inner {
-      max-width: var(--max-width);
+      max-width: var(--max);
       margin: 0 auto;
       display: flex;
       justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
       align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
-    @media (max-width: 880px) {
+    /* RESPONSIVE */
+
+    @media (max-width: 900px) {
+      header { padding-inline: 16px; }
+
       .hero-grid,
-      .bottle-grid,
-      .packaging-grid,
-      .why-grid {
+      .duo-grid,
+      .story-grid,
+      .packaging-grid {
         grid-template-columns: minmax(0, 1fr);
       }
 
-      .hero-media {
-        order: -1;
-      }
+      .hero-visual { order: -1; }
 
-      header {
+      .hero,
+      .duo,
+      .story,
+      .packaging,
+      .scents,
+      .cta {
         padding-inline: 18px;
       }
     }
 
     @media (max-width: 720px) {
       section {
-        padding-inline: 18px;
         padding-top: 60px;
         padding-bottom: 60px;
       }
 
-      .hero {
-        padding-top: 80px;
-      }
-
-      .hero-card {
-        max-width: 320px;
-      }
-
       .scents-grid {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: minmax(0,1fr);
       }
+
+      .hero-portrait,
+      .duo-portrait {
+        max-width: 100%;
+      }
+
+      .nav-cta span:first-child { display: none; }
     }
   </style>
 </head>
@@ -592,238 +543,198 @@
   <!-- HEADER -->
   <header>
     <div class="nav-inner">
-      <div class="logo-mark">
-        <div class="logo-circle">A</div>
-        <div class="logo-text">AUDORA</div>
+      <div class="brand-lockup">
+        <div class="logo-emblem">A</div>
+        <div class="logo-word">AUDORA</div>
       </div>
       <div class="nav-cta">
-        <span>EXTRAIT DE PARFUM</span>
-        <a href="#shop" class="btn">SHOP NOW</a>
+        <span>EXTRAIT DE PARFUM · 25%</span>
+        <a href="#shop" class="btn">SHOP SIGNATURE OUD</a>
       </div>
     </div>
   </header>
 
   <main>
 
-    <!-- HERO -->
+    <!-- HERO – MAN -->
     <section class="hero">
       <div class="section-inner hero-grid">
         <div>
-          <div class="hero-kicker">SILENT LUXURY</div>
-          <h1 class="hero-title">AUDORA</h1>
-          <p class="hero-subtitle">
-            A fragrance line crafted for those whose presence is felt before it is seen.
-            Oud reimagined into a modern, silent force of luxury.
+          <div class="tag">SILENT POWER</div>
+          <h1 class="title">Luxury That Speaks<br>Without a Voice</h1>
+          <p class="lead">
+            AUDORA is crafted for people whose presence is already enough.  
+            Modern oud, extrait concentration, and a bottle that feels like a decision, not a decoration.
+          </p>
+          <p class="hero-meta">
+            Signature Oud · Unisex extrait de parfum · Built around deep, clean oud, warm woods and smooth amber.
           </p>
           <div class="hero-actions">
-            <a href="#shop" class="btn">
-              SHOP SIGNATURE OUD
-            </a>
-            <a href="#packaging" class="btn-ghost">
-              <span>⟶</span> EXPERIENCE THE BOX
-            </a>
+            <a href="#shop" class="btn">SECURE YOUR BOTTLE</a>
+            <a href="#story" class="btn-outline"><span>⟶</span> DISCOVER THE VISION</a>
           </div>
           <p class="hero-note">
-            Extrait concentration – up to 25% perfume oil for lasting presence.
+            30 mL &amp; 50 mL. Limited batches only – once a batch is gone, it does not return in the same form.
           </p>
           <p class="hero-quote">
-            “Luxury that speaks without a voice.”
+            “AUDORA is for those who never needed their fragrance to introduce them.”
           </p>
         </div>
 
-        <div class="hero-media">
-          <div class="hero-card">
-            <div class="hero-badge">EXTRAIT · OUD · UNISEX</div>
-            <div class="hero-bottle">
-              <div class="hero-bottle-cap"></div>
-              <div class="hero-bottle-body">
-                <div class="hero-bottle-logo">A</div>
-                <div class="hero-bottle-name">AUDORA</div>
-                <div class="hero-bottle-volume">50 mL · Signature Oud</div>
-              </div>
-            </div>
-            <div class="hero-card-foot">
-              Presence designed for those who lead quietly.  
-              <span>Limited batches only.</span>
-            </div>
-          </div>
+        <div class="hero-visual">
+          <figure class="hero-portrait">
+            <!-- man holding 30 & 50 mL -->
+            <img src="audora-hero-man.jpg" alt="Man holding AUDORA 30 mL and 50 mL bottles" />
+          </figure>
+          <div class="hero-tag-pill">UNISEX · SIGNATURE OUD · 25%</div>
         </div>
       </div>
     </section>
 
-    <!-- PROMISE -->
-    <section class="promise">
-      <div class="section-inner">
-        <div class="section-label">THE PROMISE</div>
-        <h2 class="section-title">The New Language of Luxury</h2>
-        <p class="section-text">
-          AUDORA is not about noise, hype, or excess.  
-          It is about the kind of luxury that radiates calmly – the kind that does not
-          need to shout to be felt. Each blend is crafted in focused batches, using deep,
-          modern oud accords, warm resins, and smooth woods to create an aura that moves with you.
-        </p>
-      </div>
-    </section>
-
-    <!-- BOTTLE -->
-    <section>
-      <div class="section-inner bottle-grid">
+    <!-- HERO – WOMAN / PRESENCE -->
+    <section class="duo">
+      <div class="section-inner duo-grid">
+        <div class="duo-portrait">
+          <!-- woman holding perfume -->
+          <img src="audora-hero-woman.jpg" alt="Woman holding AUDORA perfume bottle" />
+        </div>
         <div>
-          <div class="section-label">THE BOTTLE</div>
-          <h2 class="section-title">Designed to Command Respect</h2>
-          <p class="section-text">
-            A matte black, soft-touch glass bottle crowned with a champagne gold cap.
-            No distractions, no clutter – just a refined object that feels as serious
-            as the presence it represents. The monogram “A” floats inside a delicate
-            circle, echoing the idea of aura: a silent outline of power.
+          <div class="mini-label">PRESENCE, NOT NOISE</div>
+          <h2 class="title" style="font-size:28px;">Built for Quiet Dominance</h2>
+          <p class="duo-copy">
+            On men, AUDORA leans into depth, warmth, and clean power.  
+            On women, it becomes a soft magnetic veil – never loud, never sweet, never trying too hard.  
+            The same oud DNA, expressed differently on each skin.
           </p>
-          <p class="bottle-note">
-            Every detail – from the weight in your hand to the way light slides along
-            the edges – is tuned to say one thing: <strong>this is not ordinary.</strong>
-          </p>
-        </div>
-        <div class="bottle-card">
-          <!-- هنا تقدر تبدّل الصورة بـ mockup حقيقي -->
-          <div class="bottle-inline">
-            <img src="audora-bottle-50ml.png"
-                 alt="AUDORA Signature Oud Bottle"
-                 style="width: 220px; max-width: 100%; border-radius: 18px; display:block; margin:0 auto 8px;" />
-            <div style="font-size:12px; text-align:center; color:var(--text-muted);">
-              Example mockup – replace with your real product shot.<br />
-              50 mL · Matte black glass · Champagne gold cap.
-            </div>
+          <div class="pill-stack">
+            <div class="pill">UNISEX DNA</div>
+            <div class="pill">OUD REIMAGINED</div>
+            <div class="pill">EXTRAIT 25%</div>
+            <div class="pill">LONG LASTING</div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- SCENTS -->
+    <!-- SCENTS / SHOP -->
     <section id="shop" class="scents">
       <div class="section-inner">
-        <div class="section-label">THE SCENTS</div>
-        <h2 class="section-title">Signature Oud Collection</h2>
-        <p class="section-text">
-          Built around a modern oud DNA – smooth, deep, and wearable – AUDORA launches
-          with a unisex extrait and room to grow into dedicated masculine and feminine signatures.
-        </p>
+        <div class="scents-header">
+          <div class="tag">THE COLLECTION</div>
+          <h2 class="title" style="font-size:30px;">Signature Oud & Future Lines</h2>
+          <p class="lead">
+            AUDORA launches with a single, confident pillar: Signature Oud.  
+            Masculine and feminine lines follow – built on the same core aura.
+          </p>
+        </div>
 
         <div class="scents-grid">
 
-          <div class="scent-card">
+          <article class="scent-card">
             <div class="scent-title">Signature Oud</div>
             <div class="scent-tag">UNISEX · EXTRAIT 25%</div>
             <p class="scent-notes">
-              Clean modern oud wrapped in soft vanilla, white amber, and sandalwood velvet.
-              A quiet, magnetic trail designed for everyday dominance without aggression.
+              Smooth modern oud wrapped in white amber, sandalwood and a whisper of vanilla.  
+              Not smoky, not animalic – just a clean, deep aura that moves with you.
             </p>
-            <p class="scent-volume">
-              Available in <strong>30 mL</strong> and <strong>50 mL</strong>.
+            <p class="scent-meta">
+              <strong>30 mL</strong> – for those who test quietly.<br>
+              <strong>50 mL</strong> – for those who already know.
             </p>
-          </div>
+          </article>
 
-          <div class="scent-card">
+          <article class="scent-card">
             <div class="scent-title">Noir Homme</div>
             <div class="scent-tag">COMING SOON · MASCULINE</div>
             <p class="scent-notes">
-              Dark resinous oud, black musk, leather, and amber wood.
-              For the man whose presence enters the room before his footsteps.
+              Resinous oud, black musk, leather and amber woods.  
+              Built for evenings, boardrooms, and moments where your silence says enough.
             </p>
-            <p class="scent-volume">
-              Launching after the first Signature Oud batch.
+            <p class="scent-meta">
+              Launching after the first Signature Oud batches are sold out.
             </p>
-          </div>
+          </article>
 
-          <div class="scent-card">
+          <article class="scent-card">
             <div class="scent-title">Lumière Femme</div>
             <div class="scent-tag">COMING SOON · FEMININE</div>
             <p class="scent-notes">
-              Rose absolute, vanilla orchid, and a silk veil of light oud and white musk.
-              A refined, luminous femininity with depth – never cheap sweetness.
+              Rose absolute and vanilla orchid over a silk layer of light oud and white musk.  
+              Feminine, but with depth – no childish sweetness, only presence.
             </p>
-            <p class="scent-volume">
-              Crafted for women who dislike loud perfumes, but love unforgettable ones.
+            <p class="scent-meta">
+              Designed for women who dislike loud perfumes but love unforgettable ones.
             </p>
-          </div>
+          </article>
 
         </div>
       </div>
     </section>
 
-    <!-- WHY AUDORA -->
-    <section>
-      <div class="section-inner">
-        <div class="section-label">WHY AUDORA</div>
-        <h2 class="section-title">Presence Needs No Introduction</h2>
-
-        <div class="why-grid">
-          <div class="why-list">
-            <div class="why-item"><span>•</span> Extrait-level concentration (up to 25%) for a lasting, elegant trail.</div>
-            <div class="why-item"><span>•</span> Modern oud built for Africa, the Middle East, and beyond – warm, deep, but wearable.</div>
-            <div class="why-item"><span>•</span> Packaging that feels like unboxing a piece of art, not just a product.</div>
-            <div class="why-item"><span>•</span> Limited batches – crafted, not mass-produced.</div>
-            <div class="why-item"><span>•</span> A clear identity: quiet power, not loud attention-seeking.</div>
-          </div>
-          <div class="quote-block">
-            “AUDORA is for those who do not need their fragrance to shout their name.  
-            It is for the people others instinctively move aside for, without knowing why.”
-          </div>
+    <!-- STORY / GOLD POSTER -->
+    <section id="story" class="story">
+      <div class="section-inner story-grid">
+        <div>
+          <div class="tag">THE VISION</div>
+          <h2 class="title" style="font-size:30px;">More Than a Scent</h2>
+          <p class="story-copy">
+            AUDORA started with a simple rejection: we didn’t want another perfume that screams.  
+            We wanted a signature that feels like an aura – something people notice without knowing why.
+            <br><br>
+            The emblem – the A inside a slightly imperfect circle – is intentional.  
+            It’s not a perfect geometric ring. It’s a controlled tension, a field of power around a calm center.
+            That’s what wearing AUDORA should feel like.
+          </p>
+        </div>
+        <div class="poster">
+          <!-- golden embossed poster "Luxury that speaks without a voice" -->
+          <img src="audora-gold-poster.jpg"
+               alt="AUDORA embossed golden poster with the line 'Luxury that speaks without a voice'" />
         </div>
       </div>
     </section>
 
-    <!-- PACKAGING -->
-    <section id="packaging" class="packaging">
+    <!-- PACKAGING / BOTTLES -->
+    <section class="packaging">
       <div class="section-inner packaging-grid">
         <div>
-          <div class="section-label">THE BOX</div>
-          <h2 class="section-title">The Silent Reveal</h2>
-          <p class="section-text">
-            A rigid, magnetic box in soft-touch matte black.  
-            No noise, no unnecessary decoration – just a gold AUDORA wordmark and a calm, heavy presence in your hand.
-            Inside, a matte gold layer greets you with a single line:
+          <div class="tag">THE OBJECT</div>
+          <h2 class="title" style="font-size:30px;">Bottle & Box as Statement</h2>
+          <p class="lead" style="max-width:560px;">
+            Matte black glass, champagne gold cap, and packaging that opens like a quiet reveal,
+            not a loud unboxing. Every detail is tuned for weight, silence, and respect.
           </p>
-          <p style="margin-top:14px; font-size:14px; color:var(--gold);">
-            “Luxury that speaks without a voice.”
-          </p>
-          <div class="packaging-list">
-            <div><span>•</span> Rigid magnetic closure box with soft-touch matte lamination.</div>
-            <div><span>•</span> Gold foil stamped logo and inner quote card.</div>
-            <div><span>•</span> Black velvet EVA foam insert, cut precisely to the bottle.</div>
-            <div><span>•</span> Slightly elevated base so the bottle stands like an exhibit, not an item.</div>
-            <div><span>•</span> Optional thin gold “aura thread” accent for collectors’ editions.</div>
+          <div class="pack-list">
+            <div><span>•</span> Soft-touch matte black bottle with gold AUDORA emblem.</div>
+            <div><span>•</span> 30 mL &amp; 50 mL – same DNA, different commitment.</div>
+            <div><span>•</span> Rigid magnetic box with gold foil logo & inner quote card.</div>
+            <div><span>•</span> Black velvet insert that holds the bottle like a display piece.</div>
+            <div><span>•</span> Designed to live on a desk or dresser, not in a drawer.</div>
           </div>
         </div>
-        <div class="packaging-image">
-          <!-- بدّلها بصورة الباكدجينغ الحقيقي -->
-          <img src="audora-box-mockup.png"
-               alt="AUDORA Packaging Mockup"
-               style="width: 260px; max-width:100%; border-radius: 18px; display:block; margin:0 auto 10px;" />
-          <div>
-            Packaging mockup preview.  
-            Replace this with your real photographed box once production is ready.
-          </div>
+        <div class="bottle-shot">
+          <!-- single bottle hero (like the one on black background) -->
+          <img src="audora-bottle-hero.jpg"
+               alt="AUDORA Signature Oud bottle on a dark background" />
         </div>
       </div>
     </section>
 
     <!-- FINAL CTA -->
-    <section class="final-cta">
+    <section class="cta">
       <div class="section-inner">
-        <div class="section-label">OWN YOUR PRESENCE</div>
-        <h2 class="section-title">AUDORA · Signature Oud</h2>
+        <div class="tag">OWN YOUR PRESENCE</div>
+        <h2 class="title" style="font-size:30px;">AUDORA · Signature Oud</h2>
         <p>
-          For those who understand that true luxury is not noise – it is a calm, unmistakable presence.
-          Crafted in limited batches. Once a batch is gone, it does not return in the same form.
+          For people who don’t need their fragrance to shout.  
+          Silent luxury, extrait strength, crafted in limited batches only.
         </p>
-        <a href="#shop" class="btn">
-          SECURE YOUR BOTTLE
-        </a>
+        <a href="#shop" class="btn">RESERVE YOUR BOTTLE</a>
       </div>
     </section>
 
   </main>
 
-  <!-- FOOTER -->
   <footer>
     <div class="footer-inner">
       <div>© <span id="year"></span> AUDORA. All rights reserved.</div>
@@ -833,7 +744,7 @@
 </div>
 
 <script>
-  document.getElementById("year").textContent = new Date().getFullYear();
+  document.getElementById('year').textContent = new Date().getFullYear();
 </script>
 </body>
 </html>
