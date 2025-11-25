@@ -23,6 +23,11 @@ app.use(bodyParser.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use('/public', express.static(path.join(ROOT, 'public')));
 
+
+app.get('/audora', (req, res) => {
+  res.sendFile(path.join(ROOT, 'public', 'audora', 'index.html'));
+});
+
 app.get('/qr', (req, res) => {
   res.sendFile(path.join(ROOT, 'public', 'qr', 'index.html'));
 });
