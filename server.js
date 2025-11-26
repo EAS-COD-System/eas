@@ -1088,7 +1088,19 @@ app.post('/api/adspend', requireAuth, (req, res) => {
   saveDB(db); 
   res.json({ ok: true });
 });
-
+app.put('/api/adspend/:id', requireAuth, (req, res) => {
+  const db = loadDB(); 
+  const entry = (db.adspend || []).find(x => x.id === req.params.id);
+  if (!entry) return res.status(404).json({ error: 'Not found' });
+  
+  const up = req.body || {};
+  if (up.amount !== undefined) entry.amount = +up.amount || 0;
+  if (up.date !== undefined) entry.date = up.date;
+  entry.updatedAt = new Date().toISOString();
+  
+  saveDB(db); 
+  res.json({ ok: true, entry });
+});
 app.post('/api/deliveries', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.deliveries = db.deliveries || [];
