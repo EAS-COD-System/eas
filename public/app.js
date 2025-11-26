@@ -520,76 +520,79 @@ function getDateRange(container) {
     end: dateRange.end || ''
   };
 }
-// Update the updateAdSpendDirectly function in app.js to handle old entries better
+// Function to fix ad spend data for a specific product
+async function fixProductAdSpend(productId) {
+  try {
+    const result = await api('/api/fix-old-adspend', {
+      method: 'POST',
+      body: JSON.stringify({ productId })
+    });
+    console.log('Fixed product ad spend:', result);
+    return result;
+  } catch (error) {
+    console.error('Error fixing product ad spend:', error);
+    throw error;
+  }
+}
+
+// Update the updateAdSpendDirectly function to handle legacy data
 async function updateAdSpendDirectly(productId, country, platform, newAmount) {
   try {
+    // First try to fix any legacy data
+    await fixProductAdSpend(productId);
+    
     const adData = await api('/api/adspend');
     const adSpends = adData.adSpends || [];
     
-    // Find ALL entries for this combination
-    const existingEntries = adSpends.filter(ad => 
+    // Find entry for today
+    const today = isoToday();
+    const todayEntry = adSpends.find(ad => 
       ad.productId === productId && 
       ad.country === country && 
-      ad.platform === platform
+      ad.platform === platform &&
+      ad.date === today
     );
     
-    if (existingEntries.length > 0) {
-      // Try to find an entry with proper ID first
-      let entryToUpdate = existingEntries.find(entry => entry.id && entry.createdAt);
-      
-      // If no proper entry found, use the most recent one
-      if (!entryToUpdate) {
-        entryToUpdate = existingEntries.sort((a, b) => {
-          const dateA = a.date || a.createdAt || '2000-01-01';
-          const dateB = b.date || b.createdAt || '2000-01-01';
-          return new Date(dateB) - new Date(dateA);
-        })[0];
-      }
-      
-      // If the entry doesn't have an ID, we need to fix it first
-      if (!entryToUpdate.id) {
-        console.log('🔄 Fixing old ad spend entry before update...');
-        // Try to fix the data first
-        await api('/api/fix-adspend', {
-          method: 'POST',
-          body: JSON.stringify({ productId: productId })
-        });
-        
-        // Re-fetch the data after fix
-        const fixedData = await api('/api/adspend');
-        const fixedEntries = fixedData.adSpends.filter(ad => 
-          ad.productId === productId && 
-          ad.country === country && 
-          ad.platform === platform
-        );
-        
-        if (fixedEntries.length > 0) {
-          entryToUpdate = fixedEntries[0];
-        }
-      }
-      
-      if (entryToUpdate && entryToUpdate.id) {
-        await api(`/api/adspend/${entryToUpdate.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({ amount: newAmount })
-        });
-        console.log(`✅ Updated existing ad spend entry: ${entryToUpdate.id} to $${newAmount}`);
-      } else {
-        throw new Error('Could not find or fix ad spend entry to update');
-      }
-    } else {
-      // Create new entry
-      await api('/api/adspend', {
-        method: 'POST',
-        body: JSON.stringify({
-          date: isoToday(),
-          productId: productId,
-          country: country,
-          platform: platform,
-          amount: newAmount
-        })
+    if (todayEntry) {
+      // Update today's entry
+      await api(`/api/adspend/${todayEntry.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ amount: newAmount })
       });
-      console.log(`✅ Created new ad spend entry: $${newAmount}`);
+      console.log(`✅ Updated today's ad spend: $${newAmount}`);
+    } else {
+      // Check for legacy entry (no date or old date)
+      const legacyEntry = adSpends.find(ad => 
+        ad.productId === productId && 
+        ad.country === country && 
+        ad.platform === platform &&
+        (!ad.date || ad.date === '2024-01-01')
+      );
+      
+      if (legacyEntry) {
+        // Update legacy entry with today's date
+        await api(`/api/adspend/${legacyEntry.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ 
+            amount: newAmount,
+            date: today 
+          })
+        });
+        console.log(`✅ Updated legacy ad spend for today: $${newAmount}`);
+      } else {
+        // Create new entry
+        await api('/api/adspend', {
+          method: 'POST',
+          body: JSON.stringify({
+            date: today,
+            productId: productId,
+            country: country,
+            platform: platform,
+            amount: newAmount
+          })
+        });
+        console.log(`✅ Created new ad spend entry: $${newAmount}`);
+      }
     }
     
     return true;
