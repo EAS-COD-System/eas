@@ -683,7 +683,101 @@ app.post('/api/auth', (req, res) => {
 app.get('/api/auth/status', requireAuth, (req, res) => {
   res.json({ authenticated: true });
 });
-
+// Fix old ad spend data migration endpoint
+app.post('/api/fix-old-adspend', requireAuth, (req, res) => {
+  const db = loadDB();
+  const adSpends = db.adspend || [];
+  let fixedCount = 0;
+  
+  console.log('🔄 Starting old ad spend data migration...');
+  
+  // Group entries by product/country/platform to identify duplicates
+  const entriesByKey = {};
+  
+  adSpends.forEach(entry => {
+    const key = `${entry.productId}-${entry.country}-${entry.platform}`;
+    
+    if (!entriesByKey[key]) {
+      entriesByKey[key] = [];
+    }
+    
+    entriesByKey[key].push(entry);
+  });
+  
+  // Process each group
+  Object.keys(entriesByKey).forEach(key => {
+    const entries = entriesByKey[key];
+    
+    if (entries.length > 1) {
+      console.log(`Found ${entries.length} entries for ${key}`);
+      
+      // Find entries with proper structure vs old entries
+      const properEntries = entries.filter(entry => entry.id && entry.date);
+      const oldEntries = entries.filter(entry => !entry.id || !entry.date);
+      
+      if (oldEntries.length > 0 && properEntries.length === 0) {
+        // Only old entries exist - consolidate them into one proper entry
+        const totalAmount = oldEntries.reduce((sum, entry) => sum + (+entry.amount || 0), 0);
+        
+        // Keep the first old entry and update it
+        const entryToKeep = oldEntries[0];
+        entryToKeep.id = uuidv4();
+        entryToKeep.date = '2024-01-01'; // Set a default historical date
+        entryToKeep.amount = totalAmount;
+        entryToKeep.createdAt = new Date().toISOString();
+        entryToKeep.updatedAt = new Date().toISOString();
+        entryToKeep.isLegacy = true; // Mark as legacy for tracking
+        
+        console.log(`Consolidated ${oldEntries.length} old entries into one: $${totalAmount}`);
+        
+        // Remove the other old entries
+        const entriesToRemove = oldEntries.slice(1);
+        entriesToRemove.forEach(entryToRemove => {
+          const index = adSpends.indexOf(entryToRemove);
+          if (index > -1) {
+            adSpends.splice(index, 1);
+            fixedCount++;
+          }
+        });
+        
+        fixedCount++;
+      }
+    }
+    
+    // Ensure all remaining entries have proper structure
+    entries.forEach(entry => {
+      if (!entry.id) {
+        entry.id = uuidv4();
+        fixedCount++;
+      }
+      if (!entry.date) {
+        entry.date = '2024-01-01';
+        fixedCount++;
+      }
+      if (!entry.createdAt) {
+        entry.createdAt = new Date().toISOString();
+        fixedCount++;
+      }
+      if (!entry.updatedAt) {
+        entry.updatedAt = new Date().toISOString();
+        fixedCount++;
+      }
+      if (typeof entry.amount === 'string') {
+        entry.amount = parseFloat(entry.amount) || 0;
+        fixedCount++;
+      }
+    });
+  });
+  
+  saveDB(db);
+  
+  console.log(`✅ Fixed ${fixedCount} issues in ad spend data`);
+  res.json({ 
+    ok: true, 
+    message: `Fixed ${fixedCount} issues in ad spend data`,
+    totalEntries: adSpends.length
+  });
+});
 // Meta data
 app.get('/api/meta', requireAuth, (req, res) => {
   const db = loadDB();
@@ -958,28 +1052,41 @@ app.post('/api/adspend', requireAuth, (req, res) => {
     
     console.log(`✅ Updated ad spend for ${productId} in ${country} on ${platform} for ${date}: $${oldAmount} → $${amount}`);
   } else {
-    // Add new entry
-    db.adspend.push({ 
-      id: uuidv4(), 
-      productId, 
-      country, 
-      platform, 
-      amount: +amount || 0,
-      date: date,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    });
-    console.log(`✅ Added new ad spend for ${productId} in ${country} on ${platform} for ${date}: $${amount}`);
+    // Check for legacy entries (entries without proper date but same product/country/platform)
+    const legacyEntries = db.adspend.filter(a => 
+      a.productId === productId && 
+      a.country === country && 
+      a.platform === platform &&
+      (!a.date || a.date === '2024-01-01')
+    );
+    
+    if (legacyEntries.length > 0) {
+      // Update the first legacy entry with today's date and new amount
+      const legacyEntry = legacyEntries[0];
+      const oldAmount = legacyEntry.amount;
+      legacyEntry.date = date;
+      legacyEntry.amount = +amount || 0;
+      legacyEntry.updatedAt = new Date().toISOString();
+      
+      console.log(`✅ Updated legacy ad spend for ${productId} in ${country} on ${platform}: $${oldAmount} → $${amount} (date: ${date})`);
+    } else {
+      // Add new entry
+      db.adspend.push({ 
+        id: uuidv4(), 
+        productId, 
+        country, 
+        platform, 
+        amount: +amount || 0,
+        date: date,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      console.log(`✅ Added new ad spend for ${productId} in ${country} on ${platform} for ${date}: $${amount}`);
+    }
   }
   
   saveDB(db); 
   res.json({ ok: true });
-});
-
-// Deliveries
-app.get('/api/deliveries', requireAuth, (req, res) => {
-  const db = loadDB(); 
-  res.json({ deliveries: db.deliveries || [] });
 });
 
 app.post('/api/deliveries', requireAuth, (req, res) => {
