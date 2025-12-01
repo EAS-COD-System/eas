@@ -32,7 +32,7 @@ app.get('/qr', (req, res) => {
   res.sendFile(path.join(ROOT, 'public', 'qr', 'index.html'));
 });
 app.get('/carperfume', (req, res) => {
-  res.sendFile(path.join(ROOT, 'public', 'qr', 'index.html'));
+  res.sendFile(path.join(ROOT, 'public', 'carperfume', 'index.html'));
 });
 
 // ======== AUTHENTICATION MIDDLEWARE ========
