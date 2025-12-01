@@ -32,8 +32,8 @@ app.get('/qr', (req, res) => {
   res.sendFile(path.join(ROOT, 'public', 'qr', 'index.html'));
 });
 
-app.get('/carperfume', (req, res) => {
-  res.sendFile(path.join(ROOT, 'public', 'carperfume', 'index.html'));
+app.get('/car', (req, res) => {
+  res.sendFile(path.join(ROOT, 'public', 'car', 'index.html'));
 });
 
 
