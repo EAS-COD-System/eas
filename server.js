@@ -28,12 +28,12 @@ app.get('/audora', (req, res) => {
   res.sendFile(path.join(ROOT, 'public', 'audora', 'index.html'));
 });
 
-app.get('/carperfume', (req, res) => {
-  res.sendFile(path.join(ROOT, 'public', 'carperfume', 'index.html'));
-});
-
 app.get('/qr', (req, res) => {
   res.sendFile(path.join(ROOT, 'public', 'qr', 'index.html'));
+});
+
+app.get('/carperfume', (req, res) => {
+  res.sendFile(path.join(ROOT, 'public', 'carperfume', 'index.html'));
 });
 
 
@@ -1973,6 +1973,18 @@ async function createStartupBackup() {
 }
 
 // ======== STATIC ROUTES ========
+app.get('/audora', (req, res) => {
+  res.sendFile(path.join(ROOT, 'public', 'audora', 'index.html'));
+});
+
+app.get('/qr', (req, res) => {
+  res.sendFile(path.join(ROOT, 'public', 'qr', 'index.html'));
+});
+
+app.get('/carperfume', (req, res) => {
+  res.sendFile(path.join(ROOT, 'public', 'carperfume', 'index.html'));
+});
+
 app.get('/product.html', (req, res) => res.sendFile(path.join(ROOT, 'product.html')));
 app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
 
