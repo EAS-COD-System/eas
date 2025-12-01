@@ -28,8 +28,8 @@ app.get('/audora', (req, res) => {
   res.sendFile(path.join(ROOT, 'public', 'audora', 'index.html'));
 });
 
-app.get('/qr', (req, res) => {
-  res.sendFile(path.join(ROOT, 'public', 'qr', 'index.html'));
+app.get('/offer', (req, res) => {
+  res.sendFile(path.join(ROOT, 'public', 'offer', 'index.html'));
 });
 
 app.get('/car', (req, res) => {
