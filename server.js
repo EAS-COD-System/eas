@@ -31,7 +31,9 @@ app.get('/audora', (req, res) => {
 app.get('/qr', (req, res) => {
   res.sendFile(path.join(ROOT, 'public', 'qr', 'index.html'));
 });
-
+app.get('/carperfume', (req, res) => {
+  res.sendFile(path.join(ROOT, 'public', 'qr', 'index.html'));
+});
 
 // ======== AUTHENTICATION MIDDLEWARE ========
 function requireAuth(req, res, next) {
