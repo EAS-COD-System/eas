@@ -1038,55 +1038,32 @@ app.post('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB(); 
   db.adspend = db.adspend || [];
   const { productId, country, platform, amount, date } = req.body || {};
-  if (!productId || !country || !platform || !date) return res.status(400).json({ error: 'Missing fields' });
   
-  // Find existing entry for the same day, product, country, and platform
+  if (!productId || !country || !platform) return res.status(400).json({ error: 'Missing fields' });
+  
+  // Always find and replace existing entry for this combination (ignoring date)
   const existingIndex = db.adspend.findIndex(a => 
     a.productId === productId && 
     a.country === country && 
-    a.platform === platform &&
-    a.date === date
+    a.platform === platform
   );
   
   if (existingIndex >= 0) {
-    // Replace only the amount for this specific day
-    const oldAmount = db.adspend[existingIndex].amount;
+    // Replace existing entry
     db.adspend[existingIndex].amount = +amount || 0;
     db.adspend[existingIndex].updatedAt = new Date().toISOString();
-    
-    console.log(`✅ Updated ad spend for ${productId} in ${country} on ${platform} for ${date}: $${oldAmount} → $${amount}`);
   } else {
-    // Check for legacy entries (entries without proper date but same product/country/platform)
-    const legacyEntries = db.adspend.filter(a => 
-      a.productId === productId && 
-      a.country === country && 
-      a.platform === platform &&
-      (!a.date || a.date === '2024-01-01')
-    );
-    
-    if (legacyEntries.length > 0) {
-      // Update the first legacy entry with today's date and new amount
-      const legacyEntry = legacyEntries[0];
-      const oldAmount = legacyEntry.amount;
-      legacyEntry.date = date;
-      legacyEntry.amount = +amount || 0;
-      legacyEntry.updatedAt = new Date().toISOString();
-      
-      console.log(`✅ Updated legacy ad spend for ${productId} in ${country} on ${platform}: $${oldAmount} → $${amount} (date: ${date})`);
-    } else {
-      // Add new entry
-      db.adspend.push({ 
-        id: uuidv4(), 
-        productId, 
-        country, 
-        platform, 
-        amount: +amount || 0,
-        date: date,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-      console.log(`✅ Added new ad spend for ${productId} in ${country} on ${platform} for ${date}: $${amount}`);
-    }
+    // Add new entry
+    db.adspend.push({ 
+      id: uuidv4(), 
+      productId, 
+      country, 
+      platform, 
+      amount: +amount || 0,
+      date: new Date().toISOString().slice(0, 10),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
   }
   
   saveDB(db); 
