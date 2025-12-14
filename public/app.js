@@ -3113,11 +3113,11 @@ function renderAdspendResults(adSpends) {
     <div class="adspend-summary">
       <div class="summary-stats">
         <div class="stat-card">
-          <div class="stat-label">Total Ad Spend</div>
+          <div class="stat-label">Current Total Ad Spend</div>
           <div class="stat-value">$${fmt(total)}</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Number of Entries</div>
+          <div class="stat-label">Active Campaigns</div>
           <div class="stat-value">${adSpends.length}</div>
         </div>
       </div>
@@ -3166,6 +3166,65 @@ function renderAdspendResults(adSpends) {
     });
   
   html += `</div></div>`;
+
+  // Product breakdown
+  html += `<div class="breakdown-section">
+    <h4>By Product</h4>
+    <div class="breakdown-grid">`;
+  
+  Object.entries(byProduct)
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([product, amount]) => {
+      const percentage = total > 0 ? (amount / total * 100) : 0;
+      html += `
+        <div class="breakdown-item">
+          <div class="breakdown-label">${product}</div>
+          <div class="breakdown-bar">
+            <div class="breakdown-bar-fill" style="width: ${percentage}%"></div>
+          </div>
+          <div class="breakdown-value">$${fmt(amount)} (${fmt(percentage)}%)</div>
+        </div>
+      `;
+    });
+  
+  html += `</div></div>`;
+
+  // Current campaigns table
+  html += `<div class="breakdown-section">
+    <h4>Active Campaigns</h4>
+    <div class="table-scroll">
+      <table class="table compact">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Country</th>
+            <th>Platform</th>
+            <th>Current Spend</th>
+            <th>Last Updated</th>
+          </tr>
+        </thead>
+        <tbody>`;
+  
+  adSpends.forEach(ad => {
+    const product = state.products.find(p => p.id === ad.productId);
+    const productName = product ? product.name : ad.productId;
+    const lastUpdated = ad.updatedAt || ad.date || '-';
+    
+    html += `
+      <tr>
+        <td>${productName}</td>
+        <td>${ad.country}</td>
+        <td>${ad.platform}</td>
+        <td>$${fmt(ad.amount)}</td>
+        <td>${new Date(lastUpdated).toLocaleDateString()}</td>
+      </tr>
+    `;
+  });
+  
+  html += `</tbody>
+      </table>
+    </div>
+  </div>`;
 
   container.innerHTML = html;
 }
