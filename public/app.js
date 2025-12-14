@@ -780,7 +780,6 @@ function bindDailyAdSpend() {
   if (!eventListeners.has('adSave')) {
     btn.onclick = async () => {
       const payload = {
-        date: isoToday(),
         productId: Q('#adProduct')?.value,
         country: Q('#adCountry')?.value,
         platform: Q('#adPlatform')?.value,
@@ -798,7 +797,7 @@ function bindDailyAdSpend() {
         });
         await renderCountryStockSpend();
         await renderCompactKpis();
-        alert(`✅ Ad spend ${payload.amount ? 'saved' : 'removed'} for today!`);
+        alert('Current ad spend updated successfully!');
         Q('#adAmount').value = '';
       } catch (e) { 
         alert('Error: ' + e.message); 
@@ -1934,11 +1933,14 @@ async function renderAdvertisingOverview() {
             };
           }
 
-          if (platform === 'facebook') byCountry[country][productId].facebook += amount;
-          else if (platform === 'tiktok') byCountry[country][productId].tiktok += amount;
-          else if (platform === 'google') byCountry[country][productId].google += amount;
+          if (platform === 'facebook') byCountry[country][productId].facebook = amount;
+          else if (platform === 'tiktok') byCountry[country][productId].tiktok = amount;
+          else if (platform === 'google') byCountry[country][productId].google = amount;
 
-          byCountry[country][productId].total += amount;
+          byCountry[country][productId].total = 
+            byCountry[country][productId].facebook + 
+            byCountry[country][productId].tiktok + 
+            byCountry[country][productId].google;
         });
 
         let html = '';
@@ -1963,7 +1965,7 @@ async function renderAdvertisingOverview() {
                 <span class="platform-badge ${data.facebook > 0 ? 'active' : ''}" data-platform="facebook" data-country="${country}" data-product="${productId}">Facebook: ${fmt(data.facebook)}</span>
                 <span class="platform-badge ${data.tiktok > 0 ? 'active' : ''}" data-platform="tiktok" data-country="${country}" data-product="${productId}">TikTok: ${fmt(data.tiktok)}</span>
                 <span class="platform-badge ${data.google > 0 ? 'active' : ''}" data-platform="google" data-country="${country}" data-product="${productId}">Google: ${fmt(data.google)}</span>
-                <span class="total-badge">Total: ${fmt(data.total)}</span>
+                <span class="total-badge">Current Total: ${fmt(data.total)}</span>
               </div>
             </div>`;
           });
