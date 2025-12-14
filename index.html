@@ -583,7 +583,23 @@
         <!-- ADSPEND -->
         <section id="adspend" style="display:none">
           <h2>Advertising Spend Management</h2>
-
+<div class="section">
+  <h2>Current Advertising Spend</h2>
+  <div class="card">
+    <div class="h">Update Current Advertising Spend</div>
+    <div class="row wrap">
+      <select id="adPlatform" class="input">
+        <option value="facebook">Facebook</option>
+        <option value="tiktok">TikTok</option>
+        <option value="google">Google</option>
+      </select>
+      <select id="adProduct" class="input"></select>
+      <select id="adCountry" class="input"></select>
+      <input id="adAmount" type="number" class="input" placeholder="Current Amount (USD)" min="0" step="0.01"/>
+      <button id="adSave" class="btn">💾 Update Current Spend</button>
+    </div>
+  </div>
+</div>
           <!-- Daily Advertising Spend -->
           <div class="section">
             <h2>Daily Advertising Spend</h2>
