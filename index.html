@@ -47,15 +47,15 @@
               <div class="kpi-compact"><div class="label">Inter-country Transit</div><div id="kpiInterTransit">0</div></div>
               <div class="kpi-compact"><div class="label">Active Stock</div><div id="kpiActiveStock">0</div></div>
               <div class="kpi-compact"><div class="label">Inactive Stock</div><div id="kpiInactiveStock">0</div></div>
-              <div class="kpi-compact"><div class="label">Total Ad Spend</div><div id="kpiAdSpend">0 USD</div></div>
+              <div class="kpi-compact"><div class="label">Current Ad Spend</div><div id="kpiAdSpend">0 USD</div></div>
               <div class="kpi-compact"><div class="label">Weekly Delivered</div><div id="kpiDelivered">0</div></div>
             </div>
           </div>
 
           <div class="section">
-            <h2>Daily Advertising Spend</h2>
+            <h2>Current Advertising Spend</h2>
             <div class="card">
-              <div class="h">Add Daily Advertising Spend</div>
+              <div class="h">Update Current Advertising Spend</div>
               <div class="row wrap">
                 <select id="adPlatform" class="input">
                   <option value="facebook">Facebook</option>
@@ -64,14 +64,14 @@
                 </select>
                 <select id="adProduct" class="input"></select>
                 <select id="adCountry" class="input"></select>
-                <input id="adAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
-                <button id="adSave" class="btn">💾 Save / Replace</button>
+                <input id="adAmount" type="number" class="input" placeholder="Current Amount (USD)" min="0" step="0.01"/>
+                <button id="adSave" class="btn">💾 Update Current Spend</button>
               </div>
             </div>
           </div>
 
           <div class="section">
-            <h2>Total Stock &amp; Ad Spend by Country (Active Products Only)</h2>
+            <h2>Total Stock &amp; Current Ad Spend by Country (Active Products Only)</h2>
             <div class="table-scroll">
               <table class="table">
                 <thead>
@@ -582,29 +582,13 @@
 
         <!-- ADSPEND -->
         <section id="adspend" style="display:none">
-          <h2>Advertising Spend Management</h2>
-<div class="section">
-  <h2>Current Advertising Spend</h2>
-  <div class="card">
-    <div class="h">Update Current Advertising Spend</div>
-    <div class="row wrap">
-      <select id="adPlatform" class="input">
-        <option value="facebook">Facebook</option>
-        <option value="tiktok">TikTok</option>
-        <option value="google">Google</option>
-      </select>
-      <select id="adProduct" class="input"></select>
-      <select id="adCountry" class="input"></select>
-      <input id="adAmount" type="number" class="input" placeholder="Current Amount (USD)" min="0" step="0.01"/>
-      <button id="adSave" class="btn">💾 Update Current Spend</button>
-    </div>
-  </div>
-</div>
-          <!-- Daily Advertising Spend -->
+          <h2>Current Advertising Spend Management</h2>
+
+          <!-- Current Advertising Spend -->
           <div class="section">
-            <h2>Daily Advertising Spend</h2>
+            <h2>Current Advertising Spend</h2>
             <div class="card">
-              <div class="h">Add Daily Advertising Spend</div>
+              <div class="h">Update Current Advertising Spend</div>
               <div class="row wrap">
                 <select id="adspendPlatform" class="input">
                   <option value="facebook">Facebook</option>
@@ -613,8 +597,8 @@
                 </select>
                 <select id="adspendProduct" class="input"></select>
                 <select id="adspendCountry" class="input"></select>
-                <input id="adspendAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
-                <button id="adspendSave" class="btn">💾 Save / Replace</button>
+                <input id="adspendAmount" type="number" class="input" placeholder="Current Amount (USD)" min="0" step="0.01"/>
+                <button id="adspendSave" class="btn">💾 Update Current Spend</button>
               </div>
             </div>
           </div>
@@ -623,7 +607,7 @@
           <div class="section">
             <h2>📊 Ad Spend Analytics</h2>
             <div class="card">
-              <div class="h">Filter Ad Spend Data</div>
+              <div class="h">Filter Current Ad Spend Data</div>
               <div class="row wrap">
                 <select id="adspendFilterRange" class="input date-range-select">
                   <option value="8days">Last 8 days</option>
@@ -660,7 +644,7 @@
 
           <!-- Advertising Overview -->
           <div class="section">
-            <h2>🎯 Advertising Overview by Country</h2>
+            <h2>🎯 Current Advertising Overview by Country</h2>
             <div id="advertisingOverview"></div>
           </div>       
         </section>
@@ -828,4 +812,4 @@
 
   <script src="/public/app.js"></script>
 </body>
-</html> 
+</html>
