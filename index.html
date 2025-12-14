@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
-<body> 
+<body>
   <div id="app">
     <!-- LOGIN -->
     <div id="login" class="auth">
@@ -47,15 +47,15 @@
               <div class="kpi-compact"><div class="label">Inter-country Transit</div><div id="kpiInterTransit">0</div></div>
               <div class="kpi-compact"><div class="label">Active Stock</div><div id="kpiActiveStock">0</div></div>
               <div class="kpi-compact"><div class="label">Inactive Stock</div><div id="kpiInactiveStock">0</div></div>
-              <div class="kpi-compact"><div class="label">Current Ad Spend</div><div id="kpiAdSpend">0 USD</div></div>
+              <div class="kpi-compact"><div class="label">Total Ad Spend</div><div id="kpiAdSpend">0 USD</div></div>
               <div class="kpi-compact"><div class="label">Weekly Delivered</div><div id="kpiDelivered">0</div></div>
             </div>
           </div>
 
           <div class="section">
-            <h2>Current Advertising Spend</h2>
+            <h2>Daily Advertising Spend</h2>
             <div class="card">
-              <div class="h">Update Current Advertising Spend</div>
+              <div class="h">Add Daily Advertising Spend</div>
               <div class="row wrap">
                 <select id="adPlatform" class="input">
                   <option value="facebook">Facebook</option>
@@ -64,14 +64,14 @@
                 </select>
                 <select id="adProduct" class="input"></select>
                 <select id="adCountry" class="input"></select>
-                <input id="adAmount" type="number" class="input" placeholder="Current Amount (USD)" min="0" step="0.01"/>
-                <button id="adSave" class="btn">💾 Update Current Spend</button>
+                <input id="adAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
+                <button id="adSave" class="btn">💾 Save / Replace</button>
               </div>
             </div>
           </div>
 
           <div class="section">
-            <h2>Total Stock &amp; Current Ad Spend by Country (Active Products Only)</h2>
+            <h2>Total Stock &amp; Ad Spend by Country (Active Products Only)</h2>
             <div class="table-scroll">
               <table class="table">
                 <thead>
@@ -202,15 +202,15 @@
           <!-- Products Table with Search and Pagination -->
           <div class="section">
             <h2>📦 All Products</h2>
-            
+           
             <!-- Search Box -->
             <div class="card">
               <div class="h">🔍 Search Products</div>
               <div class="row">
-                <input 
-                  id="productSearch" 
-                  class="input" 
-                  placeholder="Type to search products by name..." 
+                <input
+                  id="productSearch"
+                  class="input"
+                  placeholder="Type to search products by name..."
                   style="flex: 1;"
                 />
                 <button id="clearSearch" class="btn outline">Clear</button>
@@ -242,7 +242,7 @@
             <div id="countryProductStats" class="country-stats-grid-compact"></div>
           </div>
         </section>
-        
+       
         <!-- PERFORMANCE -->
         <section id="performance" style="display:none">
           <h2>Performance Analytics</h2>
@@ -274,7 +274,7 @@
               </select>
               <button id="remAnalyticsRun" class="btn">📊 Generate Analytics</button>
             </div>
-            
+           
             <!-- Remittance Analytics Table -->
             <div class="table-scroll">
               <table class="table analytics-table">
@@ -333,7 +333,7 @@
               </table>
             </div>
           </div>
-          
+         
           <!-- Product Costs Analysis -->
           <div class="card">
             <div class="h">💰 Lifetime Product Costs Analysis</div>
@@ -383,7 +383,7 @@
               <select id="pcCountry" class="input"><option value="">All countries</option></select>
               <button id="pcRun" class="btn">📈 Calculate</button>
             </div>
-            
+           
             <!-- Profit by Country Table -->
             <div class="table-scroll">
               <table class="table profit-country-table">
@@ -441,7 +441,7 @@
               </table>
             </div>
           </div>
-          
+         
           <!-- Product Orders Tracking -->
           <div class="card">
             <div class="h">📦 Product Orders Tracking</div>
@@ -458,7 +458,7 @@
               <button id="poSave" class="btn">💾 Save Orders</button>
             </div>
           </div>
-          
+         
           <!-- Add Remittance Entry -->
           <div class="card">
             <div class="h">➕ Add Remittance Entry</div>
@@ -582,13 +582,29 @@
 
         <!-- ADSPEND -->
         <section id="adspend" style="display:none">
-          <h2>Current Advertising Spend Management</h2>
-
-          <!-- Current Advertising Spend -->
+          <h2>Advertising Spend Management</h2>
+<div class="section">
+  <h2>Current Advertising Spend</h2>
+  <div class="card">
+    <div class="h">Update Current Advertising Spend</div>
+    <div class="row wrap">
+      <select id="adPlatform" class="input">
+        <option value="facebook">Facebook</option>
+        <option value="tiktok">TikTok</option>
+        <option value="google">Google</option>
+      </select>
+      <select id="adProduct" class="input"></select>
+      <select id="adCountry" class="input"></select>
+      <input id="adAmount" type="number" class="input" placeholder="Current Amount (USD)" min="0" step="0.01"/>
+      <button id="adSave" class="btn">💾 Update Current Spend</button>
+    </div>
+  </div>
+</div>
+          <!-- Daily Advertising Spend -->
           <div class="section">
-            <h2>Current Advertising Spend</h2>
+            <h2>Daily Advertising Spend</h2>
             <div class="card">
-              <div class="h">Update Current Advertising Spend</div>
+              <div class="h">Add Daily Advertising Spend</div>
               <div class="row wrap">
                 <select id="adspendPlatform" class="input">
                   <option value="facebook">Facebook</option>
@@ -597,8 +613,8 @@
                 </select>
                 <select id="adspendProduct" class="input"></select>
                 <select id="adspendCountry" class="input"></select>
-                <input id="adspendAmount" type="number" class="input" placeholder="Current Amount (USD)" min="0" step="0.01"/>
-                <button id="adspendSave" class="btn">💾 Update Current Spend</button>
+                <input id="adspendAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
+                <button id="adspendSave" class="btn">💾 Save / Replace</button>
               </div>
             </div>
           </div>
@@ -607,7 +623,7 @@
           <div class="section">
             <h2>📊 Ad Spend Analytics</h2>
             <div class="card">
-              <div class="h">Filter Current Ad Spend Data</div>
+              <div class="h">Filter Ad Spend Data</div>
               <div class="row wrap">
                 <select id="adspendFilterRange" class="input date-range-select">
                   <option value="8days">Last 8 days</option>
@@ -644,15 +660,15 @@
 
           <!-- Advertising Overview -->
           <div class="section">
-            <h2>🎯 Current Advertising Overview by Country</h2>
+            <h2>🎯 Advertising Overview by Country</h2>
             <div id="advertisingOverview"></div>
-          </div>       
+          </div>      
         </section>
 
         <!-- FINANCE -->
         <section id="finance" style="display:none">
           <h2>Financial Management</h2>
-          
+         
           <!-- Running Balance -->
           <div class="big-balance">
             <div class="h">💰 Running Balance (All-time)</div>
@@ -773,19 +789,19 @@
               <button id="snapSave" class="btn">📸 Save Current System</button>
               <button id="createDailyBackup" class="btn" style="background: var(--accent-teal);">📅 Create Daily Backup</button>
             </div>
-            
+           
             <div class="card" style="background: var(--primary-50); border: 1px solid var(--primary); margin-top: 10px;">
               <div style="display: flex; align-items: center; gap: 10px;">
                 <span style="font-size: 1.2rem;">💡</span>
                 <div>
-                  <strong>Auto-Daily Backups:</strong> 
+                  <strong>Auto-Daily Backups:</strong>
                   <span style="color: var(--text-secondary); font-size: 0.9rem;">
                     System automatically keeps last 7 days. Manual snapshots are kept forever.
                   </span>
                 </div>
               </div>
             </div>
-            
+           
             <div class="table-scroll" style="margin-top: 15px;">
               <table class="table">
                 <thead>
@@ -812,4 +828,4 @@
 
   <script src="/public/app.js"></script>
 </body>
-</html>
+</html> 
