@@ -1034,39 +1034,53 @@ app.get('/api/adspend', requireAuth, (req, res) => {
   res.json({ adSpends: db.adspend || [] });
 });
 
+// In server.js, update the ad spend endpoint
 app.post('/api/adspend', requireAuth, (req, res) => {
-  const db = loadDB(); 
+  const db = loadDB();
   db.adspend = db.adspend || [];
   const { productId, country, platform, amount, date } = req.body || {};
-  
-  if (!productId || !country || !platform) return res.status(400).json({ error: 'Missing fields' });
-  
-  // Always find and replace existing entry for this combination (ignoring date)
-  const existingIndex = db.adspend.findIndex(a => 
-    a.productId === productId && 
-    a.country === country && 
-    a.platform === platform
+  if (!productId || !country || !platform || !date) return res.status(400).json({ error: 'Missing fields' });
+ 
+  // Convert amount to number
+  const newAmount = +amount || 0;
+ 
+  // Find existing entry for the same day, product, country, and platform
+  const existingIndex = db.adspend.findIndex(a =>
+    a.productId === productId &&
+    a.country === country &&
+    a.platform === platform &&
+    a.date === date
   );
-  
+ 
   if (existingIndex >= 0) {
-    // Replace existing entry
-    db.adspend[existingIndex].amount = +amount || 0;
+    // REPLACE the amount for this specific day
+    const oldAmount = db.adspend[existingIndex].amount;
+    db.adspend[existingIndex].amount = newAmount;
     db.adspend[existingIndex].updatedAt = new Date().toISOString();
-  } else {
-    // Add new entry
-    db.adspend.push({ 
-      id: uuidv4(), 
-      productId, 
-      country, 
-      platform, 
-      amount: +amount || 0,
-      date: new Date().toISOString().slice(0, 10),
+   
+    console.log(`✅ Updated ad spend for ${productId} in ${country} on ${platform} for ${date}: $${oldAmount} → $${newAmount}`);
+   
+    // If amount is 0, delete the entry instead of keeping a zero entry
+    if (newAmount === 0) {
+      db.adspend.splice(existingIndex, 1);
+      console.log(`🗑️ Removed ad spend entry for ${productId} in ${country} on ${platform} for ${date}`);
+    }
+  } else if (newAmount > 0) {
+    // Only add new entry if amount is greater than 0
+    db.adspend.push({
+      id: uuidv4(),
+      productId,
+      country,
+      platform,
+      amount: newAmount,
+      date: date,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
+    console.log(`✅ Added new ad spend for ${productId} in ${country} on ${platform} for ${date}: $${newAmount}`);
   }
-  
-  saveDB(db); 
+ 
+  saveDB(db);
   res.json({ ok: true });
 });
 app.put('/api/adspend/:id', requireAuth, (req, res) => {
