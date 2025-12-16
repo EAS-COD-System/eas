@@ -1947,7 +1947,7 @@ app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
 
 app.listen(PORT, async () => {
   // Run data migration first
-  migrateAdSpendData();
+  migrateAdvertisingCostData();
   
   await createStartupBackup();
   console.log('✅ EAS Tracker listening on', PORT);
