@@ -57,15 +57,15 @@
             <div class="card">
               <div class="h">Add Daily Advertising Spend</div>
               <div class="row wrap">
-                <select id="adPlatform" class="input">
+                <select id="adCostPlatform" class="input">
                   <option value="facebook">Facebook</option>
                   <option value="tiktok">TikTok</option>
                   <option value="google">Google</option>
                 </select>
-                <select id="adProduct" class="input"></select>
-                <select id="adCountry" class="input"></select>
-                <input id="adAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
-                <button id="adSave" class="btn">💾 Save / Replace</button>
+                <select id="adCostProduct" class="input"></select>
+                <select id="adCostCountry" class="input"></select>
+                <input id="adCostAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
+                <button id="adCostSave" class="btn">💾 Save / Replace</button>
               </div>
             </div>
           </div>
@@ -534,22 +534,22 @@
             <h2>🌍 Transit (China → Kenya)</h2>
             <div class="table-scroll">
               <table class="table">
-            <thead>
-  <tr>
-    <th>ID</th>
-    <th>Product</th>
-    <th>Route</th>
-    <th>Qty</th>
-    <th>Est. Ship Cost</th>
-    <th>Final Ship Cost</th>
-    <th>China Cost</th>
-    <th>Departed</th>
-    <th>Arrived</th>
-    <th>Payment Status</th>
-    <th>Note</th>
-    <th>Actions</th>
-  </tr>
-</thead>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Product</th>
+                    <th>Route</th>
+                    <th>Qty</th>
+                    <th>Est. Ship Cost</th>
+                    <th>Final Ship Cost</th>
+                    <th>China Cost</th>
+                    <th>Departed</th>
+                    <th>Arrived</th>
+                    <th>Payment Status</th>
+                    <th>Note</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
                 <tbody id="shipCKBody"></tbody>
               </table>
             </div>
@@ -559,21 +559,21 @@
             <h2>🔄 Transit (Inter-country)</h2>
             <div class="table-scroll">
               <table class="table">
-   <thead>
-  <tr>
-    <th>ID</th>
-    <th>Product</th>
-    <th>Route</th>
-    <th>Qty</th>
-    <th>Est. Ship Cost</th>
-    <th>Final Ship Cost</th>
-    <th>Departed</th>
-    <th>Arrived</th>
-    <th>Payment Status</th>
-    <th>Note</th>
-    <th>Actions</th>
-  </tr>
-</thead>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Product</th>
+                    <th>Route</th>
+                    <th>Qty</th>
+                    <th>Est. Ship Cost</th>
+                    <th>Final Ship Cost</th>
+                    <th>Departed</th>
+                    <th>Arrived</th>
+                    <th>Payment Status</th>
+                    <th>Note</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
                 <tbody id="shipICBody"></tbody>
               </table>
             </div>
@@ -583,38 +583,22 @@
         <!-- ADSPEND -->
         <section id="adspend" style="display:none">
           <h2>Advertising Spend Management</h2>
-<div class="section">
-  <h2>Current Advertising Spend</h2>
-  <div class="card">
-    <div class="h">Update Current Advertising Spend</div>
-    <div class="row wrap">
-      <select id="adPlatform" class="input">
-        <option value="facebook">Facebook</option>
-        <option value="tiktok">TikTok</option>
-        <option value="google">Google</option>
-      </select>
-      <select id="adProduct" class="input"></select>
-      <select id="adCountry" class="input"></select>
-      <input id="adAmount" type="number" class="input" placeholder="Current Amount (USD)" min="0" step="0.01"/>
-      <button id="adSave" class="btn">💾 Update Current Spend</button>
-    </div>
-  </div>
-</div>
+
           <!-- Daily Advertising Spend -->
           <div class="section">
             <h2>Daily Advertising Spend</h2>
             <div class="card">
               <div class="h">Add Daily Advertising Spend</div>
               <div class="row wrap">
-                <select id="adspendPlatform" class="input">
+                <select id="advertisingCostPlatform" class="input">
                   <option value="facebook">Facebook</option>
                   <option value="tiktok">TikTok</option>
                   <option value="google">Google</option>
                 </select>
-                <select id="adspendProduct" class="input"></select>
-                <select id="adspendCountry" class="input"></select>
-                <input id="adspendAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
-                <button id="adspendSave" class="btn">💾 Save / Replace</button>
+                <select id="advertisingCostProduct" class="input"></select>
+                <select id="advertisingCostCountry" class="input"></select>
+                <input id="advertisingCostAmount" type="number" class="input" placeholder="Amount (USD)" min="0" step="0.01"/>
+                <button id="advertisingCostSave" class="btn">💾 Save / Replace</button>
               </div>
             </div>
           </div>
@@ -625,7 +609,7 @@
             <div class="card">
               <div class="h">Filter Ad Spend Data</div>
               <div class="row wrap">
-                <select id="adspendFilterRange" class="input date-range-select">
+                <select id="advertisingCostFilterRange" class="input date-range-select">
                   <option value="8days">Last 8 days</option>
                   <option value="15days">Last 15 days</option>
                   <option value="1month">Last 1 month</option>
@@ -640,21 +624,21 @@
                   <input type="date" class="input custom-start"/>
                   <input type="date" class="input custom-end"/>
                 </div>
-                <select id="adspendFilterCountry" class="input">
+                <select id="advertisingCostFilterCountry" class="input">
                   <option value="">All countries</option>
                 </select>
-                <select id="adspendFilterProduct" class="input">
+                <select id="advertisingCostFilterProduct" class="input">
                   <option value="all">All products</option>
                 </select>
-                <select id="adspendFilterPlatform" class="input">
+                <select id="advertisingCostFilterPlatform" class="input">
                   <option value="">All platforms</option>
                   <option value="facebook">Facebook</option>
                   <option value="tiktok">TikTok</option>
                   <option value="google">Google</option>
                 </select>
-                <button id="adspendRun" class="btn">📊 Generate Report</button>
+                <button id="advertisingCostRun" class="btn">📊 Generate Report</button>
               </div>
-              <div id="adspendResults"></div>
+              <div id="advertisingCostResults"></div>
             </div>
           </div>
 
@@ -828,4 +812,4 @@
 
   <script src="/public/app.js"></script>
 </body>
-</html> 
+</html>
