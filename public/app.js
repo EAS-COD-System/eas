@@ -281,7 +281,7 @@ function bindGlobalNav() {
   });
 }
 
-// In preload() function in app.js
+// In the preload function, update how we handle products
 async function preload() {
   try {
     console.log('📥 Preloading application data...');
@@ -291,7 +291,7 @@ async function preload() {
     const pr = await api('/api/products');
     state.products = pr.products || [];
    
-    // FIX: Filter active products for dropdowns (except ad spend dropdowns)
+    // FIX: Keep all products in productsActive for display, but filter for operations
     state.productsActive = state.products.filter(p => p.status === 'active');
    
     const cats = await api('/api/finance/categories');
@@ -313,50 +313,38 @@ async function preload() {
   }
 }
 
-
-// Auto-manage product status based on ad spend
+// Add this function to automatically manage product status based on ad spend
 async function autoManageProductStatus() {
   try {
-    const adSpends = await api('/api/adspend');
+    const adSpends = await api('/api/advertising-costs');
     const products = await api('/api/products');
    
     const productsWithAdSpend = new Set();
-    const today = isoToday();
    
-    // Find all products that have advertising spend TODAY
-    (adSpends.adSpends || []).forEach(spend => {
-      if (spend.date === today && (+spend.amount || 0) > 0) {
-        productsWithAdSpend.add(spend.productId);
-      }
+    // Find all products that have advertising spend
+    (adSpends.advertisingCosts || []).forEach(spend => {
+      productsWithAdSpend.add(spend.productId);
     });
    
     // Update product statuses
     for (const product of products.products) {
-      const hasAdSpendToday = productsWithAdSpend.has(product.id);
+      const hasAdSpend = productsWithAdSpend.has(product.id);
+      const shouldBeActive = hasAdSpend;
      
-      if (hasAdSpendToday && product.status === 'paused') {
-        // Activate product if it has ad spend today but is paused
+      if (shouldBeActive && product.status === 'paused') {
+        // Activate product if it has ad spend but is paused
         await api(`/api/products/${product.id}/status`, {
           method: 'POST',
           body: JSON.stringify({ status: 'active' })
         });
         console.log(`✅ Auto-activated product: ${product.name}`);
-      } else if (!hasAdSpendToday && product.status === 'active') {
-        // Check if product has had ad spend in the last 30 days
-        const hasRecentAdSpend = (adSpends.adSpends || []).some(spend =>
-          spend.productId === product.id &&
-          (+spend.amount || 0) > 0 &&
-          spend.date >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-        );
-       
-        if (!hasRecentAdSpend) {
-          // Pause product if it has no recent ad spend but is active
-          await api(`/api/products/${product.id}/status`, {
-            method: 'POST',
-            body: JSON.stringify({ status: 'paused' })
-          });
-          console.log(`⏸️ Auto-paused product: ${product.name}`);
-        }
+      } else if (!shouldBeActive && product.status === 'active') {
+        // Pause product if it has no ad spend but is active
+        await api(`/api/products/${product.id}/status`, {
+          method: 'POST',
+          body: JSON.stringify({ status: 'paused' })
+        });
+        console.log(`⏸️ Auto-paused product: ${product.name}`);
       }
     }
    
@@ -368,9 +356,9 @@ async function autoManageProductStatus() {
   }
 }
 
-// Fill common dropdown selects - FIXED: Show active products only for most dropdowns
+// Fill common dropdown selects - FIXED: Include all products (active and paused), sorted by status and name
 function fillCommonSelects() {
-  const countrySelects = ['#adCountry', '#rCountry', '#pdAdCountry', '#pdRCountry',
+  const countrySelects = ['#adCostCountry', '#rCountry', '#pdAdCountry', '#pdRCountry',
     '#pdInfCountry', '#pdInfFilterCountry', '#pcCountry', '#remCountry', '#remAddCountry',
     '#topDelCountry', '#remAnalyticsCountry', '#spCountry', '#poCountry', '#pdNoteCountry',
     '#mvFrom', '#mvTo', '#refundCountry', '#pdRefundCountry'];
@@ -393,9 +381,9 @@ function fillCommonSelects() {
     }
   }));
 
-  // FIX: Show ALL products for ad spend, sorted by status and name
-  const adSpendProductInputs = ['#adProduct', '#adspendProduct'];
-  adSpendProductInputs.forEach(sel => QA(sel).forEach(el => {
+  // FIXED: Show ALL products (active and paused) sorted by status (active first) then name (A-Z)
+  const allProductInputs = ['#mvProduct', '#adCostProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct', '#refundProduct'];
+  allProductInputs.forEach(sel => QA(sel).forEach(el => {
     if (!el) return;
     // Show all products sorted by status (active first) then name (A-Z)
     const allProducts = state.products
@@ -411,32 +399,25 @@ function fillCommonSelects() {
       allProducts.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}${p.status === 'paused' ? ' [PAUSED]' : ''}</option>`).join('');
   }));
 
-  // FIX: Show only ACTIVE products for other dropdowns
-  const otherProductInputs = ['#mvProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct', '#refundProduct'];
-  otherProductInputs.forEach(sel => QA(sel).forEach(el => {
+  // All products for analytics - FIXED: Sort by status and name
+  const allProductsNewestFirst = ['#pcaProduct', '#remAnalyticsProduct', '#productInfoSelect', '#remProduct', '#advertisingCostsFilterProduct'];
+  allProductsNewestFirst.forEach(sel => QA(sel).forEach(el => {
     if (!el) return;
-    // Show only active products
-    const activeProducts = state.productsActive
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const allProductsSorted = state.products
+      .sort((a, b) => {
+        // First sort by status: active first
+        if (a.status === 'active' && b.status !== 'active') return -1;
+        if (a.status !== 'active' && b.status === 'active') return 1;
+        // Then sort by name A-Z
+        return a.name.localeCompare(b.name);
+      });
    
-    el.innerHTML = `<option value="">Select Product...</option>` +
-      activeProducts.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
-  }));
-
-  // All products for analytics - FIXED: Show active products for analytics
-  const analyticsProductInputs = ['#pcaProduct', '#remAnalyticsProduct', '#productInfoSelect', '#remProduct', '#adspendFilterProduct'];
-  analyticsProductInputs.forEach(sel => QA(sel).forEach(el => {
-    if (!el) return;
-    // Show active products for analytics
-    const activeProductsSorted = state.productsActive
-      .sort((a, b) => a.name.localeCompare(b.name));
-   
-    if (sel === '#pcaProduct' || sel === '#remAnalyticsProduct' || sel === '#adspendFilterProduct') {
+    if (sel === '#pcaProduct' || sel === '#remAnalyticsProduct' || sel === '#advertisingCostsFilterProduct') {
       el.innerHTML = `<option value="all">All products</option>` +
-        activeProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+        allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}${p.status === 'paused' ? ' [PAUSED]' : ''}</option>`).join('');
     } else {
       el.innerHTML = `<option value="all">All products</option>` +
-        activeProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+        allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}${p.status === 'paused' ? ' [PAUSED]' : ''}</option>`).join('');
     }
   }));
 
@@ -539,33 +520,34 @@ function getDateRange(container) {
     end: dateRange.end || ''
   };
 }
-// Function to fix ad spend data for a specific product
-async function fixProductAdSpend(productId) {
+
+// Function to fix advertising cost data for a specific product
+async function fixProductAdvertisingCost(productId) {
   try {
-    const result = await api('/api/fix-old-adspend', {
+    const result = await api('/api/fix-old-advertising-costs', {
       method: 'POST',
       body: JSON.stringify({ productId })
     });
-    console.log('Fixed product ad spend:', result);
+    console.log('Fixed product advertising cost:', result);
     return result;
   } catch (error) {
-    console.error('Error fixing product ad spend:', error);
+    console.error('Error fixing product advertising cost:', error);
     throw error;
   }
 }
 
-// Update the updateAdSpendDirectly function to properly replace values
-async function updateAdSpendDirectly(productId, country, platform, newAmount) {
+// Update the updateAdvertisingCostDirectly function to handle legacy data
+async function updateAdvertisingCostDirectly(productId, country, platform, newAmount) {
   try {
     // First try to fix any legacy data
-    await fixProductAdSpend(productId);
+    await fixProductAdvertisingCost(productId);
    
-    const adData = await api('/api/adspend');
-    const adSpends = adData.adSpends || [];
+    const adData = await api('/api/advertising-costs');
+    const advertisingCosts = adData.advertisingCosts || [];
    
     // Find entry for today
     const today = isoToday();
-    const todayEntry = adSpends.find(ad =>
+    const todayEntry = advertisingCosts.find(ad =>
       ad.productId === productId &&
       ad.country === country &&
       ad.platform === platform &&
@@ -573,15 +555,15 @@ async function updateAdSpendDirectly(productId, country, platform, newAmount) {
     );
    
     if (todayEntry) {
-      // Update today's entry - REPLACE the amount
-      await api(`/api/adspend/${todayEntry.id}`, {
+      // Update today's entry
+      await api(`/api/advertising-costs/${todayEntry.id}`, {
         method: 'PUT',
         body: JSON.stringify({ amount: newAmount })
       });
-      console.log(`✅ Updated today's ad spend to: $${newAmount}`);
+      console.log(`✅ Updated today's advertising cost: $${newAmount}`);
     } else {
       // Check for legacy entry (no date or old date)
-      const legacyEntry = adSpends.find(ad =>
+      const legacyEntry = advertisingCosts.find(ad =>
         ad.productId === productId &&
         ad.country === country &&
         ad.platform === platform &&
@@ -589,18 +571,18 @@ async function updateAdSpendDirectly(productId, country, platform, newAmount) {
       );
      
       if (legacyEntry) {
-        // Update legacy entry with today's date and REPLACE the amount
-        await api(`/api/adspend/${legacyEntry.id}`, {
+        // Update legacy entry with today's date
+        await api(`/api/advertising-costs/${legacyEntry.id}`, {
           method: 'PUT',
           body: JSON.stringify({
             amount: newAmount,
             date: today
           })
         });
-        console.log(`✅ Updated legacy ad spend for today to: $${newAmount}`);
+        console.log(`✅ Updated legacy advertising cost for today: $${newAmount}`);
       } else {
         // Create new entry
-        await api('/api/adspend', {
+        await api('/api/advertising-costs', {
           method: 'POST',
           body: JSON.stringify({
             date: today,
@@ -610,21 +592,22 @@ async function updateAdSpendDirectly(productId, country, platform, newAmount) {
             amount: newAmount
           })
         });
-        console.log(`✅ Created new ad spend entry: $${newAmount}`);
+        console.log(`✅ Created new advertising cost entry: $${newAmount}`);
       }
     }
    
     return true;
   } catch (error) {
-    console.error('Error updating ad spend:', error);
+    console.error('Error updating advertising cost:', error);
     throw error;
   }
 }
+
 // ======== DASHBOARD PAGE ========
 function renderDashboardPage() {
   renderCompactKpis();
   renderCountryStockSpend();
-  bindDailyAdSpend();
+  bindAdvertisingCost();
   renderWeeklyDelivered();
   initBrainstorming();
   initTodos();
@@ -660,8 +643,8 @@ async function renderCompactKpis() {
   }
 
   try {
-    const a = await api('/api/adspend');
-    const total = (a.adSpends || []).reduce((t, x) => t + (+x.amount || 0), 0);
+    const a = await api('/api/advertising-costs');
+    const total = (a.advertisingCosts || []).reduce((t, x) => t + (+x.amount || 0), 0);
     Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = `${fmt(total)} USD`);
   } catch { Q('#kpiAdSpend') && (Q('#kpiAdSpend').textContent = '—'); }
 
@@ -740,16 +723,16 @@ async function renderCountryStockSpend() {
    
     let st = 0, fb = 0, tt = 0, gg = 0, totalAd = 0;
    
-    const adSpends = await api('/api/adspend');
+    const advertisingCosts = await api('/api/advertising-costs');
     const adBreakdown = {};
    
     state.countries.forEach(country => {
       adBreakdown[country] = { facebook: 0, tiktok: 0, google: 0 };
     });
 
-    (adSpends.adSpends || []).forEach(ad => {
+    (advertisingCosts.advertisingCosts || []).forEach(ad => {
       const product = state.products.find(p => p.id === ad.productId);
-      // FIX: Include ALL products for ad spend calculation
+      // FIX: Include ALL products for advertising cost calculation
       if (adBreakdown[ad.country]) {
         const amount = +ad.amount || 0;
         if (ad.platform === 'facebook') adBreakdown[ad.country].facebook += amount;
@@ -792,18 +775,18 @@ async function renderCountryStockSpend() {
   }
 }
 
-function bindDailyAdSpend() {
-  const btn = Q('#adSave');
+function bindAdvertisingCost() {
+  const btn = Q('#adCostSave');
   if (!btn) return;
  
-  if (!eventListeners.has('adSave')) {
+  if (!eventListeners.has('adCostSave')) {
     btn.onclick = async () => {
       const payload = {
         date: isoToday(),
-        productId: Q('#adProduct')?.value,
-        country: Q('#adCountry')?.value,
-        platform: Q('#adPlatform')?.value,
-        amount: +Q('#adAmount')?.value || 0
+        productId: Q('#adCostProduct')?.value,
+        country: Q('#adCostCountry')?.value,
+        platform: Q('#adCostPlatform')?.value,
+        amount: +Q('#adCostAmount')?.value || 0
       };
      
       if (!payload.productId || !payload.country || !payload.platform) {
@@ -811,19 +794,19 @@ function bindDailyAdSpend() {
       }
      
       try {
-        await api('/api/adspend', {
+        await api('/api/advertising-costs', {
           method: 'POST',
           body: JSON.stringify(payload)
         });
         await renderCountryStockSpend();
         await renderCompactKpis();
-        alert(`✅ Ad spend ${payload.amount ? 'saved' : 'removed'} for today!`);
-        Q('#adAmount').value = '';
+        alert(`✅ Advertising cost ${payload.amount ? 'saved' : 'removed'} for today!`);
+        Q('#adCostAmount').value = '';
       } catch (e) {
         alert('Error: ' + e.message);
       }
     };
-    eventListeners.set('adSave', true);
+    eventListeners.set('adCostSave', true);
   }
 }
 
@@ -1672,7 +1655,7 @@ function renderProductsTable() {
         if (country !== 'china') {
           const color = countryColors[country] || '#374151';
           headerHTML += `<th style="background-color: ${color}; color: white;" class="country-${country}">${country.charAt(0).toUpperCase() + country.slice(1)} Stock</th>`;
-          headerHTML += `<th style="background-color: ${color}; color: white;" class="country-${country}">${country.charAt(0).toUpperCase() + country.slice(1)} Ad Spend</th>`;
+          headerHTML += `<th style="background-color: ${color}; color: white;" class="country-${country}">${country.charAt(0).toUpperCase() + country.slice(1)} Ad Cost</th>`;
         }
       });
     }
@@ -1711,11 +1694,11 @@ function renderProductsTable() {
           state.countries.forEach(country => {
             if (country !== 'china') {
               const stock = p.stockByCountry?.[country] || 0;
-              const adSpend = p.adSpendByCountry?.[country] || 0;
+              const adCost = p.adCostByCountry?.[country] || 0;
               const color = countryColors[country] || '#374151';
               rowHTML += `
                 <td style="background-color: ${color}; color: white;" class="country-${country}">${fmt(stock)}</td>
-                <td style="background-color: ${color}; color: white;" class="country-${country}">${fmt(adSpend)}</td>
+                <td style="background-color: ${color}; color: white;" class="country-${country}">${fmt(adCost)}</td>
               `;
             }
           });
@@ -1859,8 +1842,8 @@ function renderCompactCountryStats() {
     const container = Q('#countryProductStats');
     if (!container) return;
 
-    api('/api/adspend').then(adData => {
-      const adSpends = adData.adSpends || [];
+    api('/api/advertising-costs').then(adData => {
+      const advertisingCosts = adData.advertisingCosts || [];
       const countryStats = {};
 
       if (state.countries && Array.isArray(state.countries)) {
@@ -1924,21 +1907,21 @@ async function renderAdvertisingOverview() {
 
       container.innerHTML = '<div class="card"><div class="muted">Loading advertising data...</div></div>';
 
-      api('/api/adspend').then(adData => {
-        const adSpends = adData.adSpends || [];
+      api('/api/advertising-costs').then(adData => {
+        const advertisingCosts = adData.advertisingCosts || [];
        
         return api('/api/products').then(productsData => {
           state.products = productsData.products || [];
-          return adSpends;
+          return advertisingCosts;
         });
-      }).then(adSpends => {
+      }).then(advertisingCosts => {
         const byCountry = {};
 
-        adSpends.forEach(spend => {
-          const country = spend.country;
-          const productId = spend.productId;
-          const platform = spend.platform;
-          const amount = +spend.amount || 0;
+        advertisingCosts.forEach(cost => {
+          const country = cost.country;
+          const productId = cost.productId;
+          const platform = cost.platform;
+          const amount = +cost.amount || 0;
 
           if (!byCountry[country]) {
             byCountry[country] = {};
@@ -1977,8 +1960,8 @@ async function renderAdvertisingOverview() {
             const product = state.products.find(p => p.id === productId) || { name: productId };
             html += `
             <div class="product-row">
-              <div class="product-name">${product ? product.name : productId}</div>
-              <div class="platform-spends">
+              <div class="product-name">${product ? product.name : productId}${product && product.status === 'paused' ? ' [PAUSED]' : ''}</div>
+              <div class="platform-costs">
                 <span class="platform-badge ${data.facebook > 0 ? 'active' : ''}" data-platform="facebook" data-country="${country}" data-product="${productId}">Facebook: ${fmt(data.facebook)}</span>
                 <span class="platform-badge ${data.tiktok > 0 ? 'active' : ''}" data-platform="tiktok" data-country="${country}" data-product="${productId}">TikTok: ${fmt(data.tiktok)}</span>
                 <span class="platform-badge ${data.google > 0 ? 'active' : ''}" data-platform="google" data-country="${country}" data-product="${productId}">Google: ${fmt(data.google)}</span>
@@ -2017,14 +2000,14 @@ function handlePlatformClick(e) {
    
     const currentAmount = parseFloat(e.target.textContent.split(': ')[1]) || 0;
    
-    const newAmount = prompt(`Enter new ${platform} spend for ${country} for TODAY (${isoToday()}):\nEnter 0 to remove spend.`, currentAmount);
+    const newAmount = prompt(`Enter new ${platform} cost for ${country} for TODAY (${isoToday()}):`, currentAmount);
    
     if (newAmount !== null && !isNaN(newAmount)) {
       const amount = parseFloat(newAmount);
      
       if (amount >= 0) {
-        // This will update ONLY today's spend for this specific combination
-        api('/api/adspend', {
+        // This will update ONLY today's cost for this specific combination
+        api('/api/advertising-costs', {
           method: 'POST',
           body: JSON.stringify({
             date: isoToday(), // Always use today's date for updates
@@ -2038,13 +2021,9 @@ function handlePlatformClick(e) {
           renderAdvertisingOverview();
           renderCountryStockSpend();
           renderCompactKpis();
-          if (amount === 0) {
-            alert(`✅ ${platform} spend removed for today!`);
-          } else {
-            alert(`✅ ${platform} spend updated to $${amount} for today!`);
-          }
+          alert(`✅ ${platform} cost updated to $${amount} for today!`);
         }).catch(error => {
-          alert('Error updating spend: ' + error.message);
+          alert('Error updating cost: ' + error.message);
         });
       } else {
         alert('Please enter a valid amount');
@@ -2264,7 +2243,7 @@ function renderProductCostsAnalysis(analysis) {
                 <td>$${fmt(analysis.totalShippingCost)}</td>
               </tr>
               <tr>
-                <td>Advertising Spend</td>
+                <td>Advertising Cost</td>
                 <td>$${fmt(analysis.totalAdSpend)}</td>
                 <td>Boxleo Fees</td>
                 <td>$${fmt(analysis.totalBoxleoFees)}</td>
@@ -2324,7 +2303,7 @@ function renderProductCostsAnalysis(analysis) {
                 <td>$${fmt(analysis.totalShippingCost)}</td>
               </tr>
               <tr>
-                <td>Advertising Spend</td>
+                <td>Advertising Cost</td>
                 <td>$${fmt(analysis.totalAdSpend)}</td>
                 <td>Boxleo Fees</td>
                 <td>$${fmt(analysis.totalBoxleoFees)}</td>
@@ -2350,7 +2329,7 @@ function renderProductCostsAnalysis(analysis) {
               <tr>
                 <td><strong>Ad Cost per Delivered Order</strong></td>
                 <td>$${fmt(analysis.adCostPerDeliveredOrder)}</td>
-                <td><strong>Influencer per Delivered Order</strong></td>
+                <td><strong>Influencer per Delivered Order</th>
                 <td>$${fmt(analysis.influencerPerDeliveredOrder)}</td>
               </tr>
             </tbody>
@@ -2527,7 +2506,7 @@ function addSortingToAnalytics() {
     'Delivered Pieces': 'totalDeliveredPieces',
     'Revenue': 'totalRevenue',
     'Refunded Amount': 'totalRefundedAmount',
-    'Advertising Spend': 'totalAdSpend',
+    'Advertising Cost': 'totalAdSpend',
     'Influencer Spend': 'totalInfluencerSpend',
     'Boxleo Fees': 'totalBoxleoFees',
     'Product Cost China': 'totalProductChinaCost',
@@ -3029,25 +3008,25 @@ async function editShipment(shipmentId) {
   }
 }
 
-// ======== ADSPEND PAGE ========
+// ======== ADVERTISING COSTS PAGE ========
 function renderAdspendPage() {
-  bindAdspendDaily();
-  bindAdspendAnalytics();
+  bindAdvertisingCostDaily();
+  bindAdvertisingCostAnalytics();
   renderAdvertisingOverview();
 }
 
-function bindAdspendDaily() {
-  const btn = Q('#adspendSave');
+function bindAdvertisingCostDaily() {
+  const btn = Q('#advertisingCostSave');
   if (!btn) return;
 
-  if (!eventListeners.has('adspendSave')) {
+  if (!eventListeners.has('advertisingCostSave')) {
     btn.onclick = async () => {
       const payload = {
         date: isoToday(),
-        productId: Q('#adspendProduct')?.value,
-        country: Q('#adspendCountry')?.value,
-        platform: Q('#adspendPlatform')?.value,
-        amount: +Q('#adspendAmount')?.value || 0
+        productId: Q('#advertisingCostProduct')?.value,
+        country: Q('#advertisingCostCountry')?.value,
+        platform: Q('#advertisingCostPlatform')?.value,
+        amount: +Q('#advertisingCostAmount')?.value || 0
       };
 
       if (!payload.productId || !payload.country || !payload.platform) {
@@ -3055,91 +3034,91 @@ function bindAdspendDaily() {
       }
 
       try {
-        await api('/api/adspend', { method: 'POST', body: JSON.stringify(payload) });
-        alert('Ad spend saved successfully!');
-        Q('#adspendAmount').value = '';
+        await api('/api/advertising-costs', { method: 'POST', body: JSON.stringify(payload) });
+        alert('Advertising cost saved successfully!');
+        Q('#advertisingCostAmount').value = '';
         renderAdvertisingOverview();
       } catch (e) {
         alert('Error: ' + e.message);
       }
     };
-    eventListeners.set('adspendSave', true);
+    eventListeners.set('advertisingCostSave', true);
   }
 }
 
-function bindAdspendAnalytics() {
-  const btn = Q('#adspendRun');
+function bindAdvertisingCostAnalytics() {
+  const btn = Q('#advertisingCostRun');
   if (!btn) return;
 
-  if (!eventListeners.has('adspendRun')) {
+  if (!eventListeners.has('advertisingCostRun')) {
     btn.onclick = async () => {
       const dateRange = getDateRange(btn.closest('.row'));
-      const country = Q('#adspendFilterCountry')?.value || '';
-      const productId = Q('#adspendFilterProduct')?.value || '';
-      const platform = Q('#adspendFilterPlatform')?.value || '';
+      const country = Q('#advertisingCostFilterCountry')?.value || '';
+      const productId = Q('#advertisingCostFilterProduct')?.value || '';
+      const platform = Q('#advertisingCostFilterPlatform')?.value || '';
 
       try {
-        const adSpends = await api('/api/adspend');
-        let filteredSpends = adSpends.adSpends || [];
+        const advertisingCosts = await api('/api/advertising-costs');
+        let filteredCosts = advertisingCosts.advertisingCosts || [];
 
         // Apply filters
         if (dateRange.start) {
-          filteredSpends = filteredSpends.filter(ad => ad.date >= dateRange.start);
+          filteredCosts = filteredCosts.filter(cost => cost.date >= dateRange.start);
         }
         if (dateRange.end) {
-          filteredSpends = filteredSpends.filter(ad => ad.date <= dateRange.end);
+          filteredCosts = filteredCosts.filter(cost => cost.date <= dateRange.end);
         }
         if (country) {
-          filteredSpends = filteredSpends.filter(ad => ad.country === country);
+          filteredCosts = filteredCosts.filter(cost => cost.country === country);
         }
         if (productId && productId !== 'all') {
-          filteredSpends = filteredSpends.filter(ad => ad.productId === productId);
+          filteredCosts = filteredCosts.filter(cost => cost.productId === productId);
         }
         if (platform) {
-          filteredSpends = filteredSpends.filter(ad => ad.platform === platform);
+          filteredCosts = filteredCosts.filter(cost => cost.platform === platform);
         }
 
-        renderAdspendResults(filteredSpends);
+        renderAdvertisingCostResults(filteredCosts);
       } catch (e) {
-        alert('Error loading ad spend data: ' + e.message);
+        alert('Error loading advertising cost data: ' + e.message);
       }
     };
-    eventListeners.set('adspendRun', true);
+    eventListeners.set('advertisingCostRun', true);
   }
 }
 
-function renderAdspendResults(adSpends) {
-  const container = Q('#adspendResults');
+function renderAdvertisingCostResults(advertisingCosts) {
+  const container = Q('#advertisingCostResults');
   if (!container) return;
 
-  const total = adSpends.reduce((sum, ad) => sum + (+ad.amount || 0), 0);
+  const total = advertisingCosts.reduce((sum, cost) => sum + (+cost.amount || 0), 0);
   const byPlatform = {};
   const byCountry = {};
   const byProduct = {};
 
-  adSpends.forEach(ad => {
+  advertisingCosts.forEach(cost => {
     // Platform breakdown
-    byPlatform[ad.platform] = (byPlatform[ad.platform] || 0) + (+ad.amount || 0);
+    byPlatform[cost.platform] = (byPlatform[cost.platform] || 0) + (+cost.amount || 0);
    
     // Country breakdown
-    byCountry[ad.country] = (byCountry[ad.country] || 0) + (+ad.amount || 0);
+    byCountry[cost.country] = (byCountry[cost.country] || 0) + (+cost.amount || 0);
    
     // Product breakdown
-    const product = state.products.find(p => p.id === ad.productId);
-    const productName = product ? product.name : ad.productId;
-    byProduct[productName] = (byProduct[productName] || 0) + (+ad.amount || 0);
+    const product = state.products.find(p => p.id === cost.productId);
+    const productName = product ? product.name : cost.productId;
+    byProduct[productName] = (byProduct[productName] || 0) + (+cost.amount || 0);
   });
 
   let html = `
-    <div class="adspend-summary">
+    <div class="advertising-cost-summary">
       <div class="summary-stats">
         <div class="stat-card">
-          <div class="stat-label">Total Ad Spend</div>
+          <div class="stat-label">Total Advertising Cost</div>
           <div class="stat-value">$${fmt(total)}</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Number of Entries</div>
-          <div class="stat-value">${adSpends.length}</div>
+          <div class="stat-value">${advertisingCosts.length}</div>
         </div>
       </div>
   `;
@@ -3604,7 +3583,7 @@ function renderProductPage() {
   if (!state.productId) return;
  
   renderProductHeader();
-  renderProductStockAdSpend();
+  renderProductStockAdCost();
   bindProductNotes();
   renderProfitAdvertisingBudget();
   renderProductShipments();
@@ -3627,7 +3606,7 @@ async function renderProductHeader() {
   }
 }
 
-async function renderProductStockAdSpend() {
+async function renderProductStockAdCost() {
   const tbody = Q('#pdStockBody');
   if (!tbody) return;
 
@@ -3636,13 +3615,13 @@ async function renderProductStockAdSpend() {
     if (!product) return;
 
     const stockByCountry = product.stockByCountry || {};
-    const adSpendByCountry = product.adSpendByCountry || {};
+    const adCostByCountry = product.adCostByCountry || {};
 
     let totalStock = 0, totalFb = 0, totalTt = 0, totalGg = 0, totalAd = 0;
 
     const rows = state.countries.map(country => {
       const stock = stockByCountry[country] || 0;
-      const adData = adSpendByCountry[country] || { facebook: 0, tiktok: 0, google: 0 };
+      const adData = adCostByCountry[country] || { facebook: 0, tiktok: 0, google: 0 };
       const countryAdTotal = adData.facebook + adData.tiktok + adData.google;
 
       totalStock += stock;
