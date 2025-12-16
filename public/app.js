@@ -281,7 +281,7 @@ function bindGlobalNav() {
   });
 }
 
-// In the preload function, update how we handle products
+// In preload() function in app.js
 async function preload() {
   try {
     console.log('📥 Preloading application data...');
@@ -291,7 +291,7 @@ async function preload() {
     const pr = await api('/api/products');
     state.products = pr.products || [];
    
-    // FIX: Keep all products in productsActive for display, but filter for operations
+    // FIX: Filter active products for dropdowns (except ad spend dropdowns)
     state.productsActive = state.products.filter(p => p.status === 'active');
    
     const cats = await api('/api/finance/categories');
@@ -313,38 +313,50 @@ async function preload() {
   }
 }
 
-// Add this function to automatically manage product status based on ad spend
+
+// Auto-manage product status based on ad spend
 async function autoManageProductStatus() {
   try {
     const adSpends = await api('/api/adspend');
     const products = await api('/api/products');
    
     const productsWithAdSpend = new Set();
+    const today = isoToday();
    
-    // Find all products that have advertising spend
+    // Find all products that have advertising spend TODAY
     (adSpends.adSpends || []).forEach(spend => {
-      productsWithAdSpend.add(spend.productId);
+      if (spend.date === today && (+spend.amount || 0) > 0) {
+        productsWithAdSpend.add(spend.productId);
+      }
     });
    
     // Update product statuses
     for (const product of products.products) {
-      const hasAdSpend = productsWithAdSpend.has(product.id);
-      const shouldBeActive = hasAdSpend;
+      const hasAdSpendToday = productsWithAdSpend.has(product.id);
      
-      if (shouldBeActive && product.status === 'paused') {
-        // Activate product if it has ad spend but is paused
+      if (hasAdSpendToday && product.status === 'paused') {
+        // Activate product if it has ad spend today but is paused
         await api(`/api/products/${product.id}/status`, {
           method: 'POST',
           body: JSON.stringify({ status: 'active' })
         });
         console.log(`✅ Auto-activated product: ${product.name}`);
-      } else if (!shouldBeActive && product.status === 'active') {
-        // Pause product if it has no ad spend but is active
-        await api(`/api/products/${product.id}/status`, {
-          method: 'POST',
-          body: JSON.stringify({ status: 'paused' })
-        });
-        console.log(`⏸️ Auto-paused product: ${product.name}`);
+      } else if (!hasAdSpendToday && product.status === 'active') {
+        // Check if product has had ad spend in the last 30 days
+        const hasRecentAdSpend = (adSpends.adSpends || []).some(spend =>
+          spend.productId === product.id &&
+          (+spend.amount || 0) > 0 &&
+          spend.date >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+        );
+       
+        if (!hasRecentAdSpend) {
+          // Pause product if it has no recent ad spend but is active
+          await api(`/api/products/${product.id}/status`, {
+            method: 'POST',
+            body: JSON.stringify({ status: 'paused' })
+          });
+          console.log(`⏸️ Auto-paused product: ${product.name}`);
+        }
       }
     }
    
@@ -356,7 +368,7 @@ async function autoManageProductStatus() {
   }
 }
 
-// Fill common dropdown selects - FIXED: Include all products for ad spend, sorted by status and name
+// Fill common dropdown selects - FIXED: Show active products only for most dropdowns
 function fillCommonSelects() {
   const countrySelects = ['#adCountry', '#rCountry', '#pdAdCountry', '#pdRCountry',
     '#pdInfCountry', '#pdInfFilterCountry', '#pcCountry', '#remCountry', '#remAddCountry',
@@ -381,9 +393,9 @@ function fillCommonSelects() {
     }
   }));
 
-  // FIXED: Show ALL products (active and paused) for ad spend, sorted by status and name
-  const allProductInputs = ['#mvProduct', '#adProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct', '#refundProduct', '#adspendProduct'];
-  allProductInputs.forEach(sel => QA(sel).forEach(el => {
+  // FIX: Show ALL products for ad spend, sorted by status and name
+  const adSpendProductInputs = ['#adProduct', '#adspendProduct'];
+  adSpendProductInputs.forEach(sel => QA(sel).forEach(el => {
     if (!el) return;
     // Show all products sorted by status (active first) then name (A-Z)
     const allProducts = state.products
@@ -399,25 +411,32 @@ function fillCommonSelects() {
       allProducts.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}${p.status === 'paused' ? ' [PAUSED]' : ''}</option>`).join('');
   }));
 
-  // All products for analytics - FIXED: Sort by status and name
-  const allProductsNewestFirst = ['#pcaProduct', '#remAnalyticsProduct', '#productInfoSelect', '#remProduct', '#adspendFilterProduct'];
-  allProductsNewestFirst.forEach(sel => QA(sel).forEach(el => {
+  // FIX: Show only ACTIVE products for other dropdowns
+  const otherProductInputs = ['#mvProduct', '#rProduct', '#remAddProduct', '#spProduct', '#poProduct', '#refundProduct'];
+  otherProductInputs.forEach(sel => QA(sel).forEach(el => {
     if (!el) return;
-    const allProductsSorted = state.products
-      .sort((a, b) => {
-        // First sort by status: active first
-        if (a.status === 'active' && b.status !== 'active') return -1;
-        if (a.status !== 'active' && b.status === 'active') return 1;
-        // Then sort by name A-Z
-        return a.name.localeCompare(b.name);
-      });
+    // Show only active products
+    const activeProducts = state.productsActive
+      .sort((a, b) => a.name.localeCompare(b.name));
+   
+    el.innerHTML = `<option value="">Select Product...</option>` +
+      activeProducts.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
+  }));
+
+  // All products for analytics - FIXED: Show active products for analytics
+  const analyticsProductInputs = ['#pcaProduct', '#remAnalyticsProduct', '#productInfoSelect', '#remProduct', '#adspendFilterProduct'];
+  analyticsProductInputs.forEach(sel => QA(sel).forEach(el => {
+    if (!el) return;
+    // Show active products for analytics
+    const activeProductsSorted = state.productsActive
+      .sort((a, b) => a.name.localeCompare(b.name));
    
     if (sel === '#pcaProduct' || sel === '#remAnalyticsProduct' || sel === '#adspendFilterProduct') {
       el.innerHTML = `<option value="all">All products</option>` +
-        allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}${p.status === 'paused' ? ' [PAUSED]' : ''}</option>`).join('');
+        activeProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
     } else {
       el.innerHTML = `<option value="all">All products</option>` +
-        allProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}${p.status === 'paused' ? ' [PAUSED]' : ''}</option>`).join('');
+        activeProductsSorted.map(p => `<option value="${p.id}">${p.name}${p.sku ? ` (${p.sku})` : ''}</option>`).join('');
     }
   }));
 
@@ -535,7 +554,7 @@ async function fixProductAdSpend(productId) {
   }
 }
 
-// Update the updateAdSpendDirectly function to handle legacy data
+// Update the updateAdSpendDirectly function to properly replace values
 async function updateAdSpendDirectly(productId, country, platform, newAmount) {
   try {
     // First try to fix any legacy data
@@ -554,12 +573,12 @@ async function updateAdSpendDirectly(productId, country, platform, newAmount) {
     );
    
     if (todayEntry) {
-      // Update today's entry
+      // Update today's entry - REPLACE the amount
       await api(`/api/adspend/${todayEntry.id}`, {
         method: 'PUT',
         body: JSON.stringify({ amount: newAmount })
       });
-      console.log(`✅ Updated today's ad spend: $${newAmount}`);
+      console.log(`✅ Updated today's ad spend to: $${newAmount}`);
     } else {
       // Check for legacy entry (no date or old date)
       const legacyEntry = adSpends.find(ad =>
@@ -570,7 +589,7 @@ async function updateAdSpendDirectly(productId, country, platform, newAmount) {
       );
      
       if (legacyEntry) {
-        // Update legacy entry with today's date
+        // Update legacy entry with today's date and REPLACE the amount
         await api(`/api/adspend/${legacyEntry.id}`, {
           method: 'PUT',
           body: JSON.stringify({
@@ -578,7 +597,7 @@ async function updateAdSpendDirectly(productId, country, platform, newAmount) {
             date: today
           })
         });
-        console.log(`✅ Updated legacy ad spend for today: $${newAmount}`);
+        console.log(`✅ Updated legacy ad spend for today to: $${newAmount}`);
       } else {
         // Create new entry
         await api('/api/adspend', {
