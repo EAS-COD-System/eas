@@ -2017,7 +2017,7 @@ function handlePlatformClick(e) {
    
     const currentAmount = parseFloat(e.target.textContent.split(': ')[1]) || 0;
    
-    const newAmount = prompt(`Enter new ${platform} spend for ${country} for TODAY (${isoToday()}):`, currentAmount);
+    const newAmount = prompt(`Enter new ${platform} spend for ${country} for TODAY (${isoToday()}):\nEnter 0 to remove spend.`, currentAmount);
    
     if (newAmount !== null && !isNaN(newAmount)) {
       const amount = parseFloat(newAmount);
@@ -2038,7 +2038,11 @@ function handlePlatformClick(e) {
           renderAdvertisingOverview();
           renderCountryStockSpend();
           renderCompactKpis();
-          alert(`✅ ${platform} spend updated to $${amount} for today!`);
+          if (amount === 0) {
+            alert(`✅ ${platform} spend removed for today!`);
+          } else {
+            alert(`✅ ${platform} spend updated to $${amount} for today!`);
+          }
         }).catch(error => {
           alert('Error updating spend: ' + error.message);
         });
