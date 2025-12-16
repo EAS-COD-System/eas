@@ -23,6 +23,7 @@ app.use(bodyParser.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use('/public', express.static(path.join(ROOT, 'public')));
 
+
 app.get('/audora', (req, res) => {
   res.sendFile(path.join(ROOT, 'public', 'audora', 'index.html'));
 });
@@ -34,6 +35,7 @@ app.get('/offer', (req, res) => {
 app.get('/car', (req, res) => {
   res.sendFile(path.join(ROOT, 'public', 'car', 'index.html'));
 });
+
 
 // ======== AUTHENTICATION MIDDLEWARE ========
 function requireAuth(req, res, next) {
@@ -53,7 +55,7 @@ function ensureDB() {
       productOrders: [],
       brainstorming: [],
       testedProducts: [],
-      advertisingCosts: [],
+      adspend: [],
       deliveries: [],
       shipments: [],
       remittances: [],
@@ -83,14 +85,53 @@ function loadDB() {
 function saveDB(db) {
   fs.writeJsonSync(DATA_FILE, db, { spaces: 2 });
 }
-
-// Data migration for old advertising cost entries
-function migrateAdvertisingCostData() {
+// Add this endpoint to manually fix ad spend data for specific products
+app.post('/api/fix-adspend', requireAuth, (req, res) => {
+  const db = loadDB();
+  const { productId } = req.body || {};
+ 
+  if (!productId) {
+    return res.status(400).json({ error: 'Product ID required' });
+  }
+ 
+  const productEntries = db.adspend.filter(ad => ad.productId === productId);
+  let fixedCount = 0;
+ 
+  productEntries.forEach(entry => {
+    // Ensure all required fields are present
+    if (!entry.id) {
+      entry.id = uuidv4();
+      fixedCount++;
+    }
+    if (!entry.createdAt) {
+      entry.createdAt = new Date().toISOString();
+      fixedCount++;
+    }
+    if (!entry.updatedAt) {
+      entry.updatedAt = new Date().toISOString();
+      fixedCount++;
+    }
+    if (typeof entry.amount === 'string') {
+      entry.amount = parseFloat(entry.amount) || 0;
+      fixedCount++;
+    }
+  });
+ 
+  saveDB(db);
+ 
+  res.json({
+    ok: true,
+    message: `Fixed ${fixedCount} issues in ${productEntries.length} entries for product ${productId}`,
+    entries: productEntries
+  });
+});
+// Data migration for old ad spend entries
+function migrateAdSpendData() {
   const db = loadDB();
   let needsMigration = false;
  
-  if (db.advertisingCosts && Array.isArray(db.advertisingCosts)) {
-    db.advertisingCosts.forEach(entry => {
+  if (db.adspend && Array.isArray(db.adspend)) {
+    db.adspend.forEach(entry => {
       // Add missing fields to old entries
       if (!entry.id) {
         entry.id = uuidv4();
@@ -115,30 +156,29 @@ function migrateAdvertisingCostData() {
     const uniqueEntries = [];
     const seenCombinations = new Set();
    
-    db.advertisingCosts.forEach(entry => {
+    db.adspend.forEach(entry => {
       const key = `${entry.productId}-${entry.country}-${entry.platform}-${entry.date}`;
       if (!seenCombinations.has(key)) {
         seenCombinations.add(key);
         uniqueEntries.push(entry);
       } else {
         needsMigration = true;
-        console.log(`Removing duplicate advertising cost entry: ${key}`);
+        console.log(`Removing duplicate ad spend entry: ${key}`);
       }
     });
    
-    if (uniqueEntries.length !== db.advertisingCosts.length) {
-      db.advertisingCosts = uniqueEntries;
+    if (uniqueEntries.length !== db.adspend.length) {
+      db.adspend = uniqueEntries;
       needsMigration = true;
     }
   }
  
   if (needsMigration) {
-    console.log('🔄 Migrating old advertising cost data to new format...');
+    console.log('🔄 Migrating old ad spend data to new format...');
     saveDB(db);
-    console.log('✅ Advertising cost data migration completed');
+    console.log('✅ Ad spend data migration completed');
   }
 }
-
 // ======== ADVANCED SHIPPING COST CALCULATION ========
 function calculateActualShippingCostPerPiece(db, productId, targetCountry) {
   const shipments = db.shipments || [];
@@ -306,7 +346,7 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
   const refunds = db.refunds || [];
   const shipments = db.shipments || [];
   const productOrders = db.productOrders || [];
-  const advertisingCosts = db.advertisingCosts || [];
+  const adspend = db.adspend || [];
   const influencerSpends = db.influencerSpends || [];
 
   let totalRevenue = 0;
@@ -316,7 +356,7 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
   let totalRefundedOrders = 0;
   let totalRefundedAmount = 0;
   let totalOrders = 0;
-  let totalAdvertisingCost = 0;
+  let totalAdSpend = 0;
   let totalInfluencerSpend = 0;
 
   // Calculate from remittances
@@ -329,7 +369,7 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
       totalBoxleoFees += +remittance.boxleoFees || 0;
       totalDeliveredPieces += +remittance.pieces || 0;
       totalDeliveredOrders += +remittance.orders || 0;
-      totalAdvertisingCost += +remittance.adSpend || 0;
+      totalAdSpend += +remittance.adSpend || 0;
     }
   });
 
@@ -379,7 +419,7 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
   });
 
   const adjustedRevenue = totalRevenue - totalRefundedAmount;
-  const totalCost = totalProductChinaCost + totalShippingCost + totalBoxleoFees + totalAdvertisingCost + totalInfluencerSpend;
+  const totalCost = totalProductChinaCost + totalShippingCost + totalBoxleoFees + totalAdSpend + totalInfluencerSpend;
   const profit = adjustedRevenue - totalCost;
 
   const netDeliveredOrders = totalDeliveredOrders - totalRefundedOrders;
@@ -388,8 +428,8 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
   // Enhanced metrics
   const costPerDeliveredOrder = netDeliveredOrders > 0 ? totalCost / netDeliveredOrders : 0;
   const costPerDeliveredPiece = totalDeliveredPieces > 0 ? totalCost / totalDeliveredPieces : 0;
-  const adCostPerDeliveredOrder = netDeliveredOrders > 0 ? totalAdvertisingCost / netDeliveredOrders : 0;
-  const adCostPerDeliveredPiece = totalDeliveredPieces > 0 ? totalAdvertisingCost / totalDeliveredPieces : 0;
+  const adCostPerDeliveredOrder = netDeliveredOrders > 0 ? totalAdSpend / netDeliveredOrders : 0;
+  const adCostPerDeliveredPiece = totalDeliveredPieces > 0 ? totalAdSpend / totalDeliveredPieces : 0;
   const boxleoPerDeliveredOrder = netDeliveredOrders > 0 ? totalBoxleoFees / netDeliveredOrders : 0;
   const boxleoPerDeliveredPiece = totalDeliveredPieces > 0 ? totalBoxleoFees / totalDeliveredPieces : 0;
   const influencerPerDeliveredOrder = netDeliveredOrders > 0 ? totalInfluencerSpend / netDeliveredOrders : 0;
@@ -402,7 +442,7 @@ function calculateProfitMetricsLogic1(db, productId, country = null, startDate =
     totalBoxleoFees,
     totalProductChinaCost,
     totalShippingCost,
-    totalAdSpend: totalAdvertisingCost,
+    totalAdSpend,
     totalInfluencerSpend,
     totalRefundedAmount,
     totalRefundedOrders,
@@ -435,7 +475,7 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
   const productOrders = db.productOrders || [];
 
   let totalRevenue = 0;
-  let totalAdvertisingCost = 0;
+  let totalAdSpend = 0;
   let totalBoxleoFees = 0;
   let totalDeliveredPieces = 0;
   let totalDeliveredOrders = 0;
@@ -451,7 +491,7 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
         (!startDate || remittance.start >= startDate) &&
         (!endDate || remittance.end <= endDate)) {
       totalRevenue += +remittance.revenue || 0;
-      totalAdvertisingCost += +remittance.adSpend || 0;
+      totalAdSpend += +remittance.adSpend || 0;
       totalBoxleoFees += +remittance.boxleoFees || 0;
       totalDeliveredPieces += +remittance.pieces || 0;
       totalDeliveredOrders += +remittance.orders || 0;
@@ -562,7 +602,7 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
   }
 
   const adjustedRevenue = totalRevenue - totalRefundedAmount;
-  const totalCost = totalProductChinaCost + totalShippingCost + totalAdvertisingCost + totalBoxleoFees + totalInfluencerSpend;
+  const totalCost = totalProductChinaCost + totalShippingCost + totalAdSpend + totalBoxleoFees + totalInfluencerSpend;
   const profit = adjustedRevenue - totalCost;
 
   // Calculate delivery rate
@@ -572,8 +612,8 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
   // Enhanced metrics
   const costPerDeliveredOrder = netDeliveredOrders > 0 ? totalCost / netDeliveredOrders : 0;
   const costPerDeliveredPiece = totalDeliveredPieces > 0 ? totalCost / totalDeliveredPieces : 0;
-  const adCostPerDeliveredOrder = netDeliveredOrders > 0 ? totalAdvertisingCost / netDeliveredOrders : 0;
-  const adCostPerDeliveredPiece = totalDeliveredPieces > 0 ? totalAdvertisingCost / totalDeliveredPieces : 0;
+  const adCostPerDeliveredOrder = netDeliveredOrders > 0 ? totalAdSpend / netDeliveredOrders : 0;
+  const adCostPerDeliveredPiece = totalDeliveredPieces > 0 ? totalAdSpend / totalDeliveredPieces : 0;
   const boxleoPerDeliveredOrder = netDeliveredOrders > 0 ? totalBoxleoFees / netDeliveredOrders : 0;
   const boxleoPerDeliveredPiece = totalDeliveredPieces > 0 ? totalBoxleoFees / totalDeliveredPieces : 0;
   const influencerPerDeliveredOrder = netDeliveredOrders > 0 ? totalInfluencerSpend / netDeliveredOrders : 0;
@@ -581,11 +621,11 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
   const profitPerOrder = netDeliveredOrders > 0 ? profit / netDeliveredOrders : 0;
   const profitPerPiece = totalDeliveredPieces > 0 ? profit / totalDeliveredPieces : 0;
 
-  const hasData = totalDeliveredPieces > 0 || adjustedRevenue > 0 || totalAdvertisingCost > 0;
+  const hasData = totalDeliveredPieces > 0 || adjustedRevenue > 0 || totalAdSpend > 0;
  
   return {
     totalRevenue: adjustedRevenue,
-    totalAdSpend: totalAdvertisingCost,
+    totalAdSpend,
     totalBoxleoFees,
     totalProductChinaCost,
     totalShippingCost,
@@ -647,19 +687,18 @@ app.post('/api/auth', (req, res) => {
 app.get('/api/auth/status', requireAuth, (req, res) => {
   res.json({ authenticated: true });
 });
-
-// Fix old advertising cost data migration endpoint
-app.post('/api/fix-old-advertising-costs', requireAuth, (req, res) => {
+// Fix old ad spend data migration endpoint
+app.post('/api/fix-old-adspend', requireAuth, (req, res) => {
   const db = loadDB();
-  const advertisingCosts = db.advertisingCosts || [];
+  const adSpends = db.adspend || [];
   let fixedCount = 0;
  
-  console.log('🔄 Starting old advertising cost data migration...');
+  console.log('🔄 Starting old ad spend data migration...');
  
   // Group entries by product/country/platform to identify duplicates
   const entriesByKey = {};
  
-  advertisingCosts.forEach(entry => {
+  adSpends.forEach(entry => {
     const key = `${entry.productId}-${entry.country}-${entry.platform}`;
    
     if (!entriesByKey[key]) {
@@ -698,9 +737,9 @@ app.post('/api/fix-old-advertising-costs', requireAuth, (req, res) => {
         // Remove the other old entries
         const entriesToRemove = oldEntries.slice(1);
         entriesToRemove.forEach(entryToRemove => {
-          const index = advertisingCosts.indexOf(entryToRemove);
+          const index = adSpends.indexOf(entryToRemove);
           if (index > -1) {
-            advertisingCosts.splice(index, 1);
+            adSpends.splice(index, 1);
             fixedCount++;
           }
         });
@@ -736,14 +775,13 @@ app.post('/api/fix-old-advertising-costs', requireAuth, (req, res) => {
  
   saveDB(db);
  
-  console.log(`✅ Fixed ${fixedCount} issues in advertising cost data`);
+  console.log(`✅ Fixed ${fixedCount} issues in ad spend data`);
   res.json({
     ok: true,
-    message: `Fixed ${fixedCount} issues in advertising cost data`,
-    totalEntries: advertisingCosts.length
+    message: `Fixed ${fixedCount} issues in ad spend data`,
+    totalEntries: adSpends.length
   });
 });
-
 // Meta data
 app.get('/api/meta', requireAuth, (req, res) => {
   const db = loadDB();
@@ -759,12 +797,12 @@ app.get('/api/products', requireAuth, (req, res) => {
     const transit = calculateTransitPieces(db, product.id);
     const totalStock = Object.values(stock).reduce((sum, qty) => sum + qty, 0);
    
-    // Show stock for ALL products (active and paused)
+    // FIX: Show stock for ALL products (active and paused)
     const stockByCountry = stock;
 
-    const adCostByCountry = {};
-    (db.advertisingCosts || []).filter(cost => cost.productId === product.id).forEach(cost => {
-      adCostByCountry[cost.country] = (adCostByCountry[cost.country] || 0) + (+cost.amount || 0);
+    const adSpendByCountry = {};
+    (db.adspend || []).filter(ad => ad.productId === product.id).forEach(ad => {
+      adSpendByCountry[ad.country] = (adSpendByCountry[ad.country] || 0) + (+ad.amount || 0);
     });
 
     return {
@@ -775,11 +813,11 @@ app.get('/api/products', requireAuth, (req, res) => {
       totalStock: totalStock, // Show total stock for all products
       transitPieces: transit.totalTransit,
       totalPiecesIncludingTransit: totalStock + transit.totalTransit,
-      adCostByCountry: adCostByCountry
+      adSpendByCountry: adSpendByCountry
     };
   });
 
-  // Sort products by status (active first) then name (A-Z)
+  // FIX: Sort products by status (active first) then name (A-Z)
   products = products.sort((a, b) => {
     // First sort by status: active first
     if (a.status === 'active' && b.status !== 'active') return -1;
@@ -843,7 +881,7 @@ app.delete('/api/products/:id', requireAuth, (req, res) => {
   db.productNotes = (db.productNotes || []).filter(n => n.productId !== id);
   db.productSellingPrices = (db.productSellingPrices || []).filter(sp => sp.productId !== id);
   db.productOrders = (db.productOrders || []).filter(o => o.productId !== id);
-  db.advertisingCosts = (db.advertisingCosts || []).filter(a => a.productId !== id);
+  db.adspend = (db.adspend || []).filter(a => a.productId !== id);
   db.shipments = (db.shipments || []).filter(s => s.productId !== id);
   db.remittances = (db.remittances || []).filter(r => r.productId !== id);
   db.refunds = (db.refunds || []).filter(rf => rf.productId !== id);
@@ -990,20 +1028,20 @@ app.post('/api/product-orders', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// Advertising Costs - FIXED: Show all products (active and paused) and properly replace existing entries
-app.get('/api/advertising-costs', requireAuth, (req, res) => {
+// Ad Spend - FIXED: Show all products (active and paused) and properly replace existing entries
+app.get('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB();
-  res.json({ advertisingCosts: db.advertisingCosts || [] });
+  res.json({ adSpends: db.adspend || [] });
 });
 
-app.post('/api/advertising-costs', requireAuth, (req, res) => {
+app.post('/api/adspend', requireAuth, (req, res) => {
   const db = loadDB();
-  db.advertisingCosts = db.advertisingCosts || [];
+  db.adspend = db.adspend || [];
   const { productId, country, platform, amount, date } = req.body || {};
   if (!productId || !country || !platform || !date) return res.status(400).json({ error: 'Missing fields' });
  
   // Find existing entry for the same day, product, country, and platform
-  const existingIndex = db.advertisingCosts.findIndex(a =>
+  const existingIndex = db.adspend.findIndex(a =>
     a.productId === productId &&
     a.country === country &&
     a.platform === platform &&
@@ -1012,14 +1050,14 @@ app.post('/api/advertising-costs', requireAuth, (req, res) => {
  
   if (existingIndex >= 0) {
     // Replace only the amount for this specific day
-    const oldAmount = db.advertisingCosts[existingIndex].amount;
-    db.advertisingCosts[existingIndex].amount = +amount || 0;
-    db.advertisingCosts[existingIndex].updatedAt = new Date().toISOString();
+    const oldAmount = db.adspend[existingIndex].amount;
+    db.adspend[existingIndex].amount = +amount || 0;
+    db.adspend[existingIndex].updatedAt = new Date().toISOString();
    
-    console.log(`✅ Updated advertising cost for ${productId} in ${country} on ${platform} for ${date}: $${oldAmount} → $${amount}`);
+    console.log(`✅ Updated ad spend for ${productId} in ${country} on ${platform} for ${date}: $${oldAmount} → $${amount}`);
   } else {
     // Check for legacy entries (entries without proper date but same product/country/platform)
-    const legacyEntries = db.advertisingCosts.filter(a =>
+    const legacyEntries = db.adspend.filter(a =>
       a.productId === productId &&
       a.country === country &&
       a.platform === platform &&
@@ -1034,10 +1072,10 @@ app.post('/api/advertising-costs', requireAuth, (req, res) => {
       legacyEntry.amount = +amount || 0;
       legacyEntry.updatedAt = new Date().toISOString();
      
-      console.log(`✅ Updated legacy advertising cost for ${productId} in ${country} on ${platform}: $${oldAmount} → $${amount} (date: ${date})`);
+      console.log(`✅ Updated legacy ad spend for ${productId} in ${country} on ${platform}: $${oldAmount} → $${amount} (date: ${date})`);
     } else {
       // Add new entry
-      db.advertisingCosts.push({
+      db.adspend.push({
         id: uuidv4(),
         productId,
         country,
@@ -1047,17 +1085,16 @@ app.post('/api/advertising-costs', requireAuth, (req, res) => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
-      console.log(`✅ Added new advertising cost for ${productId} in ${country} on ${platform} for ${date}: $${amount}`);
+      console.log(`✅ Added new ad spend for ${productId} in ${country} on ${platform} for ${date}: $${amount}`);
     }
   }
  
   saveDB(db);
   res.json({ ok: true });
 });
-
-app.put('/api/advertising-costs/:id', requireAuth, (req, res) => {
+app.put('/api/adspend/:id', requireAuth, (req, res) => {
   const db = loadDB();
-  const entry = (db.advertisingCosts || []).find(x => x.id === req.params.id);
+  const entry = (db.adspend || []).find(x => x.id === req.params.id);
   if (!entry) return res.status(404).json({ error: 'Not found' });
  
   const up = req.body || {};
@@ -1068,12 +1105,6 @@ app.put('/api/advertising-costs/:id', requireAuth, (req, res) => {
   saveDB(db);
   res.json({ ok: true, entry });
 });
-
-app.get('/api/deliveries', requireAuth, (req, res) => {
-  const db = loadDB();
-  res.json({ deliveries: db.deliveries || [] });
-});
-
 app.post('/api/deliveries', requireAuth, (req, res) => {
   const db = loadDB();
   db.deliveries = db.deliveries || [];
@@ -1881,16 +1912,16 @@ app.post('/api/backup/push-snapshot', requireAuth, async (req, res) => {
     if (!snapshotData.products || !snapshotData.countries) {
       return res.status(400).json({ error: 'Invalid snapshot format' });
     }
-    
+   
     const backupFileName = `pre-push-backup-${Date.now()}.json`;
     await fs.copy(DATA_FILE, path.join(SNAPSHOT_DIR, backupFileName));
-    
+   
     await fs.writeJson(DATA_FILE, snapshotData, { spaces: 2 });
-    
-    res.json({ 
-      ok: true, 
+   
+    res.json({
+      ok: true,
       message: 'Snapshot pushed successfully. System will reload.',
-      backupFile: backupFileName 
+      backupFile: backupFileName
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1903,15 +1934,15 @@ async function createStartupBackup() {
     const db = loadDB();
     const today = new Date().toISOString().slice(0, 10);
     const backupName = `Daily-${today}`;
-    
-    const existingBackup = db.snapshots.find(snap => 
+   
+    const existingBackup = db.snapshots.find(snap =>
       snap.name && snap.name.includes(today)
     );
-    
+   
     if (!existingBackup) {
       const snapshotFileName = `auto-daily-${today}.json`;
       await fs.copy(DATA_FILE, path.join(SNAPSHOT_DIR, snapshotFileName));
-      
+     
       const backupEntry = {
         id: uuidv4(),
         name: backupName,
@@ -1919,12 +1950,12 @@ async function createStartupBackup() {
         createdAt: new Date().toISOString(),
         kind: 'auto-daily'
       };
-      
+     
       db.snapshots.unshift(backupEntry);
-      
+     
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      
+     
       db.snapshots = db.snapshots.filter(snapshot => {
         if (snapshot.name && snapshot.name.startsWith('Daily-')) {
           const snapshotDate = new Date(snapshot.createdAt);
@@ -1932,7 +1963,7 @@ async function createStartupBackup() {
         }
         return true;
       });
-      
+     
       saveDB(db);
       console.log(`✅ Auto-created startup backup: ${backupName}`);
     }
@@ -1947,8 +1978,8 @@ app.get('/', (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
 
 app.listen(PORT, async () => {
   // Run data migration first
-  migrateAdvertisingCostData();
-  
+  migrateAdSpendData();
+ 
   await createStartupBackup();
   console.log('✅ EAS Tracker listening on', PORT);
   console.log('DB:', DATA_FILE);
