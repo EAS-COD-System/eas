@@ -1,337 +1,110 @@
-<!DOCTYPE html><html lang="en"><head>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <title>AUDORA – The Perfect Gift</title>
+</head>
+<body>
+<div id="aud" class="">
+  <div class="an">Free Delivery Nationwide &nbsp;&middot;&nbsp; Cash On Delivery &nbsp;&middot;&nbsp; Limited Stock</div>
+  <nav class="nv">
+    <a href="/" class="nlo">
+      <img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7477.jpg?v=1778620938" alt="AUDORA">
+      <span class="nbr">AUDORA</span>
+    </a>
+    <div class="nls">
+      <a href="/men" class="nla">Men</a>
+      <a href="/women" class="nla">Women</a>
+      <a href="/gift" class="nla gft act">Gift</a>
+    </div>
+  </nav>
 
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <div style="min-height:52svh;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 18px 50px;text-align:center;overflow:hidden;background:#080808;">
+    <div style="position:absolute;inset:0;"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7489.jpg?v=1778620938" alt="AUDORA Gift" style="width:100%;height:100%;object-fit:cover;display:block;max-height:none;"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,8,8,.4),rgba(8,8,8,.88));"></div></div>
+    <div style="position:relative;z-index:1;">
+      <div style="font-size:9px;letter-spacing:3.5px;text-transform:uppercase;color:#c9a84c;margin-bottom:11px;font-family:'Montserrat',sans-serif;">The Perfect Luxury Gift</div>
+      <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(32px,10vw,58px);font-weight:300;line-height:1.05;margin-bottom:9px;color:#fff;">Give the Gift<br>of <em style="font-style:italic;color:#c9a84c;">Presence.</em></h1>
+      <p style="font-family:'Cormorant Garamond',serif;font-size:clamp(14px,3.5vw,18px);font-style:italic;color:rgba(255,255,255,.45);">The most unforgettable gift — their signature scent.</p>
+    </div>
+  </div>
 
-<title>AUDORA &mdash; Buy as a Luxury Gift</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-:root{--blk:#080808;--dp:#0f0f0f;--ch:#1a1a1a;--gld:#c9a84c;--gl:#e2c27d;--gd:#8a6f33;--mut:#777;--rg:#c4896e;--rgl:#d9a88e;}
-*{margin:0;padding:0;box-sizing:border-box;}html{scroll-behavior:smooth;}
-body{background:var(--blk);color:#fff;font-family:'Montserrat',sans-serif;font-weight:300;overflow-x:hidden;}
-h1,h2,h3{font-family:'Cormorant Garamond',serif;}
-.ann{background:var(--gld);color:var(--blk);text-align:center;padding:9px 14px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;}
-nav{background:rgba(8,8,8,.97);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(201,168,76,.18);position:sticky;top:0;z-index:100;backdrop-filter:blur(14px);}
-.nlogo{display:flex;align-items:center;gap:9px;text-decoration:none;}
-.nlogo img{height:32px;width:32px;object-fit:contain;border-radius:50%;}
-.nbrand{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:500;letter-spacing:5px;color:var(--gld);}
-.nav-links{display:flex;gap:5px;}
-.nl{font-size:10px;letter-spacing:1px;color:rgba(255,255,255,.55);text-decoration:none;border:1px solid rgba(255,255,255,.1);padding:7px 13px;border-radius:2px;text-transform:uppercase;font-weight:500;transition:.2s;}
-.nl:hover{color:#fff;border-color:rgba(201,168,76,.45);}
-.nl.active{color:var(--gld);border-color:rgba(201,168,76,.55);background:rgba(201,168,76,.08);}
-.nl.gift{color:var(--gld);border-color:rgba(201,168,76,.35);}
-section{padding:64px 18px;}
-.stag{font-size:9px;letter-spacing:3.5px;text-transform:uppercase;color:var(--gd);text-align:center;margin-bottom:12px;}
-.stit{font-family:'Cormorant Garamond',serif;font-size:clamp(28px,8vw,50px);font-weight:300;text-align:center;line-height:1.1;margin-bottom:16px;}
-.stit em{font-style:italic;color:var(--gld);}
-.sdiv{width:44px;height:1px;background:linear-gradient(90deg,transparent,var(--gld),transparent);margin:0 auto 34px;}
-.sbod{font-size:13px;line-height:1.9;color:rgba(255,255,255,.55);text-align:center;max-width:500px;margin:0 auto;}
-.btn-g{display:block;width:100%;padding:16px 24px;background:linear-gradient(135deg,#b8912e,#c9a84c 30%,#e2c27d 60%,#c9a84c 80%,#b8912e);color:#080808;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;text-align:center;text-decoration:none;border:none;border-radius:2px;cursor:pointer;transition:transform .25s,box-shadow .25s;}
-.btn-g:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(201,168,76,.4);}
-.btn-og{display:block;width:100%;padding:14px 24px;background:transparent;color:var(--gld);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;text-align:center;text-decoration:none;border:1px solid rgba(201,168,76,.5);border-radius:2px;cursor:pointer;transition:.25s;}
-.btn-og:hover{border-color:var(--gld);background:rgba(201,168,76,.07);}
-.btn-r{display:block;width:100%;padding:16px 24px;background:linear-gradient(135deg,#a8674f,#c4896e 30%,#d9a88e 60%,#c4896e 80%,#a8674f);color:#fff;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;text-align:center;text-decoration:none;border:none;border-radius:2px;cursor:pointer;transition:transform .25s,box-shadow .25s;}
-.btn-r:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(196,137,110,.4);}
-.btn-or{display:block;width:100%;padding:14px 24px;background:transparent;color:var(--rgl);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;text-align:center;text-decoration:none;border:1px solid rgba(196,137,110,.5);border-radius:2px;cursor:pointer;transition:.25s;}
-.btn-or:hover{border-color:var(--rgl);}
-.btn-w{display:block;width:100%;padding:14px 24px;background:transparent;color:rgba(255,255,255,.55);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:500;letter-spacing:2px;text-transform:uppercase;text-align:center;text-decoration:none;border:1px solid rgba(255,255,255,.18);border-radius:2px;cursor:pointer;transition:.25s;}
-.btn-w:hover{color:#fff;border-color:rgba(255,255,255,.4);}
-.reveal{opacity:0;transform:translateY(22px);transition:opacity .65s ease,transform .65s ease;}
-.reveal.vis{opacity:1;transform:none;}
-@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
-.bgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:540px;margin:0 auto;}
-.bc{background:var(--ch);border:1px solid rgba(201,168,76,.12);border-radius:3px;padding:18px 14px;text-align:center;transition:.25s;}
-.bc:hover{border-color:rgba(201,168,76,.35);}
-.bc-t{font-family:'Cormorant Garamond',serif;font-size:15px;color:var(--gl);margin-bottom:5px;}
-.bc-d{font-size:11px;line-height:1.7;color:var(--mut);}
-.nwrap{max-width:470px;margin:0 auto;display:flex;flex-direction:column;gap:2px;}
-.nt{background:var(--ch);border-left:3px solid var(--gd);padding:15px 18px;}
-.nt:first-child{border-left-color:var(--gl);}
-.nt:nth-child(2){border-left-color:var(--gld);}
-.nlb{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--gld);margin-bottom:4px;}
-.nn{font-family:'Cormorant Garamond',serif;font-size:17px;color:#fff;margin-bottom:3px;}
-.nd{font-size:11px;color:var(--mut);line-height:1.6;}
-.bopts{display:flex;flex-direction:column;gap:9px;margin-bottom:18px;}
-.bo{border:1px solid rgba(201,168,76,.18);border-radius:3px;padding:13px 14px;cursor:pointer;transition:.25s;display:flex;justify-content:space-between;align-items:center;position:relative;user-select:none;}
-.bo:hover{border-color:rgba(201,168,76,.4);}
-.bo.sel{border-color:var(--gld);background:rgba(201,168,76,.06);}
-.bo-lb{font-size:13px;font-weight:600;color:#fff;}
-.bo-sb{font-size:10px;color:var(--mut);margin-top:2px;}
-.pr{font-family:'Cormorant Garamond',serif;font-size:19px;color:var(--gl);font-weight:400;}
-.sv{font-size:10px;color:#5cb85c;text-align:right;}
-.pbg{position:absolute;top:-8px;left:12px;background:var(--gld);color:var(--blk);font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:2px 9px;border-radius:2px;}
-.ff{background:rgba(255,255,255,.03);border:1px solid rgba(201,168,76,.18);border-radius:2px;padding:13px 14px;color:#fff;font-family:'Montserrat',sans-serif;font-size:13px;width:100%;outline:none;transition:.2s;display:block;margin-bottom:10px;}
-.ff::placeholder{color:rgba(255,255,255,.25);}
-.ff:focus{border-color:var(--gld);}
-.cod{background:rgba(92,184,92,.07);border:1px solid rgba(92,184,92,.22);border-radius:3px;padding:11px 14px;text-align:center;font-size:11px;color:#5cb85c;letter-spacing:.5px;margin-bottom:12px;}
-.rg{display:flex;flex-direction:column;gap:12px;max-width:540px;margin:32px auto 0;}
-.rc{background:var(--ch);border:1px solid rgba(201,168,76,.1);border-radius:3px;padding:18px;}
-.rh{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
-.ra{width:42px;height:42px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid rgba(201,168,76,.2);}
-.rn{font-size:13px;font-weight:600;color:#fff;}
-.rl{font-size:10px;color:var(--mut);margin-top:1px;}
-.rs{color:var(--gld);font-size:12px;letter-spacing:2px;margin-bottom:8px;}
-.rt{font-size:12px;line-height:1.8;color:rgba(255,255,255,.55);font-style:italic;}
-.fql{max-width:540px;margin:32px auto 0;display:flex;flex-direction:column;gap:2px;}
-.fqi{background:var(--ch);border:1px solid rgba(201,168,76,.09);border-radius:3px;overflow:hidden;}
-.fqq{padding:15px 16px;font-size:13px;font-weight:500;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;user-select:none;color:#fff;}
-.fqq::after{content:'+';color:var(--gld);font-size:20px;font-weight:300;flex-shrink:0;transition:transform .25s;line-height:1;}
-.fqi.open .fqq::after{transform:rotate(45deg);}
-.fqa{max-height:0;overflow:hidden;transition:max-height .3s ease,padding .3s;padding:0 16px;font-size:12px;line-height:1.8;color:rgba(255,255,255,.52);}
-.fqi.open .fqa{max-height:200px;padding:0 16px 15px;}
-.sticky{position:fixed;bottom:0;left:0;right:0;background:rgba(8,8,8,.97);border-top:1px solid rgba(201,168,76,.25);padding:11px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;z-index:200;backdrop-filter:blur(14px);}
-.sn{font-family:'Cormorant Garamond',serif;font-size:15px;color:#fff;}
-.sp{font-size:10px;color:var(--gld);margin-top:1px;}
-.sbg-btn{background:linear-gradient(135deg,#c9a84c,#e2c27d);color:var(--blk);border:none;padding:11px 20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border-radius:2px;white-space:nowrap;}
-.sbr-btn{background:linear-gradient(135deg,#c4896e,#d9a88e);color:#fff;border:none;padding:11px 20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border-radius:2px;white-space:nowrap;}
-.pcard{max-width:480px;margin:0 auto;background:var(--ch);border:1px solid rgba(201,168,76,.18);border-radius:3px;overflow:hidden;}
-.pcimg img{width:100%;height:260px;object-fit:cover;display:block;}
-.pcbod{padding:24px 18px;}
-.pname{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:400;letter-spacing:2px;color:#fff;margin-bottom:3px;}
-.psub{font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;}
-.pdesc{font-size:12px;line-height:1.8;color:rgba(255,255,255,.52);margin-bottom:18px;}
-.sw{border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);padding:13px 16px;text-align:center;background:rgba(255,255,255,.02);}
-.sw-lbl{font-size:10px;color:rgba(255,255,255,.35);letter-spacing:.5px;margin-bottom:10px;text-transform:uppercase;}
-.sw-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
-.sw-m{font-size:10px;font-weight:700;text-decoration:none;padding:8px 16px;border-radius:2px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gld);border:1px solid rgba(201,168,76,.4);background:rgba(201,168,76,.06);transition:.2s;}
-.sw-w{font-size:10px;font-weight:700;text-decoration:none;padding:8px 16px;border-radius:2px;letter-spacing:1.5px;text-transform:uppercase;color:var(--rgl);border:1px solid rgba(196,137,110,.4);background:rgba(196,137,110,.06);transition:.2s;}
-.sw-g{font-size:10px;font-weight:700;text-decoration:none;padding:8px 16px;border-radius:2px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.14);transition:.2s;}
-.i0{padding:0;}
-.i0 img{width:100%;display:block;max-height:390px;object-fit:cover;}
-.ds{background:var(--blk);border-top:1px solid rgba(201,168,76,.08);}
-.ds2{background:var(--dp);border-top:1px solid rgba(201,168,76,.08);}
-footer{background:#040404;border-top:1px solid rgba(201,168,76,.1);padding:36px 18px;text-align:center;}
-.flogo{font-family:'Cormorant Garamond',serif;font-size:16px;letter-spacing:7px;color:var(--gld);margin-bottom:18px;}
-.fnav{display:flex;justify-content:center;gap:0;margin-bottom:18px;max-width:300px;margin-left:auto;margin-right:auto;border:1px solid rgba(201,168,76,.14);border-radius:2px;overflow:hidden;}
-.fnav a{color:rgba(255,255,255,.4);text-decoration:none;font-size:10px;padding:10px 0;flex:1;text-align:center;border-right:1px solid rgba(201,168,76,.1);transition:.2s;letter-spacing:1px;text-transform:uppercase;}
-.fnav a:last-child{border-right:none;}
-.fnav a:hover{color:var(--gld);}
-.flinks{display:flex;justify-content:center;gap:16px;margin-bottom:12px;flex-wrap:wrap;}
-.flinks a{color:rgba(255,255,255,.28);text-decoration:none;font-size:10px;letter-spacing:1px;}
-.fcopy{font-size:10px;color:rgba(255,255,255,.15);letter-spacing:.5px;}
-@media(max-width:380px){.bgrid{grid-template-columns:1fr;}.nav-links{gap:4px;}.nl{padding:6px 9px;font-size:9px;}}
+  <div class="sec" id="gm">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:28px;justify-content:center;">
+      <div id="gsn1" style="width:28px;height:28px;border-radius:50%;border:1px solid #c9a84c;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:#c9a84c;color:#080808;font-family:'Montserrat',sans-serif;">1</div>
+      <div id="gsl1" style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#c9a84c;font-family:'Montserrat',sans-serif;">Who is it for?</div>
+      <div style="flex:1;height:1px;background:rgba(201,168,76,.18);max-width:60px;"></div>
+      <div id="gsn2" style="width:28px;height:28px;border-radius:50%;border:1px solid rgba(201,168,76,.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.3);font-family:'Montserrat',sans-serif;">2</div>
+      <div id="gsl2" style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.3);font-family:'Montserrat',sans-serif;">Place your order</div>
+    </div>
+    <div id="gs1">
+      <div style="text-align:center;margin-bottom:24px;">
+        <h2 style="font-family:'Cormorant Garamond',serif;font-size:clamp(26px,7vw,42px);font-weight:300;line-height:1.1;margin-bottom:8px;color:#fff;">Who Is the Gift <em style="font-style:italic;color:#c9a84c;">For?</em></h2>
+        <p style="font-size:12px;color:rgba(255,255,255,.4);letter-spacing:.5px;font-family:'Montserrat',sans-serif;">Select the recipient to see the right fragrance</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;max-width:480px;margin:0 auto;">
+        <button id="gbh" onclick="gSel('h')" style="position:relative;background:#1a1a1a;border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:0;cursor:pointer;overflow:hidden;text-align:left;display:flex;align-items:stretch;min-height:90px;width:100%;transition:border-color .25s;">
+          <div style="width:80px;flex-shrink:0;overflow:hidden;"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7511.jpg?v=1778620939" alt="Husband" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;max-height:none;"></div>
+          <div style="flex:1;padding:14px 16px;display:flex;flex-direction:column;justify-content:center;gap:2px;">
+            <div style="font-size:9px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700;color:#c9a84c;font-family:'Montserrat',sans-serif;">AUDORA BLACK OUD</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:400;color:#fff;">Husband or Boyfriend</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.38);font-family:'Montserrat',sans-serif;">Also for Father, Brother, Son, Friend</div>
+          </div>
+          <div style="width:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:22px;color:rgba(255,255,255,.2);border-left:1px solid rgba(255,255,255,.06);">›</div>
+          <div id="gch" style="position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;background:#c9a84c;display:none;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#080808;font-family:'Montserrat',sans-serif;">✓</div>
+        </button>
+        <button id="gbw" onclick="gSel('w')" style="position:relative;background:#1a1a1a;border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:0;cursor:pointer;overflow:hidden;text-align:left;display:flex;align-items:stretch;min-height:90px;width:100%;transition:border-color .25s;">
+          <div style="width:80px;flex-shrink:0;overflow:hidden;"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7485.jpg?v=1778620938" alt="Wife" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;max-height:none;"></div>
+          <div style="flex:1;padding:14px 16px;display:flex;flex-direction:column;justify-content:center;gap:2px;">
+            <div style="font-size:9px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700;color:#d9a88e;font-family:'Montserrat',sans-serif;">AUDORA ROSE NOIR</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:400;color:#fff;">Wife or Girlfriend</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.38);font-family:'Montserrat',sans-serif;">Also for Mother, Sister, Daughter, Friend</div>
+          </div>
+          <div style="width:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:22px;color:rgba(255,255,255,.2);border-left:1px solid rgba(255,255,255,.06);">›</div>
+          <div id="gcw" style="position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;background:#c4896e;display:none;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;font-family:'Montserrat',sans-serif;">✓</div>
+        </button>
+        <button id="gbc" onclick="gSel('c')" style="position:relative;background:#1a1a1a;border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:0;cursor:pointer;overflow:hidden;text-align:left;display:flex;align-items:stretch;min-height:90px;width:100%;transition:border-color .25s;">
+          <div style="width:80px;flex-shrink:0;overflow:hidden;"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7512.jpg?v=1778620938" alt="Both" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;max-height:none;"></div>
+          <div style="flex:1;padding:14px 16px;display:flex;flex-direction:column;justify-content:center;gap:2px;">
+            <div style="font-size:9px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700;color:#c9a84c;font-family:'Montserrat',sans-serif;">His and Hers Bundle</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:400;color:#fff;">Both of Them</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.38);font-family:'Montserrat',sans-serif;">Save KSH 499 — perfect for couples</div>
+          </div>
+          <div style="width:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:22px;color:rgba(255,255,255,.2);border-left:1px solid rgba(255,255,255,.06);">›</div>
+          <div id="gcc" style="position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;background:#c9a84c;display:none;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#080808;font-family:'Montserrat',sans-serif;">✓</div>
+        </button>
+      </div>
+      <div style="max-width:480px;margin:14px auto 0;">
+        <button id="gpb" onclick="gStep2()" style="display:none;width:100%;padding:16px 24px;background:linear-gradient(135deg,#b8912e,#c9a84c 30%,#e2c27d 60%,#c9a84c 80%,#b8912e);color:#080808;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;text-align:center;border:none;border-radius:2px;cursor:pointer;">Continue to Order</button>
+      </div>
+    </div>
+    <div id="gs2" style="display:none;max-width:480px;margin:0 auto;"></div>
+  </div>
 
-.gift-hero{min-height:52svh;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 18px 50px;text-align:center;overflow:hidden;}
-.ghbg{position:absolute;inset:0;}
-.ghbg img{width:100%;height:100%;object-fit:cover;object-position:center top;}
-.ghbg::after{content:’’;position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,8,8,.4) 0%,rgba(8,8,8,.88) 100%);}
-.ghcon{position:relative;z-index:1;animation:fadeUp .8s ease both;}
-.step-ind{display:flex;align-items:center;gap:8px;margin-bottom:28px;justify-content:center;}
-.step{width:28px;height:28px;border-radius:50%;border:1px solid rgba(201,168,76,.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.3);transition:.3s;}
-.step.active{background:var(–gld);border-color:var(–gld);color:var(–blk);}
-.step.done{background:rgba(201,168,76,.2);border-color:rgba(201,168,76,.4);color:var(–gld);}
-.step-line{flex:1;height:1px;background:rgba(201,168,76,.18);max-width:60px;}
-.step-lbl{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.3);}
-.who-grid{display:flex;flex-direction:column;gap:10px;max-width:480px;margin:0 auto;}
-.wb{position:relative;background:var(–ch);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:0;cursor:pointer;overflow:hidden;transition:border-color .25s,transform .25s;text-align:left;display:flex;align-items:stretch;min-height:90px;width:100%;}
-.wb:hover{border-color:rgba(201,168,76,.4);transform:translateY(-2px);}
-.wb.s-m{border-color:var(–gld);background:rgba(201,168,76,.06);}
-.wb.s-w{border-color:var(–rg);background:rgba(196,137,110,.06);}
-.wi{width:80px;flex-shrink:0;overflow:hidden;}
-.wi img{width:100%;height:100%;object-fit:cover;display:block;}
-.wbody{flex:1;padding:14px 16px;display:flex;flex-direction:column;justify-content:center;gap:2px;}
-.wlbl{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700;}
-.wtitle{font-family:‘Cormorant Garamond’,serif;font-size:19px;font-weight:400;color:#fff;}
-.wsub{font-size:10px;color:rgba(255,255,255,.38);margin-top:2px;line-height:1.5;}
-.warrow{width:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:‘Cormorant Garamond’,serif;font-size:22px;color:rgba(255,255,255,.2);border-left:1px solid rgba(255,255,255,.06);transition:.25s;}
-.wb:hover .warrow{color:var(–gld);}
-.wb.s-m .warrow{color:var(–gld);}
-.wb.s-w .warrow{color:var(–rgl);}
-.wcheck{position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;background:var(–gld);display:none;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(–blk);}
-.wb.s-m .wcheck,.wb.s-w .wcheck{display:flex;}
-.wb.s-w .wcheck{background:var(–rg);}
-.proc-btn{display:none;width:100%;max-width:480px;margin:14px auto 0;padding:16px 24px;background:linear-gradient(135deg,#b8912e,#c9a84c 30%,#e2c27d 60%,#c9a84c 80%,#b8912e);color:#080808;font-family:‘Montserrat’,sans-serif;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;text-align:center;border:none;border-radius:2px;cursor:pointer;transition:transform .25s,box-shadow .25s;}
-.proc-btn.show{display:block;}
-.proc-btn:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(201,168,76,.4);}
-.proc-btn.rose{background:linear-gradient(135deg,#a8674f,#c4896e 30%,#d9a88e 60%,#c4896e 80%,#a8674f);color:#fff;}
-.back-btn{display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;font-family:‘Montserrat’,sans-serif;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.4);padding:0;margin-bottom:24px;transition:color .2s;}
-.back-btn:hover{color:var(–gld);}
-.gsumm{background:var(–ch);border-radius:3px;overflow:hidden;margin-bottom:20px;}
-.gsumm img{width:100%;height:200px;object-fit:cover;display:block;}
-.gsb{padding:18px;}
-.gs-for{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700;margin-bottom:5px;}
-.gs-name{font-family:‘Cormorant Garamond’,serif;font-size:24px;font-weight:400;color:#fff;margin-bottom:3px;}
-.gs-type{font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;}
-.gs-rec{font-size:11px;color:rgba(255,255,255,.45);line-height:1.9;}
-.gs-rec strong{color:rgba(255,255,255,.7);font-weight:600;}
-.ci{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:2px;padding:11px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;}
-.ci-n{font-family:‘Cormorant Garamond’,serif;font-size:16px;color:#fff;}
-.ci-t{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;margin-top:2px;}
-.ci-p{font-family:‘Cormorant Garamond’,serif;font-size:16px;color:rgba(255,255,255,.35);}
-.ct{background:rgba(92,184,92,.06);border:1px solid rgba(92,184,92,.2);border-radius:2px;padding:11px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
-.ct-l{font-size:11px;color:#5cb85c;letter-spacing:.5px;}
-.ct-p{font-family:‘Cormorant Garamond’,serif;font-size:20px;color:var(–gl);}
-</style></head><body>
+  <div class="secd">
+    <div class="tg rv">— Gift Reviews —</div>
+    <h2 class="tt rv">Gifts That Made <em>Memories</em></h2>
+    <div class="tdv rv"></div>
+    <div class="rg">
+      <div class="rc rv"><div class="rh"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7499_1.jpg?v=1778620939" class="ra" alt="Grace"><div><div class="rname">Grace Wambua</div><div class="rloc">Nairobi, Kilimani</div></div></div><div class="rs">★★★★★</div><p class="rt">"I bought BLACK OUD for my husband's birthday and he absolutely loved it. The packaging looked so premium — it seemed like I spent triple what I paid."</p></div>
+      <div class="rc rv"><div class="rh"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7501.jpg?v=1778620938" class="ra" alt="Peter"><div><div class="rname">Peter Kamau</div><div class="rloc">Nairobi, Westlands</div></div></div><div class="rs">★★★★★</div><p class="rt">"Got ROSE NOIR for my girlfriend on Valentine's Day. She was genuinely shocked — she thought I bought it from a luxury boutique abroad. Stunning gift box."</p></div>
+      <div class="rc rv"><div class="rh"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7497.jpg?v=1778620939" class="ra" alt="Joyce"><div><div class="rname">Joyce Atieno</div><div class="rloc">Mombasa, Nyali</div></div></div><div class="rs">★★★★★</div><p class="rt">"Ordered the His and Hers bundle for my parents' anniversary. They both loved it. Fast delivery, beautiful packaging, COD made it completely stress-free."</p></div>
+    </div>
+  </div>
 
-<div class="ann">Free Delivery Nationwide &nbsp;&middot;&nbsp; Cash On Delivery &nbsp;&middot;&nbsp; Limited Stock</div>
-<nav><a href="https://eastafrica.shop/pages/audora" class="nlogo"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7477.jpg?v=1778620938" alt="AUDORA"><span class="nbrand">AUDORA</span></a>
-<div class="nav-links"><a href="https://eastafrica.shop/pages/men" class="nl">Men</a><a href="https://eastafrica.shop/pages/women" class="nl">Women</a><a href="https://eastafrica.shop/pages/gift" class="nl gift active">Gift</a></div></nav>
+  <div class="im rv"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7489.jpg?v=1778620938" alt="AUDORA Gift Packaging" loading="lazy"></div>
 
-<section class="gift-hero">
-<div class="ghbg"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7489.jpg?v=1778620938" alt="AUDORA Gift" loading="eager"></div>
-<div class="ghcon">
-<div style="font-size:9px;letter-spacing:3.5px;text-transform:uppercase;color:var(--gld);margin-bottom:11px">The Perfect Luxury Gift</div>
-<h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(32px,10vw,58px);font-weight:300;line-height:1.05;margin-bottom:9px;color:#fff">Give the Gift<br>of <em style="font-style:italic;color:var(--gld)">Presence.</em></h1>
-<p style="font-family:'Cormorant Garamond',serif;font-size:clamp(14px,3.5vw,18px);font-style:italic;color:rgba(255,255,255,.45)">The most unforgettable gift &mdash; their signature scent.</p>
-</div></section>
-
-<section class="ds" style="padding-bottom:48px">
-<div id="step1">
-<div class="step-ind">
-<div class="step active" id="sn1">1</div>
-<div class="step-lbl" id="sl1">Who is it for?</div>
-<div class="step-line"></div>
-<div class="step" id="sn2">2</div>
-<div class="step-lbl" id="sl2">Place your order</div>
+  <div class="sec" style="text-align:center!important;">
+    <div class="tg rv">— Make Them Feel Special —</div>
+    <h2 class="tt rv">The Gift They Will <em>Never Forget</em></h2>
+    <div class="tdv rv"></div>
+    <p class="tbod rv" style="margin-bottom:26px!important;">AUDORA arrives in luxury black and gold packaging — gift-ready, no wrapping needed. Pay on delivery. Delivered anywhere in Kenya.</p>
+    <button onclick="document.getElementById('gm').scrollIntoView({behavior:'smooth'})" class="bg rv" style="max-width:290px!important;margin:0 auto!important;display:block!important;">Choose a Gift Now</button>
+  </div>
 </div>
-<div style="text-align:center;margin-bottom:24px">
-<h2 style="font-family:'Cormorant Garamond',serif;font-size:clamp(26px,7vw,42px);font-weight:300;line-height:1.1;margin-bottom:8px">Who Is the Gift <em style="font-style:italic;color:var(--gld)">For?</em></h2>
-<p style="font-size:12px;color:rgba(255,255,255,.4);letter-spacing:.5px">Select the recipient to see the right fragrance</p>
-</div>
-<div class="who-grid">
-<button class="wb" id="b-husband" onclick="selectWho('husband')">
-<div class="wi"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7511.jpg?v=1778620939" alt="Gift for Husband" loading="lazy"></div>
-<div class="wbody"><div class="wlbl" style="color:var(--gld)">AUDORA BLACK OUD</div><div class="wtitle">Husband or Boyfriend</div><div class="wsub">Also for Father, Brother, Son, Friend</div></div>
-<div class="warrow">&#8250;</div><div class="wcheck">&#10003;</div>
-</button>
-<button class="wb" id="b-wife" onclick="selectWho('wife')">
-<div class="wi"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7485.jpg?v=1778620938" alt="Gift for Wife" loading="lazy"></div>
-<div class="wbody"><div class="wlbl" style="color:var(--rgl)">AUDORA ROSE NOIR</div><div class="wtitle">Wife or Girlfriend</div><div class="wsub">Also for Mother, Sister, Daughter, Friend</div></div>
-<div class="warrow">&#8250;</div><div class="wcheck">&#10003;</div>
-</button>
-<button class="wb" id="b-couple" onclick="selectWho('couple')">
-<div class="wi"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7512.jpg?v=1778620938" alt="His and Hers" loading="lazy"></div>
-<div class="wbody"><div class="wlbl" style="color:var(--gld)">His and Hers Bundle</div><div class="wtitle">Both of Them</div><div class="wsub">Save KSH 499 &mdash; perfect for couples</div></div>
-<div class="warrow">&#8250;</div><div class="wcheck">&#10003;</div>
-</button>
-</div>
-<button class="proc-btn" id="proc-btn" onclick="goStep2()">Continue to Order</button>
-</div>
-<div id="step2" style="display:none;max-width:480px;margin:0 auto"></div>
-</section>
-
-<section class="ds2">
-<div class="stag reveal">— Gift Reviews —</div>
-<h2 class="stit reveal">Gifts That Made <em>Memories</em></h2>
-<div class="sdiv reveal"></div>
-<div class="rg">
-<div class="rc reveal"><div class="rh"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7499_1.jpg?v=1778620939" class="ra"><div><div class="rn">Grace Wambua</div><div class="rl">Nairobi, Kilimani</div></div></div><div class="rs">&#9733;&#9733;&#9733;&#9733;&#9733;</div><p class="rt">"I bought BLACK OUD for my husband's birthday and he absolutely loved it. He wears it every single day now. The packaging looked so premium &mdash; it seemed like I spent triple what I paid."</p></div>
-<div class="rc reveal"><div class="rh"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7501.jpg?v=1778620938" class="ra"><div><div class="rn">Peter Kamau</div><div class="rl">Nairobi, Westlands</div></div></div><div class="rs">&#9733;&#9733;&#9733;&#9733;&#9733;</div><p class="rt">"Got ROSE NOIR for my girlfriend on Valentine's Day. She was genuinely shocked &mdash; she thought I bought it from a luxury boutique abroad. The black and gold gift box is stunning."</p></div>
-<div class="rc reveal"><div class="rh"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7497.jpg?v=1778620939" class="ra"><div><div class="rn">Joyce Atieno</div><div class="rl">Mombasa, Nyali</div></div></div><div class="rs">&#9733;&#9733;&#9733;&#9733;&#9733;</div><p class="rt">"I ordered the His and Hers bundle for my parents' anniversary. They both loved it. Fast delivery, beautiful packaging, paying on delivery made it completely stress-free."</p></div>
-</div></section>
-
-<div class="i0 reveal"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7489.jpg?v=1778620938" alt="AUDORA Gift Packaging" loading="lazy"></div>
-
-<section style="background:linear-gradient(180deg,var(--blk),#0a0805);text-align:center;border-top:1px solid rgba(201,168,76,.08);padding:64px 18px">
-<div class="stag reveal">— Make Them Feel Special —</div>
-<h2 class="stit reveal">The Gift They Will <em>Never Forget</em></h2>
-<div class="sdiv reveal"></div>
-<p class="sbod reveal" style="margin-bottom:26px">AUDORA arrives in luxury black and gold packaging &mdash; gift-ready, no wrapping needed. Pay on delivery. Delivered anywhere in Kenya.</p>
-<button onclick="window.scrollTo({top:0,behavior:'smooth'})" class="btn-g" style="max-width:290px;margin:0 auto">Choose a Gift Now</button>
-</section>
-
-<footer><div class="flogo">A U D O R A</div>
-<div class="fnav"><a href="https://eastafrica.shop/pages/men">Men</a><a href="https://eastafrica.shop/pages/women">Women</a><a href="https://eastafrica.shop/pages/gift" style="color:var(--gld)">Gift</a></div>
-<div class="flinks"><a href="#">Privacy</a><a href="#">Returns</a><a href="#">Contact</a><a href="#">Track Order</a></div>
-<div class="fcopy">© 2025 AUDORA Luxury Fragrances &nbsp;&middot;&nbsp; Nairobi, Kenya</div></footer>
-
-<script>
-const _io=new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting)x.target.classList.add('vis')});},{threshold:.1});
-document.querySelectorAll('.reveal').forEach(r=>_io.observe(r));
-
-let selWho=null;
-const WD={
-  husband:{lbl:'Gift for Him',for:'Husband, Boyfriend, Father, Brother, Son',name:'AUDORA BLACK OUD',type:"Men's Fragrance &nbsp;&middot;&nbsp; Extrait de Parfum &middot; 50ml",img:'https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7511.jpg?v=1778620939',c:'#c9a84c',bc:'btn-g',prod:'AUDORA BLACK OUD &mdash; Gift for Him'},
-  wife:{lbl:'Gift for Her',for:'Wife, Girlfriend, Mother, Sister, Daughter',name:'AUDORA ROSE NOIR',type:"Women's Fragrance &nbsp;&middot;&nbsp; Extrait de Parfum &middot; 50ml",img:'https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7485.jpg?v=1778620938',c:'#d9a88e',bc:'btn-r',prod:'AUDORA ROSE NOIR &mdash; Gift for Her'},
-  couple:{lbl:'His and Hers',name:'His and Hers Collection',img:'https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7513.jpg?v=1778620938',c:'#c9a84c',prod:'His and Hers Bundle (BLACK OUD + ROSE NOIR)'}
-};
-
-function selectWho(w){
-  selWho=w;
-  document.querySelectorAll('.wb').forEach(b=>b.classList.remove('s-m','s-w'));
-  const btn=document.getElementById('b-'+w);
-  btn.classList.add(w==='wife'?'s-w':'s-m');
-  const pb=document.getElementById('proc-btn');
-  pb.classList.add('show');
-  if(w==='wife'){pb.classList.add('rose');} else{pb.classList.remove('rose');}
-}
-
-function goStep2(){
-  if(!selWho)return;
-  const d=WD[selWho];
-  document.getElementById('sn1').className='step done';
-  document.getElementById('sn2').className='step active';
-  document.getElementById('sl2').style.color=d.c;
-  let html='';
-  if(selWho==='couple'){
-    html=`<button class="back-btn" onclick="goBack()"><span style="font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:300">&#8592;</span><span>Change recipient</span></button>
-<div class="gsumm"><img src="https://cdn.shopify.com/s/files/1/0770/2770/5108/files/IMG_7513.jpg?v=1778620938" alt="His and Hers"><div class="gsb"><div class="gs-for" style="color:${d.c}">${d.lbl}</div><div class="gs-name">${d.name}</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px">Perfect for: Anniversary, Valentine's Day, Wedding Gift, Couples Birthday</div></div></div>
-<div class="ci"><div><div class="ci-n">AUDORA BLACK OUD</div><div class="ci-t" style="color:#c9a84c">Men's Fragrance &middot; 50ml</div></div><div class="ci-p">KSH 2,999</div></div>
-<div class="ci"><div><div class="ci-n">AUDORA ROSE NOIR</div><div class="ci-t" style="color:#d9a88e">Women's Fragrance &middot; 50ml</div></div><div class="ci-p">KSH 2,999</div></div>
-<div class="ct"><div class="ct-l">Bundle Total &nbsp;&middot;&nbsp; You Save KSH 499</div><div class="ct-p">KSH 5,499</div></div>
-<div class="cod">Cash On Delivery &mdash; You pay only when the order arrives at your door</div>
-<input class="ff" type="text" placeholder="Full Name *" id="fn">
-<input class="ff" type="tel" placeholder="Phone Number *" id="fp">
-<input class="ff" type="text" placeholder="Delivery Location &mdash; Town or Estate *" id="fl">
-<button class="btn-g" onclick="submitGift()">Order His and Hers Bundle &mdash; KSH 5,499</button>
-<div style="display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap;padding-top:14px;border-top:1px solid rgba(255,255,255,.05)">
-<span style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--mut)">Both Gift-Ready</span>
-<span style="font-size:9px;color:rgba(255,255,255,.15)">&middot;</span>
-<span style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--mut)">Fast Kenya Delivery</span>
-<span style="font-size:9px;color:rgba(255,255,255,.15)">&middot;</span>
-<span style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--mut)">Pay on Delivery</span></div>`;
-  }else{
-    const isMen=selWho==='husband';
-    html=`<button class="back-btn" onclick="goBack()"><span style="font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:300">&#8592;</span><span>Change recipient</span></button>
-<div class="gsumm"><img src="${d.img}" alt="${d.name}"><div class="gsb"><div class="gs-for" style="color:${d.c}">${d.lbl}</div><div class="gs-name">${d.name}</div><div class="gs-type" style="color:${d.c}">${d.type}</div><div class="gs-rec">Perfect for your <strong>${d.for.replace(/, /g,'</strong>, <strong>')}</strong></div></div></div>
-<div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:${d.c};margin-bottom:10px">Select Bundle</div>
-<div class="bopts" id="bopts">
-<div class="bo" onclick="selBG(this)"><div><div class="bo-lb">1 Bottle</div><div class="bo-sb">Single bottle gift</div></div><div><div class="pr" style="color:${isMen?'var(--gl)':'var(--rgl)'}">KSH 2,999</div></div></div>
-<div class="bo ${isMen?'sel':'sel sel-r'}" onclick="selBG(this)" style="position:relative"><div class="pbg" style="${isMen?'':'background:var(--rg);color:#fff'}">Most Popular</div><div><div class="bo-lb">2 Bottles</div><div class="bo-sb">One to give, one to keep</div></div><div><div class="pr" style="color:${isMen?'var(--gl)':'var(--rgl)'}">KSH 5,499</div><div class="sv">Save KSH 499</div></div></div>
-<div class="bo" onclick="selBG(this)"><div><div class="bo-lb">3 Bottles</div><div class="bo-sb">Best value &mdash; share the luxury</div></div><div><div class="pr" style="color:${isMen?'var(--gl)':'var(--rgl)'}">KSH 7,499</div><div class="sv">Save KSH 1,498</div></div></div>
-</div>
-<div class="cod">Cash On Delivery &mdash; You pay only when the order arrives at your door</div>
-<input class="ff" type="text" placeholder="Full Name *" id="fn">
-<input class="ff" type="tel" placeholder="Phone Number *" id="fp">
-<input class="ff" type="text" placeholder="Delivery Location &mdash; Town or Estate *" id="fl">
-<button class="${d.bc}" onclick="submitGift()">${isMen?'Order BLACK OUD Gift':'Order ROSE NOIR Gift'} &mdash; Cash On Delivery</button>
-<div style="display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap;padding-top:14px;border-top:1px solid rgba(255,255,255,.05)">
-<span style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--mut)">Gift-Ready Packaging</span>
-<span style="font-size:9px;color:rgba(255,255,255,.15)">&middot;</span>
-<span style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--mut)">Fast Kenya Delivery</span>
-<span style="font-size:9px;color:rgba(255,255,255,.15)">&middot;</span>
-<span style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--mut)">Secure &amp; Private</span></div>`;
-  }
-  document.getElementById('step1').style.display='none';
-  const s2=document.getElementById('step2');
-  s2.style.display='block';s2.innerHTML=html;
-  setTimeout(()=>s2.scrollIntoView({behavior:'smooth',block:'start'}),50);
-}
-
-function goBack(){
-  document.getElementById('step1').style.display='block';
-  document.getElementById('step2').style.display='none';
-  document.getElementById('step2').innerHTML='';
-  document.getElementById('sn1').className='step active';
-  document.getElementById('sn2').className='step';
-  document.getElementById('sl2').style.color='';
-  document.getElementById('step1').scrollIntoView({behavior:'smooth',block:'start'});
-}
-
-function selBG(el){
-  el.closest('.bopts').querySelectorAll('.bo').forEach(b=>b.classList.remove('sel','sel-r'));
-  el.classList.add(selWho==='wife'?'sel sel-r':'sel');
-}
-
-function submitGift(){
-  const n=document.getElementById('fn')?.value.trim();
-  const p=document.getElementById('fp')?.value.trim();
-  const l=document.getElementById('fl')?.value.trim();
-  if(!n||!p||!l){alert('Please fill in your name, phone and delivery location.');return;}
-  let bundle,price,prod;
-  if(selWho==='couple'){bundle='His and Hers (2 bottles)';price='KSH 5,499';prod=WD.couple.prod;}
-  else{const s=document.querySelector('.bo.sel');bundle=s?.querySelector('.bo-lb')?.textContent||'2 Bottles';price=s?.querySelector('.pr')?.textContent||'KSH 5,499';prod=WD[selWho].prod;}
-  const msg=`Hello AUDORA!\n\nGift Order:\nProduct: ${prod}\nBundle: ${bundle}\nTotal: ${price}\nName: ${n}\nPhone: ${p}\nLocation: ${l}\n\nPlease confirm. Thank you!`;
-  window.open(`https://wa.me/254700000000?text=${encodeURIComponent(msg)}`,'_blank');
-}
-</script>
-
-</body></html>
+<script src="/script.js" defer></script>
+</body>
+</html>
