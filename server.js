@@ -654,7 +654,26 @@ function calculateProfitMetricsLogic2(db, productId, country = null, startDate =
 }
 
 // ======== ROUTES ========
+// ROUTES
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/index.html');
+});
 
+app.get('/men', (req, res) => {
+  res.sendFile(__dirname + '/men.html');
+});
+
+app.get('/women', (req, res) => {
+  res.sendFile(__dirname + '/women.html');
+});
+
+app.get('/gift', (req, res) => {
+  res.sendFile(__dirname + '/gift.html');
+});
+
+app.get('/product', (req, res) => {
+  res.sendFile(__dirname + '/product.html');
+});
 // Authentication - FIXED VERSION
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
