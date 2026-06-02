@@ -2,785 +2,1075 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AUDORA Dashboard - Order Management</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AUDORA Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    /* Dashboard Styles - Complete professional design */
     :root {
-      --bg: #0a0a0a;
-      --surface: #141414;
-      --surface-light: #1a1a1a;
-      --border: #222;
+      --bg: #080808;
+      --surface: #111;
+      --surface2: #1a1a1a;
+      --surface3: #222;
+      --border: #2a2a2a;
       --gold: #c9a84c;
       --gold-light: #e2c27d;
-      --text: #e0e0e0;
-      --text-dim: #777;
+      --text: #e8e8e8;
+      --text2: #999;
+      --text3: #666;
       --green: #22c55e;
       --red: #ef4444;
       --blue: #3b82f6;
       --purple: #8b5cf6;
+      --orange: #f59e0b;
+      --sidebar-w: 260px;
     }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
+    * { margin:0; padding:0; box-sizing:border-box; }
     body {
       font-family: 'Montserrat', sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    /* Login Screen */
-    .login-screen {
-      position: fixed;
-      inset: 0;
-      background: var(--bg);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-
-    .login-screen.hidden { display: none; }
-
-    .login-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 40px;
-      width: 380px;
-      text-align: center;
-    }
-
-    .login-logo {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 32px;
-      letter-spacing: 6px;
-      color: var(--gold);
-      margin-bottom: 8px;
-    }
-
-    .login-subtitle {
-      font-size: 10px;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      margin-bottom: 32px;
-    }
-
-    .login-input {
-      width: 100%;
-      background: var(--surface-light);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 14px 16px;
-      color: var(--text);
-      font-size: 14px;
-      margin-bottom: 16px;
-      outline: none;
-      transition: border-color 0.3s;
-    }
-
-    .login-input:focus {
-      border-color: var(--gold);
-    }
-
-    .login-btn {
-      width: 100%;
-      background: linear-gradient(135deg, #b8912e, var(--gold));
-      color: #0a0a0a;
-      border: none;
-      border-radius: 6px;
-      padding: 14px;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-
-    .login-btn:hover {
-      filter: brightness(1.1);
-    }
-
-    .login-error {
-      color: var(--red);
-      font-size: 11px;
-      margin-top: 12px;
+    /* Mobile Bottom Nav */
+    .mobile-nav {
       display: none;
-    }
-
-    /* Dashboard Layout */
-    .dashboard {
-      display: none;
-      min-height: 100vh;
-    }
-
-    .dashboard.active { display: flex; }
-
-    .sidebar {
-      width: 260px;
-      background: var(--surface);
-      border-right: 1px solid var(--border);
-      padding: 24px 0;
       position: fixed;
-      top: 0;
-      left: 0;
       bottom: 0;
-      overflow-y: auto;
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      z-index: 200;
+      padding: 8px 12px;
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
     }
-
-    .sidebar-logo {
-      padding: 0 24px 24px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 24px;
-    }
-
-    .sidebar-logo h2 {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 24px;
-      letter-spacing: 4px;
-      color: var(--gold);
-    }
-
-    .sidebar-nav { padding: 0 12px; }
-
-    .sidebar-link {
+    .mobile-nav-items {
       display: flex;
+      justify-content: space-around;
+    }
+    .mobile-nav-item {
+      display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      color: var(--text-dim);
-      text-decoration: none;
-      border-radius: 6px;
-      margin-bottom: 4px;
-      font-size: 13px;
-      transition: all 0.3s;
-      cursor: pointer;
-      border: none;
+      gap: 4px;
       background: none;
-      width: 100%;
-      text-align: left;
+      border: none;
+      color: var(--text3);
+      font-size: 10px;
+      cursor: pointer;
+      padding: 8px 12px;
+      border-radius: 8px;
+      transition: all 0.2s;
       font-family: 'Montserrat', sans-serif;
     }
-
-    .sidebar-link:hover,
-    .sidebar-link.active {
-      background: var(--surface-light);
+    .mobile-nav-item.active {
       color: var(--gold);
+      background: rgba(201,168,76,0.1);
+    }
+    .mobile-nav-item .icon { font-size: 20px; }
+
+    /* Login */
+    .login-screen {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; padding: 20px;
+    }
+    .login-screen.hidden { display: none; }
+    .login-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 40px 24px; width: 100%; max-width: 380px; text-align: center;
+    }
+    .login-logo {
+      font-family: 'Cormorant Garamond', serif; font-size: 32px;
+      letter-spacing: 6px; color: var(--gold); margin-bottom: 4px;
+    }
+    .login-subtitle {
+      font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+      color: var(--text2); margin-bottom: 32px;
+    }
+    .login-input {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px; color: var(--text);
+      font-size: 16px; margin-bottom: 16px; outline: none; text-align: center;
+      font-family: 'Montserrat', sans-serif;
+    }
+    .login-input:focus { border-color: var(--gold); }
+    .login-btn {
+      width: 100%; background: linear-gradient(135deg, #b8912e, var(--gold));
+      color: #000; border: none; border-radius: 12px; padding: 16px;
+      font-size: 13px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; cursor: pointer; font-family: 'Montserrat', sans-serif;
+    }
+    .login-error { color: var(--red); font-size: 12px; margin-top: 12px; display: none; }
+
+    /* Dashboard Layout */
+    .dashboard { display: none; min-height: 100vh; }
+    .dashboard.active { display: flex; }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-w); background: var(--surface);
+      border-right: 1px solid var(--border); position: fixed;
+      top: 0; left: 0; bottom: 0; overflow-y: auto; z-index: 100;
+      transition: transform 0.3s;
+    }
+    .sidebar-header {
+      padding: 24px 20px 16px; border-bottom: 1px solid var(--border);
+    }
+    .sidebar-logo {
+      font-family: 'Cormorant Garamond', serif; font-size: 20px;
+      letter-spacing: 4px; color: var(--gold);
+    }
+    .sidebar-subtitle {
+      font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text3);
+    }
+    .sidebar-nav { padding: 12px 8px; }
+    .sidebar-section {
+      font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text3); padding: 16px 16px 8px;
+    }
+    .sidebar-link {
+      display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+      color: var(--text2); border-radius: 10px; margin-bottom: 2px;
+      font-size: 13px; font-weight: 500; transition: all 0.2s;
+      cursor: pointer; border: none; background: none; width: 100%;
+      text-align: left; font-family: 'Montserrat', sans-serif;
+    }
+    .sidebar-link:hover { background: var(--surface2); color: var(--text); }
+    .sidebar-link.active { background: rgba(201,168,76,0.1); color: var(--gold); }
+    .sidebar-link .icon { font-size: 18px; flex-shrink: 0; }
+    .badge {
+      margin-left: auto; background: var(--gold); color: #000;
+      padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700;
     }
 
-    .sidebar-link .icon {
-      width: 20px;
-      text-align: center;
-      font-size: 16px;
-    }
-
+    /* Main Content */
     .main-content {
-      flex: 1;
-      margin-left: 260px;
-      padding: 32px;
+      flex: 1; margin-left: var(--sidebar-w); padding: 24px 28px;
+      padding-bottom: 100px; min-height: 100vh;
     }
+    .page-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+    }
+    .page-title {
+      font-family: 'Cormorant Garamond', serif; font-size: 28px;
+      font-weight: 300; color: var(--text);
+    }
+    .page-title span { color: var(--gold); font-style: italic; }
+
+    /* Buttons */
+    .btn {
+      padding: 10px 18px; border-radius: 10px; font-size: 11px;
+      font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+      cursor: pointer; transition: all 0.3s; font-family: 'Montserrat', sans-serif;
+      border: none; display: inline-flex; align-items: center; gap: 6px;
+      white-space: nowrap;
+    }
+    .btn-primary { background: linear-gradient(135deg, var(--gold), var(--gold-light)); color: #000; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+    .btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+    .btn-sm { padding: 6px 12px; font-size: 10px; border-radius: 8px; }
+    .btn-xs { padding: 4px 10px; font-size: 9px; border-radius: 6px; }
+    .btn-danger { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
 
     /* Stats Grid */
     .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 32px;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px; margin-bottom: 24px;
     }
-
     .stat-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 18px; transition: all 0.3s;
+      cursor: default;
     }
-
-    .stat-card-label {
-      font-size: 10px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      margin-bottom: 8px;
-    }
-
+    .stat-card:active { transform: scale(0.98); }
+    .stat-card-icon { font-size: 24px; margin-bottom: 8px; }
     .stat-card-value {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 36px;
-      font-weight: 300;
-      color: var(--gold);
+      font-family: 'Cormorant Garamond', serif; font-size: 34px;
+      font-weight: 300; color: var(--text); line-height: 1;
     }
-
-    .stat-card-change {
-      font-size: 11px;
-      margin-top: 4px;
-    }
-
-    .stat-card-change.positive { color: var(--green); }
-    .stat-card-change.negative { color: var(--red); }
+    .stat-card-label { font-size: 10px; color: var(--text2); margin-top: 4px; }
 
     /* Table */
-    .table-container {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
+    .table-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden;
     }
-
     .table-header {
-      padding: 20px 24px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 10px;
     }
-
-    .table-title {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 22px;
-      color: var(--text);
-    }
-
-    .table-filters {
-      display: flex;
-      gap: 12px;
-    }
-
+    .table-title { font-family: 'Cormorant Garamond', serif; font-size: 20px; color: var(--text); }
+    .table-filters { display: flex; gap: 6px; flex-wrap: wrap; }
     .filter-select, .filter-input {
-      background: var(--surface-light);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 8px 12px;
-      color: var(--text);
-      font-size: 12px;
-      font-family: 'Montserrat', sans-serif;
-      outline: none;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 12px; color: var(--text);
+      font-size: 11px; font-family: 'Montserrat', sans-serif; outline: none;
     }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
+    .filter-input { min-width: 180px; }
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { width: 100%; border-collapse: collapse; min-width: 900px; }
     th {
-      padding: 14px 24px;
-      font-size: 10px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      background: var(--surface-light);
-      border-bottom: 1px solid var(--border);
-      text-align: left;
+      padding: 12px 14px; font-size: 9px; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--text3); background: var(--surface2);
+      border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap;
     }
-
-    td {
-      padding: 14px 24px;
-      font-size: 13px;
-      border-bottom: 1px solid rgba(255,255,255,0.03);
-    }
-
-    tr:hover td {
-      background: rgba(255,255,255,0.02);
-    }
-
+    td { padding: 12px 14px; font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.02); }
+    tbody tr:active { background: rgba(255,255,255,0.02); }
+    .order-id { font-family: 'Courier New', monospace; color: var(--gold); font-size: 11px; font-weight: 600; }
+    .product-name { color: var(--gold-light); font-weight: 500; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+    .price { font-weight: 600; color: var(--gold); white-space: nowrap; }
     .status-badge {
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 10px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      font-weight: 600;
+      padding: 4px 10px; border-radius: 14px; font-size: 9px;
+      letter-spacing: 1px; text-transform: uppercase; font-weight: 700;
+      border: none; cursor: pointer; font-family: 'Montserrat', sans-serif;
     }
-
-    .status-new { background: rgba(59, 130, 246, 0.15); color: var(--blue); }
-    .status-confirmed { background: rgba(34, 197, 94, 0.15); color: var(--green); }
-    .status-delivered { background: rgba(139, 92, 246, 0.15); color: var(--purple); }
-
+    .status-new { background: rgba(59,130,246,0.2); color: var(--blue); }
+    .status-confirmed { background: rgba(245,158,11,0.2); color: var(--orange); }
+    .status-processing { background: rgba(139,92,246,0.2); color: var(--purple); }
+    .status-delivered { background: rgba(34,197,94,0.2); color: var(--green); }
+    .status-cancelled { background: rgba(239,68,68,0.2); color: var(--red); }
     .source-badge {
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
+      padding: 3px 8px; border-radius: 6px; font-size: 9px; font-weight: 600;
+      white-space: nowrap;
     }
+    .source-facebook { background: rgba(59,130,246,0.2); color: #60a5fa; }
+    .source-instagram { background: rgba(236,72,153,0.2); color: #f472b6; }
+    .source-tiktok { background: rgba(255,255,255,0.1); color: #fff; }
+    .source-youtube { background: rgba(239,68,68,0.2); color: #f87171; }
+    .source-google { background: rgba(52,211,153,0.2); color: #34d399; }
+    .source-direct { background: rgba(201,168,76,0.2); color: var(--gold-light); }
 
-    .source-facebook { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-    .source-instagram { background: rgba(236, 72, 153, 0.2); color: #f472b6; }
-    .source-tiktok { background: rgba(0, 0, 0, 0.3); color: #fff; }
-    .source-youtube { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-    .source-direct { background: rgba(201, 168, 76, 0.2); color: var(--gold-light); }
-
-    .logout-btn {
-      background: transparent;
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      color: var(--red);
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-size: 11px;
-      cursor: pointer;
-      transition: all 0.3s;
-      letter-spacing: 1px;
-      text-transform: uppercase;
+    /* Settings Form */
+    .settings-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px; margin-bottom: 24px;
     }
-
-    .logout-btn:hover {
-      background: rgba(239, 68, 68, 0.1);
+    .settings-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px;
     }
-
-    .pagination {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      padding: 20px;
-    }
-
-    .page-btn {
-      padding: 8px 14px;
-      background: var(--surface-light);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text-dim);
-      cursor: pointer;
-      font-size: 12px;
-      transition: all 0.3s;
-    }
-
-    .page-btn:hover, .page-btn.active {
-      background: var(--gold);
-      color: var(--bg);
-      border-color: var(--gold);
-    }
-
-    /* Charts Section */
-    .charts-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-      gap: 16px;
-      margin-bottom: 32px;
-    }
-
-    .chart-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 24px;
-    }
-
-    .chart-title {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 18px;
-      color: var(--text);
+    .settings-card-header {
+      display: flex; justify-content: space-between; align-items: center;
       margin-bottom: 16px;
     }
-
-    .bar-chart {
-      display: flex;
-      align-items: flex-end;
-      gap: 12px;
-      height: 200px;
-      padding-top: 20px;
+    .settings-card-title {
+      font-family: 'Cormorant Garamond', serif; font-size: 20px; color: var(--text);
+      display: flex; align-items: center; gap: 8px;
     }
-
-    .bar-item {
-      flex: 1;
+    .bundle-row {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px; margin-bottom: 10px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .bundle-row-header {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .bundle-row-title { font-weight: 600; font-size: 13px; }
+    .bundle-row-price {
+      font-family: 'Cormorant Garamond', serif; font-size: 18px;
+      color: var(--gold); font-weight: 600;
+    }
+    .price-input-group {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .price-input {
+      background: var(--surface3); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px; color: var(--text);
+      font-size: 16px; width: 140px; font-family: 'Montserrat', sans-serif;
       text-align: center;
     }
+    .price-input:focus { border-color: var(--gold); outline: none; }
+    .price-label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+      color: var(--text3);
+    }
+    .toggle-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0;
+    }
+    .toggle-row label { font-size: 12px; }
+    .toggle {
+      width: 48px; height: 28px; background: var(--surface3);
+      border-radius: 14px; cursor: pointer; position: relative;
+      transition: background 0.3s; border: none;
+    }
+    .toggle.active { background: var(--gold); }
+    .toggle::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 22px; height: 22px; background: #fff;
+      border-radius: 50%; transition: transform 0.3s;
+    }
+    .toggle.active::after { transform: translateX(20px); }
 
-    .bar {
-      width: 100%;
-      background: linear-gradient(180deg, var(--gold), var(--gold-light));
-      border-radius: 4px 4px 0 0;
-      min-height: 4px;
-      transition: height 0.5s ease;
-      margin-bottom: 8px;
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+      display: none; align-items: center; justify-content: center;
+      z-index: 500; padding: 16px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px; width: 100%; max-width: 500px;
+      max-height: 85vh; overflow-y: auto;
+    }
+    .modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 20px;
+    }
+    .modal-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; }
+    .modal-close {
+      background: none; border: none; color: var(--text2);
+      font-size: 28px; cursor: pointer; padding: 4px 8px;
     }
 
-    .bar-label {
-      font-size: 10px;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      letter-spacing: 1px;
+    /* Toast */
+    .toast {
+      position: fixed; top: 20px; right: 20px; z-index: 999;
+      background: var(--green); color: #fff; padding: 14px 20px;
+      border-radius: 10px; font-size: 13px; font-weight: 600;
+      transform: translateX(120%); transition: transform 0.3s;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
     }
+    .toast.show { transform: translateX(0); }
+    .toast.error { background: var(--red); }
 
-    .bar-value {
-      font-size: 12px;
-      color: var(--gold);
-      font-weight: 600;
+    /* Pagination */
+    .pagination {
+      display: flex; justify-content: center; align-items: center;
+      gap: 4px; padding: 16px; flex-wrap: wrap;
     }
+    .page-btn {
+      min-width: 34px; height: 34px; padding: 0 10px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text2); cursor: pointer;
+      font-size: 11px; font-weight: 600; display: flex;
+      align-items: center; justify-content: center;
+      font-family: 'Montserrat', sans-serif;
+    }
+    .page-btn.active { background: var(--gold); color: #000; border-color: var(--gold); }
+    .page-btn:disabled { opacity: 0.3; }
 
-    @media (max-width: 768px) {
-      .sidebar { display: none; }
-      .main-content { margin-left: 0; }
+    /* Mobile Responsive */
+    @media (max-width: 1024px) {
+      .sidebar { transform: translateX(-100%); width: 280px; }
+      .sidebar.open { transform: translateX(0); }
+      .main-content { margin-left: 0; padding: 16px; padding-bottom: 100px; }
+      .mobile-nav { display: block; }
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
-      .charts-grid { grid-template-columns: 1fr; }
+      .settings-grid { grid-template-columns: 1fr; }
+      .page-title { font-size: 22px; }
+      .table-header { flex-direction: column; align-items: flex-start; }
+      .table-filters { width: 100%; }
+      .filter-input { flex: 1; min-width: auto; }
+      .filter-select { flex: 1; }
     }
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .stat-card { padding: 14px; }
+      .stat-card-value { font-size: 26px; }
+      .btn { padding: 8px 14px; font-size: 10px; }
+    }
+
+    /* Sidebar overlay for mobile */
+    .sidebar-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6); z-index: 99;
+    }
+    .sidebar-overlay.active { display: block; }
   </style>
 </head>
 <body>
-  <!-- Login Screen -->
+  <!-- Login -->
   <div class="login-screen" id="loginScreen">
     <div class="login-card">
       <div class="login-logo">A U D O R A</div>
-      <div class="login-subtitle">Admin Dashboard</div>
-      <input type="password" class="login-input" id="passwordInput" placeholder="Enter password" autofocus>
+      <div class="login-subtitle">Administrator</div>
+      <input type="password" class="login-input" id="passwordInput" placeholder="Password" autofocus>
       <button class="login-btn" onclick="login()">Access Dashboard</button>
-      <div class="login-error" id="loginError">Invalid password. Please try again.</div>
+      <div class="login-error" id="loginError">Invalid password</div>
     </div>
   </div>
 
+  <!-- Sidebar Overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
   <!-- Dashboard -->
   <div class="dashboard" id="dashboard">
-    <aside class="sidebar">
-      <div class="sidebar-logo">
-        <h2>A U D O R A</h2>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">A U D O R A</div>
+        <div class="sidebar-subtitle">Admin Panel</div>
       </div>
       <nav class="sidebar-nav">
-        <button class="sidebar-link active" onclick="showSection('overview')">
+        <div class="sidebar-section">Main</div>
+        <button class="sidebar-link active" onclick="navigate('overview')">
           <span class="icon">📊</span> Overview
         </button>
-        <button class="sidebar-link" onclick="showSection('orders')">
+        <button class="sidebar-link" onclick="navigate('orders')">
           <span class="icon">📦</span> Orders
+          <span class="badge" id="newOrdersBadge">0</span>
         </button>
-        <button class="sidebar-link" onclick="showSection('analytics')">
-          <span class="icon">📈</span> Analytics
+        <div class="sidebar-section">Products</div>
+        <button class="sidebar-link" onclick="filterByProduct('black-oud')">
+          <span class="icon">🖤</span> BLACK OUD
         </button>
+        <button class="sidebar-link" onclick="filterByProduct('rose-noir')">
+          <span class="icon">🌹</span> ROSE NOIR
+        </button>
+        <button class="sidebar-link" onclick="filterByProduct('gift')">
+          <span class="icon">🎁</span> Gift Bundles
+        </button>
+        <div class="sidebar-section">Management</div>
+        <button class="sidebar-link" onclick="navigate('pricing')">
+          <span class="icon">💰</span> Pricing & Bundles
+        </button>
+        <button class="sidebar-link" onclick="navigate('settings')">
+          <span class="icon">⚙️</span> Settings
+        </button>
+        <div class="sidebar-section">Account</div>
         <button class="sidebar-link" onclick="logout()">
           <span class="icon">🚪</span> Logout
         </button>
       </nav>
     </aside>
 
-    <main class="main-content" id="mainContent">
-      <!-- Content will be dynamically loaded -->
-    </main>
+    <!-- Main -->
+    <main class="main-content" id="mainContent"></main>
   </div>
 
-  <script src="/pixel.js"></script>
-  <script>
-    // Session management
-    let sessionId = localStorage.getItem('audora_session');
+  <!-- Mobile Nav -->
+  <nav class="mobile-nav" id="mobileNav">
+    <div class="mobile-nav-items">
+      <button class="mobile-nav-item active" onclick="navigate('overview')">
+        <span class="icon">📊</span> Overview
+      </button>
+      <button class="mobile-nav-item" onclick="navigate('orders')">
+        <span class="icon">📦</span> Orders
+      </button>
+      <button class="mobile-nav-item" onclick="navigate('pricing')">
+        <span class="icon">💰</span> Pricing
+      </button>
+      <button class="mobile-nav-item" onclick="navigate('settings')">
+        <span class="icon">⚙️</span> Settings
+      </button>
+      <button class="mobile-nav-item" onclick="toggleSidebar()">
+        <span class="icon">☰</span> More
+      </button>
+    </div>
+  </nav>
 
-    // Check session on load
+  <!-- Modal -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalTitle">Details</h3>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ==================== STATE ====================
+    let sessionId = localStorage.getItem('audora_session');
+    let currentPage = 'overview';
+    let settings = null;
+    let filters = {};
+    let orderPage = 1;
+
+    // ==================== INIT ====================
     if (sessionId) {
       fetch(`/api/check-session?session=${sessionId}`)
         .then(r => r.json())
-        .then(data => {
-          if (data.valid) {
-            showDashboard();
-          }
-        })
-        .catch(() => {
-          localStorage.removeItem('audora_session');
-          sessionId = null;
-        });
+        .then(d => { if (d.valid) { showDashboard(); navigate('overview'); } })
+        .catch(() => { localStorage.removeItem('audora_session'); });
     }
 
-    function login() {
-      const password = document.getElementById('passwordInput').value;
-      
-      fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
-      })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          sessionId = data.sessionId;
+    document.getElementById('passwordInput').addEventListener('keypress', e => {
+      if (e.key === 'Enter') login();
+    });
+
+    // ==================== AUTH ====================
+    async function login() {
+      const pw = document.getElementById('passwordInput').value;
+      document.getElementById('loginError').style.display = 'none';
+      try {
+        const r = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pw })
+        });
+        const d = await r.json();
+        if (d.success) {
+          sessionId = d.sessionId;
           localStorage.setItem('audora_session', sessionId);
           showDashboard();
-          loadDashboardData();
+          navigate('overview');
         } else {
           document.getElementById('loginError').style.display = 'block';
         }
-      })
-      .catch(() => {
-        document.getElementById('loginError').style.display = 'block';
-      });
+      } catch { document.getElementById('loginError').style.display = 'block'; }
     }
 
     function showDashboard() {
       document.getElementById('loginScreen').classList.add('hidden');
       document.getElementById('dashboard').classList.add('active');
+      document.getElementById('mobileNav').style.display = 'block';
     }
 
     function logout() {
       localStorage.removeItem('audora_session');
       sessionId = null;
-      document.getElementById('loginScreen').classList.remove('hidden');
-      document.getElementById('dashboard').classList.remove('active');
-      document.getElementById('passwordInput').value = '';
+      location.reload();
     }
 
-    // Password input enter key
-    document.getElementById('passwordInput').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') login();
-    });
-
-    function showSection(section) {
-      document.querySelectorAll('.sidebar-link').forEach(link => link.classList.remove('active'));
-      event.target.closest('.sidebar-link').classList.add('active');
-
-      switch(section) {
-        case 'overview':
-          loadOverview();
-          break;
-        case 'orders':
-          loadOrders();
-          break;
-        case 'analytics':
-          loadAnalytics();
-          break;
-      }
-    }
-
-    async function apiCall(endpoint) {
-      const response = await fetch(`/api${endpoint}`, {
-        headers: { 'x-session-id': sessionId }
+    // ==================== API ====================
+    async function api(endpoint, options = {}) {
+      const res = await fetch(`/api${endpoint}`, {
+        ...options,
+        headers: { 'x-session-id': sessionId, 'Content-Type': 'application/json', ...options.headers }
       });
-      if (response.status === 401) {
-        logout();
-        throw new Error('Unauthorized');
-      }
-      return response.json();
+      if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
+      return res.json();
     }
 
-    async function loadDashboardData() {
-      loadOverview();
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = 'toast ' + (isError ? 'error' : '') + ' show';
+      setTimeout(() => toast.classList.remove('show'), 3000);
     }
 
-    async function loadOverview() {
-      const stats = await apiCall('/stats');
+    // ==================== NAVIGATION ====================
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('sidebarOverlay').classList.toggle('active');
+    }
+
+    function navigate(page) {
+      currentPage = page;
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebarOverlay').classList.remove('active');
       
-      document.getElementById('mainContent').innerHTML = `
-        <h1 style="font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;margin-bottom:32px;color:var(--text);">
-          Dashboard <span style="color:var(--gold);font-style:italic;">Overview</span>
-        </h1>
+      // Update active states
+      document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+      document.querySelectorAll('.mobile-nav-item').forEach(l => l.classList.remove('active'));
+      
+      const sidebarLink = document.querySelector(`.sidebar-link[onclick*="${page}"]`);
+      const mobileLink = document.querySelector(`.mobile-nav-item[onclick*="${page}"]`);
+      if (sidebarLink) sidebarLink.classList.add('active');
+      if (mobileLink) mobileLink.classList.add('active');
 
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-card-label">Today's Orders</div>
-            <div class="stat-card-value">${stats.today}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-card-label">Yesterday</div>
-            <div class="stat-card-value">${stats.yesterday}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-card-label">This Week</div>
-            <div class="stat-card-value">${stats.thisWeek}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-card-label">Last Week</div>
-            <div class="stat-card-value">${stats.lastWeek}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-card-label">Last 30 Days</div>
-            <div class="stat-card-value">${stats.last30Days}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-card-label">Last 60 Days</div>
-            <div class="stat-card-value">${stats.last60Days}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-card-label">Total Orders</div>
-            <div class="stat-card-value">${stats.total}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-card-label">Total Revenue (KES)</div>
-            <div class="stat-card-value">${stats.totalRevenue.toLocaleString()}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-card-label">Avg Order Value</div>
-            <div class="stat-card-value">${stats.averageOrderValue.toLocaleString()}</div>
-          </div>
-        </div>
+      switch(page) {
+        case 'overview': loadOverview(); break;
+        case 'orders': filters = {}; orderPage = 1; loadOrders(); break;
+        case 'pricing': loadPricing(); break;
+        case 'settings': loadSettings(); break;
+      }
+    }
 
-        <div class="charts-grid">
-          <div class="chart-card">
-            <div class="chart-title">Orders by Product</div>
-            <div class="bar-chart">
-              ${Object.entries(stats.byProduct).map(([product, count]) => `
-                <div class="bar-item">
-                  <div class="bar-value">${count}</div>
-                  <div class="bar" style="height:${(count / Math.max(...Object.values(stats.byProduct))) * 160}px;"></div>
-                  <div class="bar-label">${product.substring(0, 12)}...</div>
-                </div>
-              `).join('')}
+    function filterByProduct(type) {
+      currentPage = 'orders';
+      filters = { productType: type };
+      orderPage = 1;
+      document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+      document.querySelectorAll('.mobile-nav-item').forEach(l => l.classList.remove('active'));
+      const link = document.querySelector(`.sidebar-link[onclick*="${type}"]`);
+      if (link) link.classList.add('active');
+      loadOrders();
+    }
+
+    // ==================== OVERVIEW ====================
+    async function loadOverview() {
+      document.getElementById('mainContent').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3);">Loading...</div>';
+      try {
+        const stats = await api('/stats');
+        document.getElementById('newOrdersBadge').textContent = stats.byStatus['new'] || 0;
+        
+        document.getElementById('mainContent').innerHTML = `
+          <div class="page-header">
+            <h1 class="page-title">Dashboard <span>Overview</span></h1>
+            <button class="btn btn-outline btn-sm" onclick="navigate('overview')">🔄 Refresh</button>
+          </div>
+          <div class="stats-grid">
+            ${statCard('📦', stats.today, 'Today', 'gold')}
+            ${statCard('📅', stats.yesterday, 'Yesterday', 'blue')}
+            ${statCard('📈', stats.thisWeek, 'This Week', 'green')}
+            ${statCard('📊', stats.lastWeek, 'Last Week', 'purple')}
+            ${statCard('🗓️', stats.last30Days, 'Last 30 Days', 'orange')}
+            ${statCard('💎', 'KES ' + stats.totalRevenue.toLocaleString(), 'Total Revenue', 'gold')}
+            ${statCard('📋', stats.total, 'Total Orders', 'blue')}
+            ${statCard('💰', 'KES ' + stats.averageOrderValue.toLocaleString(), 'Avg Order', 'green')}
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:24px;">
+            ${chartCard('Orders by Product', stats.byProductType, 'gold')}
+            ${chartCard('Traffic Sources', stats.bySource, 'blue')}
+            ${chartCard('Order Status', stats.byStatus, 'purple')}
+            ${chartCard('Bundle Preferences', stats.byBundle, 'green')}
+          </div>
+          <div class="table-card">
+            <div class="table-header">
+              <h3 class="table-title">Recent Orders</h3>
+              <button class="btn btn-outline btn-sm" onclick="navigate('orders')">View All →</button>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Order ID</th><th>Date</th><th>Customer</th><th>Phone</th><th>Product</th><th>Bundle</th><th>Price</th><th>Source</th><th>Status</th></tr></thead>
+                <tbody>${stats.recentOrders.map(o => orderRow(o)).join('')}</tbody>
+              </table>
             </div>
           </div>
+        `;
+      } catch(e) {
+        document.getElementById('mainContent').innerHTML = '<div style="text-align:center;padding:40px;color:var(--red);">Error loading data</div>';
+      }
+    }
 
-          <div class="chart-card">
-            <div class="chart-title">Orders by Source</div>
-            <div class="bar-chart">
-              ${Object.entries(stats.bySource).map(([source, count]) => `
-                <div class="bar-item">
-                  <div class="bar-value">${count}</div>
-                  <div class="bar" style="height:${(count / Math.max(...Object.values(stats.bySource))) * 160}px;background:linear-gradient(180deg,var(--purple),var(--blue));"></div>
-                  <div class="bar-label">${source}</div>
+    // ==================== ORDERS ====================
+    async function loadOrders() {
+      document.getElementById('mainContent').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3);">Loading orders...</div>';
+      const params = new URLSearchParams({ page: orderPage, limit: 20, sortBy: 'timestamp', sortOrder: 'desc' });
+      if (filters.productType) params.append('productType', filters.productType);
+      if (filters.source) params.append('source', filters.source);
+      if (filters.status) params.append('status', filters.status);
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+      if (filters.search) params.append('search', filters.search);
+
+      try {
+        const data = await api(`/orders?${params}`);
+        let filterLabel = 'All Orders';
+        if (filters.productType === 'black-oud') filterLabel = 'BLACK OUD';
+        else if (filters.productType === 'rose-noir') filterLabel = 'ROSE NOIR';
+        else if (filters.productType === 'gift') filterLabel = 'Gift Bundles';
+
+        document.getElementById('mainContent').innerHTML = `
+          <div class="page-header">
+            <h1 class="page-title">${filterLabel} <span>Orders</span></h1>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn ${!filters.productType?'btn-primary':'btn-outline'} btn-sm" onclick="filters.productType=undefined;orderPage=1;loadOrders();">All</button>
+              <button class="btn ${filters.productType==='black-oud'?'btn-primary':'btn-outline'} btn-sm" onclick="filterByProduct('black-oud')">🖤 BLACK OUD</button>
+              <button class="btn ${filters.productType==='rose-noir'?'btn-primary':'btn-outline'} btn-sm" onclick="filterByProduct('rose-noir')">🌹 ROSE NOIR</button>
+              <button class="btn ${filters.productType==='gift'?'btn-primary':'btn-outline'} btn-sm" onclick="filterByProduct('gift')">🎁 Gift</button>
+            </div>
+          </div>
+          <div class="table-card">
+            <div class="table-header">
+              <span style="font-size:12px;color:var(--text2);">${data.pagination.totalOrders} orders</span>
+              <div class="table-filters">
+                <input class="filter-input" placeholder="🔍 Search..." value="${filters.search||''}" oninput="searchOrders(this.value)">
+                <select class="filter-select" onchange="filters.source=this.value||undefined;orderPage=1;loadOrders();">
+                  <option value="">All Sources</option>
+                  ${['Facebook','Instagram','TikTok','YouTube','Google','Direct','Other'].map(s => `<option ${filters.source===s?'selected':''}>${s}</option>`).join('')}
+                </select>
+                <select class="filter-select" onchange="filters.status=this.value||undefined;orderPage=1;loadOrders();">
+                  <option value="">All Status</option>
+                  ${['new','confirmed','processing','delivered','cancelled'].map(s => `<option ${filters.status===s?'selected':''}>${s}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Order ID</th><th>Date</th><th>Customer</th><th>Phone</th><th>Location</th><th>Product</th><th>Bundle</th><th>Price</th><th>Source</th><th>Status</th><th>Act</th></tr></thead>
+                <tbody>${data.orders.length ? data.orders.map(o => orderRow(o, true)).join('') : '<tr><td colspan="11" style="text-align:center;padding:40px;">No orders found</td></tr>'}</tbody>
+              </table>
+            </div>
+            ${data.pagination.totalPages > 1 ? `
+              <div class="pagination">
+                <button class="page-btn" onclick="orderPage=1;loadOrders();" ${orderPage===1?'disabled':''}>«</button>
+                <button class="page-btn" onclick="orderPage--;loadOrders();" ${orderPage===1?'disabled':''}>‹</button>
+                ${Array.from({length:Math.min(5,data.pagination.totalPages)},(_,i) => {
+                  let p = Math.max(1, Math.min(orderPage-2, data.pagination.totalPages-4)) + i;
+                  if (p > data.pagination.totalPages) return '';
+                  return `<button class="page-btn ${p===orderPage?'active':''}" onclick="orderPage=${p};loadOrders();">${p}</button>`;
+                }).join('')}
+                <button class="page-btn" onclick="orderPage++;loadOrders();" ${orderPage===data.pagination.totalPages?'disabled':''}>›</button>
+                <button class="page-btn" onclick="orderPage=data.pagination.totalPages;loadOrders();" ${orderPage===data.pagination.totalPages?'disabled':''}>»</button>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      } catch(e) {
+        document.getElementById('mainContent').innerHTML = '<div style="text-align:center;padding:40px;color:var(--red);">Error loading orders</div>';
+      }
+    }
+
+    function searchOrders(val) {
+      clearTimeout(window._searchTimeout);
+      window._searchTimeout = setTimeout(() => {
+        filters.search = val || undefined;
+        orderPage = 1;
+        loadOrders();
+      }, 400);
+    }
+
+    // ==================== PRICING MANAGEMENT ====================
+    async function loadPricing() {
+      document.getElementById('mainContent').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3);">Loading pricing...</div>';
+      try {
+        settings = await api('/admin/settings');
+        const p = settings.products;
+        
+        document.getElementById('mainContent').innerHTML = `
+          <div class="page-header">
+            <h1 class="page-title">Pricing & <span>Bundles</span></h1>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-primary btn-sm" onclick="savePricing()">💾 Save All Changes</button>
+              <button class="btn btn-outline btn-sm" onclick="resetPricing()">↺ Reset Default</button>
+            </div>
+          </div>
+          <div class="settings-grid">
+            ${productPricingCard('blackOud', '🖤', p.blackOud)}
+            ${productPricingCard('roseNoir', '🌹', p.roseNoir)}
+            ${productPricingCard('giftBundle', '🎁', p.giftBundle)}
+          </div>
+          <div style="text-align:center;padding:20px;">
+            <button class="btn btn-primary" onclick="savePricing()" style="min-width:200px;">💾 Save All Pricing Changes</button>
+            <p style="font-size:10px;color:var(--text3);margin-top:8px;">Changes will be reflected across the entire website immediately</p>
+          </div>
+        `;
+      } catch(e) {
+        document.getElementById('mainContent').innerHTML = '<div style="text-align:center;padding:40px;color:var(--red);">Error loading pricing</div>';
+      }
+    }
+
+    function productPricingCard(key, icon, product) {
+      return `
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <h3 class="settings-card-title">${icon} ${product.name}</h3>
+            <span style="font-size:10px;color:var(--text3);">${product.description}</span>
+          </div>
+          ${Object.entries(product.bundles).map(([bundleKey, bundle]) => `
+            <div class="bundle-row">
+              <div class="bundle-row-header">
+                <div>
+                  <div class="bundle-row-title">${bundle.label}</div>
+                  <div style="font-size:10px;color:var(--text3);margin-top:2px;">
+                    ${bundle.savings > 0 ? `Save KSH ${bundle.savings.toLocaleString()}` : 'Base price'}
+                  </div>
                 </div>
-              `).join('')}
+                <div class="price-input-group">
+                  <span class="price-label">KSH</span>
+                  <input type="number" class="price-input" 
+                         id="price_${key}_${bundleKey}" 
+                         value="${bundle.price}" 
+                         onchange="updateBundlePrice('${key}', '${bundleKey}', this.value)">
+                </div>
+              </div>
+              <div class="toggle-row">
+                <label>Most Popular Badge</label>
+                <button class="toggle ${bundle.popular ? 'active' : ''}" 
+                        id="popular_${key}_${bundleKey}"
+                        onclick="togglePopular('${key}', '${bundleKey}')"></button>
+              </div>
+            </div>
+          `).join('')}
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+            <div class="toggle-row">
+              <label>Show Savings Badge</label>
+              <span style="font-size:10px;color:var(--text3);">Auto-calculated</span>
             </div>
           </div>
         </div>
       `;
     }
 
-    async function loadOrders() {
-      const data = await apiCall('/orders');
+    function updateBundlePrice(productKey, bundleKey, value) {
+      const price = parseInt(value) || 0;
+      if (!settings) return;
+      settings.products[productKey].bundles[bundleKey].price = price;
       
-      document.getElementById('mainContent').innerHTML = `
-        <h1 style="font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;margin-bottom:32px;color:var(--text);">
-          Orders <span style="color:var(--gold);font-style:italic;">Management</span>
-        </h1>
+      // Auto-calculate savings for multi-bottle bundles
+      const bundles = settings.products[productKey].bundles;
+      const basePrice = bundles['1'] ? bundles['1'].price : price;
+      
+      Object.entries(bundles).forEach(([key, bundle]) => {
+        if (key === '1' || key === 'couple') {
+          bundle.savings = 0;
+        } else {
+          const bottleCount = parseInt(key);
+          const expectedPrice = basePrice * bottleCount;
+          bundle.savings = Math.max(0, expectedPrice - bundle.price);
+        }
+      });
+      
+      showToast(`Price updated: KSH ${price.toLocaleString()}`, false);
+    }
 
-        <div class="table-container">
-          <div class="table-header">
-            <span class="table-title">Recent Orders</span>
-            <div class="table-filters">
-              <select class="filter-select" onchange="filterOrders()" id="filterProduct">
-                <option value="">All Products</option>
-                <option value="BLACK OUD">BLACK OUD</option>
-                <option value="ROSE NOIR">ROSE NOIR</option>
-                <option value="Gift">Gift</option>
-              </select>
-              <select class="filter-select" onchange="filterOrders()" id="filterSource">
-                <option value="">All Sources</option>
-                <option value="Facebook">Facebook</option>
-                <option value="Instagram">Instagram</option>
-                <option value="TikTok">TikTok</option>
-                <option value="YouTube">YouTube</option>
-                <option value="Direct">Direct</option>
-              </select>
+    function togglePopular(productKey, bundleKey) {
+      if (!settings) return;
+      const bundles = settings.products[productKey].bundles;
+      
+      // Only one bundle can be popular at a time
+      Object.keys(bundles).forEach(key => {
+        bundles[key].popular = (key === bundleKey);
+      });
+      
+      // Update UI
+      Object.keys(bundles).forEach(key => {
+        const btn = document.getElementById(`popular_${productKey}_${key}`);
+        if (btn) {
+          btn.className = 'toggle ' + (bundles[key].popular ? 'active' : '');
+        }
+      });
+      
+      showToast('Popular badge updated');
+    }
+
+    async function savePricing() {
+      if (!settings) return;
+      try {
+        await api('/admin/settings', {
+          method: 'PUT',
+          body: JSON.stringify(settings)
+        });
+        showToast('✅ Pricing saved successfully! Website updated.');
+      } catch(e) {
+        showToast('Failed to save pricing', true);
+      }
+    }
+
+    async function resetPricing() {
+      if (!confirm('Reset all pricing to default values?')) return;
+      try {
+        const data = await api('/admin/settings/reset', { method: 'POST' });
+        settings = data.settings;
+        loadPricing();
+        showToast('Pricing reset to defaults');
+      } catch(e) {
+        showToast('Failed to reset', true);
+      }
+    }
+
+    // ==================== SETTINGS ====================
+    async function loadSettings() {
+      document.getElementById('mainContent').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3);">Loading settings...</div>';
+      try {
+        settings = await api('/admin/settings');
+        const c = settings.contact;
+        const d = settings.delivery;
+        const b = settings.branding;
+        
+        document.getElementById('mainContent').innerHTML = `
+          <div class="page-header">
+            <h1 class="page-title">General <span>Settings</span></h1>
+            <button class="btn btn-primary btn-sm" onclick="saveSettings()">💾 Save Settings</button>
+          </div>
+          <div class="settings-grid">
+            <div class="settings-card">
+              <h3 class="settings-card-title" style="margin-bottom:16px;">📞 Contact Information</h3>
+              <div style="display:flex;flex-direction:column;gap:12px;">
+                <div>
+                  <label style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">WhatsApp Number</label>
+                  <input class="price-input" style="width:100%;" id="set_whatsapp" value="${c.whatsapp}">
+                </div>
+                <div>
+                  <label style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Email</label>
+                  <input class="price-input" style="width:100%;" id="set_email" value="${c.email||''}" placeholder="email@example.com">
+                </div>
+                <div>
+                  <label style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Phone</label>
+                  <input class="price-input" style="width:100%;" id="set_phone" value="${c.phone||''}" placeholder="+254...">
+                </div>
+              </div>
+            </div>
+            <div class="settings-card">
+              <h3 class="settings-card-title" style="margin-bottom:16px;">🚚 Delivery Settings</h3>
+              <div style="display:flex;flex-direction:column;gap:12px;">
+                <div class="toggle-row">
+                  <label>Free Delivery</label>
+                  <button class="toggle ${d.freeDelivery?'active':''}" id="set_freeDelivery" onclick="toggleSetting('freeDelivery')"></button>
+                </div>
+                <div>
+                  <label style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Nairobi Delivery Time</label>
+                  <input class="price-input" style="width:100%;" id="set_nairobi" value="${d.nairobi}">
+                </div>
+                <div>
+                  <label style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Nationwide Delivery Time</label>
+                  <input class="price-input" style="width:100%;" id="set_nationwide" value="${d.nationwide}">
+                </div>
+                <div>
+                  <label style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">COD Message</label>
+                  <input class="price-input" style="width:100%;" id="set_codMessage" value="${d.codMessage}">
+                </div>
+              </div>
+            </div>
+            <div class="settings-card">
+              <h3 class="settings-card-title" style="margin-bottom:16px;">🎨 Branding</h3>
+              <div style="display:flex;flex-direction:column;gap:12px;">
+                <div>
+                  <label style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Announcement Bar</label>
+                  <input class="price-input" style="width:100%;" id="set_announcement" value="${b.announcement}">
+                </div>
+                <div>
+                  <label style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">Tagline</label>
+                  <input class="price-input" style="width:100%;" id="set_tagline" value="${b.tagline}">
+                </div>
+              </div>
             </div>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>Date</th>
-                <th>Customer</th>
-                <th>Phone</th>
-                <th>Location</th>
-                <th>Product</th>
-                <th>Bundle</th>
-                <th>Price</th>
-                <th>Source</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="ordersTableBody">
-              ${data.orders.map(order => `
-                <tr>
-                  <td style="font-family:monospace;color:var(--gold);">${order.orderId || order.id}</td>
-                  <td>${new Date(order.timestamp).toLocaleDateString('en-KE', {day:'numeric',month:'short',year:'numeric'})}</td>
-                  <td>${order.name}</td>
-                  <td>${order.phone}</td>
-                  <td>${order.location}</td>
-                  <td style="color:var(--gold-light);">${order.product}</td>
-                  <td>${order.bundle}</td>
-                  <td style="color:var(--gold);">${order.price}</td>
-                  <td><span class="source-badge source-${order.source.toLowerCase()}">${order.source}</span></td>
-                  <td><span class="status-badge status-${order.status}">${order.status}</span></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <div class="pagination">
-            ${Array.from({length: data.pagination.totalPages}, (_, i) => `
-              <button class="page-btn ${i + 1 === data.pagination.currentPage ? 'active' : ''}" 
-                      onclick="loadOrdersPage(${i + 1})">${i + 1}</button>
+          <div style="text-align:center;padding:20px;">
+            <button class="btn btn-primary" onclick="saveSettings()" style="min-width:200px;">💾 Save All Settings</button>
+          </div>
+        `;
+      } catch(e) {
+        document.getElementById('mainContent').innerHTML = '<div style="text-align:center;padding:40px;color:var(--red);">Error loading settings</div>';
+      }
+    }
+
+    function toggleSetting(key) {
+      if (!settings) return;
+      if (key === 'freeDelivery') {
+        settings.delivery.freeDelivery = !settings.delivery.freeDelivery;
+        document.getElementById('set_freeDelivery').className = 'toggle ' + (settings.delivery.freeDelivery ? 'active' : '');
+      }
+    }
+
+    async function saveSettings() {
+      if (!settings) return;
+      settings.contact.whatsapp = document.getElementById('set_whatsapp')?.value || settings.contact.whatsapp;
+      settings.contact.email = document.getElementById('set_email')?.value || '';
+      settings.contact.phone = document.getElementById('set_phone')?.value || '';
+      settings.delivery.nairobi = document.getElementById('set_nairobi')?.value || settings.delivery.nairobi;
+      settings.delivery.nationwide = document.getElementById('set_nationwide')?.value || settings.delivery.nationwide;
+      settings.delivery.codMessage = document.getElementById('set_codMessage')?.value || settings.delivery.codMessage;
+      settings.branding.announcement = document.getElementById('set_announcement')?.value || settings.branding.announcement;
+      settings.branding.tagline = document.getElementById('set_tagline')?.value || settings.branding.tagline;
+      
+      try {
+        await api('/admin/settings', { method: 'PUT', body: JSON.stringify(settings) });
+        showToast('✅ Settings saved successfully!');
+      } catch(e) {
+        showToast('Failed to save settings', true);
+      }
+    }
+
+    // ==================== HELPERS ====================
+    function statCard(icon, value, label, color) {
+      return `
+        <div class="stat-card" onclick="${currentPage === 'overview' ? "navigate('orders')" : ''}">
+          <div class="stat-card-icon">${icon}</div>
+          <div class="stat-card-value">${value}</div>
+          <div class="stat-card-label">${label}</div>
+        </div>
+      `;
+    }
+
+    function chartCard(title, data, colorClass) {
+      const entries = Object.entries(data).filter(([_,v]) => v > 0);
+      const max = Math.max(...entries.map(([_,v]) => v), 1);
+      return `
+        <div class="table-card" style="padding:16px;">
+          <h4 style="font-family:'Cormorant Garamond',serif;font-size:16px;margin-bottom:12px;">${title}</h4>
+          <div style="display:flex;align-items:flex-end;gap:8px;height:140px;">
+            ${entries.map(([label, val]) => `
+              <div style="flex:1;text-align:center;">
+                <div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:4px;">${val}</div>
+                <div style="width:100%;height:${(val/max)*110}px;background:linear-gradient(180deg,var(--gold-light),var(--gold));border-radius:6px 6px 0 0;min-height:4px;"></div>
+                <div style="font-size:8px;color:var(--text3);margin-top:4px;word-break:break-word;">${label.length>10?label.substring(0,10)+'...':label}</div>
+              </div>
             `).join('')}
           </div>
         </div>
       `;
     }
 
-    async function loadAnalytics() {
-      const stats = await apiCall('/stats');
-      
-      document.getElementById('mainContent').innerHTML = `
-        <h1 style="font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;margin-bottom:32px;color:var(--text);">
-          Analytics <span style="color:var(--gold);font-style:italic;">& Insights</span>
-        </h1>
-
-        <div class="charts-grid">
-          <div class="chart-card">
-            <div class="chart-title">Revenue by Product</div>
-            <div class="bar-chart">
-              ${Object.entries(stats.byProduct).map(([product, count]) => `
-                <div class="bar-item">
-                  <div class="bar-value">${count}</div>
-                  <div class="bar" style="height:${(count / Math.max(...Object.values(stats.byProduct))) * 160}px;"></div>
-                  <div class="bar-label">${product.substring(0, 10)}</div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-
-          <div class="chart-card">
-            <div class="chart-title">Traffic Sources</div>
-            <div class="bar-chart">
-              ${Object.entries(stats.bySource).map(([source, count]) => `
-                <div class="bar-item">
-                  <div class="bar-value">${count}</div>
-                  <div class="bar" style="height:${(count / Math.max(...Object.values(stats.bySource))) * 160}px;background:linear-gradient(180deg,var(--rose-light),var(--purple));"></div>
-                  <div class="bar-label">${source}</div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-
-          <div class="chart-card">
-            <div class="chart-title">Orders by Country</div>
-            <div class="bar-chart">
-              ${Object.entries(stats.byCountry).map(([country, count]) => `
-                <div class="bar-item">
-                  <div class="bar-value">${count}</div>
-                  <div class="bar" style="height:${(count / Math.max(...Object.values(stats.byCountry))) * 160}px;background:linear-gradient(180deg,var(--green),var(--blue));"></div>
-                  <div class="bar-label">${country}</div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        </div>
+    function orderRow(order, showActions = false) {
+      const d = new Date(order.timestamp);
+      const dateStr = d.toLocaleDateString('en-KE', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+      const sc = (order.source||'Direct').toLowerCase();
+      return `
+        <tr>
+          <td><span class="order-id">${(order.orderId||order.id).substring(0,12)}</span></td>
+          <td style="font-size:10px;color:var(--text3);">${dateStr}</td>
+          <td style="font-weight:600;">${order.name}</td>
+          <td style="font-size:11px;color:var(--text2);">${order.phone}</td>
+          ${showActions ? `<td style="font-size:11px;">${order.location}</td>` : ''}
+          <td><span class="product-name">${order.product}</span></td>
+          <td style="font-size:11px;">${order.bundle}</td>
+          <td class="price">${order.price}</td>
+          <td><span class="source-badge source-${sc}">${order.source}</span></td>
+          <td>
+            <select class="status-badge status-${order.status}" onchange="updateStatus('${order.id||order.orderId}',this.value)" style="font-size:9px;">
+              <option value="new" ${order.status==='new'?'selected':''}>New</option>
+              <option value="confirmed" ${order.status==='confirmed'?'selected':''}>Confirmed</option>
+              <option value="processing" ${order.status==='processing'?'selected':''}>Processing</option>
+              <option value="delivered" ${order.status==='delivered'?'selected':''}>Delivered</option>
+              <option value="cancelled" ${order.status==='cancelled'?'selected':''}>Cancelled</option>
+            </select>
+          </td>
+          ${showActions ? `
+            <td>
+              <button class="btn btn-xs btn-outline" onclick="viewOrder('${order.id||order.orderId}')">👁</button>
+              <button class="btn btn-xs btn-outline" onclick="waCustomer('${order.phone}','${order.name}','${order.orderId||order.id}')">💬</button>
+            </td>
+          ` : ''}
+        </tr>
       `;
     }
 
-    async function filterOrders() {
-      const product = document.getElementById('filterProduct').value;
-      const source = document.getElementById('filterSource').value;
-      const params = new URLSearchParams();
-      if (product) params.append('product', product);
-      if (source) params.append('source', source);
-      
-      const data = await apiCall(`/orders?${params.toString()}`);
-      
-      document.getElementById('ordersTableBody').innerHTML = data.orders.map(order => `
-        <tr>
-          <td style="font-family:monospace;color:var(--gold);">${order.orderId || order.id}</td>
-          <td>${new Date(order.timestamp).toLocaleDateString('en-KE', {day:'numeric',month:'short',year:'numeric'})}</td>
-          <td>${order.name}</td>
-          <td>${order.phone}</td>
-          <td>${order.location}</td>
-          <td style="color:var(--gold-light);">${order.product}</td>
-          <td>${order.bundle}</td>
-          <td style="color:var(--gold);">${order.price}</td>
-          <td><span class="source-badge source-${order.source.toLowerCase()}">${order.source}</span></td>
-          <td><span class="status-badge status-${order.status}">${order.status}</span></td>
-        </tr>
-      `).join('');
+    async function updateStatus(id, status) {
+      try {
+        await api(`/orders/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
+        showToast('Status updated');
+      } catch(e) { showToast('Failed to update', true); }
     }
 
-    async function loadOrdersPage(page) {
-      const data = await apiCall(`/orders?page=${page}`);
-      // Update table and pagination
-      loadOrders();
+    async function viewOrder(id) {
+      try {
+        const o = await api(`/orders/${id}`);
+        document.getElementById('modalTitle').textContent = 'Order Details';
+        document.getElementById('modalContent').innerHTML = `
+          ${detailRow('Order ID', o.orderId||o.id)}
+          ${detailRow('Date', new Date(o.timestamp).toLocaleString())}
+          ${detailRow('Customer', o.name)}
+          ${detailRow('Phone', o.phone)}
+          ${detailRow('Location', o.location)}
+          ${detailRow('Product', o.product)}
+          ${detailRow('Bundle', o.bundle)}
+          ${detailRow('Price', o.price)}
+          ${detailRow('Source', o.source)}
+          ${detailRow('Country', o.country||'Kenya')}
+          ${detailRow('Status', o.status)}
+        `;
+        document.getElementById('modal').classList.add('active');
+      } catch(e) { showToast('Failed to load order', true); }
     }
+
+    function detailRow(label, value) {
+      return `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);"><span style="font-size:10px;color:var(--text3);text-transform:uppercase;">${label}</span><span style="font-size:13px;font-weight:500;">${value}</span></div>`;
+    }
+
+    function waCustomer(phone, name, orderId) {
+      const msg = encodeURIComponent(`Hello ${name},\n\nThis is AUDORA regarding your order ${orderId}.\n\nThank you for choosing AUDORA!`);
+      window.open(`https://wa.me/${phone.replace(/[^0-9+]/g,'').replace('+','')}?text=${msg}`, '_blank');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+    }
+
+    document.getElementById('modal').addEventListener('click', function(e) {
+      if (e.target === this) closeModal();
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    console.log('🖤 AUDORA Dashboard Ready');
   </script>
 </body>
 </html>
