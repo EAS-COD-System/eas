@@ -21,7 +21,7 @@ const DEFAULT_SETTINGS = {
   products: {
     blackOud: {
       name: 'AUDORA BLACK OUD',
-      description: 'Men\'s Luxury Fragrance',
+      description: 'Men\'s Luxury Fragrance · 50ml',
       bundles: {
         '1': { label: '1 Bottle', price: 2999, popular: false, savings: 0 },
         '2': { label: '2 Bottles', price: 5499, popular: true, savings: 499 },
@@ -30,7 +30,7 @@ const DEFAULT_SETTINGS = {
     },
     roseNoir: {
       name: 'AUDORA ROSE NOIR',
-      description: 'Women\'s Luxury Fragrance',
+      description: 'Women\'s Luxury Fragrance · 50ml',
       bundles: {
         '1': { label: '1 Bottle', price: 2999, popular: false, savings: 0 },
         '2': { label: '2 Bottles', price: 5499, popular: true, savings: 499 },
