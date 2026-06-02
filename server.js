@@ -12,9 +12,22 @@ const sessions = new Map();
 const ADMIN_PASSWORD = 'simonoaym';
 const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
-// Files
-const ORDERS_FILE = path.join(__dirname, 'orders.json');
-const SETTINGS_FILE = path.join(__dirname, 'settings.json');
+// ==================== PERSISTENT STORAGE ====================
+// Use Render's persistent disk if available, otherwise use local data folder
+const DATA_DIR = process.env.RENDER_DISK_PATH || path.join(__dirname, 'data');
+
+// Create data directory if it doesn't exist
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  console.log('Created data directory:', DATA_DIR);
+}
+
+const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+
+console.log('Data directory:', DATA_DIR);
+console.log('Orders file:', ORDERS_FILE);
+console.log('Settings file:', SETTINGS_FILE);
 
 // Default settings
 const DEFAULT_SETTINGS = {
@@ -63,41 +76,51 @@ const DEFAULT_SETTINGS = {
   }
 };
 
-// Initialize files
-function initializeFiles() {
-  if (!fs.existsSync(ORDERS_FILE)) {
-    fs.writeFileSync(ORDERS_FILE, JSON.stringify([], null, 2));
-  }
-  if (!fs.existsSync(SETTINGS_FILE)) {
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(DEFAULT_SETTINGS, null, 2));
-  }
-}
-
 // Helper functions
 function getOrders() {
   try {
-    const data = fs.readFileSync(ORDERS_FILE, 'utf8');
-    return JSON.parse(data);
+    if (fs.existsSync(ORDERS_FILE)) {
+      const data = fs.readFileSync(ORDERS_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+    return [];
   } catch (error) {
+    console.error('Error reading orders:', error);
     return [];
   }
 }
 
 function saveOrders(orders) {
-  fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2));
+  try {
+    fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2));
+    console.log('Orders saved successfully. Total:', orders.length);
+  } catch (error) {
+    console.error('Error saving orders:', error);
+  }
 }
 
 function getSettings() {
   try {
-    const data = fs.readFileSync(SETTINGS_FILE, 'utf8');
-    return JSON.parse(data);
+    if (fs.existsSync(SETTINGS_FILE)) {
+      const data = fs.readFileSync(SETTINGS_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+    // If no settings file, create with defaults
+    saveSettings(DEFAULT_SETTINGS);
+    return DEFAULT_SETTINGS;
   } catch (error) {
+    console.error('Error reading settings:', error);
     return DEFAULT_SETTINGS;
   }
 }
 
 function saveSettings(settings) {
-  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+  try {
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+    console.log('Settings saved successfully');
+  } catch (error) {
+    console.error('Error saving settings:', error);
+  }
 }
 
 function addOrder(orderData) {
@@ -130,8 +153,61 @@ function requireAuth(req, res, next) {
   next();
 }
 
+// Initialize sample data only if orders file is empty
+function initializeSampleData() {
+  const orders = getOrders();
+  if (orders.length === 0) {
+    console.log('No orders found. Adding sample data...');
+    const sampleOrders = [
+      {
+        id: 'AUD-LKJHG987',
+        orderId: 'AUD-LKJHG987',
+        product: 'AUDORA BLACK OUD — Men\'s Fragrance',
+        bundle: '2 Bottles',
+        price: 'KSH 5,499',
+        name: 'Brian Ochieng',
+        phone: '+254712345678',
+        location: 'Westlands, Nairobi',
+        source: 'Facebook',
+        country: 'Kenya',
+        timestamp: new Date(Date.now() - 3600000).toISOString(),
+        status: 'new'
+      },
+      {
+        id: 'AUD-MNBVC654',
+        orderId: 'AUD-MNBVC654',
+        product: 'AUDORA ROSE NOIR — Women\'s Fragrance',
+        bundle: '1 Bottle',
+        price: 'KSH 2,999',
+        name: 'Amina Hassan',
+        phone: '+254723456789',
+        location: 'Nyali, Mombasa',
+        source: 'Instagram',
+        country: 'Kenya',
+        timestamp: new Date(Date.now() - 86400000).toISOString(),
+        status: 'confirmed'
+      },
+      {
+        id: 'AUD-POIUY321',
+        orderId: 'AUD-POIUY321',
+        product: 'His and Hers Bundle (BLACK OUD + ROSE NOIR)',
+        bundle: 'His and Hers (2 bottles)',
+        price: 'KSH 5,499',
+        name: 'Peter Kamau',
+        phone: '+254734567890',
+        location: 'Kilimani, Nairobi',
+        source: 'TikTok',
+        country: 'Kenya',
+        timestamp: new Date(Date.now() - 172800000).toISOString(),
+        status: 'delivered'
+      }
+    ];
+    saveOrders(sampleOrders);
+  }
+}
+
 // Initialize
-initializeFiles();
+initializeSampleData();
 
 // ==================== API ROUTES ====================
 
@@ -412,8 +488,18 @@ app.get('/pricing.js', (req, res) => {
   res.send(`
     window.AUDORA_SETTINGS = ${JSON.stringify(settings)};
     window.AUDORA_PRICING = ${JSON.stringify(settings.products)};
-    console.log('AUDORA Pricing loaded:', window.AUDORA_PRICING);
+    console.log('AUDORA Pricing loaded');
   `);
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    dataDir: DATA_DIR,
+    ordersCount: getOrders().length
+  });
 });
 
 // Fallback
@@ -422,5 +508,7 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`AUDORA running on port ${PORT}`);
-  console.log(`Dashboard: http://localhost:${PORT}/dashboard`);
+  console.log(`Data directory: ${DATA_DIR}`);
+  console.log(`Orders file: ${ORDERS_FILE}`);
+  console.log(`Total orders: ${getOrders().length}`);
 });
