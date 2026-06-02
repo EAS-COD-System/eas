@@ -1,6 +1,10 @@
 (function() {
   'use strict';
 
+  // ==================== CONFIGURATION ====================
+  const WHATSAPP_NUMBER = '+971523012934';
+  const WHATSAPP_NUMBER_CLEAN = '971523012934';
+
   // ==================== REVEAL ON SCROLL ====================
   const revealEls = document.querySelectorAll('.reveal');
   if (revealEls.length > 0) {
@@ -25,7 +29,7 @@
     });
   });
 
-  // ==================== BUNDLE SELECTOR ====================
+  // ==================== BUNDLE SELECTOR (Men & Women Pages) ====================
   document.querySelectorAll('.bundle-options').forEach(function(group) {
     group.querySelectorAll('.bundle-option').forEach(function(opt) {
       opt.addEventListener('click', function() {
@@ -55,14 +59,47 @@
     });
   }
 
+  // ==================== HELPER FUNCTION: Submit Order ====================
+  function submitOrder(orderData) {
+    // Save order to backend
+    fetch('/api/create-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...orderData,
+        timestamp: new Date().toISOString(),
+        status: 'new',
+        source: sessionStorage.getItem('trafficSource') || 'Direct',
+        country: 'Kenya'
+      })
+    }).catch(function(err) {
+      console.error('Failed to save order:', err);
+    });
+
+    // Build thank-you page URL with order details
+    var params = new URLSearchParams({
+      product: orderData.product,
+      bundle: orderData.bundle,
+      price: orderData.price,
+      name: orderData.name,
+      phone: orderData.phone,
+      location: orderData.location
+    });
+
+    // Redirect to thank you page
+    window.location.href = '/thank-you?' + params.toString();
+  }
+
   // ==================== ORDER FORM (Men & Women) ====================
   var orderBtn = document.getElementById('order-btn');
   if (orderBtn) {
     orderBtn.addEventListener('click', function(e) {
       e.preventDefault();
+      
       var name = document.getElementById('order-name');
       var phone = document.getElementById('order-phone');
       var location = document.getElementById('order-location');
+      
       var nameVal = name ? name.value.trim() : '';
       var phoneVal = phone ? phone.value.trim() : '';
       var locVal = location ? location.value.trim() : '';
@@ -80,18 +117,15 @@
       var isWomen = document.body.classList.contains('rose-theme');
       var productName = isWomen ? 'AUDORA ROSE NOIR — Women\'s Fragrance' : 'AUDORA BLACK OUD — Men\'s Fragrance';
 
-      var msg = 'Hello AUDORA!\n\n' +
-        'Order:\n' +
-        'Product: ' + productName + '\n' +
-        'Bundle: ' + bundleName + '\n' +
-        'Total: ' + bundlePrice + '\n' +
-        'Name: ' + nameVal + '\n' +
-        'Phone: ' + phoneVal + '\n' +
-        'Location: ' + locVal + '\n\n' +
-        'Please confirm. Thank you!';
-
-      // REPLACE WITH YOUR REAL WHATSAPP NUMBER
-      window.open('https://wa.me/971523012934?text=' + encodeURIComponent(msg), '_blank');
+      // Submit order with redirect to thank-you page
+      submitOrder({
+        product: productName,
+        bundle: bundleName,
+        price: bundlePrice,
+        name: nameVal,
+        phone: phoneVal,
+        location: locVal
+      });
     });
   }
 
@@ -145,16 +179,16 @@
       }
     }
 
-    recipientBtns.h.addEventListener('click', function() { selectRecipient('h'); });
-    recipientBtns.w.addEventListener('click', function() { selectRecipient('w'); });
-    recipientBtns.c.addEventListener('click', function() { selectRecipient('c'); });
+    // Attach click handlers if buttons exist
+    if (recipientBtns.h) recipientBtns.h.addEventListener('click', function() { selectRecipient('h'); });
+    if (recipientBtns.w) recipientBtns.w.addEventListener('click', function() { selectRecipient('w'); });
+    if (recipientBtns.c) recipientBtns.c.addEventListener('click', function() { selectRecipient('c'); });
 
     continueBtn.addEventListener('click', function() {
       if (!selectedRecipient) return;
 
       var isWomen = selectedRecipient === 'w';
       var isCouple = selectedRecipient === 'c';
-      var themeClass = isWomen ? 'rose-theme' : '';
       var accentColor = isWomen ? 'var(--rose-light)' : 'var(--gold-light)';
       var borderColor = isWomen ? 'var(--rose)' : 'var(--gold)';
       var bgSelected = isWomen ? 'rgba(196,137,110,.06)' : 'rgba(201,168,76,.06)';
@@ -252,17 +286,26 @@
             var n = document.getElementById('gift-name').value.trim();
             var p = document.getElementById('gift-phone').value.trim();
             var l = document.getElementById('gift-location').value.trim();
+            
             if (!n || !p || !l) {
               alert('Please fill in all fields.');
               return;
             }
+            
             var sel = step2Content.querySelector('.gift-bundle-opt.selected');
             var bundle = sel ? sel.getAttribute('data-bundle') : (isCouple ? 'His and Hers (2 bottles)' : '2 Bottles');
             var price = sel ? sel.getAttribute('data-price') : 'KSH 5,499';
             var prod = isCouple ? 'His and Hers Bundle (BLACK OUD + ROSE NOIR)' : (isWomen ? 'AUDORA ROSE NOIR — Gift for Her' : 'AUDORA BLACK OUD — Gift for Him');
 
-            var msg = 'Hello AUDORA!\n\nGift Order:\nProduct: ' + prod + '\nBundle: ' + bundle + '\nTotal: ' + price + '\nName: ' + n + '\nPhone: ' + p + '\nLocation: ' + l + '\n\nPlease confirm. Thank you!';
-            window.open('https://wa.me/0971523012934?text=' + encodeURIComponent(msg), '_blank');
+            // Submit order with redirect to thank-you page
+            submitOrder({
+              product: prod,
+              bundle: bundle,
+              price: price,
+              name: n,
+              phone: p,
+              location: l
+            });
           });
         }
 
@@ -270,4 +313,157 @@
       }, 50);
     });
   }
+
+  // ==================== HOME PAGE GIFT TEASER CLICK ====================
+  var giftTeaser = document.querySelector('.gift-teaser');
+  if (giftTeaser) {
+    giftTeaser.addEventListener('click', function(e) {
+      // Track click if pixel is available
+      if (typeof window.trackEvent === 'function') {
+        window.trackEvent('ClickGiftTeaser', { page: 'home' });
+      }
+    });
+  }
+
+  // ==================== CHOICE CARD TRACKING ====================
+  var choiceCards = document.querySelectorAll('.choice-card');
+  choiceCards.forEach(function(card) {
+    card.addEventListener('click', function(e) {
+      var cardName = this.querySelector('.choice-card-name');
+      if (cardName && typeof window.trackEvent === 'function') {
+        window.trackEvent('ClickChoiceCard', { 
+          card: cardName.textContent.trim(),
+          page: 'home'
+        });
+      }
+    });
+  });
+
+  // ==================== NAVIGATION TRACKING ====================
+  var navLinks = document.querySelectorAll('.nav-link');
+  navLinks.forEach(function(link) {
+    link.addEventListener('click', function(e) {
+      if (typeof window.trackEvent === 'function') {
+        window.trackEvent('NavClick', { 
+          link: this.textContent.trim(),
+          href: this.getAttribute('href')
+        });
+      }
+    });
+  });
+
+  // ==================== CTA BUTTON TRACKING ====================
+  var ctaButtons = document.querySelectorAll('.btn-gold, .btn-rose, .btn-gold-outline, .btn-rose-outline');
+  ctaButtons.forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      if (typeof window.trackEvent === 'function') {
+        var btnText = this.textContent.trim().substring(0, 50);
+        window.trackEvent('CTAClick', { 
+          button: btnText,
+          page: window.location.pathname
+        });
+      }
+    });
+  });
+
+  // ==================== STORE TRAFFIC SOURCE ====================
+  (function() {
+    var source = 'Direct';
+    var referrer = document.referrer.toLowerCase();
+    
+    if (referrer.includes('facebook.com') || referrer.includes('fb.com')) {
+      source = 'Facebook';
+    } else if (referrer.includes('instagram.com')) {
+      source = 'Instagram';
+    } else if (referrer.includes('youtube.com')) {
+      source = 'YouTube';
+    } else if (referrer.includes('tiktok.com')) {
+      source = 'TikTok';
+    } else if (referrer.includes('snapchat.com')) {
+      source = 'Snapchat';
+    } else if (referrer.includes('google.com') || referrer.includes('google.co.ke')) {
+      source = 'Google';
+    } else if (referrer) {
+      source = 'Other';
+    }
+
+    // Check for UTM parameters
+    var urlParams = new URLSearchParams(window.location.search);
+    var utmSource = urlParams.get('utm_source') || urlParams.get('source');
+    if (utmSource) {
+      source = utmSource.charAt(0).toUpperCase() + utmSource.slice(1).toLowerCase();
+    }
+
+    sessionStorage.setItem('trafficSource', source);
+    
+    // Track page view with source
+    if (typeof window.trackEvent === 'function') {
+      window.trackEvent('PageView', {
+        page: window.location.pathname,
+        source: source,
+        referrer: document.referrer || 'Direct'
+      });
+    }
+  })();
+
+  // ==================== SCROLL TRACKING ====================
+  (function() {
+    var scrollSections = {
+      'hero': false,
+      'story': false,
+      'benefits': false,
+      'order': false,
+      'reviews': false,
+      'faq': false
+    };
+
+    var sectionElements = {};
+    Object.keys(scrollSections).forEach(function(section) {
+      var el = document.getElementById(section);
+      if (el) {
+        sectionElements[section] = el;
+      }
+    });
+
+    if (Object.keys(sectionElements).length > 0) {
+      window.addEventListener('scroll', function() {
+        Object.keys(sectionElements).forEach(function(section) {
+          if (!scrollSections[section]) {
+            var el = sectionElements[section];
+            var rect = el.getBoundingClientRect();
+            if (rect.top < window.innerHeight * 0.75) {
+              scrollSections[section] = true;
+              if (typeof window.trackEvent === 'function') {
+                window.trackEvent('ScrollToSection', {
+                  section: section,
+                  page: window.location.pathname
+                });
+              }
+            }
+          }
+        });
+      });
+    }
+  })();
+
+  // ==================== TIME ON PAGE TRACKING ====================
+  (function() {
+    var startTime = Date.now();
+    var pagePath = window.location.pathname;
+
+    window.addEventListener('beforeunload', function() {
+      var timeSpent = Math.round((Date.now() - startTime) / 1000);
+      if (typeof window.trackEvent === 'function' && timeSpent > 0) {
+        window.trackEvent('TimeOnPage', {
+          page: pagePath,
+          seconds: timeSpent
+        });
+      }
+    });
+  })();
+
+  console.log('AUDORA Luxury Fragrances — App initialized');
+  console.log('WhatsApp:', WHATSAPP_NUMBER);
+  console.log('Traffic Source:', sessionStorage.getItem('trafficSource'));
+
 })();
