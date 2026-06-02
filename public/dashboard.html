@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AUDORA Dashboard - Order Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Dashboard Styles - Complete professional design */
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface-light: #1a1a1a;
+      --border: #222;
+      --gold: #c9a84c;
+      --gold-light: #e2c27d;
+      --text: #e0e0e0;
+      --text-dim: #777;
+      --green: #22c55e;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --purple: #8b5cf6;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Login Screen */
+    .login-screen {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .login-screen.hidden { display: none; }
+
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 40px;
+      width: 380px;
+      text-align: center;
+    }
+
+    .login-logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 32px;
+      letter-spacing: 6px;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+
+    .login-subtitle {
+      font-size: 10px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 32px;
+    }
+
+    .login-input {
+      width: 100%;
+      background: var(--surface-light);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 16px;
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 16px;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+
+    .login-input:focus {
+      border-color: var(--gold);
+    }
+
+    .login-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #b8912e, var(--gold));
+      color: #0a0a0a;
+      border: none;
+      border-radius: 6px;
+      padding: 14px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .login-btn:hover {
+      filter: brightness(1.1);
+    }
+
+    .login-error {
+      color: var(--red);
+      font-size: 11px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    /* Dashboard Layout */
+    .dashboard {
+      display: none;
+      min-height: 100vh;
+    }
+
+    .dashboard.active { display: flex; }
+
+    .sidebar {
+      width: 260px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      overflow-y: auto;
+    }
+
+    .sidebar-logo {
+      padding: 0 24px 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+
+    .sidebar-logo h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 24px;
+      letter-spacing: 4px;
+      color: var(--gold);
+    }
+
+    .sidebar-nav { padding: 0 12px; }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      color: var(--text-dim);
+      text-decoration: none;
+      border-radius: 6px;
+      margin-bottom: 4px;
+      font-size: 13px;
+      transition: all 0.3s;
+      cursor: pointer;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .sidebar-link:hover,
+    .sidebar-link.active {
+      background: var(--surface-light);
+      color: var(--gold);
+    }
+
+    .sidebar-link .icon {
+      width: 20px;
+      text-align: center;
+      font-size: 16px;
+    }
+
+    .main-content {
+      flex: 1;
+      margin-left: 260px;
+      padding: 32px;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .stat-card-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .stat-card-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 36px;
+      font-weight: 300;
+      color: var(--gold);
+    }
+
+    .stat-card-change {
+      font-size: 11px;
+      margin-top: 4px;
+    }
+
+    .stat-card-change.positive { color: var(--green); }
+    .stat-card-change.negative { color: var(--red); }
+
+    /* Table */
+    .table-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .table-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .table-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 22px;
+      color: var(--text);
+    }
+
+    .table-filters {
+      display: flex;
+      gap: 12px;
+    }
+
+    .filter-select, .filter-input {
+      background: var(--surface-light);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: var(--text);
+      font-size: 12px;
+      font-family: 'Montserrat', sans-serif;
+      outline: none;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      padding: 14px 24px;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      background: var(--surface-light);
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    td {
+      padding: 14px 24px;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+
+    tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .status-new { background: rgba(59, 130, 246, 0.15); color: var(--blue); }
+    .status-confirmed { background: rgba(34, 197, 94, 0.15); color: var(--green); }
+    .status-delivered { background: rgba(139, 92, 246, 0.15); color: var(--purple); }
+
+    .source-badge {
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .source-facebook { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+    .source-instagram { background: rgba(236, 72, 153, 0.2); color: #f472b6; }
+    .source-tiktok { background: rgba(0, 0, 0, 0.3); color: #fff; }
+    .source-youtube { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .source-direct { background: rgba(201, 168, 76, 0.2); color: var(--gold-light); }
+
+    .logout-btn {
+      background: transparent;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: var(--red);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.3s;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .logout-btn:hover {
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      padding: 20px;
+    }
+
+    .page-btn {
+      padding: 8px 14px;
+      background: var(--surface-light);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.3s;
+    }
+
+    .page-btn:hover, .page-btn.active {
+      background: var(--gold);
+      color: var(--bg);
+      border-color: var(--gold);
+    }
+
+    /* Charts Section */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+    }
+
+    .chart-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 18px;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      height: 200px;
+      padding-top: 20px;
+    }
+
+    .bar-item {
+      flex: 1;
+      text-align: center;
+    }
+
+    .bar {
+      width: 100%;
+      background: linear-gradient(180deg, var(--gold), var(--gold-light));
+      border-radius: 4px 4px 0 0;
+      min-height: 4px;
+      transition: height 0.5s ease;
+      margin-bottom: 8px;
+    }
+
+    .bar-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .bar-value {
+      font-size: 12px;
+      color: var(--gold);
+      font-weight: 600;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main-content { margin-left: 0; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Login Screen -->
+  <div class="login-screen" id="loginScreen">
+    <div class="login-card">
+      <div class="login-logo">A U D O R A</div>
+      <div class="login-subtitle">Admin Dashboard</div>
+      <input type="password" class="login-input" id="passwordInput" placeholder="Enter password" autofocus>
+      <button class="login-btn" onclick="login()">Access Dashboard</button>
+      <div class="login-error" id="loginError">Invalid password. Please try again.</div>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="dashboard" id="dashboard">
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <h2>A U D O R A</h2>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="sidebar-link active" onclick="showSection('overview')">
+          <span class="icon">📊</span> Overview
+        </button>
+        <button class="sidebar-link" onclick="showSection('orders')">
+          <span class="icon">📦</span> Orders
+        </button>
+        <button class="sidebar-link" onclick="showSection('analytics')">
+          <span class="icon">📈</span> Analytics
+        </button>
+        <button class="sidebar-link" onclick="logout()">
+          <span class="icon">🚪</span> Logout
+        </button>
+      </nav>
+    </aside>
+
+    <main class="main-content" id="mainContent">
+      <!-- Content will be dynamically loaded -->
+    </main>
+  </div>
+
+  <script src="/pixel.js"></script>
+  <script>
+    // Session management
+    let sessionId = localStorage.getItem('audora_session');
+
+    // Check session on load
+    if (sessionId) {
+      fetch(`/api/check-session?session=${sessionId}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.valid) {
+            showDashboard();
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem('audora_session');
+          sessionId = null;
+        });
+    }
+
+    function login() {
+      const password = document.getElementById('passwordInput').value;
+      
+      fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          sessionId = data.sessionId;
+          localStorage.setItem('audora_session', sessionId);
+          showDashboard();
+          loadDashboardData();
+        } else {
+          document.getElementById('loginError').style.display = 'block';
+        }
+      })
+      .catch(() => {
+        document.getElementById('loginError').style.display = 'block';
+      });
+    }
+
+    function showDashboard() {
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('dashboard').classList.add('active');
+    }
+
+    function logout() {
+      localStorage.removeItem('audora_session');
+      sessionId = null;
+      document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('dashboard').classList.remove('active');
+      document.getElementById('passwordInput').value = '';
+    }
+
+    // Password input enter key
+    document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') login();
+    });
+
+    function showSection(section) {
+      document.querySelectorAll('.sidebar-link').forEach(link => link.classList.remove('active'));
+      event.target.closest('.sidebar-link').classList.add('active');
+
+      switch(section) {
+        case 'overview':
+          loadOverview();
+          break;
+        case 'orders':
+          loadOrders();
+          break;
+        case 'analytics':
+          loadAnalytics();
+          break;
+      }
+    }
+
+    async function apiCall(endpoint) {
+      const response = await fetch(`/api${endpoint}`, {
+        headers: { 'x-session-id': sessionId }
+      });
+      if (response.status === 401) {
+        logout();
+        throw new Error('Unauthorized');
+      }
+      return response.json();
+    }
+
+    async function loadDashboardData() {
+      loadOverview();
+    }
+
+    async function loadOverview() {
+      const stats = await apiCall('/stats');
+      
+      document.getElementById('mainContent').innerHTML = `
+        <h1 style="font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;margin-bottom:32px;color:var(--text);">
+          Dashboard <span style="color:var(--gold);font-style:italic;">Overview</span>
+        </h1>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-card-label">Today's Orders</div>
+            <div class="stat-card-value">${stats.today}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Yesterday</div>
+            <div class="stat-card-value">${stats.yesterday}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">This Week</div>
+            <div class="stat-card-value">${stats.thisWeek}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Last Week</div>
+            <div class="stat-card-value">${stats.lastWeek}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Last 30 Days</div>
+            <div class="stat-card-value">${stats.last30Days}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Last 60 Days</div>
+            <div class="stat-card-value">${stats.last60Days}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Total Orders</div>
+            <div class="stat-card-value">${stats.total}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Total Revenue (KES)</div>
+            <div class="stat-card-value">${stats.totalRevenue.toLocaleString()}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Avg Order Value</div>
+            <div class="stat-card-value">${stats.averageOrderValue.toLocaleString()}</div>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-title">Orders by Product</div>
+            <div class="bar-chart">
+              ${Object.entries(stats.byProduct).map(([product, count]) => `
+                <div class="bar-item">
+                  <div class="bar-value">${count}</div>
+                  <div class="bar" style="height:${(count / Math.max(...Object.values(stats.byProduct))) * 160}px;"></div>
+                  <div class="bar-label">${product.substring(0, 12)}...</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-title">Orders by Source</div>
+            <div class="bar-chart">
+              ${Object.entries(stats.bySource).map(([source, count]) => `
+                <div class="bar-item">
+                  <div class="bar-value">${count}</div>
+                  <div class="bar" style="height:${(count / Math.max(...Object.values(stats.bySource))) * 160}px;background:linear-gradient(180deg,var(--purple),var(--blue));"></div>
+                  <div class="bar-label">${source}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadOrders() {
+      const data = await apiCall('/orders');
+      
+      document.getElementById('mainContent').innerHTML = `
+        <h1 style="font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;margin-bottom:32px;color:var(--text);">
+          Orders <span style="color:var(--gold);font-style:italic;">Management</span>
+        </h1>
+
+        <div class="table-container">
+          <div class="table-header">
+            <span class="table-title">Recent Orders</span>
+            <div class="table-filters">
+              <select class="filter-select" onchange="filterOrders()" id="filterProduct">
+                <option value="">All Products</option>
+                <option value="BLACK OUD">BLACK OUD</option>
+                <option value="ROSE NOIR">ROSE NOIR</option>
+                <option value="Gift">Gift</option>
+              </select>
+              <select class="filter-select" onchange="filterOrders()" id="filterSource">
+                <option value="">All Sources</option>
+                <option value="Facebook">Facebook</option>
+                <option value="Instagram">Instagram</option>
+                <option value="TikTok">TikTok</option>
+                <option value="YouTube">YouTube</option>
+                <option value="Direct">Direct</option>
+              </select>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>Phone</th>
+                <th>Location</th>
+                <th>Product</th>
+                <th>Bundle</th>
+                <th>Price</th>
+                <th>Source</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody">
+              ${data.orders.map(order => `
+                <tr>
+                  <td style="font-family:monospace;color:var(--gold);">${order.orderId || order.id}</td>
+                  <td>${new Date(order.timestamp).toLocaleDateString('en-KE', {day:'numeric',month:'short',year:'numeric'})}</td>
+                  <td>${order.name}</td>
+                  <td>${order.phone}</td>
+                  <td>${order.location}</td>
+                  <td style="color:var(--gold-light);">${order.product}</td>
+                  <td>${order.bundle}</td>
+                  <td style="color:var(--gold);">${order.price}</td>
+                  <td><span class="source-badge source-${order.source.toLowerCase()}">${order.source}</span></td>
+                  <td><span class="status-badge status-${order.status}">${order.status}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="pagination">
+            ${Array.from({length: data.pagination.totalPages}, (_, i) => `
+              <button class="page-btn ${i + 1 === data.pagination.currentPage ? 'active' : ''}" 
+                      onclick="loadOrdersPage(${i + 1})">${i + 1}</button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadAnalytics() {
+      const stats = await apiCall('/stats');
+      
+      document.getElementById('mainContent').innerHTML = `
+        <h1 style="font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;margin-bottom:32px;color:var(--text);">
+          Analytics <span style="color:var(--gold);font-style:italic;">& Insights</span>
+        </h1>
+
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-title">Revenue by Product</div>
+            <div class="bar-chart">
+              ${Object.entries(stats.byProduct).map(([product, count]) => `
+                <div class="bar-item">
+                  <div class="bar-value">${count}</div>
+                  <div class="bar" style="height:${(count / Math.max(...Object.values(stats.byProduct))) * 160}px;"></div>
+                  <div class="bar-label">${product.substring(0, 10)}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-title">Traffic Sources</div>
+            <div class="bar-chart">
+              ${Object.entries(stats.bySource).map(([source, count]) => `
+                <div class="bar-item">
+                  <div class="bar-value">${count}</div>
+                  <div class="bar" style="height:${(count / Math.max(...Object.values(stats.bySource))) * 160}px;background:linear-gradient(180deg,var(--rose-light),var(--purple));"></div>
+                  <div class="bar-label">${source}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-title">Orders by Country</div>
+            <div class="bar-chart">
+              ${Object.entries(stats.byCountry).map(([country, count]) => `
+                <div class="bar-item">
+                  <div class="bar-value">${count}</div>
+                  <div class="bar" style="height:${(count / Math.max(...Object.values(stats.byCountry))) * 160}px;background:linear-gradient(180deg,var(--green),var(--blue));"></div>
+                  <div class="bar-label">${country}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function filterOrders() {
+      const product = document.getElementById('filterProduct').value;
+      const source = document.getElementById('filterSource').value;
+      const params = new URLSearchParams();
+      if (product) params.append('product', product);
+      if (source) params.append('source', source);
+      
+      const data = await apiCall(`/orders?${params.toString()}`);
+      
+      document.getElementById('ordersTableBody').innerHTML = data.orders.map(order => `
+        <tr>
+          <td style="font-family:monospace;color:var(--gold);">${order.orderId || order.id}</td>
+          <td>${new Date(order.timestamp).toLocaleDateString('en-KE', {day:'numeric',month:'short',year:'numeric'})}</td>
+          <td>${order.name}</td>
+          <td>${order.phone}</td>
+          <td>${order.location}</td>
+          <td style="color:var(--gold-light);">${order.product}</td>
+          <td>${order.bundle}</td>
+          <td style="color:var(--gold);">${order.price}</td>
+          <td><span class="source-badge source-${order.source.toLowerCase()}">${order.source}</span></td>
+          <td><span class="status-badge status-${order.status}">${order.status}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadOrdersPage(page) {
+      const data = await apiCall(`/orders?page=${page}`);
+      // Update table and pagination
+      loadOrders();
+    }
+  </script>
+</body>
+</html>
