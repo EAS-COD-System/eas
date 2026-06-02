@@ -91,7 +91,7 @@
         'Please confirm. Thank you!';
 
       // REPLACE WITH YOUR REAL WHATSAPP NUMBER
-      window.open('https://wa.me/254700000000?text=' + encodeURIComponent(msg), '_blank');
+      window.open('https://wa.me/971523012934?text=' + encodeURIComponent(msg), '_blank');
     });
   }
 
@@ -262,7 +262,7 @@
             var prod = isCouple ? 'His and Hers Bundle (BLACK OUD + ROSE NOIR)' : (isWomen ? 'AUDORA ROSE NOIR — Gift for Her' : 'AUDORA BLACK OUD — Gift for Him');
 
             var msg = 'Hello AUDORA!\n\nGift Order:\nProduct: ' + prod + '\nBundle: ' + bundle + '\nTotal: ' + price + '\nName: ' + n + '\nPhone: ' + p + '\nLocation: ' + l + '\n\nPlease confirm. Thank you!';
-            window.open('https://wa.me/254700000000?text=' + encodeURIComponent(msg), '_blank');
+            window.open('https://wa.me/0971523012934?text=' + encodeURIComponent(msg), '_blank');
           });
         }
 
